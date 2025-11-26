@@ -1,5 +1,11 @@
 # @cossistant/core
 
+## 0.0.25
+
+### Patch Changes
+
+- 11f48ba: Bug fixes and improvements
+
 ## 0.0.24
 
 ### Patch Changes

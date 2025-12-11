@@ -14,7 +14,7 @@
     "./timezones": "./src/timezones.ts"
   },
   "dependencies": {
-    "next": "15.5.3"
+    "next": "15.5.8"
   },
   "devDependencies": {
     "@cossistant/typescript-config": "workspace:*",

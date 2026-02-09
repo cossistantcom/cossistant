@@ -54,7 +54,10 @@ export default function Home() {
 							a React component that generates unique avatar faces from any
 							string. zero dependencies. works with Next.js, Vite, Remix.
 						</p>
-						<div className="mt-3">
+						<div className="mt-3 flex items-center justify-between gap-3">
+							<span className="text-[var(--muted-foreground)] text-sm">
+								let ai implement facehash?
+							</span>
 							<CopyAiPromptButton />
 						</div>
 					</section>

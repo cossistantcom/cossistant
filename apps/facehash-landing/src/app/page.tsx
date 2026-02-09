@@ -2,6 +2,7 @@ import { Github } from "lucide-react";
 import { ApiRouteExample } from "@/components/api-route-example";
 import { AvatarGenerator } from "@/components/avatar-generator";
 import { CodeExample } from "@/components/code-example";
+import { CopyAiPromptButton } from "@/components/copy-ai-prompt";
 import { CossistantLogo } from "@/components/cossistant-logo";
 import { FloatingAvatars } from "@/components/floating-avatars";
 import { InlineAvatar } from "@/components/inline-avatar";
@@ -53,6 +54,9 @@ export default function Home() {
 							a React component that generates unique avatar faces from any
 							string. zero dependencies. works with Next.js, Vite, Remix.
 						</p>
+						<div className="mt-3">
+							<CopyAiPromptButton />
+						</div>
 					</section>
 
 					{/* Install */}

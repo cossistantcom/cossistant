@@ -82,7 +82,7 @@ const main = async () => {
 		`\`npm install ${packageName}@${version}\``,
 	].join("\n");
 
-	console.log(body);
+	// console.log(body);
 };
 
 main().catch((error) => {

@@ -27,42 +27,67 @@ export async function executeWaterfall(
   const config = { ...DEFAULT_WATERFALL_CONFIG, ...ctx.config };
 
   // L0: Exact Match (~5ms)
-  const exactMatch = findExactMatch(
-    ctx.query,
-    ctx.faqEntries,
-    config.exactMatchThreshold,
-  );
-  if (exactMatch) return exactMatch;
+  try {
+    const exactMatch = findExactMatch(
+      ctx.query,
+      ctx.faqEntries,
+      config.exactMatchThreshold,
+    );
+    if (exactMatch) return exactMatch;
+  } catch (err) {
+    console.warn("[waterfall] L0 exact match failed, falling through:", err);
+  }
 
   // L1: Semantic Cache (~8ms)
   if (ctx.queryEmbedding && ctx.semanticCache) {
-    const cached = await checkSemanticCache(
-      ctx.queryEmbedding,
-      ctx.semanticCache,
-      config.semanticCacheThreshold,
-    );
-    if (cached) return cached;
+    try {
+      const cached = await checkSemanticCache(
+        ctx.queryEmbedding,
+        ctx.semanticCache,
+        config.semanticCacheThreshold,
+      );
+      if (cached) return cached;
+    } catch (err) {
+      console.warn(
+        "[waterfall] L1 semantic cache failed, falling through:",
+        err,
+      );
+    }
   }
 
   // L2: Vector Search (~15ms)
   if (ctx.queryEmbedding && ctx.vectorSearch) {
-    const vectorResult = await ctx.vectorSearch(
-      ctx.queryEmbedding,
-      config.vectorSearchThreshold,
-    );
-    if (
-      vectorResult &&
-      vectorResult.confidence >= config.vectorSearchThreshold
-    ) {
-      return vectorResult;
+    try {
+      const vectorResult = await ctx.vectorSearch(
+        ctx.queryEmbedding,
+        config.vectorSearchThreshold,
+      );
+      if (
+        vectorResult &&
+        vectorResult.confidence >= config.vectorSearchThreshold
+      ) {
+        return vectorResult;
+      }
+    } catch (err) {
+      console.warn(
+        "[waterfall] L2 vector search failed, falling through:",
+        err,
+      );
     }
   }
 
   // L3: RAG Generation (~500-1500ms)
   if (ctx.ragGenerate) {
-    const ragResult = await ctx.ragGenerate(ctx.query, []);
-    if (ragResult && ragResult.confidence >= config.ragConfidenceThreshold) {
-      return ragResult;
+    try {
+      const ragResult = await ctx.ragGenerate(ctx.query, []);
+      if (ragResult && ragResult.confidence >= config.ragConfidenceThreshold) {
+        return ragResult;
+      }
+    } catch (err) {
+      console.warn(
+        "[waterfall] L3 RAG generation failed, falling through:",
+        err,
+      );
     }
   }
 

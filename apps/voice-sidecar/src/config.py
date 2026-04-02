@@ -11,6 +11,17 @@ class Settings(BaseSettings):
     voice_max_duration_seconds: int = 900  # 15 min max
     voice_max_sessions_per_day: int = 3
 
+    # Auth
+    voice_api_key: str = ""
+
+    # CORS
+    allowed_origins: str = "http://localhost:3000"
+
+    # Session limits
+    max_concurrent_sessions: int = 100
+    session_ttl_seconds: int = 1800  # 30 min
+    max_voice_duration_seconds: int = 300  # 5 min
+
     class Config:
         env_file = ".env"
 

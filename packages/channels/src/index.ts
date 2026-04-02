@@ -7,4 +7,8 @@ export type {
   ChannelMessage,
   ChannelResponse,
   ChannelType,
+  SlackChannelConfig,
+  TelegramChannelConfig,
+  DiscordChannelConfig,
+  IntercomChannelConfig,
 } from "./types";

@@ -15,7 +15,8 @@ const INJECTION_PATTERNS = [
 ];
 
 export function sanitizeDossierContent(content: string): string {
-  let sanitized = content;
+  // Normalize Unicode before pattern checks (consistent with guards package)
+  let sanitized = content.normalize("NFKC");
   for (const pattern of INJECTION_PATTERNS) {
     sanitized = sanitized.replace(pattern, "[REDACTED]");
   }

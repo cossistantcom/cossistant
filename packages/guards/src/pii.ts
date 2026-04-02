@@ -5,7 +5,7 @@ const PII_PATTERNS: Array<{
 }> = [
   {
     name: "email",
-    pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+    pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
     replacement: "[EMAIL]",
   },
   {
@@ -25,12 +25,12 @@ const PII_PATTERNS: Array<{
   },
   {
     name: "iban",
-    pattern: /\b[A-Z]{2}\d{2}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{0,2}\b/gi,
+    pattern: /\b[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7}([A-Z0-9]?){0,16}\b/g,
     replacement: "[IBAN]",
   },
   {
     name: "passport",
-    pattern: /\b[A-Z]{1,2}\d{6,9}\b/g,
+    pattern: /(?<![#\w-])\b[A-Z]{1,2}\d{6,9}\b(?![\w-])/g,
     replacement: "[PASSPORT]",
   },
   {

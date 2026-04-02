@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import type { ChannelAdapter, ChannelMessage, ChannelResponse } from "../types";
 
 interface IntercomWebhook {
@@ -25,7 +26,10 @@ interface IntercomWebhook {
 export class IntercomAdapter implements ChannelAdapter {
   channelType = "intercom" as const;
 
-  constructor(private apiKey: string) {}
+  constructor(
+    private apiKey: string,
+    private webhookSecret?: string,
+  ) {}
 
   parseIncoming(raw: unknown): ChannelMessage | null {
     const webhook = raw as IntercomWebhook;
@@ -72,9 +76,21 @@ export class IntercomAdapter implements ChannelAdapter {
     return { body: response.content, message_type: "comment" };
   }
 
-  validateWebhook(headers: Record<string, string>, _body: string): boolean {
-    // Intercom uses hub signature — basic check
-    return !!headers["x-hub-signature"];
+  validateWebhook(headers: Record<string, string>, body: string): boolean {
+    const hubSignature = headers["x-hub-signature"];
+    if (!hubSignature) return false;
+    if (!this.webhookSecret) return true; // presence-only check when no secret configured
+
+    const expected =
+      "sha256=" +
+      crypto
+        .createHmac("sha256", this.webhookSecret)
+        .update(body)
+        .digest("hex");
+    const expectedBuf = Buffer.from(expected);
+    const receivedBuf = Buffer.from(hubSignature);
+    if (expectedBuf.length !== receivedBuf.length) return false;
+    return crypto.timingSafeEqual(expectedBuf, receivedBuf);
   }
 
   private stripHtml(html: string): string {

@@ -4,6 +4,15 @@ const ABUSE_PATTERNS = [
   /\b(fuck|shit|damn|ass|bitch|bastard)\b/i,
   /\b(idiot|stupid|moron|dumb|useless)\b/i,
   /\b(kill|die|hate)\s+(you|this|it)\b/i,
+  // Arabic profanity and transliterations (UAE product)
+  /\b(kuss|kos|kuss\s*ummak|kos\s*ommak)\b/i,
+  /\b(ya7mar|ya\s*7mar|yakhreb\s*beitak)\b/i,
+  /\b(ibn\s*el\s*(sharmouta|kalb|manyak))\b/i,
+  /\b(sharmouta|sharmuta)\b/i,
+  /\b(manyak|maniak)\b/i,
+  /[\u0643\u0642][\u0633\u0635]/, // كس / كق — Arabic script variants
+  /\u062D\u0645\u0627\u0631/, // حمار (donkey/insult)
+  /\u0643\u0644\u0628/, // كلب (dog/insult)
 ];
 
 const FRUSTRATION_SIGNALS = [
@@ -24,7 +33,7 @@ export function checkModeration(content: string): GuardResult {
     threats.push({
       type: "abuse",
       description: `Abusive language detected (${abuseCount} patterns)`,
-      confidence: Math.min(0.5 + abuseCount * 0.15, 0.95),
+      confidence: Math.max(Math.min(0.5 + abuseCount * 0.15, 0.95), 0.75),
     });
   }
 

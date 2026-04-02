@@ -59,11 +59,17 @@ const PII_PATTERNS = [
 ];
 
 function checkInput(query: string): { passed: boolean; reason?: string } {
+  if (!query || query.length === 0) return { passed: true };
+  // Normalize Unicode before checking (matches guards/sanitizer behavior)
+  const normalized = query.normalize("NFKC");
+  // Limit scan window to prevent ReDoS on very long inputs
+  const scanTarget =
+    normalized.length > 10_000 ? normalized.slice(0, 10_000) : normalized;
   for (const pattern of INJECTION_PATTERNS) {
-    if (pattern.test(query)) return { passed: false, reason: "injection" };
+    if (pattern.test(scanTarget)) return { passed: false, reason: "injection" };
   }
   for (const pattern of PII_PATTERNS) {
-    if (pattern.test(query)) return { passed: false, reason: "pii" };
+    if (pattern.test(scanTarget)) return { passed: false, reason: "pii" };
   }
   return { passed: true };
 }

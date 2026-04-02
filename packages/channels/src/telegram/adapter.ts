@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import type { ChannelAdapter, ChannelMessage, ChannelResponse } from "../types";
 
 interface TelegramUpdate {
@@ -21,7 +22,10 @@ interface TelegramUpdate {
 export class TelegramAdapter implements ChannelAdapter {
   channelType = "telegram" as const;
 
-  constructor(private botToken: string) {}
+  constructor(
+    private botToken: string,
+    private webhookSecret?: string,
+  ) {}
 
   parseIncoming(raw: unknown): ChannelMessage | null {
     const update = raw as TelegramUpdate;
@@ -48,9 +52,14 @@ export class TelegramAdapter implements ChannelAdapter {
     return { method: "sendMessage", text: response.content };
   }
 
-  validateWebhook(_headers: Record<string, string>, _body: string): boolean {
-    // Telegram uses secret_token in webhook URL — validated at route level
-    return true;
+  validateWebhook(headers: Record<string, string>, _body: string): boolean {
+    if (!this.webhookSecret) return true;
+    const token = headers["x-telegram-bot-api-secret-token"];
+    if (!token) return false;
+    const expected = Buffer.from(this.webhookSecret);
+    const received = Buffer.from(token);
+    if (expected.length !== received.length) return false;
+    return timingSafeEqual(expected, received);
   }
 
   async sendMessage(chatId: number, text: string): Promise<void> {

@@ -28,3 +28,23 @@ export interface ChannelAdapter {
   formatOutgoing(response: ChannelResponse): unknown;
   validateWebhook(headers: Record<string, string>, body: string): boolean;
 }
+
+export interface SlackChannelConfig {
+  botToken: string;
+  signingSecret: string;
+}
+
+export interface TelegramChannelConfig {
+  botToken: string;
+  webhookSecret?: string;
+}
+
+export interface DiscordChannelConfig {
+  botToken: string;
+  publicKey: string;
+}
+
+export interface IntercomChannelConfig {
+  apiKey: string;
+  webhookSecret?: string;
+}

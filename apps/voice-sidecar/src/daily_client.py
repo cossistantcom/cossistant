@@ -1,6 +1,11 @@
 """Daily.co WebRTC room management."""
 
+import logging
+import time
+
 import httpx
+
+logger = logging.getLogger(__name__)
 
 
 async def create_daily_room(api_key: str) -> dict:
@@ -14,12 +19,13 @@ async def create_daily_room(api_key: str) -> dict:
                     "max_participants": 2,
                     "enable_chat": False,
                     "enable_screenshare": False,
-                    "exp": 3600,  # 1 hour expiry
+                    "exp": int(time.time()) + 3600,  # epoch timestamp, 1 hour from now
                 },
             },
         )
         resp.raise_for_status()
         room = resp.json()
+        logger.info("Created Daily.co room: %s", room["name"])
 
     token = await _create_token(api_key, room["name"])
 
@@ -39,7 +45,7 @@ async def _create_token(api_key: str, room_name: str) -> str:
                 "properties": {
                     "room_name": room_name,
                     "is_owner": False,
-                    "exp": 3600,
+                    "exp": int(time.time()) + 3600,  # epoch timestamp, 1 hour from now
                 },
             },
         )

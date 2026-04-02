@@ -12,6 +12,7 @@ interface RateBucket {
 
 // In-memory rate limiter (use Redis in production)
 const buckets = new Map<string, RateBucket>();
+const MAX_BUCKETS = 10_000;
 
 interface RateLimitConfig {
   maxRequests: number;
@@ -39,6 +40,12 @@ export function checkRateLimit(
     buckets.set(key, bucket);
   }
 
+  // Evict oldest entries if at capacity (before inserting new bucket)
+  if (buckets.size >= MAX_BUCKETS) {
+    const oldest = buckets.keys().next().value;
+    if (oldest !== undefined) buckets.delete(oldest);
+  }
+
   bucket.count++;
   const allowed = bucket.count <= config.maxRequests;
   const remaining = Math.max(0, config.maxRequests - bucket.count);
@@ -46,8 +53,8 @@ export function checkRateLimit(
   return { allowed, remaining, resetAt: bucket.resetAt };
 }
 
-// Cleanup expired buckets periodically
-setInterval(() => {
+// Cleanup expired buckets every 60 seconds
+export const cleanupTimer = setInterval(() => {
   const now = Date.now();
   for (const [key, bucket] of buckets) {
     if (now >= bucket.resetAt) {
@@ -55,3 +62,7 @@ setInterval(() => {
     }
   }
 }, 60_000);
+
+export function stopRateLimiterCleanup(): void {
+  clearInterval(cleanupTimer);
+}

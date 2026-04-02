@@ -52,13 +52,23 @@ async function flushBuffer(): Promise<void> {
   }
 }
 
-export async function shutdownAuditLogger(): Promise<void> {
+export function stopAuditLogger(): void {
   if (flushTimer) {
     clearInterval(flushTimer);
     flushTimer = null;
   }
+}
+
+export async function shutdownAuditLogger(): Promise<void> {
+  stopAuditLogger();
   await flushBuffer();
 }
+
+export const auditLoggerDisposable = {
+  [Symbol.dispose](): void {
+    stopAuditLogger();
+  },
+};
 
 // Convenience helpers for common audit events
 export const AuditActions = {

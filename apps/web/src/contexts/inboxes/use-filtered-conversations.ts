@@ -1,5 +1,5 @@
 import type { RouterOutputs } from "@api/trpc/types";
-import { ConversationStatus } from "@cossistant/types";
+import { ConversationStatus } from "@plasma/types";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo } from "react";
 import {

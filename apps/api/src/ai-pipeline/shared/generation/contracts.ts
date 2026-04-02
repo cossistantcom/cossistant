@@ -1,7 +1,7 @@
 import type { Database } from "@api/db";
 import type { AiAgentSelect } from "@api/db/schema/ai-agent";
 import type { ConversationSelect } from "@api/db/schema/conversation";
-import type { AiAgentToolId } from "@cossistant/types";
+import type { AiAgentToolId } from "@plasma/types";
 import type {
 	ConversationState,
 	SegmentedConversationEntry,

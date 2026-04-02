@@ -1,6 +1,6 @@
-import { formatMessagePreview } from "@cossistant/tiny-markdown/utils";
-import type { Conversation } from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+import { formatMessagePreview } from "@plasma/tiny-markdown/utils";
+import type { Conversation } from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import { useMemo } from "react";
 
 import { useSupport } from "../provider";

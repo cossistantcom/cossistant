@@ -1,4 +1,4 @@
-import type { Mention, MentionType } from "@cossistant/tiny-markdown";
+import type { Mention, MentionType } from "@plasma/tiny-markdown";
 import { useCallback, useMemo } from "react";
 
 export type MentionableEntityType =

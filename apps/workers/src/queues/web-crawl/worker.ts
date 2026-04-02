@@ -10,12 +10,12 @@ import {
 import { getWebsiteById } from "@api/db/queries/website";
 import { getPlanForWebsite } from "@api/lib/plans/access";
 import { type CrawlStatus, FirecrawlService } from "@api/services/firecrawl";
-import { QUEUE_NAMES, type WebCrawlJobData } from "@cossistant/jobs";
+import { QUEUE_NAMES, type WebCrawlJobData } from "@plasma/jobs";
 import {
 	createRedisConnection,
 	getSafeRedisUrl,
 	type RedisOptions,
-} from "@cossistant/redis";
+} from "@plasma/redis";
 import { db } from "@workers/db";
 import { env } from "@workers/env";
 import { emitToWebsite } from "@workers/realtime";

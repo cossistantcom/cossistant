@@ -1,6 +1,6 @@
 "use client";
 
-import type { KnowledgeClarificationQuestionInputMode } from "@cossistant/types";
+import type { KnowledgeClarificationQuestionInputMode } from "@plasma/types";
 import { LoaderCircleIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

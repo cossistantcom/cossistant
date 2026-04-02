@@ -1,6 +1,6 @@
 import type { RouterOutputs } from "@api/trpc/types";
-import type { AvailableAIAgent } from "@cossistant/types";
-import { SenderType } from "@cossistant/types";
+import type { AvailableAIAgent } from "@plasma/types";
+import { SenderType } from "@plasma/types";
 import { Avatar } from "@/components/ui/avatar";
 import { Logo } from "@/components/ui/logo";
 import type { ConversationHeader } from "@/contexts/inboxes";

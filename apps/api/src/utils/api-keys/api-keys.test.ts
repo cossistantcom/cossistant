@@ -5,7 +5,7 @@ const APIKeyType = {
 	PUBLIC: "public",
 } as const;
 
-mock.module("@cossistant/types", () => ({
+mock.module("@plasma/types", () => ({
 	APIKeyType,
 }));
 

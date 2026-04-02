@@ -1,4 +1,4 @@
-import type { IdentifyContactResponse } from "@cossistant/types/api/contact";
+import type { IdentifyContactResponse } from "@plasma/types/api/contact";
 import type {
 	CreateConversationRequestBody,
 	CreateConversationResponseBody,
@@ -13,21 +13,21 @@ import type {
 	SetConversationTypingResponseBody,
 	SubmitConversationRatingRequestBody,
 	SubmitConversationRatingResponseBody,
-} from "@cossistant/types/api/conversation";
+} from "@plasma/types/api/conversation";
 import type {
 	SubmitFeedbackRequest,
 	SubmitFeedbackResponse,
-} from "@cossistant/types/api/feedback";
+} from "@plasma/types/api/feedback";
 import type {
 	GetConversationTimelineItemsRequest,
 	GetConversationTimelineItemsResponse,
 	SendTimelineItemRequest,
 	SendTimelineItemResponse,
-} from "@cossistant/types/api/timeline-item";
+} from "@plasma/types/api/timeline-item";
 import type {
 	GenerateUploadUrlRequest,
 	GenerateUploadUrlResponse,
-} from "@cossistant/types/api/upload";
+} from "@plasma/types/api/upload";
 import { logger } from "./logger";
 import { resolvePublicKey } from "./resolve-public-key";
 import {
@@ -53,7 +53,7 @@ import {
 	setVisitorId,
 } from "./visitor-tracker";
 
-const VISITOR_SESSION_STORAGE_KEY_PREFIX = "cossistant:visitor-session:";
+const VISITOR_SESSION_STORAGE_KEY_PREFIX = "plasma:visitor-session:";
 
 type CollectedVisitorData = Awaited<ReturnType<typeof collectVisitorData>>;
 

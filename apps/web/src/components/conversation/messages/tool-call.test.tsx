@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ToolCall } from "./tool-call";

@@ -1,5 +1,5 @@
 {
-  "name": "@cossistant/core",
+  "name": "@plasma/core",
   "type": "module",
   "version": "0.1.2",
   "private": false,
@@ -29,8 +29,8 @@
     "directory": "dist"
   },
   "devDependencies": {
-    "@cossistant/typescript-config": "workspace:*",
-    "@cossistant/types": "workspace:*"
+    "@plasma/typescript-config": "workspace:*",
+    "@plasma/types": "workspace:*"
   },
   "dependencies": {
     "@hono/zod-openapi": "^1.1.0",

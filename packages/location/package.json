@@ -1,5 +1,5 @@
 {
-  "name": "@cossistant/location",
+  "name": "@plasma/location",
   "version": "0.0.6",
   "main": "src/index.ts",
   "private": true,
@@ -17,7 +17,7 @@
     "next": "15.5.9"
   },
   "devDependencies": {
-    "@cossistant/typescript-config": "workspace:*",
+    "@plasma/typescript-config": "workspace:*",
     "typescript": "^5.9.2"
   },
   "scripts": {

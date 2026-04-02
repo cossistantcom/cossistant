@@ -4,7 +4,7 @@ import {
 	type VisitorCurrentPage,
 	WebsiteInstallationTarget,
 	WebsiteStatus,
-} from "@cossistant/types";
+} from "@plasma/types";
 import {
 	type InferInsertModel,
 	type InferSelectModel,

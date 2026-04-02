@@ -1,4 +1,4 @@
-import type { Mention } from "@cossistant/tiny-markdown";
+import type { Mention } from "@plasma/tiny-markdown";
 
 /**
  * Display format for mentions in textarea: @Name followed by zero-width space

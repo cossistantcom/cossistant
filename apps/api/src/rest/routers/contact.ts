@@ -39,7 +39,7 @@ import {
 	updateContactMetadataRequestSchema,
 	updateContactOrganizationRequestSchema,
 	updateContactRequestSchema,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import { protectedPublicApiKeyMiddleware } from "../middleware";
 import type { RestContext } from "../types";

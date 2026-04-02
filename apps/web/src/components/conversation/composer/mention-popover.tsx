@@ -1,6 +1,6 @@
 "use client";
 
-import type { CaretCoordinates, Mention } from "@cossistant/tiny-markdown";
+import type { CaretCoordinates, Mention } from "@plasma/tiny-markdown";
 import {
 	useCallback,
 	useEffect,

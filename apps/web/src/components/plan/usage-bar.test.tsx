@@ -34,7 +34,7 @@ describe("UsageBar", () => {
 	it("switches to limit-reached styling at the limit", () => {
 		const html = renderUsageBar({ current: 100, limit: 100 });
 
-		expect(html).toContain("text-cossistant-orange");
+		expect(html).toContain("text-plasma-orange");
 	});
 
 	it("does not render the meter for unlimited usage", () => {

@@ -120,7 +120,7 @@ export function DocsTableOfContents({
 				>
 					{item.url === `#${activeHeading}` && (
 						<motion.div className="-left-7 absolute" layoutId="logo">
-							<Logo className="size-4 text-cossistant-orange" />
+							<Logo className="size-4 text-plasma-orange" />
 						</motion.div>
 					)}
 					{item.title}

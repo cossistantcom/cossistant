@@ -16,7 +16,7 @@ export function getNextVersion(
 				: "0.0.1";
 	}
 
-	// Extract version from tag like "@cossistant/react@0.0.26"
+	// Extract version from tag like "@plasma/react@0.0.26"
 	const match = lastTag.match(VERSION_REGEX);
 	if (!match) {
 		return "0.0.1";

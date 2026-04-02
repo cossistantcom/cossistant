@@ -1,4 +1,4 @@
-import type { ConversationHeader } from "@cossistant/types";
+import type { ConversationHeader } from "@plasma/types";
 import {
 	CATEGORY_LABELS,
 	type CategoryType,

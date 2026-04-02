@@ -4,7 +4,7 @@ import {
 	type SubmitOpenSourceProgramApplicationRequest,
 	submitOpenSourceProgramApplicationRequestSchema,
 	submitOpenSourceProgramApplicationResponseSchema,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "../init";
 

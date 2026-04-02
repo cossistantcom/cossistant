@@ -250,7 +250,7 @@ export function TeamInviteModal({
 
 					{atSeatLimit && (
 						<div className="flex items-center justify-between gap-6 text-xs">
-							<p className="text-cossistant-orange">
+							<p className="text-plasma-orange">
 								You've reached your seat limit.
 							</p>
 							<Button
@@ -295,7 +295,7 @@ export function TeamInviteModal({
 
 					{hasPlanLimitResult && !atSeatLimit && (
 						<div className="flex items-center justify-between gap-3">
-							<p className="text-cossistant-orange text-xs">
+							<p className="text-plasma-orange text-xs">
 								Some invites were blocked by your plan limit.
 							</p>
 							<Button

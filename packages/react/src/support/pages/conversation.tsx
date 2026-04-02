@@ -1,5 +1,5 @@
-import { ConversationStatus } from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+import { ConversationStatus } from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import { type ReactElement, useEffect, useMemo, useRef, useState } from "react";
 import { useStoreSelector } from "../../hooks/private/store/use-store-selector";
 import { useConversationPage } from "../../hooks/use-conversation-page";

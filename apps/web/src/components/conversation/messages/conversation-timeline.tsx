@@ -1,17 +1,17 @@
 import type { RouterOutputs } from "@api/trpc/types";
-import { useGroupedMessages } from "@cossistant/next/hooks";
+import { useGroupedMessages } from "@plasma/next/hooks";
 import {
 	ConversationTimelineContainer,
 	DaySeparator,
 	DaySeparatorLabel,
 	DaySeparatorLine,
 	ConversationTimeline as PrimitiveConversationTimeline,
-} from "@cossistant/next/primitives";
-import { useConversationTyping } from "@cossistant/react";
+} from "@plasma/next/primitives";
+import { useConversationTyping } from "@plasma/react";
 
-import type { AvailableAIAgent } from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
-import type { ConversationSeen } from "@cossistant/types/schemas";
+import type { AvailableAIAgent } from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
+import type { ConversationSeen } from "@plasma/types/schemas";
 import { AnimatePresence } from "motion/react";
 import type { RefObject } from "react";
 import { useEffect, useMemo, useRef } from "react";

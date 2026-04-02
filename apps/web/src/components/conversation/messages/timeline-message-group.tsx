@@ -4,11 +4,11 @@ import {
 	TimelineItemGroupAvatar,
 	TimelineItemGroupContent,
 	TimelineItemGroupHeader,
-} from "@cossistant/next/primitives";
-import type { AvailableAIAgent, VisitorPresenceEntry } from "@cossistant/types";
-import { SenderType } from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
-import type { ConversationSeen } from "@cossistant/types/schemas";
+} from "@plasma/next/primitives";
+import type { AvailableAIAgent, VisitorPresenceEntry } from "@plasma/types";
+import { SenderType } from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
+import type { ConversationSeen } from "@plasma/types/schemas";
 import { motion } from "motion/react";
 import type React from "react";
 import { useMemo } from "react";

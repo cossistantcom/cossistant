@@ -1,7 +1,7 @@
 import type {
 	AiAgentBehaviorSettingKey,
 	AiAgentToolId,
-} from "@cossistant/types";
+} from "@plasma/types";
 import {
 	CATEGORIZE_CONVERSATION_TELEMETRY,
 	createCategorizeConversationTool,

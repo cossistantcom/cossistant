@@ -205,9 +205,9 @@ export default function PricingPage() {
 				<div className="relative mx-auto mt-10 max-w-4xl px-2 py-1 text-center">
 					<PromoBannerOrnaments>
 						<div className="flex flex-col items-center justify-center gap-2 py-2">
-							<h3 className="flex items-center gap-2 text-cossistant-orange text-sm">
+							<h3 className="flex items-center gap-2 text-plasma-orange text-sm">
 								Limited launch offer – up to{" "}
-								<span className="font-bold text-cossistant-orange">
+								<span className="font-bold text-plasma-orange">
 									{Math.max(
 										PLAN_CONFIG.hobby.priceWithPromo && PLAN_CONFIG.hobby.price
 											? Math.round(
@@ -291,7 +291,7 @@ export default function PricingPage() {
 									/>
 								)}
 								{plan.isRecommended && (
-									<p className="z-0 font-medium text-cossistant-orange text-xs">
+									<p className="z-0 font-medium text-plasma-orange text-xs">
 										Recommended
 									</p>
 								)}
@@ -306,10 +306,10 @@ export default function PricingPage() {
 							<div className="mt-10">
 								{plan.priceWithPromo && plan.price !== plan.priceWithPromo ? (
 									<div className="flex items-baseline gap-2">
-										<span className="font-f37-stout font-semibold text-3xl text-cossistant-orange underline decoration-1 underline-offset-3">
+										<span className="font-f37-stout font-semibold text-3xl text-plasma-orange underline decoration-1 underline-offset-3">
 											${plan.priceWithPromo}
 										</span>
-										<span className="relative font-f37-stout text-base text-muted-foreground line-through decoration-1 decoration-cossistant-orange">
+										<span className="relative font-f37-stout text-base text-muted-foreground line-through decoration-1 decoration-plasma-orange">
 											${plan.price}
 										</span>
 										<span className="text-muted-foreground text-sm">
@@ -395,7 +395,7 @@ export default function PricingPage() {
 							infrastructure. Check out our{" "}
 							<Link
 								className="text-primary underline"
-								href="https://github.com/cossistantcom/cossistant"
+								href="https://github.com/plasma-pandora/plasma-pandora"
 							>
 								GitHub repository
 							</Link>{" "}
@@ -452,7 +452,7 @@ export default function PricingPage() {
 							limits, please upgrade your plan or{" "}
 							<Link
 								className="text-primary underline"
-								href="mailto:support@cossistant.com"
+								href="mailto:support@plasma-pandora.com"
 							>
 								contact us
 							</Link>
@@ -468,7 +468,7 @@ export default function PricingPage() {
 							soon.{" "}
 							<Link
 								className="text-primary underline"
-								href="mailto:support@cossistant.com"
+								href="mailto:support@plasma-pandora.com"
 							>
 								Contact us
 							</Link>{" "}
@@ -483,7 +483,7 @@ export default function PricingPage() {
 							We ship fast but have no specific ETA yet.{" "}
 							<Link
 								className="text-primary underline"
-								href="mailto:support@cossistant.com"
+								href="mailto:support@plasma-pandora.com"
 							>
 								Contact us
 							</Link>{" "}

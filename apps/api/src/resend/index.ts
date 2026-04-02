@@ -18,8 +18,8 @@ import {
 } from "@api/utils/notification-monitoring";
 import { triggerMessageNotificationWorkflow } from "@api/utils/send-message-with-notification";
 import { createMessageTimelineItem } from "@api/utils/timeline-item";
-import { resend } from "@cossistant/transactional";
-import { ConversationTimelineType } from "@cossistant/types";
+import { resend } from "@plasma/transactional";
+import { ConversationTimelineType } from "@plasma/types";
 import { and, eq } from "drizzle-orm";
 import EmailReplyParser from "email-reply-parser";
 import type { Context } from "hono";
@@ -204,14 +204,14 @@ async function handleEmailReceived(event: ResendWebhookEvent): Promise<void> {
 		return;
 	}
 
-	// Find the inbound.cossistant.com recipient we encoded the conversation into
+	// Find the inbound.plasma-pandora.com recipient we encoded the conversation into
 	const inboundRecipient = data.to.find((address) =>
-		address.toLowerCase().endsWith("@inbound.cossistant.com")
+		address.toLowerCase().endsWith("@inbound.plasma-pandora.com")
 	);
 
 	if (!inboundRecipient) {
 		console.warn(
-			"[Resend Webhook] email.received event without inbound.cossistant.com recipient"
+			"[Resend Webhook] email.received event without inbound.plasma-pandora.com recipient"
 		);
 		return;
 	}

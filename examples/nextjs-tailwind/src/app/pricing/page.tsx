@@ -1,4 +1,4 @@
-import { SupportConfig } from "@cossistant/next";
+import { SupportConfig } from "@plasma/next";
 
 export default function PricingPage() {
 	return (

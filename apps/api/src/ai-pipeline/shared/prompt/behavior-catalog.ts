@@ -3,7 +3,7 @@ import type {
 	AiAgentBehaviorPromptId,
 	AiAgentBehaviorPromptPreset,
 	AiAgentEditableCorePromptDocumentName,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { PROMPT_TEMPLATES } from "./templates";
 
 export type BehaviorPromptDefinition = {

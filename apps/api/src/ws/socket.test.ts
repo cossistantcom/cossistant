@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import type { AnyRealtimeEvent } from "@cossistant/types/realtime-events";
+import type { AnyRealtimeEvent } from "@plasma/types/realtime-events";
 import type { EventContext } from "./router";
 import type { RawSocket } from "./socket";
 
@@ -105,7 +105,7 @@ mock.module("./router", () => ({
 		routeEventCalls.push([event, context]);
 	},
 }));
-mock.module("@cossistant/types/realtime-events", () => ({
+mock.module("@plasma/types/realtime-events", () => ({
 	isValidEventType: () => true,
 	validateRealtimeEvent: (_type: string, data: unknown) => data,
 }));

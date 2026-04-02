@@ -42,10 +42,10 @@ const stripSetCookie: MiddlewareHandler = async (c, next) => {
 
 const acceptedOrigins = [
 	"http://localhost:3000",
-	"https://cossistant.com",
-	"https://www.cossistant.com",
-	"https://cossistant.com",
-	"https://www.cossistant.com",
+	"https://plasma-pandora.com",
+	"https://www.plasma-pandora.com",
+	"https://plasma-pandora.com",
+	"https://www.plasma-pandora.com",
 	"http://localhost:8081",
 	"https://qstash.upstash.io",
 ];
@@ -168,12 +168,12 @@ app.doc("/openapi", {
 		description: "Cossistant API",
 		license: {
 			name: "AGPL-3.0 license",
-			url: "https://github.com/cossistantcom/cossistant/blob/main/LICENSE",
+			url: "https://github.com/plasma-pandora/plasma-pandora/blob/main/LICENSE",
 		},
 	},
 	servers: [
 		{
-			url: "https://api.cossistant.com/v1",
+			url: "https://api.plasma-pandora.com/v1",
 			description: "Production server",
 		},
 	],

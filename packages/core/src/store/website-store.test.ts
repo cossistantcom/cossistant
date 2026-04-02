@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import type { PublicWebsiteResponse } from "@cossistant/types";
+import type { PublicWebsiteResponse } from "@plasma/types";
 import { CossistantClient } from "../client";
 import { createWebsiteStore, type WebsiteState } from "./website-store";
 

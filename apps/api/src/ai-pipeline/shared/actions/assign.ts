@@ -11,7 +11,7 @@ import { createTimelineItem } from "@api/utils/timeline-item";
 import {
 	ConversationTimelineType,
 	TimelineItemVisibility,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { and, eq, isNull } from "drizzle-orm";
 
 type AssignParams = {

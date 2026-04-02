@@ -1,6 +1,6 @@
 import type { ConversationRecord } from "@api/db/mutations/conversation";
 import { realtime } from "@api/realtime/emitter";
-import type { ConversationHeader } from "@cossistant/types/trpc/conversation";
+import type { ConversationHeader } from "@plasma/types/trpc/conversation";
 
 export type ConversationRealtimeActor =
 	| { type: "visitor"; visitorId: string }

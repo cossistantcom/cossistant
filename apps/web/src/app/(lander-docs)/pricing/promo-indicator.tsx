@@ -28,7 +28,7 @@ export function PromoIndicator({
 	return (
 		<span className={cn("relative inline-flex items-center", className)}>
 			{/* Label */}
-			<span className="relative z-10 inline-flex items-center gap-1 font-medium text-cossistant-orange text-xs">
+			<span className="relative z-10 inline-flex items-center gap-1 font-medium text-plasma-orange text-xs">
 				<span>-{discountPercent}%</span>
 			</span>
 		</span>

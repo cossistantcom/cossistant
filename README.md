@@ -25,8 +25,8 @@ Cossistant is an open source chat support widget for the React ecosystem. Built 
 
 ## Packages
 
-- **[@cossistant/react](https://www.npmjs.com/package/@cossistant/react)** - React SDK with headless hooks and primitives
-- **[@cossistant/next](https://www.npmjs.com/package/@cossistant/next)** - Next.js-specific bindings and utilities
+- **[@plasma/react](https://www.npmjs.com/package/@plasma/react)** - React SDK with headless hooks and primitives
+- **[@plasma/next](https://www.npmjs.com/package/@plasma/next)** - Next.js-specific bindings and utilities
 
 For full documentation, visit [cossistant.com/docs](https://cossistant.com/docs)
 

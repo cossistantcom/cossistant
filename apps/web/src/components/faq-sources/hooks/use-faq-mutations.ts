@@ -1,6 +1,6 @@
 "use client";
 
-import type { FaqKnowledgePayload } from "@cossistant/types";
+import type { FaqKnowledgePayload } from "@plasma/types";
 import { useCallback } from "react";
 import { useKnowledgeEntryMutations } from "@/components/training-entries";
 import type { TrainingControls } from "@/hooks/use-training-controls";

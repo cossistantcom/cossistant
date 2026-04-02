@@ -1,7 +1,7 @@
 import type {
 	KnowledgeClarificationDraftFaq,
 	KnowledgeClarificationQuestionInputMode,
-} from "@cossistant/types";
+} from "@plasma/types";
 import {
 	fakeAIAgent,
 	MARC_VISITOR_ID,

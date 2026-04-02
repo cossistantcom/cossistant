@@ -1,7 +1,7 @@
 import {
 	AI_AGENT_TOOL_CATALOG,
 	parseSkillFileContent,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { emitPipelineGenerationProgress } from "../events";
 import { resolvePromptBundle } from "../prompt/resolver";
 import { getBehaviorSettings } from "../settings";

@@ -1,4 +1,4 @@
-import type { ListConversationsResponse } from "@cossistant/types/api/conversation";
+import type { ListConversationsResponse } from "@plasma/types/api/conversation";
 import { createStore, type Store } from "./create-store";
 
 export type ConversationPagination = ListConversationsResponse["pagination"];

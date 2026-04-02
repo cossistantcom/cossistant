@@ -1,6 +1,6 @@
 "use client";
 
-import type { RouterOutputs } from "@cossistant/api/types";
+import type { RouterOutputs } from "@plasma/api/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";

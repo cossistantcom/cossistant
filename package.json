@@ -1,5 +1,5 @@
 {
-  "name": "cossistant",
+  "name": "plasma-pandora",
   "type": "module",
   "private": true,
   "scripts": {
@@ -13,7 +13,7 @@
     "check-types": "bun run check:ai-pipeline-hard-cut && turbo run check-types",
     "changeset": "changeset",
     "changeset:version": "changeset version",
-    "changeset:publish": "turbo run build --filter=@cossistant/next... --filter=facehash && changeset publish",
+    "changeset:publish": "turbo run build --filter=@plasma/next... --filter=facehash && changeset publish",
     "release": "bun run packages/release/src/index.ts create",
     "billing:backfill-free-subscriptions": "bun scripts/billing/backfill-free-subscriptions.ts",
     "prepare": "husky"

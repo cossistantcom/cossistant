@@ -1,4 +1,4 @@
-import { ALLOWED_MIME_TYPES } from "@cossistant/core";
+import { ALLOWED_MIME_TYPES } from "@plasma/core";
 import { useCallback, useRef, useState } from "react";
 
 // Convert ALLOWED_MIME_TYPES to validation-friendly format with wildcards for image/* and text/*

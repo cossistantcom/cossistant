@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { APIKeyType } from "@cossistant/types";
+import { APIKeyType } from "@plasma/types";
 
 const safelyExtractRequestDataMock = mock((async () => ({})) as (
 	...args: unknown[]

@@ -5,14 +5,14 @@ import {
 	safelyExtractRequestData,
 	validateResponse,
 } from "@api/utils/validate";
-import { APIKeyType } from "@cossistant/types";
+import { APIKeyType } from "@plasma/types";
 import {
 	type Feedback,
 	getFeedbackResponseSchema,
 	listFeedbackResponseSchema,
 	submitFeedbackRequestSchema,
 	submitFeedbackResponseSchema,
-} from "@cossistant/types/api/feedback";
+} from "@plasma/types/api/feedback";
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import {
 	protectedPrivateApiKeyMiddleware,

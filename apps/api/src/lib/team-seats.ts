@@ -6,7 +6,7 @@ import {
 	hasAnyRole,
 	normalizeHumanAgentName,
 	parseCommaSeparatedRoles,
-} from "@cossistant/core";
+} from "@plasma/core";
 import { and, eq, gt, inArray, sql } from "drizzle-orm";
 
 const PRIVILEGED_ROLES = ["owner", "admin"] as const;

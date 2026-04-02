@@ -1,6 +1,6 @@
 "use client";
 
-import type { GetBehaviorSettingsResponse } from "@cossistant/types";
+import type { GetBehaviorSettingsResponse } from "@plasma/types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";

@@ -1,6 +1,6 @@
 import type { RouterOutputs } from "@api/trpc/types";
-import type { ConversationHeader } from "@cossistant/types";
-import { ConversationStatus } from "@cossistant/types";
+import type { ConversationHeader } from "@plasma/types";
+import { ConversationStatus } from "@plasma/types";
 import type { ConversationTimelineItem } from "@/data/conversation-message-cache";
 
 export type FakeVisitor = NonNullable<

@@ -212,17 +212,17 @@ function createInitialTimeline(now: number): ConversationTimelineItem[] {
 						{
 							title: "Custom Domain Allowlist Rollout Checklist",
 							sourceUrl:
-								"https://docs.cossistant.dev/runbooks/custom-domain-allowlist",
+								"https://docs.plasma-pandora.dev/runbooks/custom-domain-allowlist",
 						},
 						{
 							title: "Edge Cache Propagation Troubleshooting",
 							sourceUrl:
-								"https://docs.cossistant.dev/runbooks/edge-cache-propagation",
+								"https://docs.plasma-pandora.dev/runbooks/edge-cache-propagation",
 						},
 						{
 							title: "Webhook Retry Safety for Billing Flows",
 							sourceUrl:
-								"https://docs.cossistant.dev/runbooks/webhook-retry-safety",
+								"https://docs.plasma-pandora.dev/runbooks/webhook-retry-safety",
 						},
 					],
 				},

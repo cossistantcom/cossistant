@@ -1,7 +1,7 @@
 "use client";
 
-import Icon from "@cossistant/react/support/components/icons";
-import { BouncingDots } from "@cossistant/react/support/components/typing-indicator";
+import Icon from "@plasma/react/support/components/icons";
+import { BouncingDots } from "@plasma/react/support/components/typing-indicator";
 import { AnimatePresence, motion } from "motion/react";
 import type React from "react";
 import { cn } from "@/lib/utils";

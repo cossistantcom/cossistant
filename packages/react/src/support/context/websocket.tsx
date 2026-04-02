@@ -1,7 +1,7 @@
 "use client";
 
-import type { RealtimeAuthConfig } from "@cossistant/core";
-import type { AnyRealtimeEvent } from "@cossistant/types/realtime-events";
+import type { RealtimeAuthConfig } from "@plasma/core";
+import type { AnyRealtimeEvent } from "@plasma/types/realtime-events";
 import {
 	createContext,
 	useCallback,
@@ -198,4 +198,4 @@ export const useWebSocketSafe = (): WebSocketContextValue | null =>
 	useContext(WebSocketContext);
 
 export type { WebSocketContextValue, WebSocketProviderProps };
-export type { RealtimeEvent } from "@cossistant/types/realtime-events";
+export type { RealtimeEvent } from "@plasma/types/realtime-events";

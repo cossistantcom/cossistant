@@ -1,11 +1,11 @@
 "use client";
 
-import { formatFileSize } from "@cossistant/core";
+import { formatFileSize } from "@plasma/core";
 import type {
 	TimelineItemParts,
 	TimelinePartFile,
 	TimelinePartImage,
-} from "@cossistant/types/api/timeline-item";
+} from "@plasma/types/api/timeline-item";
 import * as React from "react";
 import { useRenderElement } from "../utils/use-render-element";
 

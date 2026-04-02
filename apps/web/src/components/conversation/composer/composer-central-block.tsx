@@ -1,6 +1,6 @@
 "use client";
 
-import { formatFileSize } from "@cossistant/core";
+import { formatFileSize } from "@plasma/core";
 import type {
 	ClipboardEvent,
 	FormEvent,
@@ -364,10 +364,10 @@ function ComposerActions({
 						className={cn(
 							canSubmit
 								? isPrivate
-									? "[&_svg]:text-cossistant-yellow-600"
+									? "[&_svg]:text-plasma-yellow-600"
 									: "[&_svg]:text-primary/90"
 								: isPrivate
-									? "[&_svg]:text-cossistant-yellow-600/50"
+									? "[&_svg]:text-plasma-yellow-600/50"
 									: "[&_svg]:text-primary/50"
 						)}
 						disabled={!canSubmit}
@@ -401,7 +401,7 @@ export function ComposerCentralBlock({
 			className={cn(
 				"relative flex h-fit flex-col rounded-[2px] border shadow-xs",
 				isPrivate
-					? "border-cossistant-yellow-600/40 border-dashed bg-cossistant-yellow-100/30 dark:border-cossistant-yellow-600/20 dark:bg-cossistant-yellow-100/5"
+					? "border-plasma-yellow-600/40 border-dashed bg-plasma-yellow-100/30 dark:border-plasma-yellow-600/20 dark:bg-plasma-yellow-100/5"
 					: "border-border bg-background dark:border-border dark:bg-background-200",
 				className
 			)}
@@ -461,7 +461,7 @@ export function ComposerDefaultCentralBlock({
 			<div className="relative">
 				<div
 					className={cn(
-						"pointer-events-none absolute top-1 right-0 flex items-center justify-center px-3 py-1.5 text-cossistant-yellow-600 text-xs transition-all duration-200",
+						"pointer-events-none absolute top-1 right-0 flex items-center justify-center px-3 py-1.5 text-plasma-yellow-600 text-xs transition-all duration-200",
 						isPrivate ? "opacity-100" : "translate-y-0 opacity-0"
 					)}
 				>

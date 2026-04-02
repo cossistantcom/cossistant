@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import type { RouterOutputs } from "@api/trpc/types";
-import type { GroupedActivity } from "@cossistant/next/hooks";
-import type { AvailableAIAgent } from "@cossistant/types";
-import { SenderType } from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+import type { GroupedActivity } from "@plasma/next/hooks";
+import type { AvailableAIAgent } from "@plasma/types";
+import { SenderType } from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ConversationHeader } from "@/contexts/inboxes";

@@ -8,10 +8,10 @@
  * Filtering happens at the API layer, not baked into types.
  */
 
-import type { TimelineItem, TimelineItemParts } from "@cossistant/types";
+import type { TimelineItem, TimelineItemParts } from "@plasma/types";
 import type {
 	AISDKPart,
-	CossistantPartMetadata,
+	PlasmaPartMetadata,
 	CossistantUIMessage,
 } from "./ai-sdk-utils";
 
@@ -276,7 +276,7 @@ function getPartVisibility(part: AISDKPart): "public" | "private" {
 
 	if (metadata) {
 		const typedMetadata = metadata as {
-			cossistant?: CossistantPartMetadata;
+			plasma?: PlasmaPartMetadata;
 		};
 		return typedMetadata.cossistant?.visibility ?? "public";
 	}
@@ -291,8 +291,8 @@ function getTimelineItemPartVisibility(
 ): "public" | "private" {
 	if ("providerMetadata" in part || "callProviderMetadata" in part) {
 		const typedPart = part as {
-			callProviderMetadata?: { cossistant?: CossistantPartMetadata };
-			providerMetadata?: { cossistant?: CossistantPartMetadata };
+			callProviderMetadata?: { plasma?: PlasmaPartMetadata };
+			providerMetadata?: { plasma?: PlasmaPartMetadata };
 		};
 		return (
 			typedPart.callProviderMetadata?.cossistant?.visibility ??

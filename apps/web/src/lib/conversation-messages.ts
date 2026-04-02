@@ -1,4 +1,4 @@
-import { ConversationTimelineType, type TimelineItem } from "@cossistant/types";
+import { ConversationTimelineType, type TimelineItem } from "@plasma/types";
 
 export function isInboundVisitorMessage(
 	timelineItem: TimelineItem | null | undefined

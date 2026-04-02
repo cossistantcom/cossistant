@@ -1,5 +1,5 @@
-import type { SenderType } from "@cossistant/types";
-import type { TimelineItem as TimelineItemType } from "@cossistant/types/api/timeline-item";
+import type { SenderType } from "@plasma/types";
+import type { TimelineItem as TimelineItemType } from "@plasma/types/api/timeline-item";
 import * as React from "react";
 import { getTimelineItemSender } from "../utils/timeline-item-sender";
 import { useRenderElement } from "../utils/use-render-element";

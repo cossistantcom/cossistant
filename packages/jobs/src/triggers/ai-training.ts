@@ -1,4 +1,4 @@
-import { getSafeRedisUrl, type RedisOptions } from "@cossistant/redis";
+import { getSafeRedisUrl, type RedisOptions } from "@plasma/redis";
 import { type JobsOptions, Queue } from "bullmq";
 import {
 	type AiTrainingJobData,

@@ -1,4 +1,4 @@
-import { Support } from "@cossistant/next/support";
+import { Support } from "@plasma/next/support";
 import { Providers } from "./providers";
 
 export default function Layout({

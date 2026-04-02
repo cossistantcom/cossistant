@@ -76,14 +76,14 @@ export function UsageBar({
 		<div>
 			<div className="mb-2 flex items-center justify-between text-sm">
 				<span
-					className={cn("font-medium", isAtLimit && "text-cossistant-orange")}
+					className={cn("font-medium", isAtLimit && "text-plasma-orange")}
 				>
 					{label}
 				</span>
 				<span
 					className={cn(
 						"text-primary/60",
-						isAtLimit && "text-cossistant-orange"
+						isAtLimit && "text-plasma-orange"
 					)}
 				>
 					{formatValue(current, limit)}
@@ -118,7 +118,7 @@ export function UsageBar({
 							<div
 								className={cn(
 									"absolute inset-0",
-									isAtLimit ? "text-cossistant-orange" : "text-cossistant-blue"
+									isAtLimit ? "text-plasma-orange" : "text-plasma-blue"
 								)}
 								style={{ backgroundImage: segmentedBarBackground }}
 							/>
@@ -145,7 +145,7 @@ export function UsageBar({
 							<div
 								className={cn(
 									"absolute inset-0",
-									isAtLimit ? "text-cossistant-orange" : "text-cossistant-blue"
+									isAtLimit ? "text-plasma-orange" : "text-plasma-blue"
 								)}
 								style={{ backgroundImage: segmentedBarBackground }}
 							/>

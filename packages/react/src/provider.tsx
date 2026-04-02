@@ -1,12 +1,12 @@
-import type { CossistantClient } from "@cossistant/core";
+import type { PlasmaClient } from "@plasma/core";
 import {
 	CossistantAPIError,
 	getEnvVarName,
 	normalizeLocale,
-} from "@cossistant/core";
-import type { DefaultMessage, PublicWebsiteResponse } from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
-import { ConversationTimelineType } from "@cossistant/types/enums";
+} from "@plasma/core";
+import type { DefaultMessage, PublicWebsiteResponse } from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
+import { ConversationTimelineType } from "@plasma/types/enums";
 import React from "react";
 import { useStoreSelector } from "./hooks/private/store/use-store-selector";
 import { useWebsiteStore } from "./hooks/private/store/use-website-store";
@@ -129,11 +129,11 @@ export type CossistantContextValue = {
 	/**
 	 * Underlying client instance for direct API access.
 	 *
-	 * @remarks `CossistantClient | null`
-	 * @fumadocsType `CossistantClient | null`
+	 * @remarks `PlasmaClient | null`
+	 * @fumadocsType `PlasmaClient | null`
 	 * @fumadocsHref #cossistantclient
 	 */
-	client: CossistantClient | null;
+	client: PlasmaClient | null;
 	/**
 	 * Whether the support widget is currently open.
 	 */
@@ -595,8 +595,8 @@ function SupportProviderInner({
  */
 export function SupportProvider({
 	children,
-	apiUrl = "https://api.cossistant.com/v1",
-	wsUrl = "wss://api.cossistant.com/ws",
+	apiUrl = "https://api.plasma-pandora.com/v1",
+	wsUrl = "wss://api.plasma-pandora.com/ws",
 	publicKey,
 	defaultMessages,
 	quickOptions,

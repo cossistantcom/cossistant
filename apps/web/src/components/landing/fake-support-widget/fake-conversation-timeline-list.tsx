@@ -3,7 +3,7 @@
 import {
 	type GroupedActivity,
 	useGroupedMessages,
-} from "@cossistant/react/hooks";
+} from "@plasma/react/hooks";
 import {
 	ConversationTimelineContainer,
 	ConversationTimeline as PrimitiveConversationTimeline,
@@ -11,21 +11,21 @@ import {
 	TimelineItemGroupAvatar,
 	TimelineItemGroupContent,
 	ToolActivityRow,
-} from "@cossistant/react/primitives";
-import { Avatar } from "@cossistant/react/support/components/avatar";
-import { ConversationEvent } from "@cossistant/react/support/components/conversation-event";
-import { TimelineMessageGroup } from "@cossistant/react/support/components/timeline-message-group";
+} from "@plasma/react/primitives";
+import { Avatar } from "@plasma/react/support/components/avatar";
+import { ConversationEvent } from "@plasma/react/support/components/conversation-event";
+import { TimelineMessageGroup } from "@plasma/react/support/components/timeline-message-group";
 import {
 	TypingIndicator,
 	type TypingParticipant,
-} from "@cossistant/react/support/components/typing-indicator";
-import { cn } from "@cossistant/react/support/utils";
-import type { AvailableAIAgent, AvailableHumanAgent } from "@cossistant/types";
-import { SenderType } from "@cossistant/types";
+} from "@plasma/react/support/components/typing-indicator";
+import { cn } from "@plasma/react/support/utils";
+import type { AvailableAIAgent, AvailableHumanAgent } from "@plasma/types";
+import { SenderType } from "@plasma/types";
 import type {
 	TimelineItem,
 	TimelinePartEvent,
-} from "@cossistant/types/api/timeline-item";
+} from "@plasma/types/api/timeline-item";
 import { useEffect, useMemo, useRef } from "react";
 import { shouldDisplayToolTimelineItem } from "@/lib/tool-timeline-visibility";
 import type { FakeSupportTypingActor } from "./types";

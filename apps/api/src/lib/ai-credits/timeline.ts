@@ -8,7 +8,7 @@ import {
 	ConversationTimelineType,
 	getToolLogType,
 	TimelineItemVisibility,
-} from "@cossistant/types";
+} from "@plasma/types";
 import type { IngestAiCreditUsageStatus } from "./polar-meter";
 
 export const AI_CREDIT_TIMELINE_TOOL_NAME = "aiCreditUsage";

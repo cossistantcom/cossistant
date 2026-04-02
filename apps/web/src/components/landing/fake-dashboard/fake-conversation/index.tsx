@@ -1,4 +1,4 @@
-import type { ConversationHeader as ConversationHeaderType } from "@cossistant/types";
+import type { ConversationHeader as ConversationHeaderType } from "@plasma/types";
 import { type ReactNode, type RefObject, useRef, useState } from "react";
 import {
 	Composer,

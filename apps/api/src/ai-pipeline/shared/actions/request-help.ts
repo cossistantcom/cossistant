@@ -12,7 +12,7 @@ import {
 	ConversationParticipationStatus,
 	ConversationTimelineType,
 	TimelineItemVisibility,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { and, eq } from "drizzle-orm";
 
 type RequestHelpParams = {

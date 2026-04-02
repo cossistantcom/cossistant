@@ -6,7 +6,7 @@ import {
 	emitConversationClarificationUpdate,
 	startConversationKnowledgeClarification,
 } from "@api/services/knowledge-clarification";
-import type { KnowledgeClarificationStatus } from "@cossistant/types";
+import type { KnowledgeClarificationStatus } from "@plasma/types";
 
 type RequestKnowledgeClarificationParams = {
 	db: Database;

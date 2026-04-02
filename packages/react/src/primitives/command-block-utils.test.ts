@@ -3,24 +3,24 @@ import { mapCommandVariants } from "./command-block-utils";
 
 describe("mapCommandVariants", () => {
 	it("maps npm install commands to all package managers", () => {
-		const variants = mapCommandVariants("npm install @cossistant/react");
+		const variants = mapCommandVariants("npm install @plasma/react");
 
 		expect(variants).toEqual({
-			npm: "npm install @cossistant/react",
-			yarn: "yarn add @cossistant/react",
-			pnpm: "pnpm add @cossistant/react",
-			bun: "bun add @cossistant/react",
+			npm: "npm install @plasma/react",
+			yarn: "yarn add @plasma/react",
+			pnpm: "pnpm add @plasma/react",
+			bun: "bun add @plasma/react",
 		});
 	});
 
 	it("maps pnpm add commands to all package managers", () => {
-		const variants = mapCommandVariants("pnpm add @cossistant/react");
+		const variants = mapCommandVariants("pnpm add @plasma/react");
 
 		expect(variants).toEqual({
-			npm: "npm install @cossistant/react",
-			yarn: "yarn add @cossistant/react",
-			pnpm: "pnpm add @cossistant/react",
-			bun: "bun add @cossistant/react",
+			npm: "npm install @plasma/react",
+			yarn: "yarn add @plasma/react",
+			pnpm: "pnpm add @plasma/react",
+			bun: "bun add @plasma/react",
 		});
 	});
 

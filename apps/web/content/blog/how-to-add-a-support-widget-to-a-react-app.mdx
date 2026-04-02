@@ -47,7 +47,7 @@ By the end, you'll have:
 ## 1. Install the package
 
 ```bash
-npm install @cossistant/react
+npm install @plasma/react
 ```
 
 ## 2. Add your public API key
@@ -84,7 +84,7 @@ Wrap your app at the entry point:
 ```tsx title="src/main.tsx"
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { SupportProvider } from "@cossistant/react";
+import { SupportProvider } from "@plasma/react";
 import App from "./App";
 import "./index.css";
 
@@ -110,7 +110,7 @@ If you need to pass the key explicitly, you can:
 ```css title="src/index.css"
 @import "tailwindcss";
 
-@import "@cossistant/react/support.css";
+@import "@plasma/react/support.css";
 ```
 
 ### Plain CSS
@@ -118,8 +118,8 @@ If you need to pass the key explicitly, you can:
 ```tsx title="src/main.tsx"
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { SupportProvider } from "@cossistant/react";
-import "@cossistant/react/styles.css";
+import { SupportProvider } from "@plasma/react";
+import "@plasma/react/styles.css";
 import App from "./App";
 import "./index.css";
 
@@ -140,7 +140,7 @@ If not, plain CSS is enough.
 Now render it in your app:
 
 ```tsx title="src/App.tsx"
-import { Support } from "@cossistant/react";
+import { Support } from "@plasma/react";
 
 export default function App() {
   return (
@@ -159,7 +159,7 @@ That is enough to get the default support widget on screen.
 If your app has auth, identify the visitor so support stays tied to the right person.
 
 ```tsx title="src/App.tsx"
-import { IdentifySupportVisitor, Support } from "@cossistant/react";
+import { IdentifySupportVisitor, Support } from "@plasma/react";
 
 export default function App() {
   const user = {
@@ -188,9 +188,9 @@ Optional, but if you're building a SaaS, this is usually the right move.
 If you want the widget to feel less blank the first time someone opens it, add some starter context.
 
 ```tsx title="src/App.tsx"
-import { Support, SupportConfig } from "@cossistant/react";
-import { Support, SupportConfig } from "@cossistant/react";
-import { type DefaultMessage, SenderType } from "@cossistant/types";
+import { Support, SupportConfig } from "@plasma/react";
+import { Support, SupportConfig } from "@plasma/react";
+import { type DefaultMessage, SenderType } from "@plasma/types";
 
 const user: { name: string | null } = {
   name: "Jane Doe",
@@ -232,7 +232,7 @@ That means you can replace the default chat bubble with your own button, your ow
 Here's a simple custom chat bubble:
 
 ```tsx title="src/App.tsx"
-import { Support, type TriggerRenderProps } from "@cossistant/react";
+import { Support, type TriggerRenderProps } from "@plasma/react";
 
 export default function App() {
   return (
@@ -269,7 +269,7 @@ If you want more control, the customization guide also supports `Support.Content
 
 <Steps className="mt-10">
   <Step>
-    Install `@cossistant/react`
+    Install `@plasma/react`
   </Step>
   <Step>
     Configure your public API key

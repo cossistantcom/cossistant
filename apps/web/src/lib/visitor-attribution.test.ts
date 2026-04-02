@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { VisitorAttribution } from "@cossistant/types";
+import type { VisitorAttribution } from "@plasma/types";
 import { getVisitorAttributionDisplay } from "./visitor-attribution";
 
 function createAttribution(params: {

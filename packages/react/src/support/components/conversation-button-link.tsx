@@ -1,4 +1,4 @@
-import { type Conversation, ConversationStatus } from "@cossistant/types";
+import { type Conversation, ConversationStatus } from "@plasma/types";
 import type React from "react";
 import {
 	type ConversationPreviewLastMessage,

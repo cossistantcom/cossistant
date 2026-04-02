@@ -1,5 +1,5 @@
-import type { SeenActorType } from "@cossistant/core";
-import type { ConversationSeen } from "@cossistant/types/schemas";
+import type { SeenActorType } from "@plasma/core";
+import type { ConversationSeen } from "@plasma/types/schemas";
 
 export type TimelineReadReceiptReaderMeta = {
 	id: string;

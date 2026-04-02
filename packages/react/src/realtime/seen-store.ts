@@ -6,9 +6,9 @@ import {
 	type SeenEntry,
 	type SeenState,
 	upsertConversationSeen as upsertStore,
-} from "@cossistant/core";
-import type { RealtimeEvent } from "@cossistant/types/realtime-events";
-import type { ConversationSeen } from "@cossistant/types/schemas";
+} from "@plasma/core";
+import type { RealtimeEvent } from "@plasma/types/realtime-events";
+import type { ConversationSeen } from "@plasma/types/schemas";
 import { useRef, useSyncExternalStore } from "react";
 
 /** Module-level singleton shared by the dashboard and the SDK widget. */

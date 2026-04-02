@@ -1,4 +1,4 @@
-import SupportIcon from "@cossistant/react/support/components/icons";
+import SupportIcon from "@plasma/react/support/components/icons";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 

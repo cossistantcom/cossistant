@@ -23,7 +23,7 @@ export function FakeComposerTextareaDisplay({
 	textClassName,
 	typingClassName,
 	placeholderClassName,
-	caretClassName = "bg-cossistant-orange",
+	caretClassName = "bg-plasma-orange",
 	speedReveal = 1.8,
 }: FakeComposerTextareaDisplayProps) {
 	const state =

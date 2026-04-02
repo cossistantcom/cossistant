@@ -1,4 +1,4 @@
-import type { ToolTimelineLogType } from "@cossistant/types";
+import type { ToolTimelineLogType } from "@plasma/types";
 import type { LucideIcon } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Logo } from "@/components/ui/logo";
@@ -36,7 +36,7 @@ const stateConfig: Record<ToolCallState, { label: string; className: string }> =
 		result: {
 			label: "Success",
 			className:
-				"border-cossistant-green/70 bg-cossistant-green/5 text-cossistant-green dark:border-cossistant-green/50 dark:bg-cossistant-green/10 dark:text-cossistant-green",
+				"border-plasma-green/70 bg-plasma-green/5 text-plasma-green dark:border-plasma-green/50 dark:bg-plasma-green/10 dark:text-plasma-green",
 		},
 		error: {
 			label: "Error",
@@ -61,7 +61,7 @@ const logTypeConfig: Record<
 	decision: {
 		label: "Decision",
 		className:
-			"border-cossistant-blue bg-cossistant-blue/5 text-cossistant-blue dark:border-cossistant-blue/50 dark:bg-cossistant-blue/10 dark:text-cossistant-blue",
+			"border-plasma-blue bg-plasma-blue/5 text-plasma-blue dark:border-plasma-blue/50 dark:bg-plasma-blue/10 dark:text-plasma-blue",
 	},
 };
 

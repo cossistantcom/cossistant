@@ -1,4 +1,4 @@
-import type { ConversationHeader } from "@cossistant/types";
+import type { ConversationHeader } from "@plasma/types";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAnimationScheduler } from "@/hooks/use-animation-scheduler";
 import {

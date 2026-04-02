@@ -42,7 +42,7 @@ import {
 	safelyExtractRequestQuery,
 	validateResponse,
 } from "@api/utils/validate";
-import { APIKeyType, TimelineItemVisibility } from "@cossistant/types";
+import { APIKeyType, TimelineItemVisibility } from "@plasma/types";
 import {
 	type CreateConversationConflictCode,
 	createConversationConflictResponseSchema,
@@ -58,17 +58,17 @@ import {
 	setConversationTypingResponseSchema,
 	submitConversationRatingRequestSchema,
 	submitConversationRatingResponseSchema,
-} from "@cossistant/types/api/conversation";
+} from "@plasma/types/api/conversation";
 import {
 	getConversationTimelineItemsRequestSchema,
 	getConversationTimelineItemsResponseSchema,
 	type TimelineItem,
 	timelineItemSchema,
-} from "@cossistant/types/api/timeline-item";
+} from "@plasma/types/api/timeline-item";
 import {
 	conversationSchema,
 	conversationSeenSchema,
-} from "@cossistant/types/schemas";
+} from "@plasma/types/schemas";
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import { and, eq } from "drizzle-orm";
 import { protectedPublicApiKeyMiddleware } from "../middleware";

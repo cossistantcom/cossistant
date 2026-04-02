@@ -2,7 +2,7 @@ import type {
 	PublicVisitor,
 	VisitorMetadata,
 	VisitorResponse,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { useCallback } from "react";
 import { useSupport } from "../provider";
 

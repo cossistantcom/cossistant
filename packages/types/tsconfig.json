@@ -1,5 +1,5 @@
 {
-  "extends": "@cossistant/typescript-config/base.json",
+  "extends": "@plasma/typescript-config/base.json",
   "compilerOptions": {
     "module": "esnext",
     "moduleResolution": "bundler",
@@ -18,8 +18,8 @@
     "skipLibCheck": true,
     "outDir": "./dist",
     "paths": {
-      "@cossistant/types": ["./src"],
-      "@cossistant/types/*": ["./src/*"]
+      "@plasma/types": ["./src"],
+      "@plasma/types/*": ["./src/*"]
     }
   },
   "include": ["src/**/*"],

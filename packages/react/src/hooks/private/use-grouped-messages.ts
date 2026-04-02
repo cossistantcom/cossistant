@@ -1,6 +1,6 @@
-import type { SenderType } from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
-import type { ConversationSeen } from "@cossistant/types/schemas";
+import type { SenderType } from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
+import type { ConversationSeen } from "@plasma/types/schemas";
 import { useMemo } from "react";
 import { getTimelineItemSender } from "../../utils/timeline-item-sender";
 import { getToolNameFromTimelineItem } from "../../utils/timeline-tool";

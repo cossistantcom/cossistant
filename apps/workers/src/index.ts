@@ -7,12 +7,12 @@ import {
 	type MessageNotificationJobData,
 	QUEUE_NAMES,
 	type WebCrawlJobData,
-} from "@cossistant/jobs";
+} from "@plasma/jobs";
 import {
 	createRedisConnection,
 	getBullConnectionOptions,
 	getSafeRedisUrl,
-} from "@cossistant/redis";
+} from "@plasma/redis";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Queue } from "bullmq";

@@ -7,7 +7,7 @@
 import type { Database } from "@api/db";
 import { getNotificationData } from "@api/utils/notification-helpers";
 import { sendMemberPushNotification } from "@api/workflows/message/member-push-notifier";
-import { EscalationNotification, sendEmail } from "@cossistant/transactional";
+import { EscalationNotification, sendEmail } from "@plasma/transactional";
 import type { EscalationSummary } from "./analysis/escalation-summary";
 
 type SendEscalationNotificationParams = {

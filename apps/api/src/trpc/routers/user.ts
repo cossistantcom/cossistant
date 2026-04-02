@@ -6,7 +6,7 @@ import { auth } from "@api/lib/auth";
 import {
 	updateUserProfileRequestSchema,
 	userResponseSchema,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { z } from "@hono/zod-openapi";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "../init";

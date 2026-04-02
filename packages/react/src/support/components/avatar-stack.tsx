@@ -1,4 +1,4 @@
-import type { AvailableAIAgent, AvailableHumanAgent } from "@cossistant/types";
+import type { AvailableAIAgent, AvailableHumanAgent } from "@plasma/types";
 import type { ReactElement, ReactNode } from "react";
 import { useRenderElement } from "../../utils/use-render-element";
 import { useSupportText } from "../text";

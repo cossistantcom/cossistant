@@ -172,7 +172,7 @@ export const generateUploadUrlResponseSchema = z
 		}),
 		bucket: z.string().openapi({
 			description: "Name of the S3 bucket that will receive the upload.",
-			example: "cossistant-uploads",
+			example: "plasma-uploads",
 		}),
 		expiresAt: z.string().openapi({
 			description: "ISO timestamp indicating when the signed URL will expire.",

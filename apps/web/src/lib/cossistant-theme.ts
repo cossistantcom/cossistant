@@ -25,19 +25,19 @@ export const cossistantLight: ThemeRegistration = {
 		{
 			scope: ["string", "string.quoted"],
 			settings: {
-				foreground: "var(--cossistant-pink)",
+				foreground: "var(--plasma-pink)",
 			},
 		},
 		{
 			scope: ["keyword", "storage.type", "storage.modifier"],
 			settings: {
-				foreground: "var(--cossistant-orange)",
+				foreground: "var(--plasma-orange)",
 			},
 		},
 		{
 			scope: ["entity.name.function", "entity.name.method"],
 			settings: {
-				foreground: "var(--cossistant-blue)",
+				foreground: "var(--plasma-blue)",
 			},
 		},
 		{
@@ -49,19 +49,19 @@ export const cossistantLight: ThemeRegistration = {
 		{
 			scope: ["constant", "constant.numeric", "constant.language"],
 			settings: {
-				foreground: "var(--cossistant-yellow)",
+				foreground: "var(--plasma-yellow)",
 			},
 		},
 		{
 			scope: ["entity.name.type", "entity.name.class", "support.class"],
 			settings: {
-				foreground: "var(--cossistant-blue)",
+				foreground: "var(--plasma-blue)",
 			},
 		},
 		{
 			scope: ["support.function", "support.variable"],
 			settings: {
-				foreground: "var(--cossistant-blue)",
+				foreground: "var(--plasma-blue)",
 			},
 		},
 		{
@@ -73,13 +73,13 @@ export const cossistantLight: ThemeRegistration = {
 		{
 			scope: ["entity.name.tag"],
 			settings: {
-				foreground: "var(--cossistant-orange)",
+				foreground: "var(--plasma-orange)",
 			},
 		},
 		{
 			scope: ["entity.other.attribute-name"],
 			settings: {
-				foreground: "var(--cossistant-blue)",
+				foreground: "var(--plasma-blue)",
 			},
 		},
 	],
@@ -110,19 +110,19 @@ export const cossistantDark: ThemeRegistration = {
 		{
 			scope: ["string", "string.quoted"],
 			settings: {
-				foreground: "var(--cossistant-pink)",
+				foreground: "var(--plasma-pink)",
 			},
 		},
 		{
 			scope: ["keyword", "storage.type", "storage.modifier"],
 			settings: {
-				foreground: "var(--cossistant-orange)",
+				foreground: "var(--plasma-orange)",
 			},
 		},
 		{
 			scope: ["entity.name.function", "entity.name.method"],
 			settings: {
-				foreground: "var(--cossistant-blue)",
+				foreground: "var(--plasma-blue)",
 			},
 		},
 		{
@@ -134,19 +134,19 @@ export const cossistantDark: ThemeRegistration = {
 		{
 			scope: ["constant", "constant.numeric", "constant.language"],
 			settings: {
-				foreground: "var(--cossistant-yellow)",
+				foreground: "var(--plasma-yellow)",
 			},
 		},
 		{
 			scope: ["entity.name.type", "entity.name.class", "support.class"],
 			settings: {
-				foreground: "var(--cossistant-blue)",
+				foreground: "var(--plasma-blue)",
 			},
 		},
 		{
 			scope: ["support.function", "support.variable"],
 			settings: {
-				foreground: "var(--cossistant-blue)",
+				foreground: "var(--plasma-blue)",
 			},
 		},
 		{
@@ -158,13 +158,13 @@ export const cossistantDark: ThemeRegistration = {
 		{
 			scope: ["entity.name.tag"],
 			settings: {
-				foreground: "var(--cossistant-orange)",
+				foreground: "var(--plasma-orange)",
 			},
 		},
 		{
 			scope: ["entity.other.attribute-name"],
 			settings: {
-				foreground: "var(--cossistant-blue)",
+				foreground: "var(--plasma-blue)",
 			},
 		},
 	],

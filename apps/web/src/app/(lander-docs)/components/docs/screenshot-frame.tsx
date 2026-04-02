@@ -360,7 +360,7 @@ export function ScreenshotFrame({
 											aria-pressed={isActive}
 											className={cn(
 												SHARP_RADIUS_CLASSNAME,
-												"inline-flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cossistant-orange/60",
+												"inline-flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-plasma-orange/60",
 												hasLegends
 													? cn(
 															"gap-2 px-3 py-2 font-medium text-sm",
@@ -382,7 +382,7 @@ export function ScreenshotFrame({
 												className={cn(
 													SHARP_RADIUS_CLASSNAME,
 													"size-2.5 bg-primary/20 transition-colors",
-													isActive && "bg-cossistant-orange"
+													isActive && "bg-plasma-orange"
 												)}
 											/>
 											{hasLegends ? <span>{label}</span> : null}

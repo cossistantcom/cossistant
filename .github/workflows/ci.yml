@@ -37,4 +37,4 @@ jobs:
         run: bun run check-types
 
       - name: Build example integration app
-        run: bun run build --filter @cossistant/example-nextjs-tailwind
+        run: bun run build --filter @plasma/example-nextjs-tailwind

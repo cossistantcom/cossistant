@@ -1,8 +1,8 @@
 /** biome-ignore-all lint/style/noNonNullAssertion: ok here */
 "use client";
 
-import type { RouterOutputs } from "@cossistant/api/types";
-import type { ConversationStatus } from "@cossistant/types";
+import type { RouterOutputs } from "@plasma/api/types";
+import type { ConversationStatus } from "@plasma/types";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useMemo } from "react";
 import type { VirtualListItem } from "@/components/conversations-list/types";

@@ -1,4 +1,4 @@
-# `@cossistant/memory`
+# `@plasma/memory`
 
 Opinionated memory utility for Cossistant AI agents.
 
@@ -30,8 +30,8 @@ What is intentionally deferred:
 ## Quick Start
 
 ```ts
-import { createMemoryTool, Memory } from "@cossistant/memory";
-import { db } from "@cossistant/db";
+import { createMemoryTool, Memory } from "@plasma/memory";
+import { db } from "@plasma/db";
 import { openrouter } from "@openrouter/ai-sdk-provider";
 
 const memory = new Memory({

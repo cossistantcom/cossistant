@@ -1,11 +1,11 @@
 import {
 	WebsiteInstallationTarget,
 	type WebsiteInstallationTarget as WebsiteInstallationTargetValue,
-} from "@cossistant/types";
+} from "@plasma/types";
 
 export type SupportIntegrationFramework = "nextjs" | "react";
 export type SupportPackageManager = "bun" | "npm" | "pnpm" | "yarn";
-type SupportPackageName = "@cossistant/next" | "@cossistant/react";
+type SupportPackageName = "@plasma/next" | "@plasma/react";
 
 function getSupportPackageSpecifier(
 	packageName: SupportPackageName,
@@ -36,14 +36,14 @@ const INSTALL_COMMANDS: Record<
 	SupportIntegrationFramework,
 	Record<SupportPackageManager, string>
 > = {
-	nextjs: buildSupportInstallCommands("@cossistant/next"),
-	react: buildSupportInstallCommands("@cossistant/react"),
+	nextjs: buildSupportInstallCommands("@plasma/next"),
+	react: buildSupportInstallCommands("@plasma/react"),
 };
 
 export type SupportIntegrationGuide = {
 	framework: SupportIntegrationFramework;
 	frameworkLabel: string;
-	packageName: "@cossistant/next" | "@cossistant/react";
+	packageName: "@plasma/next" | "@plasma/react";
 	envVarName: string;
 	envFileName: ".env.local" | ".env";
 	docsQuickstartPath: "/docs/quickstart" | "/docs/quickstart/react";
@@ -68,12 +68,12 @@ const SUPPORT_GUIDES: Record<
 	nextjs: {
 		framework: "nextjs",
 		frameworkLabel: "Next.js",
-		packageName: "@cossistant/next",
+		packageName: "@plasma/next",
 		envVarName: "NEXT_PUBLIC_COSSISTANT_API_KEY",
 		envFileName: ".env.local",
 		docsQuickstartPath: "/docs/quickstart",
 		providerFileName: "app/layout.tsx",
-		providerCode: `import { SupportProvider } from "@cossistant/next";
+		providerCode: `import { SupportProvider } from "@plasma/next";
 
 import "./globals.css";
 
@@ -92,7 +92,7 @@ export default function RootLayout({
 }
 `,
 		widgetFileName: "app/page.tsx",
-		widgetCode: `import { Support } from "@cossistant/next";
+		widgetCode: `import { Support } from "@plasma/next";
 
 export default function Page() {
   return (
@@ -104,7 +104,7 @@ export default function Page() {
 }
 `,
 		identifyVisitorFileName: "app/(app)/layout.tsx",
-		identifyVisitorCode: `import { IdentifySupportVisitor } from "@cossistant/next";
+		identifyVisitorCode: `import { IdentifySupportVisitor } from "@plasma/next";
 
 export default function AppLayout({
   children,
@@ -130,8 +130,8 @@ export default function AppLayout({
 }
 `,
 		defaultMessageFileName: "app/page.tsx",
-		defaultMessageCode: `import { Support, SupportConfig } from "@cossistant/next";
-import { type DefaultMessage, SenderType } from "@cossistant/types";
+		defaultMessageCode: `import { Support, SupportConfig } from "@plasma/next";
+import { type DefaultMessage, SenderType } from "@plasma/types";
 
 const user: { name: string | null } = {
   name: "Jane Doe",
@@ -161,11 +161,11 @@ export default function Page() {
 		cssTailwindFileName: "app/globals.css",
 		cssTailwindCode: `@import "tailwindcss";
 
-@import "@cossistant/next/support.css";
+@import "@plasma/next/support.css";
 `,
 		cssPlainFileName: "app/layout.tsx",
-		cssPlainCode: `import { SupportProvider } from "@cossistant/next";
-import "@cossistant/next/styles.css";
+		cssPlainCode: `import { SupportProvider } from "@plasma/next";
+import "@plasma/next/styles.css";
 import "./globals.css";
 
 export default function RootLayout({
@@ -186,14 +186,14 @@ export default function RootLayout({
 	react: {
 		framework: "react",
 		frameworkLabel: "React",
-		packageName: "@cossistant/react",
+		packageName: "@plasma/react",
 		envVarName: "COSSISTANT_API_KEY",
 		envFileName: ".env",
 		docsQuickstartPath: "/docs/quickstart/react",
 		providerFileName: "src/main.tsx",
 		providerCode: `import React from "react";
 import ReactDOM from "react-dom/client";
-import { SupportProvider } from "@cossistant/react";
+import { SupportProvider } from "@plasma/react";
 import App from "./App";
 import "./index.css";
 
@@ -206,7 +206,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 );
 `,
 		widgetFileName: "src/App.tsx",
-		widgetCode: `import { Support } from "@cossistant/react";
+		widgetCode: `import { Support } from "@plasma/react";
 
 export default function App() {
   return (
@@ -218,7 +218,7 @@ export default function App() {
 }
 `,
 		identifyVisitorFileName: "src/App.tsx",
-		identifyVisitorCode: `import { IdentifySupportVisitor, Support } from "@cossistant/react";
+		identifyVisitorCode: `import { IdentifySupportVisitor, Support } from "@plasma/react";
 
 export default function App() {
   const user = {
@@ -240,8 +240,8 @@ export default function App() {
 }
 `,
 		defaultMessageFileName: "src/App.tsx",
-		defaultMessageCode: `import { Support, SupportConfig } from "@cossistant/react";
-import { type DefaultMessage, SenderType } from "@cossistant/types";
+		defaultMessageCode: `import { Support, SupportConfig } from "@plasma/react";
+import { type DefaultMessage, SenderType } from "@plasma/types";
 
 const user: { name: string | null } = {
   name: "Jane Doe",
@@ -271,13 +271,13 @@ export default function App() {
 		cssTailwindFileName: "src/index.css",
 		cssTailwindCode: `@import "tailwindcss";
 
-@import "@cossistant/react/support.css";
+@import "@plasma/react/support.css";
 `,
 		cssPlainFileName: "src/main.tsx",
 		cssPlainCode: `import React from "react";
 import ReactDOM from "react-dom/client";
-import { SupportProvider } from "@cossistant/react";
-import "@cossistant/react/styles.css";
+import { SupportProvider } from "@plasma/react";
+import "@plasma/react/styles.css";
 import App from "./App";
 import "./index.css";
 
@@ -358,9 +358,9 @@ export function buildSupportAiSetupPrompt({
 }): string {
 	const guide = getSupportIntegrationGuide(installationTarget);
 	const otherPackage =
-		guide.packageName === "@cossistant/next"
-			? "@cossistant/react"
-			: "@cossistant/next";
+		guide.packageName === "@plasma/next"
+			? "@plasma/react"
+			: "@plasma/next";
 	const keyValue = publicApiKey ?? "pk_test_replace_me";
 
 	const keyInstruction = publicApiKey

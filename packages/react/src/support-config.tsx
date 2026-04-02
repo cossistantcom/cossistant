@@ -1,6 +1,6 @@
 "use client";
 
-import type { DefaultMessage } from "@cossistant/types";
+import type { DefaultMessage } from "@plasma/types";
 import * as React from "react";
 import { useSupport } from "./provider";
 

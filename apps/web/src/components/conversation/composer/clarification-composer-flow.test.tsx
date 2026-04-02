@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import type { ConversationClarificationProgress } from "@cossistant/types";
+import type { ConversationClarificationProgress } from "@plasma/types";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 

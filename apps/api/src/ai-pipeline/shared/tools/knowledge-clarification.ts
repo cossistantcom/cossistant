@@ -1,5 +1,5 @@
 import { getKnowledgeClarificationSearchEvidenceFromToolExecutions } from "@api/lib/knowledge-clarification-context";
-import type { KnowledgeClarificationStatus } from "@cossistant/types";
+import type { KnowledgeClarificationStatus } from "@plasma/types";
 import { tool } from "ai";
 import { z } from "zod";
 import { requestKnowledgeClarification as requestKnowledgeClarificationAction } from "../actions/request-knowledge-clarification";

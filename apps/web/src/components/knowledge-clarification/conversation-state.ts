@@ -1,7 +1,7 @@
 import type {
 	ConversationClarificationSummary,
 	KnowledgeClarificationRequest,
-} from "@cossistant/types";
+} from "@plasma/types";
 
 export type ConversationClarificationDisplayState = {
 	engagedRequestId: string | null;

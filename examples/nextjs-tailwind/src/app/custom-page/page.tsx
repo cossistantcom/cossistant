@@ -1,6 +1,6 @@
 "use client";
 
-import { Support, useSupportNavigation } from "@cossistant/next";
+import { Support, useSupportNavigation } from "@plasma/next";
 
 const HelpPage = () => {
 	const { goBack } = useSupportNavigation();

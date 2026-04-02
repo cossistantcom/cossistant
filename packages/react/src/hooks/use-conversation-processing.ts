@@ -1,4 +1,4 @@
-import type { ConversationProcessingEntry } from "@cossistant/core";
+import type { ConversationProcessingEntry } from "@plasma/core";
 import { useSupport } from "../provider";
 import { useStoreSelector } from "./private/store/use-store-selector";
 

@@ -69,7 +69,7 @@ const prepareEmailOptions = (opts: ResendEmailOptions): CreateEmailOptions => {
 	if (variant === "marketing") {
 		finalHeaders = {
 			...headers,
-			"List-Unsubscribe": "<https://cossistant.com/email/unsubscribe>",
+			"List-Unsubscribe": "<https://plasma-pandora.com/email/unsubscribe>",
 			"List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
 		};
 	}

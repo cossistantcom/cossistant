@@ -15,10 +15,10 @@ The monorepo uses Changesets to:
 
 The following packages are published to npm:
 
-- `@cossistant/types` - Shared TypeScript types
-- `@cossistant/core` - Core library for API and data fetching
-- `@cossistant/react` - React SDK with hooks and primitives (depends on core & types)
-- `@cossistant/next` - Next.js bindings (depends on react)
+- `@plasma/types` - Shared TypeScript types
+- `@plasma/core` - Core library for API and data fetching
+- `@plasma/react` - React SDK with hooks and primitives (depends on core & types)
+- `@plasma/next` - Next.js bindings (depends on react)
 
 All packages use **fixed versioning** - they always have the same version number.
 
@@ -83,11 +83,11 @@ This tool will guide you through the entire process with AI-generated changelogs
 {
   "changelog": ["@changesets/changelog-github", { "repo": "cossistantcom/cossistant" }],
   "commit": false,
-  "fixed": [["@cossistant/core", "@cossistant/react", "@cossistant/types", "@cossistant/next"]],
+  "fixed": [["@plasma/core", "@plasma/react", "@plasma/types", "@plasma/next"]],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "minor",
-  "ignore": ["@cossistant/api", "@cossistant/web", "@cossistant/location", "@cossistant/transactional"]
+  "ignore": ["@plasma/api", "@plasma/web", "@plasma/location", "@plasma/transactional"]
 }
 ```
 

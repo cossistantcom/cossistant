@@ -1,7 +1,7 @@
 import type {
 	GetConversationRequest,
 	GetConversationResponse,
-} from "@cossistant/types/api/conversation";
+} from "@plasma/types/api/conversation";
 import { useSupport } from "../provider";
 import { useStoreSelector } from "./private/store/use-store-selector";
 import { useClientQuery } from "./private/use-client-query";

@@ -1,4 +1,4 @@
-export type { CossistantConfig, CossistantError } from "@cossistant/types";
+export type { CossistantConfig, CossistantError } from "@plasma/types";
 // AI SDK v6 conversion utilities
 export {
 	type AISDKFilePart,

@@ -3,7 +3,7 @@
 import {
 	type RealtimeEventHandlersMap,
 	useRealtime,
-} from "@cossistant/next/realtime";
+} from "@plasma/next/realtime";
 import { useQueryNormalizer } from "@normy/react-query";
 import * as ReactQuery from "@tanstack/react-query";
 import { type ReactNode, useCallback, useMemo, useState } from "react";

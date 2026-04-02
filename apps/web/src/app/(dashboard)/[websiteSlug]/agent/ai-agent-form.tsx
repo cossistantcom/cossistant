@@ -4,7 +4,7 @@ import {
 	AI_AGENT_TOOL_CATALOG,
 	type AiAgentResponse,
 	DEFAULT_AGENT_BASE_PROMPT,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";

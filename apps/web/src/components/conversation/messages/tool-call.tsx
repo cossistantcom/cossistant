@@ -1,7 +1,7 @@
 "use client";
 
-import { useToolDisplayState } from "@cossistant/react/support/components";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+import { useToolDisplayState } from "@plasma/react/support/components";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import { getToolTimelineLogType } from "@/lib/tool-timeline-visibility";
 import { resolveToolActivityIcon } from "./activity/action-icon-map";
 import {

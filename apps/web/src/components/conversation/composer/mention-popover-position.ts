@@ -1,4 +1,4 @@
-import type { CaretCoordinates } from "@cossistant/tiny-markdown";
+import type { CaretCoordinates } from "@plasma/tiny-markdown";
 
 export type MentionPopoverPlacement = "above" | "below";
 

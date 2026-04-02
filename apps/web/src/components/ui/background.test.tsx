@@ -69,7 +69,7 @@ describe("background helpers", () => {
 
 	it("resolves adaptive defaults for desktop, mobile, and explicit overrides", () => {
 		const desktopConfig = resolveBackgroundConfig({
-			accentColorVar: "--cossistant-orange",
+			accentColorVar: "--plasma-orange",
 			desktopResolution: 0.06,
 			fieldOpacity: 0.16,
 			interactive: true,
@@ -82,7 +82,7 @@ describe("background helpers", () => {
 			strength: 1.35,
 		});
 		const mobileConfig = resolveBackgroundConfig({
-			accentColorVar: "--cossistant-orange",
+			accentColorVar: "--plasma-orange",
 			desktopResolution: 0.06,
 			fieldOpacity: 0.16,
 			interactive: true,

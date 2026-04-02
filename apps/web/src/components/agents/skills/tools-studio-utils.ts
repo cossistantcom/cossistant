@@ -1,13 +1,13 @@
 import type {
 	GetCapabilitiesStudioResponse,
 	UpdateBehaviorSettingsRequest,
-} from "@cossistant/types";
+} from "@plasma/types";
 import {
 	AI_AGENT_TOOL_CATALOG,
 	parseSkillFileContent,
 	serializeSkillFileContent,
 	stripSkillMarkdownExtension,
-} from "@cossistant/types";
+} from "@plasma/types";
 
 type BehaviorSettingKey = NonNullable<
 	GetCapabilitiesStudioResponse["tools"][number]["behaviorSettingKey"]

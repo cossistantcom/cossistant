@@ -1,6 +1,6 @@
 "use client";
 
-import type { KnowledgeClarificationQuestionInputMode } from "@cossistant/types";
+import type { KnowledgeClarificationQuestionInputMode } from "@plasma/types";
 import type { ReactNode, RefObject } from "react";
 import { useEffect, useId, useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
@@ -202,7 +202,7 @@ export function KnowledgeClarificationQuestionContent({
 								className={cn(
 									"flex w-full items-start gap-3 py-2 text-left text-sm transition-colors hover:cursor-pointer",
 									isSelected
-										? "text-cossistant-orange"
+										? "text-plasma-orange"
 										: "text-primary/70 hover:text-primary"
 								)}
 								data-clarification-answer-index={index + 1}
@@ -218,7 +218,7 @@ export function KnowledgeClarificationQuestionContent({
 								<div
 									className={cn(
 										"mt-1 flex size-3 shrink-0 items-center justify-center rounded font-bold text-xs",
-										isSelected ? "text-cossistant-orange" : "text-primary/70"
+										isSelected ? "text-plasma-orange" : "text-primary/70"
 									)}
 								>
 									{index + 1}.
@@ -234,14 +234,14 @@ export function KnowledgeClarificationQuestionContent({
 						className={cn(
 							"flex w-full items-start gap-3 py-2 text-sm transition-colors",
 							isOtherSelected
-								? "text-cossistant-orange"
+								? "text-plasma-orange"
 								: "text-primary/70 focus-within:text-primary"
 						)}
 					>
 						<div
 							className={cn(
 								"mt-1 flex size-3 shrink-0 items-center justify-center rounded font-bold text-xs",
-								isOtherSelected ? "text-cossistant-orange" : "text-primary/70"
+								isOtherSelected ? "text-plasma-orange" : "text-primary/70"
 							)}
 						>
 							4.

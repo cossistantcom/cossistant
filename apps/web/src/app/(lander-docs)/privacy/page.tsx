@@ -209,9 +209,9 @@ const sections = [
 						<strong>Email:</strong>{" "}
 						<a
 							className="text-primary underline"
-							href="mailto:anthony@cossistant.com"
+							href="mailto:anthony@plasma-pandora.com"
 						>
-							anthony@cossistant.com
+							anthony@plasma-pandora.com
 						</a>
 					</li>
 					<li>

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ConversationClarificationProgress } from "@cossistant/types";
+import type { ConversationClarificationProgress } from "@plasma/types";
 
 export type LocalClarificationProgressPhase =
 	| "saving_answer"

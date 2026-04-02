@@ -3,7 +3,7 @@ import type {
 	DefaultMessage,
 	IdentifyContactResponse,
 	RealtimeEvent,
-} from "@cossistant/types";
+} from "@plasma/types";
 import type {
 	CreateConversationRequestBody,
 	CreateConversationResponseBody,
@@ -16,25 +16,25 @@ import type {
 	SetConversationTypingResponseBody,
 	SubmitConversationRatingRequestBody,
 	SubmitConversationRatingResponseBody,
-} from "@cossistant/types/api/conversation";
+} from "@plasma/types/api/conversation";
 import type {
 	SubmitFeedbackRequest,
 	SubmitFeedbackResponse,
-} from "@cossistant/types/api/feedback";
+} from "@plasma/types/api/feedback";
 import type {
 	GetConversationTimelineItemsRequest,
 	GetConversationTimelineItemsResponse,
 	SendTimelineItemRequest,
 	SendTimelineItemResponse,
 	TimelineItem,
-} from "@cossistant/types/api/timeline-item";
+} from "@plasma/types/api/timeline-item";
 import {
 	ConversationStatus,
 	ConversationTimelineType,
 	SenderType,
 	TimelineItemVisibility,
-} from "@cossistant/types/enums";
-import type { Conversation } from "@cossistant/types/schemas";
+} from "@plasma/types/enums";
+import type { Conversation } from "@plasma/types/schemas";
 import { RealtimeClient } from "./realtime-client";
 import { shouldDeliverEvent } from "./realtime-event-filter";
 import { CossistantRestClient } from "./rest-client";

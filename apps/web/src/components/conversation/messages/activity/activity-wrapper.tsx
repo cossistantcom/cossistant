@@ -1,4 +1,4 @@
-import { ToolActivityRow } from "@cossistant/next/primitives";
+import { ToolActivityRow } from "@plasma/next/primitives";
 import type { LucideIcon } from "lucide-react";
 import { motion } from "motion/react";
 import type React from "react";

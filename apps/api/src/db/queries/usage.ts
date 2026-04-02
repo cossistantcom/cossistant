@@ -6,11 +6,11 @@ import {
 	member,
 	teamMember,
 } from "@api/db/schema";
-import { ConversationTimelineType } from "@cossistant/types";
-import type { ConversationHardLimitCutoff } from "@cossistant/types/trpc/conversation-hard-limit";
+import { ConversationTimelineType } from "@plasma/types";
+import type { ConversationHardLimitCutoff } from "@plasma/types/trpc/conversation-hard-limit";
 
-export type { ConversationHardLimitCutoff } from "@cossistant/types/trpc/conversation-hard-limit";
-export { isConversationAfterHardLimitCutoff } from "@cossistant/types/trpc/conversation-hard-limit";
+export type { ConversationHardLimitCutoff } from "@plasma/types/trpc/conversation-hard-limit";
+export { isConversationAfterHardLimitCutoff } from "@plasma/types/trpc/conversation-hard-limit";
 
 import { and, asc, count, eq, gte, isNull } from "drizzle-orm";
 

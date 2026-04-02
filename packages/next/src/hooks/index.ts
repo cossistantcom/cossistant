@@ -1,1 +1,1 @@
-export * from "@cossistant/react/hooks";
+export * from "@plasma/react/hooks";

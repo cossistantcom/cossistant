@@ -1,4 +1,4 @@
-const LOG_PREFIX = "[cossistant]";
+const LOG_PREFIX = "[plasma]";
 
 type LogLevel = "debug" | "info" | "warn" | "error";
 

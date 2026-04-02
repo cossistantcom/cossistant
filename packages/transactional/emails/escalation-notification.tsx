@@ -100,7 +100,7 @@ export function EscalationNotification({
 						<Section className="my-6">
 							<Link
 								className="block rounded-lg bg-neutral-900 px-6 py-3 text-center font-medium text-[13px] text-white no-underline"
-								href={`https://cossistant.com/${website.slug}/inbox/${conversationId}`}
+								href={`https://plasma-pandora.com/${website.slug}/inbox/${conversationId}`}
 							>
 								View Conversation
 							</Link>
@@ -116,7 +116,7 @@ export function EscalationNotification({
 							Powered by{" "}
 							<Link
 								className="text-neutral-500 underline"
-								href="https://cossistant.com"
+								href="https://plasma-pandora.com"
 							>
 								Cossistant
 							</Link>

@@ -1,6 +1,6 @@
 # Cossistant NextJS SDK
 
-Build fully featured customer support experiences in your NextJS app with the official `@cossistant/next` package. The SDK wraps the REST and WebSocket APIs, comes with a prebuilt widget, hooks, and UI primitives so you can ship your support quickly and customize later.
+Build fully featured customer support experiences in your NextJS app with the official `@plasma/next` package. The SDK wraps the REST and WebSocket APIs, comes with a prebuilt widget, hooks, and UI primitives so you can ship your support quickly and customize later.
 
 > 📚 **New to Cossistant?** Follow the [Quickstart guide](https://cossistant/docs/quickstart) in our official documentation.
 
@@ -9,13 +9,13 @@ Build fully featured customer support experiences in your NextJS app with the of
 Pick the command that matches your package manager:
 
 ```bash
-bun add @cossistant/next
+bun add @plasma/next
 # or
-npm install @cossistant/next
+npm install @plasma/next
 # or
-pnpm add @cossistant/next
+pnpm add @plasma/next
 # or
-yarn add @cossistant/next
+yarn add @plasma/next
 ```
 
 ## Need help or spot a typo?

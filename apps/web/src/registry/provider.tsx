@@ -1,6 +1,6 @@
 "use client";
 
-import { SupportProvider } from "@cossistant/next";
+import { SupportProvider } from "@plasma/next";
 
 export function CossistantProvider({
 	children,

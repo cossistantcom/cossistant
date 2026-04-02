@@ -6,7 +6,7 @@ import {
 	AI_AGENT_RESERVED_TOOL_SKILL_TEMPLATE_NAMES,
 	AI_AGENT_TOOL_CATALOG,
 	type AiAgentBehaviorSettingKey,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { getBehaviorPromptDefinition } from "./behavior-catalog";
 import {
 	CORE_PROMPT_DOCUMENT_NAMES,

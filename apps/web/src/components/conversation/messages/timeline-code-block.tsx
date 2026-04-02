@@ -1,7 +1,7 @@
 import {
 	TimelineCodeBlock as PrimitiveTimelineCodeBlock,
 	type TimelineCodeBlockProps as PrimitiveTimelineCodeBlockProps,
-} from "@cossistant/next/primitives";
+} from "@plasma/next/primitives";
 import type React from "react";
 import { Button } from "@/components/ui/button";
 

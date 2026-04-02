@@ -1,16 +1,16 @@
-import type { CossistantClient } from "@cossistant/core";
+import type { CossistantClient } from "@plasma/core";
 import {
 	generateMessageId,
 	isImageMimeType,
 	validateFiles,
-} from "@cossistant/core";
-import type { CreateConversationResponseBody } from "@cossistant/types/api/conversation";
+} from "@plasma/core";
+import type { CreateConversationResponseBody } from "@plasma/types/api/conversation";
 import type {
 	TimelineItem,
 	TimelineItemParts,
 	TimelinePartFile,
 	TimelinePartImage,
-} from "@cossistant/types/api/timeline-item";
+} from "@plasma/types/api/timeline-item";
 import { useCallback, useState } from "react";
 
 import { useSupport } from "../provider";

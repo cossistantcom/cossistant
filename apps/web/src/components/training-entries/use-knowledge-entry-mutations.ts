@@ -1,6 +1,6 @@
 "use client";
 
-import type { KnowledgeResponse, KnowledgeType } from "@cossistant/types";
+import type { KnowledgeResponse, KnowledgeType } from "@plasma/types";
 import { useQueryNormalizer } from "@normy/react-query";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";

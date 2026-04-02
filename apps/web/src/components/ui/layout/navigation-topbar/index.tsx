@@ -1,6 +1,6 @@
 "use client";
 
-import { Support } from "@cossistant/next/support";
+import { Support } from "@plasma/next/support";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
@@ -243,7 +243,7 @@ export function NavigationTopbar({
 					) : (
 						<span className="flex items-center gap-1.5">
 							New agent
-							<span className="rounded-sm bg-cossistant-orange px-1.5 py-0.5 font-medium text-[10px] text-white leading-none">
+							<span className="rounded-sm bg-plasma-orange px-1.5 py-0.5 font-medium text-[10px] text-white leading-none">
 								AI
 							</span>
 						</span>

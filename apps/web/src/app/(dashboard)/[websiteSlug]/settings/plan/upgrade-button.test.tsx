@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import type { RouterOutputs } from "@cossistant/api/types";
+import type { RouterOutputs } from "@plasma/api/types";
 import { renderToStaticMarkup } from "react-dom/server";
 import { UpgradeButton } from "./upgrade-button";
 

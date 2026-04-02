@@ -12,7 +12,7 @@ import { createTimelineItem } from "@api/utils/timeline-item";
 import {
 	ConversationTimelineType,
 	TimelineItemVisibility,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { eq } from "drizzle-orm";
 
 type AddInternalNoteParams = {

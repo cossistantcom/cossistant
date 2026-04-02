@@ -1,5 +1,5 @@
 {
-  "name": "@cossistant/tiny-markdown",
+  "name": "@plasma/tiny-markdown",
   "type": "module",
   "version": "0.0.1",
   "private": false,
@@ -16,15 +16,15 @@
     "typescript"
   ],
   "bugs": {
-    "url": "https://github.com/cossistantcom/cossistant/issues"
+    "url": "https://github.com/plasma-pandora/plasma-pandora/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cossistantcom/cossistant.git",
+    "url": "git+https://github.com/plasma-pandora/plasma-pandora.git",
     "directory": "packages/tiny-markdown"
   },
   "license": "MIT",
-  "homepage": "https://cossistant.com",
+  "homepage": "https://plasma-pandora.com",
   "exports": {
     ".": "./src/index.ts",
     "./hooks": "./src/hooks/index.ts",
@@ -47,7 +47,7 @@
     }
   },
   "devDependencies": {
-    "@cossistant/typescript-config": "workspace:*",
+    "@plasma/typescript-config": "workspace:*",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "react": "^19.0.0",

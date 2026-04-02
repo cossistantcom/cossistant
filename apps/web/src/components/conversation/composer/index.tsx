@@ -4,7 +4,7 @@ import {
 	extractFilesFromClipboard,
 	FILE_INPUT_ACCEPT,
 	MAX_FILES_PER_MESSAGE,
-} from "@cossistant/core";
+} from "@plasma/core";
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";

@@ -1,4 +1,4 @@
-import type { RealtimeEvent } from "@cossistant/types/realtime-events";
+import type { RealtimeEvent } from "@plasma/types/realtime-events";
 import { toast } from "sonner";
 import { showProgressToast } from "@/components/ui/sonner";
 import type { DashboardRealtimeContext } from "../types";

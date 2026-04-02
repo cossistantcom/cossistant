@@ -17,6 +17,6 @@ export default defineConfig({
 		dts: ".d.ts",
 	}),
 	// Keep utility libraries and transitive dependencies external
-	// zod and @hono/zod-openapi are needed because @cossistant/types uses them
-	external: ["@cossistant/types", "nanoid", "ulid", "zod", "@hono/zod-openapi"],
+	// zod and @hono/zod-openapi are needed because @plasma/types uses them
+	external: ["@plasma/types", "nanoid", "ulid", "zod", "@hono/zod-openapi"],
 });

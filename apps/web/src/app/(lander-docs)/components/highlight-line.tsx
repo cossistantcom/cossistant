@@ -8,13 +8,13 @@ const highlightLineVariants = cva(
 	{
 		variants: {
 			variant: {
-				new: "border-primary/20 bg-cossistant-green/20 text-primary dark:border-cossistant-green/60 dark:text-cossistant-green",
+				new: "border-primary/20 bg-plasma-green/20 text-primary dark:border-plasma-green/60 dark:text-plasma-green",
 				updated:
-					"border-primary/20 bg-cossistant-blue/20 text-primary dark:border-cossistant-blue/60 dark:text-cossistant-blue",
+					"border-primary/20 bg-plasma-blue/20 text-primary dark:border-plasma-blue/60 dark:text-plasma-blue",
 				fixed:
-					"border-primary/20 bg-cossistant-yellow/20 text-primary dark:border-cossistant-yellow/60 dark:text-cossistant-yellow",
+					"border-primary/20 bg-plasma-yellow/20 text-primary dark:border-plasma-yellow/60 dark:text-plasma-yellow",
 				removed:
-					"border-primary/20 bg-cossistant-red/20 text-primary dark:border-cossistant-red/60 dark:text-cossistant-red",
+					"border-primary/20 bg-plasma-red/20 text-primary dark:border-plasma-red/60 dark:text-plasma-red",
 			},
 		},
 		defaultVariants: {

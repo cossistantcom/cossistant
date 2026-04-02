@@ -1,7 +1,7 @@
 "use client";
 
-import type { RouterOutputs } from "@cossistant/api/types";
-import { APIKeyType } from "@cossistant/types";
+import type { RouterOutputs } from "@plasma/api/types";
+import { APIKeyType } from "@plasma/types";
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { BaseSubmitButton } from "@/components/ui/base-submit-button";

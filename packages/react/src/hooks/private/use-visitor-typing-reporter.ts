@@ -1,5 +1,5 @@
-import type { CossistantClient } from "@cossistant/core";
-import type { AnyRealtimeEvent } from "@cossistant/types/realtime-events";
+import type { CossistantClient } from "@plasma/core";
+import type { AnyRealtimeEvent } from "@plasma/types/realtime-events";
 import { useCallback, useEffect, useRef } from "react";
 
 const PREVIEW_MAX_LENGTH = 2000;

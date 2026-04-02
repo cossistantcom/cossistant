@@ -30,7 +30,7 @@ The `<Support />` component is built on **progressive disclosure**. Start with z
 Drop `<Support />` anywhere in your app:
 
 ```tsx
-import { Support } from "@cossistant/next";
+import { Support } from "@plasma/next";
 
 export default function App() {
   return (
@@ -49,8 +49,8 @@ That's it. You get a fully functional support widget.
 Use `<SupportConfig />` to customize messages and quick options per page:
 
 ```tsx title="app/pricing/page.tsx"
-import { SupportConfig } from "@cossistant/next";
-import { type DefaultMessage, SenderType } from "@cossistant/types";
+import { SupportConfig } from "@plasma/next";
+import { type DefaultMessage, SenderType } from "@plasma/types";
 
 const user: { name: string | null } = {
   name: "Jane Doe",
@@ -92,7 +92,7 @@ export default function PricingPage() {
 By default, visitors are **anonymous**. Use `<IdentifySupportVisitor />` to connect them to your authenticated users:
 
 ```tsx title="app/dashboard/layout.tsx"
-import { IdentifySupportVisitor } from "@cossistant/next";
+import { IdentifySupportVisitor } from "@plasma/next";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
@@ -175,7 +175,7 @@ With positioning:
 With custom page:
 
 ```tsx
-import { Support, useSupportNavigation } from "@cossistant/next";
+import { Support, useSupportNavigation } from "@plasma/next";
 
 const HelpPage = () => {
   const { goBack } = useSupportNavigation();

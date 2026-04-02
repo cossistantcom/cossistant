@@ -8,7 +8,7 @@ import {
 	S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import type { GenerateUploadUrlRequest } from "@cossistant/types/api/upload";
+import type { GenerateUploadUrlRequest } from "@plasma/types/api/upload";
 import { ulid } from "ulid";
 
 const LEADING_DOT_PATTERN = /^\./;

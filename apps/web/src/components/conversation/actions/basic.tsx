@@ -1,7 +1,7 @@
 /** biome-ignore-all lint/correctness/useExhaustiveDependencies: ok */
 "use client";
 
-import { ConversationStatus } from "@cossistant/types";
+import { ConversationStatus } from "@plasma/types";
 import type React from "react";
 import { useCallback, useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";

@@ -7,37 +7,37 @@ import {
 describe("support integration install commands", () => {
 	it("returns unpinned Next.js commands for all package managers", () => {
 		expect(getSupportInstallCommands("nextjs")).toEqual({
-			bun: "bun add @cossistant/next",
-			npm: "npm install @cossistant/next",
-			pnpm: "pnpm add @cossistant/next",
-			yarn: "yarn add @cossistant/next",
+			bun: "bun add @plasma/next",
+			npm: "npm install @plasma/next",
+			pnpm: "pnpm add @plasma/next",
+			yarn: "yarn add @plasma/next",
 		});
 	});
 
 	it("returns unpinned React commands for all package managers", () => {
 		expect(getSupportInstallCommands("react")).toEqual({
-			bun: "bun add @cossistant/react",
-			npm: "npm install @cossistant/react",
-			pnpm: "pnpm add @cossistant/react",
-			yarn: "yarn add @cossistant/react",
+			bun: "bun add @plasma/react",
+			npm: "npm install @plasma/react",
+			pnpm: "pnpm add @plasma/react",
+			yarn: "yarn add @plasma/react",
 		});
 	});
 
 	it("returns version-pinned Next.js commands for all package managers", () => {
 		expect(getSupportInstallCommands("nextjs", "0.0.28")).toEqual({
-			bun: "bun add @cossistant/next@0.0.28",
-			npm: "npm install @cossistant/next@0.0.28",
-			pnpm: "pnpm add @cossistant/next@0.0.28",
-			yarn: "yarn add @cossistant/next@0.0.28",
+			bun: "bun add @plasma/next@0.0.28",
+			npm: "npm install @plasma/next@0.0.28",
+			pnpm: "pnpm add @plasma/next@0.0.28",
+			yarn: "yarn add @plasma/next@0.0.28",
 		});
 	});
 
 	it("returns version-pinned React commands for all package managers", () => {
 		expect(getSupportInstallCommands("react", "0.0.28")).toEqual({
-			bun: "bun add @cossistant/react@0.0.28",
-			npm: "npm install @cossistant/react@0.0.28",
-			pnpm: "pnpm add @cossistant/react@0.0.28",
-			yarn: "yarn add @cossistant/react@0.0.28",
+			bun: "bun add @plasma/react@0.0.28",
+			npm: "npm install @plasma/react@0.0.28",
+			pnpm: "pnpm add @plasma/react@0.0.28",
+			yarn: "yarn add @plasma/react@0.0.28",
 		});
 	});
 
@@ -48,6 +48,6 @@ describe("support integration install commands", () => {
 				packageManager: "npm",
 				version: "0.1.2",
 			})
-		).toBe("npm install @cossistant/react@0.1.2");
+		).toBe("npm install @plasma/react@0.1.2");
 	});
 });

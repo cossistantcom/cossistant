@@ -3,9 +3,9 @@ import {
 	TimelineItemGroup as PrimitiveTimelineItemGroup,
 	TimelineItemGroupAvatar,
 	TimelineItemGroupContent,
-} from "@cossistant/next/primitives";
-import type { AvailableAIAgent } from "@cossistant/types";
-import { SenderType } from "@cossistant/types";
+} from "@plasma/next/primitives";
+import type { AvailableAIAgent } from "@plasma/types";
+import { SenderType } from "@plasma/types";
 import type { ConversationHeader } from "@/contexts/inboxes";
 import type { DeveloperLogGroupRenderItem } from "./dashboard-timeline-render-items";
 import {

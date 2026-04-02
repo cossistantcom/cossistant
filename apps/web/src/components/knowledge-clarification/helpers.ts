@@ -3,7 +3,7 @@
 import type {
 	KnowledgeClarificationRequest,
 	KnowledgeClarificationStepResponse,
-} from "@cossistant/types";
+} from "@plasma/types";
 
 export function formatClarificationQuestionLabel(stepIndex: number): string {
 	return `Question ${Math.max(stepIndex, 1)}`;

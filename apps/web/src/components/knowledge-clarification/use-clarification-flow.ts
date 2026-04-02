@@ -5,7 +5,7 @@ import type {
 	KnowledgeClarificationDraftFaq,
 	KnowledgeClarificationRequest,
 	KnowledgeClarificationStepResponse,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";

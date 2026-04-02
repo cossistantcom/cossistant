@@ -1,7 +1,7 @@
 import { markUserPresence, markVisitorPresence } from "@api/services/presence";
 import { WEBSOCKET_ERRORS } from "@api/utils/websocket-errors";
 import type { RawSocket, WebSocketAuthSuccess } from "@api/ws/socket";
-import type { AnyRealtimeEvent } from "@cossistant/types/realtime-events";
+import type { AnyRealtimeEvent } from "@plasma/types/realtime-events";
 import type { ServerWebSocket } from "bun";
 
 export type AuthResult = WebSocketAuthSuccess;

@@ -52,7 +52,7 @@ import {
 	listConversationHeadersResponseSchema,
 	TimelineItemVisibility,
 	visitorResponseSchema,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { TRPCError } from "@trpc/server";
 import { sql } from "drizzle-orm";
 import { z } from "zod";

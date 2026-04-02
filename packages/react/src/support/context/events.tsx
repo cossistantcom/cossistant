@@ -1,7 +1,7 @@
 "use client";
 
-import type { Conversation } from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+import type { Conversation } from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import * as React from "react";
 
 // =============================================================================

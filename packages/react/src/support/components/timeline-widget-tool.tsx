@@ -3,7 +3,7 @@
 import {
 	getWidgetToolDefaultProgressMessage,
 	isWidgetTimelineTool,
-} from "@cossistant/types";
+} from "@plasma/types";
 import type React from "react";
 import { ToolActivityRow } from "../../primitives/tool-activity-row";
 import {

@@ -19,13 +19,13 @@ import {
 	ConversationTimelineType,
 	TimelineItemVisibility,
 	type TimelineItemVisibility as TimelineItemVisibilityEnum,
-} from "@cossistant/types";
+} from "@plasma/types";
 import {
 	type TimelineItem,
 	timelineItemPartsSchema,
-} from "@cossistant/types/api/timeline-item";
-import type { ConversationSeen } from "@cossistant/types/schemas";
-import type { ConversationHeader } from "@cossistant/types/trpc/conversation";
+} from "@plasma/types/api/timeline-item";
+import type { ConversationSeen } from "@plasma/types/schemas";
+import type { ConversationHeader } from "@plasma/types/trpc/conversation";
 
 import {
 	and,

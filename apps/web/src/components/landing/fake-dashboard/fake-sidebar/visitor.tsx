@@ -1,6 +1,6 @@
 "use client";
 
-import { resolveCountryDetails } from "@cossistant/location/country-utils";
+import { resolveCountryDetails } from "@plasma/location/country-utils";
 import { useMemo } from "react";
 import { SidebarContainer } from "@/components/ui/layout/sidebars/container";
 import {

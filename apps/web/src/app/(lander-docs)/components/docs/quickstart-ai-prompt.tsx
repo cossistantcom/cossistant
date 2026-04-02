@@ -1,6 +1,6 @@
 "use client";
 
-import { WebsiteInstallationTarget } from "@cossistant/types";
+import { WebsiteInstallationTarget } from "@plasma/types";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { copyToClipboardWithMeta } from "@/components/copy-button";
@@ -80,7 +80,7 @@ export function QuickstartAIPrompt({
 			</Button>
 			<DashboardCodeBlock
 				code={aiPrompt}
-				fileName={"cossistant-prompt.md"}
+				fileName={"plasma-prompt.md"}
 				language="md"
 			/>
 		</div>

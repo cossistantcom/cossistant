@@ -1,4 +1,4 @@
-import type { Redis } from "@cossistant/redis";
+import type { Redis } from "@plasma/redis";
 
 export type WorkflowDirection =
 	| "member-to-visitor"

@@ -1,8 +1,8 @@
-import { useSupport } from "@cossistant/react";
+import { useSupport } from "@plasma/react";
 import { useMemo } from "react";
 import { Text } from "../text";
 import { cn } from "../utils";
-import { CossistantLogo } from "./cossistant-branding";
+import { PlasmaLogo } from "./plasma-branding";
 
 export type WatermarkProps = {
 	className?: string;
@@ -13,10 +13,10 @@ export const Watermark: React.FC<WatermarkProps> = ({ className }) => {
 
 	const cossistantUrl = useMemo(() => {
 		if (!website) {
-			return "https://cossistant.com";
+			return "https://plasma-pandora.com";
 		}
 
-		const url = new URL("https://cossistant.com");
+		const url = new URL("https://plasma-pandora.com");
 
 		url.searchParams.set("ref", "chatbox");
 		url.searchParams.set("domain", website.domain);
@@ -40,7 +40,7 @@ export const Watermark: React.FC<WatermarkProps> = ({ className }) => {
 				className="text-co-muted-foreground text-xs"
 				textKey="common.brand.watermark"
 			/>
-			<CossistantLogo className="h-3 transition-transform duration-200 group-focus-within/watermark:rotate-5 group-hover/watermark:scale-105" />
+			<PlasmaLogo className="h-3 transition-transform duration-200 group-focus-within/watermark:rotate-5 group-hover/watermark:scale-105" />
 		</a>
 	);
 };

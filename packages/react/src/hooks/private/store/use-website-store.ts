@@ -2,8 +2,8 @@ import type {
 	CossistantClient,
 	WebsiteState,
 	WebsiteStore,
-} from "@cossistant/core";
-import type { PublicWebsiteResponse } from "@cossistant/types";
+} from "@plasma/core";
+import type { PublicWebsiteResponse } from "@plasma/types";
 import { useMemo } from "react";
 import { useClientQuery } from "../use-client-query";
 import { useStoreSelector } from "./use-store-selector";

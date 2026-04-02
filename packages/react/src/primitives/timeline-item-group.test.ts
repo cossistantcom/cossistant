@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { SenderType } from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+import { SenderType } from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { TimelineItemGroupRenderProps } from "./timeline-item-group";

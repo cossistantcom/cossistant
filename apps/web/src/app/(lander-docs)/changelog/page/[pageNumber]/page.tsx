@@ -109,7 +109,7 @@ export default async function ChangelogPaginatedPage(props: {
 										<div className="flex items-center gap-3 md:flex-col md:items-start md:gap-1">
 											<a
 												className="inline-flex items-center rounded-sm bg-background-300 px-2.5 py-1 font-mono text-sm transition-colors hover:bg-background-400 dark:bg-background-400 dark:hover:bg-background-500"
-												href={`https://www.npmjs.com/package/@cossistant/react/v/${entryData.version}`}
+												href={`https://www.npmjs.com/package/@plasma/react/v/${entryData.version}`}
 												rel="noopener noreferrer"
 												target="_blank"
 											>

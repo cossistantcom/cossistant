@@ -1,6 +1,6 @@
 import "./support.css";
 
-import type { DefaultMessage } from "@cossistant/types";
+import type { DefaultMessage } from "@plasma/types";
 import * as React from "react";
 import * as Primitive from "../primitives";
 import { useSupport } from "../provider";
@@ -563,11 +563,11 @@ const SupportRouter: React.FC<SupportRouterProps> = ({
 
 export type SupportPageProps<
 	K extends
-		keyof import("@cossistant/core").RouteRegistry = keyof import("@cossistant/core").RouteRegistry,
+		keyof import("@plasma/core").RouteRegistry = keyof import("@plasma/core").RouteRegistry,
 > = {
 	name: K;
 	component: React.ComponentType<{
-		params?: import("@cossistant/core").RouteRegistry[K];
+		params?: import("@plasma/core").RouteRegistry[K];
 	}>;
 };
 
@@ -766,7 +766,7 @@ export type {
 	NavigationState,
 	RouteRegistry,
 	SupportPage as SupportPageType,
-} from "@cossistant/core";
+} from "@plasma/core";
 // Custom page type
 export type { CustomPage } from "./router";
 // Types from ./types.ts

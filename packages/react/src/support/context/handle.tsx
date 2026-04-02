@@ -1,6 +1,6 @@
 "use client";
 
-import type { RouteRegistry } from "@cossistant/core";
+import type { RouteRegistry } from "@plasma/core";
 import * as React from "react";
 import { PENDING_CONVERSATION_ID } from "../../utils/id";
 import { useSupportConfig, useSupportNavigation } from "../store/support-store";

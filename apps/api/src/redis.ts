@@ -3,7 +3,7 @@
  */
 
 import { env } from "@api/env";
-import { createRedisConnection, type Redis } from "@cossistant/redis";
+import { createRedisConnection, type Redis } from "@plasma/redis";
 
 let redis: Redis | null = null;
 

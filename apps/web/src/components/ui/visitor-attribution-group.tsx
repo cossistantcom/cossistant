@@ -1,4 +1,4 @@
-import type { VisitorAttribution } from "@cossistant/types";
+import type { VisitorAttribution } from "@plasma/types";
 import {
 	ValueDisplay,
 	ValueGroup,

@@ -1,5 +1,5 @@
-import { ConversationStatus } from "@cossistant/types";
-import type { InboxView } from "@cossistant/types/schemas";
+import { ConversationStatus } from "@plasma/types";
+import type { InboxView } from "@plasma/types/schemas";
 import { getSiteOrigin } from "@/lib/site-url";
 
 /**

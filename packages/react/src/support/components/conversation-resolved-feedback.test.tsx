@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { ConversationStatus } from "@cossistant/types";
+import { ConversationStatus } from "@plasma/types";
 import type React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { type CossistantContextValue, SupportContext } from "../../provider";

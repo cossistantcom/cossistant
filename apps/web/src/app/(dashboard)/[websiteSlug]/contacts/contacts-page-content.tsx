@@ -1,7 +1,7 @@
 /** biome-ignore-all lint/correctness/useExhaustiveDependencies: ok */
 "use client";
 
-import type { RouterOutputs } from "@cossistant/api/types";
+import type { RouterOutputs } from "@plasma/api/types";
 import { useQuery } from "@tanstack/react-query";
 import {
 	type Column,

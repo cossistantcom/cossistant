@@ -28,7 +28,7 @@ COPY . .
 
 # Build dependencies (transactional, types, location packages)
 # but skip the API binary compilation
-RUN bunx turbo run build --filter=@cossistant/api^...
+RUN bunx turbo run build --filter=@plasma/api^...
 
 # # Build TypeScript types for the API
 # RUN cd apps/api && bun run build:types

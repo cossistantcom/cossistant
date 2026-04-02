@@ -1,4 +1,4 @@
-import type { AiAgentToolId } from "@cossistant/types";
+import type { AiAgentToolId } from "@plasma/types";
 
 export const BACKGROUND_ONE_SHOT_TOOL_NAMES = [
 	"requestKnowledgeClarification",

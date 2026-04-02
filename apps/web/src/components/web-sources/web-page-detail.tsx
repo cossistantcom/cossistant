@@ -1,6 +1,6 @@
 "use client";
 
-import type { UrlKnowledgePayload } from "@cossistant/types";
+import type { UrlKnowledgePayload } from "@plasma/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLinkIcon, RefreshCwIcon } from "lucide-react";
 import { useRouter } from "next/navigation";

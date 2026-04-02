@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Redis } from "@cossistant/redis";
+import type { Redis } from "@plasma/redis";
 
 const ACQUIRE_CRAWL_SLOT_SCRIPT = `
 for _, key in ipairs(KEYS) do

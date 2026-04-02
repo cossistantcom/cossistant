@@ -35,7 +35,7 @@ Access support widget state and controls from any client component.
 ```tsx showLineNumbers title="components/custom-support-button.tsx"
 "use client";
 
-import { useSupport } from "@cossistant/next";
+import { useSupport } from "@plasma/next";
 
 export function CustomSupportButton() {
   const { isOpen, toggle, unreadCount } = useSupport();
@@ -84,7 +84,7 @@ Programmatically identify visitors and manage contact metadata.
 ```tsx showLineNumbers title="components/auth-handler.tsx"
 "use client";
 
-import { useVisitor } from "@cossistant/next";
+import { useVisitor } from "@plasma/next";
 import { useEffect } from "react";
 
 export function AuthHandler({ user }) {
@@ -111,7 +111,7 @@ export function AuthHandler({ user }) {
 ```tsx showLineNumbers title="components/upgrade-button.tsx"
 "use client";
 
-import { useVisitor } from "@cossistant/next";
+import { useVisitor } from "@plasma/next";
 
 export function UpgradeButton() {
   const { setVisitorMetadata } = useVisitor();
@@ -173,7 +173,7 @@ Access and control widget visibility and size configuration.
 ```tsx showLineNumbers title="components/custom-toggle.tsx"
 "use client";
 
-import { useSupportConfig } from "@cossistant/next/support";
+import { useSupportConfig } from "@plasma/next/support";
 
 export function CustomToggle() {
   const { isOpen, open, close, toggle, size } = useSupportConfig();
@@ -215,7 +215,7 @@ Access navigation state and routing methods for the widget.
 ```tsx showLineNumbers title="components/navigation-buttons.tsx"
 "use client";
 
-import { useSupportNavigation } from "@cossistant/next/support";
+import { useSupportNavigation } from "@plasma/next/support";
 
 export function NavigationButtons() {
   const { page, navigate, goBack, canGoBack } = useSupportNavigation();
@@ -257,7 +257,7 @@ Access the imperative handle from within the widget tree. Alternative to using r
 ```tsx showLineNumbers title="components/help-button.tsx"
 "use client";
 
-import { useSupportHandle } from "@cossistant/next/support";
+import { useSupportHandle } from "@plasma/next/support";
 
 export function HelpButton() {
   const support = useSupportHandle();
@@ -292,7 +292,7 @@ Logic hook for building custom home pages. Provides all state and actions needed
 ```tsx showLineNumbers title="pages/custom-home.tsx"
 "use client";
 
-import { useHomePage } from "@cossistant/next";
+import { useHomePage } from "@plasma/next";
 
 export function CustomHomePage() {
   const home = useHomePage({
@@ -341,7 +341,7 @@ Logic hook for building custom conversation pages. Manages the conversation life
 ```tsx showLineNumbers title="pages/custom-conversation.tsx"
 "use client";
 
-import { useConversationPage } from "@cossistant/next";
+import { useConversationPage } from "@plasma/next";
 
 export function CustomConversationPage({ conversationId }: { conversationId: string }) {
   const conversation = useConversationPage({
@@ -394,7 +394,7 @@ Hook for managing message composition with file attachments.
 ```tsx showLineNumbers title="components/message-input.tsx"
 "use client";
 
-import { useMessageComposer } from "@cossistant/next";
+import { useMessageComposer } from "@plasma/next";
 
 export function MessageInput({ conversationId }: { conversationId: string }) {
   const composer = useMessageComposer({
@@ -451,7 +451,7 @@ Hook for handling file uploads with progress tracking.
 ```tsx showLineNumbers title="components/file-uploader.tsx"
 "use client";
 
-import { useFileUpload } from "@cossistant/next";
+import { useFileUpload } from "@plasma/next";
 
 export function FileUploader() {
   const upload = useFileUpload();
@@ -497,7 +497,7 @@ Access the localization system for the support widget.
 ```tsx showLineNumbers title="components/localized-button.tsx"
 "use client";
 
-import { useSupportText } from "@cossistant/next/support";
+import { useSupportText } from "@plasma/next/support";
 
 export function LocalizedButton() {
   const format = useSupportText();
@@ -530,7 +530,7 @@ Access the events context for subscribing to widget lifecycle events. The hook r
 ```tsx showLineNumbers title="components/analytics-tracker.tsx"
 "use client";
 
-import { useSupportEvents } from "@cossistant/next/support";
+import { useSupportEvents } from "@plasma/next/support";
 import { useEffect } from "react";
 
 export function AnalyticsTracker() {

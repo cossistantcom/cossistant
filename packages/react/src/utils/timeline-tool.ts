@@ -1,4 +1,4 @@
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 
 export type TimelineToolPartState = "partial" | "result" | "error";
 

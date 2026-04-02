@@ -11,10 +11,10 @@ type ActivityLevel = 0 | 1 | 2 | 3 | 4;
 
 const ACTIVITY_COLORS: Record<ActivityLevel, string> = {
 	0: "bg-transparent",
-	1: "bg-cossistant-orange/20",
-	2: "bg-cossistant-orange/40",
-	3: "bg-cossistant-orange/60",
-	4: "bg-cossistant-orange/80",
+	1: "bg-plasma-orange/20",
+	2: "bg-plasma-orange/40",
+	3: "bg-plasma-orange/60",
+	4: "bg-plasma-orange/80",
 };
 
 function getActivityLevel(count: number, max: number): ActivityLevel {
@@ -82,7 +82,7 @@ function ActivityCell({
 			className={cn(
 				"aspect-square w-full border-[0.5px] border-background border-dashed",
 				ACTIVITY_COLORS[level],
-				"hover:bg-cossistant-orange",
+				"hover:bg-plasma-orange",
 				level === 0 && "border-primary/5"
 			)}
 			title={`Week ${weekIndex + 1}, Day ${dayIndex + 1}: ${count} commits`}
@@ -154,11 +154,11 @@ export async function GitHubActivityGraph() {
 					<h2 className="font-f37-stout text-xl md:text-2xl">Changelog</h2>
 					<p className="text-muted-foreground">
 						We&apos;re shipping a lot,{" "}
-						<span className="font-medium text-cossistant-orange tabular-nums">
+						<span className="font-medium text-plasma-orange tabular-nums">
 							{totalCommits.toLocaleString()} commits
 						</span>{" "}
 						and{" "}
-						<span className="font-medium text-cossistant-orange tabular-nums">
+						<span className="font-medium text-plasma-orange tabular-nums">
 							{prCount.toLocaleString()} PRs
 						</span>{" "}
 						in the past year.

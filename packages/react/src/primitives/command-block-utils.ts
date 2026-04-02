@@ -1,7 +1,7 @@
-import type { MarkdownToken } from "@cossistant/tiny-markdown";
+import type { MarkdownToken } from "@plasma/tiny-markdown";
 
-export const COMMAND_PREFERENCE_STORAGE_KEY = "cossistant:package-manager";
-export const COMMAND_PREFERENCE_EVENT = "cossistant:package-manager-change";
+export const COMMAND_PREFERENCE_STORAGE_KEY = "plasma:package-manager";
+export const COMMAND_PREFERENCE_EVENT = "plasma:package-manager-change";
 export const DEFAULT_PACKAGE_MANAGER = "npm" as const;
 
 export const COMMAND_PACKAGE_MANAGERS = ["npm", "yarn", "pnpm", "bun"] as const;

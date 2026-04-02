@@ -51,5 +51,5 @@
 ## Phase 6: Scoped App Wrappers
 
 - [x] Add Cossistant-side wrapper helpers for visitor, conversation, and website memory scope.
-- [x] Keep those wrappers outside the package so `@cossistant/memory` stays product-agnostic.
+- [x] Keep those wrappers outside the package so `@plasma/memory` stays product-agnostic.
 - [x] Keep wrappers out of the current tool catalog and capability UI for now.

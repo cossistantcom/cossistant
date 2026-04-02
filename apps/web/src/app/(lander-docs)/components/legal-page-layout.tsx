@@ -44,9 +44,9 @@ export function LegalPageLayout({
 						If you have any questions about this document, please contact us at{" "}
 						<a
 							className="text-primary underline"
-							href="mailto:anthony@cossistant.com"
+							href="mailto:anthony@plasma-pandora.com"
 						>
-							anthony@cossistant.com
+							anthony@plasma-pandora.com
 						</a>
 						.
 					</p>

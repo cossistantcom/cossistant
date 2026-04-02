@@ -1,10 +1,10 @@
 {
-  "name": "@cossistant/release",
+  "name": "@plasma/release",
   "version": "0.0.1",
   "private": true,
   "type": "module",
   "bin": {
-    "cossistant-release": "./src/index.ts"
+    "plasma-release": "./src/index.ts"
   },
   "dependencies": {
     "@dotenvx/dotenvx": "^1.51.2",
@@ -19,7 +19,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@cossistant/typescript-config": "workspace:*",
+    "@plasma/typescript-config": "workspace:*",
     "@types/bun": "^1.2.22",
     "@types/fs-extra": "^11.0.4",
     "@types/prompts": "^2.4.9"

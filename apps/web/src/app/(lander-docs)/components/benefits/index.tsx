@@ -18,7 +18,7 @@ const benefits = [
 	//     className: "lg:col-span-3",
 	//     title: (
 	//       <>
-	//         <span className="group/title text-cossistant-green">Human + AI</span>{" "}
+	//         <span className="group/title text-plasma-green">Human + AI</span>{" "}
 	//         support
 	//       </>
 	//     ),
@@ -30,7 +30,7 @@ const benefits = [
 	//     className: "lg:col-span-3",
 	//     title: (
 	//       <>
-	//         24/7 autonomous <span className="text-cossistant-green">AI agents</span>
+	//         24/7 autonomous <span className="text-plasma-green">AI agents</span>
 	//       </>
 	//     ),
 	//     description:
@@ -41,7 +41,7 @@ const benefits = [
 	//     className: "lg:col-span-3",
 	//     title: (
 	//       <>
-	//         <span className="text-cossistant-green">Context-aware</span> replies
+	//         <span className="text-plasma-green">Context-aware</span> replies
 	//       </>
 	//     ),
 	//     description:
@@ -74,7 +74,7 @@ export const Benefits = () => (
 	<section className="relative mb-0 grid gap-6 pt-12 md:gap-12">
 		<FullWidthBorder className="top-0" />
 		<div className="flex flex-col gap-2 px-4">
-			<p className="font-medium font-mono text-cossistant-orange text-sm">
+			<p className="font-medium font-mono text-plasma-orange text-sm">
 				[Support your customers faster with your own AI agent]
 			</p>
 			<h2 className="w-full max-w-4xl text-pretty font-f37-stout text-4xl sm:text-3xl md:text-balance md:text-4xl">

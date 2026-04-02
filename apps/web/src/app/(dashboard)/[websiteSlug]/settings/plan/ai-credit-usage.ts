@@ -1,4 +1,4 @@
-import type { RouterOutputs } from "@cossistant/api/types";
+import type { RouterOutputs } from "@plasma/api/types";
 
 export type PlanAiCredits = RouterOutputs["plan"]["getPlanInfo"]["aiCredits"];
 

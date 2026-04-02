@@ -1,5 +1,5 @@
 {
-  "name": "@cossistant/redis",
+  "name": "@plasma/redis",
   "type": "module",
   "version": "0.0.1",
   "private": true,
@@ -13,7 +13,7 @@
     "ioredis": "^5.8.1"
   },
   "devDependencies": {
-    "@cossistant/typescript-config": "workspace:*"
+    "@plasma/typescript-config": "workspace:*"
   },
   "scripts": {
     "lint": "biome check .",

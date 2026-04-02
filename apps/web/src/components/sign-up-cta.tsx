@@ -26,10 +26,10 @@ export function SignUpCTA({
 	const packageManager = config.packageManager || "pnpm";
 	const tabs = React.useMemo(
 		() => ({
-			pnpm: "pnpm add @cossistant/react",
-			npm: "npm install @cossistant/react",
-			yarn: "yarn add @cossistant/react",
-			bun: "bun add @cossistant/react",
+			pnpm: "pnpm add @plasma/react",
+			npm: "npm install @plasma/react",
+			yarn: "yarn add @plasma/react",
+			bun: "bun add @plasma/react",
 		}),
 		[]
 	);

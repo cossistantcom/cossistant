@@ -1,8 +1,8 @@
 /** biome-ignore-all lint/style/noNonNullAssertion: ok here */
 "use client";
 
-import type { RouterOutputs } from "@cossistant/api/types";
-import { IdentifySupportVisitor } from "@cossistant/react/identify-visitor";
+import type { RouterOutputs } from "@plasma/api/types";
+import { IdentifySupportVisitor } from "@plasma/react/identify-visitor";
 import { useQuery } from "@tanstack/react-query";
 import type { TRPCClientErrorBase } from "@trpc/client";
 import type { DefaultErrorShape } from "@trpc/server/unstable-core-do-not-import";

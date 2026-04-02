@@ -92,7 +92,7 @@ export function WebListPage() {
 					<div className="space-y-6">
 						<UsageStatsCard stats={pageState.stats} />
 						{showUpgradeCta ? (
-							<div className="flex items-center justify-end text-cossistant-orange text-sm">
+							<div className="flex items-center justify-end text-plasma-orange text-sm">
 								<button
 									className="font-medium underline hover:no-underline"
 									onClick={pageState.openUpgradeModal}

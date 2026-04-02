@@ -1,8 +1,8 @@
 import type { RouterOutputs } from "@api/trpc/types";
-import { resolveTimelineReadReceiptReaders } from "@cossistant/next/primitives";
-import type { AvailableAIAgent } from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
-import type { ConversationSeen } from "@cossistant/types/schemas";
+import { resolveTimelineReadReceiptReaders } from "@plasma/next/primitives";
+import type { AvailableAIAgent } from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
+import type { ConversationSeen } from "@plasma/types/schemas";
 import { format } from "date-fns";
 import { motion } from "motion/react";
 import { useMemo } from "react";

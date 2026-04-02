@@ -1,7 +1,7 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "globalDependencies": ["**/.env"],
-  "globalEnv": ["NODE_ENV", "NEXT_PUBLIC_COSSISTANT_API_KEY"],
+  "globalEnv": ["NODE_ENV", "NEXT_PUBLIC_PLASMA_API_KEY"],
   "ui": "tui",
   "tasks": {
     "build": {
@@ -12,14 +12,14 @@
     "//#fix": {
       "cache": false
     },
-    "@cossistant/react#build": {
+    "@plasma/react#build": {
       "outputs": ["dist/**"]
     },
-    "@cossistant/next#build": {
-      "dependsOn": ["@cossistant/react#build"],
+    "@plasma/next#build": {
+      "dependsOn": ["@plasma/react#build"],
       "outputs": ["dist/**"]
     },
-    "@cossistant/api#build": {
+    "@plasma/api#build": {
       "dependsOn": ["^build"],
       "env": [
         "DATABASE_HOST",
@@ -54,18 +54,14 @@
       ],
       "outputs": ["server"]
     },
-    "@cossistant/transactional#build": {
+    "@plasma/transactional#build": {
       "outputs": ["dist/**"]
     },
-    "@cossistant/location#build": {
+    "@plasma/location#build": {
       "outputs": ["dist/**"]
     },
-    "@cossistant/web#build": {
-      "dependsOn": [
-        "^build",
-        "@cossistant/react#build",
-        "@cossistant/next#build"
-      ],
+    "@plasma/web#build": {
+      "dependsOn": ["^build", "@plasma/react#build", "@plasma/next#build"],
       "inputs": [
         "$TURBO_DEFAULT$",
         ".env.production.local",
@@ -79,11 +75,11 @@
       "cache": false,
       "persistent": true
     },
-    "@cossistant/tinybird#dev": {
+    "@plasma/tinybird#dev": {
       "cache": false,
       "persistent": true
     },
-    "@cossistant/example-nextjs-tailwind#dev": {
+    "@plasma/example-nextjs-tailwind#dev": {
       "cache": false,
       "persistent": true
     },
@@ -100,7 +96,7 @@
       "dependsOn": ["^check-types"],
       "outputs": []
     },
-    "@cossistant/example-nextjs-tailwind#check-types": {
+    "@plasma/example-nextjs-tailwind#check-types": {
       "dependsOn": [],
       "outputs": []
     }

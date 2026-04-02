@@ -17,7 +17,7 @@ import {
 	listKnowledgeResponseSchema,
 	listKnowledgeRestRequestSchema,
 	updateKnowledgeRestRequestSchema,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import { protectedPrivateApiKeyMiddleware } from "../middleware";
 import type { RestContext } from "../types";

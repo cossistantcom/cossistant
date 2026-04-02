@@ -10,8 +10,8 @@ import {
 	validateResponse,
 } from "@api/utils/validate";
 import { getMostRecentLastOnlineAt } from "@api/utils/website";
-import { normalizeHumanAgentName } from "@cossistant/core";
-import { publicWebsiteResponseSchema } from "@cossistant/types";
+import { normalizeHumanAgentName } from "@plasma/core";
+import { publicWebsiteResponseSchema } from "@plasma/types";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";

@@ -57,7 +57,7 @@ describe("Avatar facehash wrapper", () => {
 		);
 
 		expect(html).toContain('data-slot="avatar-presence"');
-		expect(html).toContain("bg-cossistant-green");
+		expect(html).toContain("bg-plasma-green");
 		expect(html).toContain("Gorgeous Wolf is online");
 	});
 
@@ -73,7 +73,7 @@ describe("Avatar facehash wrapper", () => {
 		);
 
 		expect(html).toContain('data-slot="avatar-presence"');
-		expect(html).toContain("bg-cossistant-orange");
+		expect(html).toContain("bg-plasma-orange");
 		expect(html).toContain("Gorgeous Wolf last seen less than 30 minutes ago");
 	});
 

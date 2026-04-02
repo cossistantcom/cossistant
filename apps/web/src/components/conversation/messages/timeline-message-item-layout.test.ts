@@ -31,7 +31,7 @@ describe("timeline message width helpers", () => {
 	it("expands command blocks to full width", () => {
 		const commandSnippet = [
 			"```bash",
-			"npm install @cossistant/next @cossistant/react",
+			"npm install @plasma/next @plasma/react",
 			"```",
 		].join("\n");
 		expect(getDashboardMessageContainerWidthClasses(commandSnippet)).toBe(
@@ -43,7 +43,7 @@ describe("timeline message width helpers", () => {
 	});
 
 	it("expands standalone inline command snippets to full width", () => {
-		const commandSnippet = "`bun add @cossistant/next @cossistant/react`";
+		const commandSnippet = "`bun add @plasma/next @plasma/react`";
 		expect(getDashboardMessageContainerWidthClasses(commandSnippet)).toBe(
 			"w-full max-w-full"
 		);
@@ -53,7 +53,7 @@ describe("timeline message width helpers", () => {
 	});
 
 	it("expands inline command snippets in prose to full width", () => {
-		const message = "Run `bun add @cossistant/next @cossistant/react` today.";
+		const message = "Run `bun add @plasma/next @plasma/react` today.";
 		expect(getDashboardMessageContainerWidthClasses(message)).toBe(
 			"w-full max-w-full"
 		);

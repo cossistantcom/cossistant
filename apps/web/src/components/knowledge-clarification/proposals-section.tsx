@@ -1,6 +1,6 @@
 "use client";
 
-import type { KnowledgeClarificationRequest } from "@cossistant/types";
+import type { KnowledgeClarificationRequest } from "@plasma/types";
 import { useMutation } from "@tanstack/react-query";
 import { Trash2Icon } from "lucide-react";
 import { toast } from "sonner";

@@ -1,14 +1,14 @@
 "use client";
 
-import * as Primitive from "@cossistant/react/primitives";
-import { AvatarStack } from "@cossistant/react/support/components/avatar-stack";
-import { CoButton as Button } from "@cossistant/react/support/components/button";
-import { ConversationResolvedFeedback } from "@cossistant/react/support/components/conversation-resolved-feedback";
-import Icon from "@cossistant/react/support/components/icons";
-import { Watermark } from "@cossistant/react/support/components/watermark";
+import * as Primitive from "@plasma/react/primitives";
+import { AvatarStack } from "@plasma/react/support/components/avatar-stack";
+import { CoButton as Button } from "@plasma/react/support/components/button";
+import { ConversationResolvedFeedback } from "@plasma/react/support/components/conversation-resolved-feedback";
+import Icon from "@plasma/react/support/components/icons";
+import { Watermark } from "@plasma/react/support/components/watermark";
 // Text component uses real hooks, so we'll create a simple fake version
-import { ConversationStatus } from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+import { ConversationStatus } from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { WidgetShell } from "@/components/showcase/widget-shell";
 import { useViewportVisibility } from "@/hooks/use-viewport-visibility";

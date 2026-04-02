@@ -43,7 +43,7 @@ export const SelfLearningGraphic = () => (
 				)}
 				key={card.title}
 			>
-				<div className="text-cossistant-orange">
+				<div className="text-plasma-orange">
 					<p className="font-medium text-[13px]">{card.title}</p>
 				</div>
 				<p className="line-clamp-2 text-balance font-normal text-[13px] text-primary/60">

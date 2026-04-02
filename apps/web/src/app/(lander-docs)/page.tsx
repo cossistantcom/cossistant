@@ -1,5 +1,5 @@
-import { SupportConfig } from "@cossistant/react/support-config";
-import { SenderType } from "@cossistant/types";
+import { SupportConfig } from "@plasma/react/support-config";
+import { SenderType } from "@plasma/types";
 import Link from "next/link";
 import { FakeDashboard } from "@/components/landing/fake-dashboard";
 import { JsonLdScripts } from "@/components/seo/json-ld";
@@ -14,7 +14,7 @@ import {
 import { AnimationControls } from "./components/animation-controls";
 import { Benefits } from "./components/benefits";
 import { BrowserWithBackground } from "./components/browser-with-background";
-import CossistantIs from "./components/cossistant-is";
+import PlasmaIs from "./components/plasma-is";
 import { FullWidthBorder } from "./components/full-width-border";
 import { Install } from "./components/install";
 import { PrecisionFlowSection } from "./components/precision-flow-section";
@@ -57,7 +57,7 @@ export default function Landing() {
 			<div className="flex flex-col gap-8 pt-32 md:flex-row lg:min-h-screen">
 				<div className="flex flex-1 flex-col gap-6">
 					<div className="flex flex-col items-start gap-4 px-4 pb-8">
-						<p className="font-medium font-mono text-cossistant-orange text-xs">
+						<p className="font-medium font-mono text-plasma-orange text-xs">
 							[AI agent team member that learns from you, not a chatbot]
 						</p>
 						<h1 className="max-w-4xl text-balance text-left font-f37-stout text-[42px] leading-tight md:text-3xl xl:text-5xl">
@@ -118,7 +118,7 @@ export default function Landing() {
 					</div>
 				</div>
 			</div>
-			<CossistantIs />
+			<PlasmaIs />
 			<PrecisionFlowSection />
 			<Benefits />
 			<Install />

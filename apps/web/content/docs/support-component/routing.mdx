@@ -27,7 +27,7 @@ Add custom pages to the Support widget using **declarative `<Support.Page>` comp
 Type augmentation enables **full TypeScript autocomplete** for your custom routes:
 
 ```tsx
-declare module "@cossistant/core" {
+declare module "@plasma/core" {
   interface RouteRegistry {
     SETTINGS: { tab: string };
     HELP: undefined;
@@ -38,7 +38,7 @@ declare module "@cossistant/core" {
 ### Step 2: Create your page component
 
 ```tsx
-import { useSupportNavigation, Header, Button } from "@cossistant/next";
+import { useSupportNavigation, Header, Button } from "@plasma/next";
 
 const SettingsPage = ({ params }) => {
   const { navigate, goBack, canGoBack } = useSupportNavigation();
@@ -63,7 +63,7 @@ const SettingsPage = ({ params }) => {
 ### Step 3: Register with `<Support.Page>`
 
 ```tsx
-import { Support } from "@cossistant/next";
+import { Support } from "@plasma/next";
 
 <Support>
   <Support.Page name="SETTINGS" component={SettingsPage} />
@@ -87,7 +87,7 @@ navigate({
 The `useSupportNavigation` hook provides everything needed for routing:
 
 ```tsx
-import { useSupportNavigation } from "@cossistant/next";
+import { useSupportNavigation } from "@plasma/next";
 
 const MyPage = () => {
   const {
@@ -181,7 +181,7 @@ import {
   Text,
   useSupportText,
   useSupportNavigation
-} from "@cossistant/next";
+} from "@plasma/next";
 
 const HelpPage = () => {
   const { goBack } = useSupportNavigation();
@@ -216,10 +216,10 @@ const HelpPage = () => {
 ```tsx
 "use client";
 
-import { Support, useSupportNavigation } from "@cossistant/next";
+import { Support, useSupportNavigation } from "@plasma/next";
 
 // 1. Extend types
-declare module "@cossistant/core" {
+declare module "@plasma/core" {
   interface RouteRegistry {
     FAQ: undefined;
     SETTINGS: { section: string };

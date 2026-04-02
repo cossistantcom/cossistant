@@ -1,4 +1,4 @@
-import { Support } from "@cossistant/next";
+import { Support } from "@plasma/next";
 import Link from "next/link";
 
 export default function HomePage() {

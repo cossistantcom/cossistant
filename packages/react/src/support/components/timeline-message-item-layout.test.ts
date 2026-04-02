@@ -16,21 +16,21 @@ describe("getSupportMessageWidthClasses", () => {
 
 	it("expands command snippets to full width", () => {
 		const className = getSupportMessageWidthClasses(
-			["```bash", "npm install @cossistant/react", "```"].join("\n")
+			["```bash", "npm install @plasma/react", "```"].join("\n")
 		);
 		expect(className).toBe("w-full max-w-full");
 	});
 
 	it("expands standalone inline command snippets to full width", () => {
 		const className = getSupportMessageWidthClasses(
-			"`pnpm add @cossistant/react`"
+			"`pnpm add @plasma/react`"
 		);
 		expect(className).toBe("w-full max-w-full");
 	});
 
 	it("expands inline command snippets in prose to full width", () => {
 		const className = getSupportMessageWidthClasses(
-			"Run `pnpm add @cossistant/react` in your terminal."
+			"Run `pnpm add @plasma/react` in your terminal."
 		);
 		expect(className).toBe("w-full max-w-full");
 	});

@@ -1,6 +1,6 @@
 "use client";
 
-import type { KnowledgeClarificationRequest } from "@cossistant/types";
+import type { KnowledgeClarificationRequest } from "@plasma/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import {

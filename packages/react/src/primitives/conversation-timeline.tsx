@@ -1,4 +1,4 @@
-import type { TimelineItem as TimelineItemType } from "@cossistant/types/api/timeline-item";
+import type { TimelineItem as TimelineItemType } from "@plasma/types/api/timeline-item";
 import * as React from "react";
 import { useScrollMask } from "../hooks/use-scroll-mask";
 import { useRenderElement } from "../utils/use-render-element";

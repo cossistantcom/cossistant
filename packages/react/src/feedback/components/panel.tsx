@@ -89,7 +89,7 @@ export function FeedbackPanel({
 		}
 
 		console.warn(
-			'[cossistant] <Feedback defaultTopic="..."> must match one of the provided topics. The invalid defaultTopic was ignored.'
+			'[plasma] <Feedback defaultTopic="..."> must match one of the provided topics. The invalid defaultTopic was ignored.'
 		);
 	}, [availableTopics, defaultTopic, resolvedDefaultTopic]);
 
@@ -259,14 +259,14 @@ export function FeedbackPanel({
 					<div className="flex min-h-0 flex-1 flex-col gap-4">
 						{availableTopics.length > 0 ? (
 							<div className="space-y-2">
-								<label className="sr-only" htmlFor="cossistant-feedback-topic">
+								<label className="sr-only" htmlFor="plasma-feedback-topic">
 									Feedback topic
 								</label>
 								<FeedbackTopicSelect
 									aria-invalid={hasAttemptedSubmit && isTopicMissing}
 									disabled={isSubmitting}
 									iconClassName="text-co-muted-foreground"
-									id="cossistant-feedback-topic"
+									id="plasma-feedback-topic"
 									invalid={hasAttemptedSubmit && isTopicMissing}
 									onValueChange={setSelectedTopic}
 									options={availableTopics}
@@ -283,7 +283,7 @@ export function FeedbackPanel({
 						) : null}
 
 						<div className="flex min-h-0 flex-1 flex-col space-y-2">
-							<label className="sr-only" htmlFor="cossistant-feedback-comment">
+							<label className="sr-only" htmlFor="plasma-feedback-comment">
 								Your feedback
 							</label>
 							<FeedbackCommentInput
@@ -295,7 +295,7 @@ export function FeedbackPanel({
 										: "hover:border-co-foreground/25"
 								)}
 								disabled={isSubmitting}
-								id="cossistant-feedback-comment"
+								id="plasma-feedback-comment"
 								invalid={hasAttemptedSubmit && isCommentMissing}
 								onValueChange={setComment}
 								placeholder={commentPlaceholder}

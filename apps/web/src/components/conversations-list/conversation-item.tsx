@@ -1,12 +1,12 @@
 "use client";
 
 import type { RouterOutputs } from "@api/trpc/types";
-import { useConversationTyping } from "@cossistant/react";
-import { formatMessagePreview } from "@cossistant/tiny-markdown/utils";
+import { useConversationTyping } from "@plasma/react";
+import { formatMessagePreview } from "@plasma/tiny-markdown/utils";
 import {
 	ConversationStatus,
 	ConversationTimelineType,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { useQueryNormalizer } from "@normy/react-query";
 import { useQuery } from "@tanstack/react-query";
 import { differenceInHours } from "date-fns";
@@ -162,19 +162,19 @@ export function ConversationItemView({
 			</div>
 			<div className="flex items-center gap-3">
 				{locked ? (
-					<span className="shrink-0 font-medium text-cossistant-orange text-xs leading-none">
+					<span className="shrink-0 font-medium text-plasma-orange text-xs leading-none">
 						locked
 					</span>
 				) : needsHumanIntervention ? (
-					<span className="shrink-0 font-medium text-cossistant-orange text-xs leading-none">
+					<span className="shrink-0 font-medium text-plasma-orange text-xs leading-none">
 						Needs human
 					</span>
 				) : needsClarification ? (
-					<span className="shrink-0 font-medium text-cossistant-orange text-xs leading-none">
+					<span className="shrink-0 font-medium text-plasma-orange text-xs leading-none">
 						Clarification needed
 					</span>
 				) : waitingSinceLabel ? (
-					<span className="shrink-0 font-medium text-cossistant-orange text-xs leading-none">
+					<span className="shrink-0 font-medium text-plasma-orange text-xs leading-none">
 						{waitingSinceLabel} waiting
 					</span>
 				) : null}
@@ -188,7 +188,7 @@ export function ConversationItemView({
 					<span
 						aria-hidden="true"
 						className={cn(
-							"inline-block size-1.5 rounded-full bg-cossistant-orange opacity-0",
+							"inline-block size-1.5 rounded-full bg-plasma-orange opacity-0",
 							hasUnreadMessage && "opacity-100"
 						)}
 					/>

@@ -68,7 +68,7 @@ export default async function ChangelogPage() {
 										{entryData.version && (
 											<a
 												className="inline-flex items-center border border-dashed bg-background-300 px-2.5 py-1 font-mono text-sm transition-colors hover:bg-background-400"
-												href={`https://www.npmjs.com/package/@cossistant/react/v/${entryData.version}`}
+												href={`https://www.npmjs.com/package/@plasma/react/v/${entryData.version}`}
 												rel="noopener noreferrer"
 												target="_blank"
 											>

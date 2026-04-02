@@ -1,4 +1,4 @@
-import { MemberNotificationChannel } from "@cossistant/types";
+import { MemberNotificationChannel } from "@plasma/types";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useTRPC } from "@/lib/trpc/client";

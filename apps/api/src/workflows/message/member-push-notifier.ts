@@ -8,7 +8,7 @@ import {
 	type PushSubscriptionData,
 	sendPushNotification,
 } from "@api/utils/web-push";
-import { MemberNotificationChannel } from "@cossistant/types";
+import { MemberNotificationChannel } from "@plasma/types";
 
 import type { MemberRecipient } from "./member-email-notifier";
 

@@ -1,6 +1,6 @@
-# @cossistant/example-nextjs-tailwind
+# @plasma/example-nextjs-tailwind
 
-Integration test app for `@cossistant/next` using Next.js App Router + Tailwind CSS.
+Integration test app for `@plasma/next` using Next.js App Router + Tailwind CSS.
 
 ## Commands
 

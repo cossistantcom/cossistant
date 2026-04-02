@@ -3,7 +3,7 @@
 import {
 	PRESENCE_AWAY_WINDOW_MS,
 	PRESENCE_ONLINE_WINDOW_MS,
-} from "@cossistant/types";
+} from "@plasma/types";
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
 import { Facehash as FacehashComponent } from "facehash";
 import type * as React from "react";
@@ -241,8 +241,8 @@ function Avatar({
 						className={cn(
 							"-right-1 absolute bottom-0.5 hidden size-[5px] rounded-full ring-2 ring-background",
 							{
-								"block bg-cossistant-green": isOnline,
-								"block bg-cossistant-orange": isAway,
+								"block bg-plasma-green": isOnline,
+								"block bg-plasma-orange": isAway,
 							}
 						)}
 						data-slot="avatar-presence"

@@ -1,6 +1,6 @@
 "use client";
 
-import type { LinkSourceResponse } from "@cossistant/types";
+import type { LinkSourceResponse } from "@plasma/types";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 

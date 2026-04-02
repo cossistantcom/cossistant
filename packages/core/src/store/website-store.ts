@@ -1,4 +1,4 @@
-import type { PublicWebsiteResponse } from "@cossistant/types";
+import type { PublicWebsiteResponse } from "@plasma/types";
 import { createStore, type Store } from "./create-store";
 
 export type WebsiteStatus = "idle" | "loading" | "success" | "error";

@@ -1,4 +1,4 @@
-import type { AnyRealtimeEvent } from "@cossistant/types/realtime-events";
+import type { AnyRealtimeEvent } from "@plasma/types/realtime-events";
 
 function getTargetVisitorId(event: AnyRealtimeEvent): string | null {
 	const payloadVisitorId = event.payload.visitorId;

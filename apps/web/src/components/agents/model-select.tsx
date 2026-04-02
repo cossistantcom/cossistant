@@ -1,6 +1,6 @@
 "use client";
 
-import type { RouterOutputs } from "@cossistant/api/types";
+import type { RouterOutputs } from "@plasma/api/types";
 import { useState } from "react";
 import { UpgradeModal } from "@/components/plan/upgrade-modal";
 import Icon, { type IconName } from "@/components/ui/icons";
@@ -100,7 +100,7 @@ export function ModelSelect({
 											</span>
 										) : null}
 										{showUpgradeBadge && (
-											<span className="rounded bg-cossistant-orange/10 px-1.5 py-0.5 font-medium text-[10px] text-cossistant-orange">
+											<span className="rounded bg-plasma-orange/10 px-1.5 py-0.5 font-medium text-[10px] text-plasma-orange">
 												Upgrade
 											</span>
 										)}
@@ -116,7 +116,7 @@ export function ModelSelect({
 					)}
 					{hasLockedModels && !latestModelsFeature && (
 						<button
-							className="font-medium text-cossistant-orange text-sm hover:underline"
+							className="font-medium text-plasma-orange text-sm hover:underline"
 							onClick={() => setShowUpgradeModal(true)}
 							type="button"
 						>

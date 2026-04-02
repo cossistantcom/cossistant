@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import type { createMemoryTool } from "@cossistant/memory";
+import type { createMemoryTool } from "@plasma/memory";
 
 type GenericMemoryTools = ReturnType<typeof createMemoryTool>;
 
@@ -18,7 +18,7 @@ const createMemoryToolMock = mock((() => ({
 	recallMemory: typeof recallMemoryTool;
 });
 
-mock.module("@cossistant/memory", () => ({
+mock.module("@plasma/memory", () => ({
 	createMemoryTool: createMemoryToolMock,
 }));
 

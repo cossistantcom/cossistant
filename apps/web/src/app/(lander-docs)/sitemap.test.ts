@@ -16,7 +16,7 @@ describe("lander-docs sitemap", () => {
 		expect(urls).toContain("http://localhost:3000/docs");
 		expect(urls).toContain("http://localhost:3000/open-source-program");
 		expect(urls).toContain("http://localhost:3000/docs/others/contributors");
-		expect(urls).toContain("http://localhost:3000/blog/introducing-cossistant");
+		expect(urls).toContain("http://localhost:3000/blog/introducing-plasma-pandora");
 		expect(urls).not.toContain(
 			"http://localhost:3000/open-source-program/apply"
 		);

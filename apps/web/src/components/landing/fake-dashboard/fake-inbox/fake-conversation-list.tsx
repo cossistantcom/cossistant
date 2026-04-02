@@ -1,4 +1,4 @@
-import type { ConversationHeader } from "@cossistant/types";
+import type { ConversationHeader } from "@plasma/types";
 import { differenceInHours } from "date-fns";
 import { type ReactNode, useMemo } from "react";
 import { CategoryHeader } from "@/components/conversations-list/category-header";

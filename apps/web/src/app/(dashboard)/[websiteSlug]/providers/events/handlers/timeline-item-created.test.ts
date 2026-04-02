@@ -25,7 +25,7 @@ const upsertConversationTimelineItemInCacheMock = mock(
 	(_queryClient: unknown, _queryKey: readonly unknown[], _item: unknown) => {}
 );
 
-mock.module("@cossistant/react/realtime/typing-store", () => ({
+mock.module("@plasma/react/realtime/typing-store", () => ({
 	clearTypingFromTimelineItem: clearTypingFromTimelineItemMock,
 }));
 

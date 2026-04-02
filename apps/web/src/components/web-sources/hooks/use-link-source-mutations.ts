@@ -1,6 +1,6 @@
 "use client";
 
-import type { LinkSourceResponse } from "@cossistant/types";
+import type { LinkSourceResponse } from "@plasma/types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { toast } from "sonner";

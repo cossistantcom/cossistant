@@ -3,7 +3,7 @@
 import {
 	type AiAgentResponse,
 	DEFAULT_AGENT_BASE_PROMPT,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";

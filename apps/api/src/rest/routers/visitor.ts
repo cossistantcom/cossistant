@@ -34,7 +34,7 @@ import {
 	visitorActivityRequestSchema,
 	visitorActivityResponseSchema,
 	visitorResponseSchema,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Context } from "hono";
 import { z } from "zod";

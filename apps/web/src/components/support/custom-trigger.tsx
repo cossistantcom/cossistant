@@ -1,6 +1,6 @@
 "use client";
 
-import { Support, type TriggerRenderProps } from "@cossistant/react";
+import { Support, type TriggerRenderProps } from "@plasma/react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { BouncingDots } from "../conversation/messages/typing-indicator";
@@ -102,7 +102,7 @@ const UnreadBadge = ({
 		<motion.div
 			animate={{ scale: 1, opacity: 1 }}
 			className={cn(
-				"absolute flex size-1.5 items-center justify-center rounded-full bg-cossistant-orange",
+				"absolute flex size-1.5 items-center justify-center rounded-full bg-plasma-orange",
 				className
 			)}
 			exit={{ scale: 0, opacity: 0 }}
@@ -156,7 +156,7 @@ export const DashboardTriggerContent = ({
 		/>
 		<span className="font-medium text-sm">Need help?</span>
 		<UnreadBadge
-			className="-top-1 -right-1 bg-cossistant-orange outline-1 outline-background"
+			className="-top-1 -right-1 bg-plasma-orange outline-1 outline-background"
 			count={unreadCount}
 		/>
 	</>

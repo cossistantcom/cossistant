@@ -2,7 +2,7 @@ import type {
 	AvailableAIAgent,
 	AvailableHumanAgent,
 	TimelinePartEvent,
-} from "@cossistant/types";
+} from "@plasma/types";
 import type React from "react";
 import { useSupportText } from "../text";
 import { cn } from "../utils";
@@ -44,7 +44,7 @@ export const ConversationEvent: React.FC<ConversationEventProps> = ({
 
 	// Get the actor name
 	const actorName = isAI
-		? aiAgent?.name || text("common.fallbacks.cossistant")
+		? aiAgent?.name || text("common.fallbacks.plasma")
 		: humanDisplay.displayName;
 
 	// Convert event type to plain English
@@ -118,7 +118,7 @@ export const ConversationEvent: React.FC<ConversationEventProps> = ({
 			className="size-6 flex-shrink-0"
 			image={aiAgent?.image}
 			isAI
-			name={aiAgent?.name || text("common.fallbacks.cossistant")}
+			name={aiAgent?.name || text("common.fallbacks.plasma")}
 			showBackground={!!aiAgent?.image}
 		/>
 	) : (

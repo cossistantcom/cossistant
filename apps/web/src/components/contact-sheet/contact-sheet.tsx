@@ -1,4 +1,4 @@
-import type { ContactDetailResponse } from "@cossistant/types";
+import type { ContactDetailResponse } from "@plasma/types";
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {

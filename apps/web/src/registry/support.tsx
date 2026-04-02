@@ -1,6 +1,6 @@
 "use client";
 
-import { Support as CossistantSupport } from "@cossistant/next";
+import { Support as CossistantSupport } from "@plasma/next";
 import { motion } from "motion/react";
 import { TriggerContent } from "./bubble";
 

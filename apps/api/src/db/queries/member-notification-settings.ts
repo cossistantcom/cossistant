@@ -7,7 +7,7 @@ import {
 	type MemberNotificationChannel,
 	type MemberNotificationPreference,
 	type MemberNotificationSettingsResponse,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { and, eq } from "drizzle-orm";
 
 type GetMemberNotificationSettingsParams = {

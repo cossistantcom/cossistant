@@ -5,11 +5,11 @@ import {
 	MAX_FILES_PER_MESSAGE,
 	validateFile,
 	validateFiles,
-} from "@cossistant/core";
+} from "@plasma/core";
 import type {
 	TimelinePartFile,
 	TimelinePartImage,
-} from "@cossistant/types/api/timeline-item";
+} from "@plasma/types/api/timeline-item";
 import { useMutation } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { useWebsite } from "@/contexts/website";

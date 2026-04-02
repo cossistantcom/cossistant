@@ -48,11 +48,11 @@ function TabsTrigger({
 			data-slot="tabs-trigger"
 			{...props}
 		>
-			<span className="text-foreground/30 opacity-0 transition-all duration-100 group-data-[state=active]:text-cossistant-orange group-data-[state=active]:opacity-100">
+			<span className="text-foreground/30 opacity-0 transition-all duration-100 group-data-[state=active]:text-plasma-orange group-data-[state=active]:opacity-100">
 				[
 			</span>
 			{children}
-			<span className="text-foreground/30 opacity-0 transition-all duration-100 group-data-[state=active]:text-cossistant-orange group-data-[state=active]:opacity-100">
+			<span className="text-foreground/30 opacity-0 transition-all duration-100 group-data-[state=active]:text-plasma-orange group-data-[state=active]:opacity-100">
 				]
 			</span>
 		</TabsPrimitive.Trigger>

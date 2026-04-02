@@ -1,8 +1,8 @@
 import {
 	ConversationTimelineType,
 	type TimelineItemVisibility,
-} from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+} from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import type {
 	SearchKnowledgeClarificationSignal,
 	SearchKnowledgeRetrievalQuality,
@@ -119,8 +119,8 @@ function extractToolTimelineMetadata(part: ToolPartRecord): {
 			? part.callProviderMetadata
 			: null;
 	const cossistant =
-		providerMetadata && isRecord(providerMetadata.cossistant)
-			? providerMetadata.cossistant
+		providerMetadata && isRecord(providerMetadata.plasma)
+			? providerMetadata.plasma
 			: null;
 	const toolTimeline =
 		cossistant && isRecord(cossistant.toolTimeline)

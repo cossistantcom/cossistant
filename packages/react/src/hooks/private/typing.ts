@@ -1,5 +1,5 @@
-import type { TypingEntry } from "@cossistant/core";
-import type { AvailableAIAgent, AvailableHumanAgent } from "@cossistant/types";
+import type { TypingEntry } from "@plasma/core";
+import type { AvailableAIAgent, AvailableHumanAgent } from "@plasma/types";
 import type { SupportTextResolvedFormatter } from "../../support/text/locales/keys";
 import { resolveSupportHumanAgentDisplay } from "../../support/utils/human-agent-display";
 

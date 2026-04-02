@@ -1,10 +1,10 @@
-import { SupportProvider } from "@cossistant/next";
+import { SupportProvider } from "@plasma/next";
 import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
 	title: "Cossistant Example - Next.js + Tailwind",
-	description: "Integration test app for @cossistant/next docs flow",
+	description: "Integration test app for @plasma/next docs flow",
 };
 
 export default function RootLayout({

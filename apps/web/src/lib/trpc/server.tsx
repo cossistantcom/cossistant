@@ -2,8 +2,8 @@
 import "server-only";
 
 import { auth } from "@api/lib/auth";
-import type { OrigamiTRPCRouter } from "@cossistant/api/types";
-import { getCountryCode, getLocale, getTimezone } from "@cossistant/location";
+import type { OrigamiTRPCRouter } from "@plasma/api/types";
+import { getCountryCode, getLocale, getTimezone } from "@plasma/location";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import {
 	createTRPCClient,

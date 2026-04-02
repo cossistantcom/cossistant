@@ -1,5 +1,5 @@
-import { CossistantAPIError, type CossistantClient } from "@cossistant/core";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+import { CossistantAPIError, type CossistantClient } from "@plasma/core";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import { useEffect, useRef } from "react";
 import { useWindowVisibilityFocus } from "./use-window-visibility-focus";
 

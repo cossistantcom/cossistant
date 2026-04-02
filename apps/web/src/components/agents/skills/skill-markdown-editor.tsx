@@ -1,6 +1,6 @@
 "use client";
 
-import type { Mention, MentionType } from "@cossistant/tiny-markdown";
+import type { Mention, MentionType } from "@plasma/tiny-markdown";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { MentionPopover } from "../../conversation/composer/mention-popover";

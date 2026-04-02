@@ -1,8 +1,8 @@
 import {
 	RESEND_AUDIENCE_ID,
 	updateContactSubscriptionStatus,
-} from "@cossistant/transactional";
-import { emailSchema } from "@cossistant/types";
+} from "@plasma/transactional";
+import { emailSchema } from "@plasma/types";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { createTRPCRouter, rateLimitedPublicProcedure } from "../init";

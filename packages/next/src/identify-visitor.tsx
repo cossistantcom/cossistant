@@ -1,3 +1,3 @@
 "use client";
 
-export * from "@cossistant/react/identify-visitor";
+export * from "@plasma/react/identify-visitor";

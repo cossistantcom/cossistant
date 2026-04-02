@@ -1,6 +1,6 @@
 "use client";
 
-import type { VisitorAttribution } from "@cossistant/types";
+import type { VisitorAttribution } from "@plasma/types";
 import { Globe } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";

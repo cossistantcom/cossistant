@@ -13,7 +13,7 @@ import { createConversationEvent } from "@api/utils/conversation-event";
 import {
 	ConversationEventType,
 	TimelineItemVisibility,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { eq } from "drizzle-orm";
 import { loadCurrentConversation } from "./load-current-conversation";
 

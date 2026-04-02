@@ -1,29 +1,29 @@
-# @cossistant/example-nextjs-tailwind
+# @plasma/example-nextjs-tailwind
 
 ## 0.1.4
 
 ### Patch Changes
 
 - Updated dependencies []:
-  - @cossistant/next@0.1.2
+  - @plasma/next@0.1.2
 
 ## 0.1.3
 
 ### Patch Changes
 
 - Updated dependencies []:
-  - @cossistant/next@0.1.1
+  - @plasma/next@0.1.1
 
 ## 0.1.2
 
 ### Patch Changes
 
 - Updated dependencies []:
-  - @cossistant/next@0.1.0
+  - @plasma/next@0.1.0
 
 ## 0.1.1
 
 ### Patch Changes
 
 - Updated dependencies []:
-  - @cossistant/next@0.0.34
+  - @plasma/next@0.0.34

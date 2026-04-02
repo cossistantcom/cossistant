@@ -1,6 +1,6 @@
 "use client";
 
-import type { ArticleKnowledgePayload } from "@cossistant/types";
+import type { ArticleKnowledgePayload } from "@plasma/types";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";

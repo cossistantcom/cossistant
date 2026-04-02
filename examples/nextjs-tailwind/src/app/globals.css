@@ -1,14 +1,14 @@
 @import "tailwindcss";
-@import "@cossistant/next/support.css";
+@import "@plasma/next/support.css";
 
 :root {
-	--background: #ffffff;
-	--foreground: #0f172a;
+  --background: #ffffff;
+  --foreground: #0f172a;
 }
 
 body {
-	background: var(--background);
-	color: var(--foreground);
-	font-family:
-		"ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+  font-family:
+    "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", sans-serif;
 }

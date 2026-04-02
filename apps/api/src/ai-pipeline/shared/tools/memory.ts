@@ -3,7 +3,7 @@ import {
 	createMemoryTool,
 	type Memory,
 	type MemoryMetadata,
-} from "@cossistant/memory";
+} from "@plasma/memory";
 
 type RecallDefaults = NonNullable<
 	CreateMemoryToolOptions["recall"]["defaults"]

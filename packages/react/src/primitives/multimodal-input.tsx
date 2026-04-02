@@ -1,4 +1,4 @@
-import { extractFilesFromClipboard } from "@cossistant/core";
+import { extractFilesFromClipboard } from "@plasma/core";
 import * as React from "react";
 import { useRenderElement } from "../utils/use-render-element";
 

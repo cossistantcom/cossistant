@@ -11,7 +11,7 @@ import {
 	logEmailSuppressed,
 } from "@api/utils/notification-monitoring";
 import { MAX_MESSAGES_IN_EMAIL } from "@api/workflows/constants";
-import { NewMessageInConversation, sendEmail } from "@cossistant/transactional";
+import { NewMessageInConversation, sendEmail } from "@plasma/transactional";
 
 // Needed for email templates
 import React from "react";

@@ -1,6 +1,6 @@
 import type { Database } from "@api/db";
 import { listWebsiteAccessUsers } from "@api/lib/team-seats";
-import { normalizeHumanAgentName } from "@cossistant/core";
+import { normalizeHumanAgentName } from "@plasma/core";
 
 // Check if user has access to a website
 export async function getWebsiteMembers(

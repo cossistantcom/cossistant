@@ -12,7 +12,7 @@ description: Install and launch the Cossistant support widget in React.
 ### 1. Install the package
 
 ```bash
-npm install @cossistant/react
+npm install @plasma/react
 ```
 
 ### 2. Add your public API key
@@ -69,7 +69,7 @@ Or pass the key directly via the `publicKey` prop:
 ```tsx title="src/main.tsx"
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { SupportProvider } from "@cossistant/react";
+import { SupportProvider } from "@plasma/react";
 import App from "./App";
 import "./index.css";
 
@@ -104,7 +104,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 ```css title="src/index.css"
 @import "tailwindcss";
 
-@import "@cossistant/react/support.css";
+@import "@plasma/react/support.css";
 ```
 
   </TabsContent>
@@ -113,8 +113,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 ```tsx title="src/main.tsx"
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { SupportProvider } from "@cossistant/react";
-import "@cossistant/react/styles.css";
+import { SupportProvider } from "@plasma/react";
+import "@plasma/react/styles.css";
 import App from "./App";
 import "./index.css";
 
@@ -133,7 +133,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 ### 5. Render the widget
 
 ```tsx title="src/App.tsx"
-import { Support } from "@cossistant/react";
+import { Support } from "@plasma/react";
 
 export default function App() {
   return (
@@ -148,7 +148,7 @@ export default function App() {
 ### 6. Identify logged-in visitors (optional)
 
 ```tsx title="src/App.tsx"
-import { IdentifySupportVisitor, Support } from "@cossistant/react";
+import { IdentifySupportVisitor, Support } from "@plasma/react";
 
 export default function App() {
   const user = {
@@ -173,8 +173,8 @@ export default function App() {
 ### 7. Display custom messages with `SupportConfig defaultMessages`
 
 ```tsx title="src/App.tsx"
-import { Support, SupportConfig } from "@cossistant/react";
-import { type DefaultMessage, SenderType } from "@cossistant/types";
+import { Support, SupportConfig } from "@plasma/react";
+import { type DefaultMessage, SenderType } from "@plasma/types";
 
 const user: { name: string | null } = {
   name: "Jane Doe",

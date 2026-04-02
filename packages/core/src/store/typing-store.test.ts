@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import type { RealtimeEvent } from "@cossistant/types/realtime-events";
+import type { RealtimeEvent } from "@plasma/types/realtime-events";
 import {
 	applyConversationTypingEvent,
 	clearTypingFromTimelineItem,

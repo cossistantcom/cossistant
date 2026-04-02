@@ -3,9 +3,9 @@ import type {
 	ConversationItem,
 	GroupedActivity,
 	TimelineToolItem,
-} from "@cossistant/next/hooks";
-import { SenderType } from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+} from "@plasma/next/hooks";
+import { SenderType } from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import { buildDashboardTimelineRenderItems } from "./dashboard-timeline-render-items";
 
 function createTimelineItem(overrides: Partial<TimelineItem>): TimelineItem {

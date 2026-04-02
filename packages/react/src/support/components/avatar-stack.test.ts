@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import type { AvailableAIAgent, AvailableHumanAgent } from "@cossistant/types";
+import type { AvailableAIAgent, AvailableHumanAgent } from "@plasma/types";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { SupportTextResolvedFormatter } from "../text/locales/keys";

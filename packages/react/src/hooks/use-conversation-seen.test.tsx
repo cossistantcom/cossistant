@@ -4,7 +4,7 @@ import {
 	createSeenStore,
 	hydrateConversationSeen,
 	type SeenStore,
-} from "@cossistant/core";
+} from "@plasma/core";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 

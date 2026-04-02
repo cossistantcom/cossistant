@@ -1,5 +1,5 @@
 import type { RouterOutputs } from "@api/trpc/types";
-import { resolveCountryDetails } from "@cossistant/location/country-utils";
+import { resolveCountryDetails } from "@plasma/location/country-utils";
 import { useMemo } from "react";
 import { useVisitorPresenceById } from "@/contexts/visitor-presence";
 import { getVisitorNameWithFallback } from "@/lib/visitors";

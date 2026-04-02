@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import type { Conversation } from "@cossistant/types";
-import type { ListConversationsResponse } from "@cossistant/types/api/conversation";
+import type { Conversation } from "@plasma/types";
+import type { ListConversationsResponse } from "@plasma/types/api/conversation";
 import { CossistantClient } from "../client";
 import {
 	createConversationsStore,

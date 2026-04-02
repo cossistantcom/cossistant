@@ -1,11 +1,11 @@
 import {
 	SenderType,
 	type SenderType as SenderTypeValue,
-} from "@cossistant/types";
+} from "@plasma/types";
 import type {
 	TimelineItem,
 	TimelinePartEvent,
-} from "@cossistant/types/api/timeline-item";
+} from "@plasma/types/api/timeline-item";
 
 export type TimelineItemSender = {
 	senderId: string;

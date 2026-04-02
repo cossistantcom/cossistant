@@ -1,5 +1,5 @@
-import type { RedisOptions } from "@cossistant/redis";
-import { getBullConnectionOptions } from "@cossistant/redis";
+import type { RedisOptions } from "@plasma/redis";
+import { getBullConnectionOptions } from "@plasma/redis";
 import { createAiAgentWorker } from "./ai-agent/worker";
 import { createAiAgentBackgroundWorker } from "./ai-agent-background/worker";
 import { createAiTrainingWorker } from "./ai-training/worker";

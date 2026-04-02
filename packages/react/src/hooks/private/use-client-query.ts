@@ -1,4 +1,4 @@
-import type { CossistantClient } from "@cossistant/core";
+import type { CossistantClient } from "@plasma/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type QueryFn<TData, TArgs> = (

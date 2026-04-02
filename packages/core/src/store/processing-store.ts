@@ -1,4 +1,4 @@
-import type { RealtimeEvent } from "@cossistant/types/realtime-events";
+import type { RealtimeEvent } from "@plasma/types/realtime-events";
 import { createStore, type Store } from "./create-store";
 
 export type ProcessingToolState = "partial" | "result" | "error";

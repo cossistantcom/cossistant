@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { ConversationTimelineType } from "@cossistant/types";
+import { ConversationTimelineType } from "@plasma/types";
 
 const getActiveKnowledgeClarificationForConversationMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<{ id: string } | null>

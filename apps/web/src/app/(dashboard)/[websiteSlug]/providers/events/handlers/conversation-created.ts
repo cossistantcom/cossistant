@@ -1,5 +1,5 @@
-import type { RealtimeEvent } from "@cossistant/types/realtime-events";
-import { ensureDashboardConversationLockRedaction } from "@cossistant/types/trpc/conversation-hard-limit";
+import type { RealtimeEvent } from "@plasma/types/realtime-events";
+import { ensureDashboardConversationLockRedaction } from "@plasma/types/trpc/conversation-hard-limit";
 import {
 	forEachConversationHeadersQuery,
 	prependConversationHeaderInCache,

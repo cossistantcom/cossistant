@@ -1,6 +1,6 @@
 /** biome-ignore-all lint/correctness/useExhaustiveDependencies: wanted here */
 
-import type { VisitorMetadata } from "@cossistant/types";
+import type { VisitorMetadata } from "@plasma/types";
 import { type ReactElement, useEffect, useState } from "react";
 import { useVisitor } from "./hooks";
 import { useIdentificationState } from "./support/context/identification";

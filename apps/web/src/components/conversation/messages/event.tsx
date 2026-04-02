@@ -2,7 +2,7 @@ import type {
 	AvailableAIAgent,
 	AvailableHumanAgent,
 	TimelinePartEvent,
-} from "@cossistant/types";
+} from "@plasma/types";
 import type React from "react";
 import { buildTimelineEventDisplay } from "@/lib/timeline-events";
 import { EVENT_RENDERER_MAP, FallbackEventActivity } from "./activity/events";

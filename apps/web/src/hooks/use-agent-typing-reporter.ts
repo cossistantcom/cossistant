@@ -1,5 +1,5 @@
-import { useRealtimeConnection } from "@cossistant/next/realtime";
-import type { AnyRealtimeEvent } from "@cossistant/types/realtime-events";
+import { useRealtimeConnection } from "@plasma/next/realtime";
+import type { AnyRealtimeEvent } from "@plasma/types/realtime-events";
 import { useMutation } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
 import { useTRPC } from "@/lib/trpc/client";

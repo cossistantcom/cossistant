@@ -29,7 +29,7 @@ import {
 	type RealtimeEventData,
 	type RealtimeEventType,
 	validateRealtimeEvent,
-} from "@cossistant/types/realtime-events";
+} from "@plasma/types/realtime-events";
 import type { ServerWebSocket } from "bun";
 import { eq } from "drizzle-orm";
 import type { Context } from "hono";

@@ -825,7 +825,7 @@ export function PrecisionFlowPlaybackControls() {
 								<div
 									className={cn(
 										"flex shrink-0 items-center justify-center font-medium text-sm",
-										isActive ? "text-cossistant-orange" : "text-primary/60"
+										isActive ? "text-plasma-orange" : "text-primary/60"
 									)}
 								>
 									[0{index + 1}]

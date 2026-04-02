@@ -1,6 +1,6 @@
 "use client";
 
-import type { ArticleKnowledgePayload } from "@cossistant/types";
+import type { ArticleKnowledgePayload } from "@plasma/types";
 import { useQuery } from "@tanstack/react-query";
 import { EyeIcon, EyeOffIcon, FileTextIcon, Trash2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -94,7 +94,7 @@ export function FileListPage() {
 						primary={payload.title}
 						rightMeta={
 							file.isIncluded ? null : (
-								<span className="font-medium text-cossistant-orange text-xs">
+								<span className="font-medium text-plasma-orange text-xs">
 									Excluded
 								</span>
 							)
@@ -151,7 +151,7 @@ export function FileListPage() {
 								</p>
 								{pageState.isFreePlan ? (
 									<button
-										className="font-medium text-cossistant-orange hover:cursor-pointer hover:underline"
+										className="font-medium text-plasma-orange hover:cursor-pointer hover:underline"
 										onClick={pageState.openUpgradeModal}
 										type="button"
 									>

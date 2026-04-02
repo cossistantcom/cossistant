@@ -4,7 +4,7 @@ import {
 	applyDashboardConversationHardLimitLock,
 	ensureDashboardConversationLockRedaction,
 	isConversationAfterHardLimitCutoff,
-} from "@cossistant/types/trpc/conversation-hard-limit";
+} from "@plasma/types/trpc/conversation-hard-limit";
 import { resolveDashboardHardLimitPolicy } from "./dashboard";
 
 describe("dashboard hard-limit helpers", () => {

@@ -2,8 +2,8 @@ import type {
 	DrizzlePostgresDatabase,
 	MemoryEmbeddingModel,
 	MemorySummarizeModel,
-} from "@cossistant/memory";
-import { createMemoryTool, Memory } from "@cossistant/memory";
+} from "@plasma/memory";
+import { createMemoryTool, Memory } from "@plasma/memory";
 import type { LanguageModel } from "ai";
 import { ToolLoopAgent } from "ai";
 import { sql } from "drizzle-orm";
@@ -24,7 +24,7 @@ export type ExampleMemoryMetadata = Record<
 >;
 
 /**
- * External table contract used by `@cossistant/memory`.
+ * External table contract used by `@plasma/memory`.
  *
  * Important:
  * - the package does not own this table or its migration

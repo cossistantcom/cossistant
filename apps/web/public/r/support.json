@@ -4,26 +4,26 @@
   "type": "registry:block",
   "title": "Cossistant Support Widget",
   "description": "Open source, developer-first support widget for your SaaS.",
-  "dependencies": ["@cossistant/next", "motion", "lucide-react"],
+  "dependencies": ["@plasma/next", "motion", "lucide-react"],
   "files": [
     {
       "path": "src/registry/support.tsx",
-      "content": "\"use client\";\n\nimport { Support as CossistantSupport } from \"@cossistant/next\";\nimport { motion } from \"motion/react\";\nimport { TriggerContent } from \"./bubble\";\n\nexport default function Support() {\n\treturn (\n\t\t<CossistantSupport>\n\t\t\t<CossistantSupport.Trigger asChild>\n\t\t\t\t{(props) => (\n\t\t\t\t\t<motion.button\n\t\t\t\t\t\tclassName=\"relative flex size-14 cursor-pointer items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90\"\n\t\t\t\t\t\ttype=\"button\"\n\t\t\t\t\t\twhileTap={{ scale: 0.95 }}\n\t\t\t\t\t>\n\t\t\t\t\t\t<TriggerContent {...props} />\n\t\t\t\t\t</motion.button>\n\t\t\t\t)}\n\t\t\t</CossistantSupport.Trigger>\n\t\t</CossistantSupport>\n\t);\n}\n",
+      "content": "\"use client\";\n\nimport { Support as CossistantSupport } from \"@plasma/next\";\nimport { motion } from \"motion/react\";\nimport { TriggerContent } from \"./bubble\";\n\nexport default function Support() {\n\treturn (\n\t\t<CossistantSupport>\n\t\t\t<CossistantSupport.Trigger asChild>\n\t\t\t\t{(props) => (\n\t\t\t\t\t<motion.button\n\t\t\t\t\t\tclassName=\"relative flex size-14 cursor-pointer items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90\"\n\t\t\t\t\t\ttype=\"button\"\n\t\t\t\t\t\twhileTap={{ scale: 0.95 }}\n\t\t\t\t\t>\n\t\t\t\t\t\t<TriggerContent {...props} />\n\t\t\t\t\t</motion.button>\n\t\t\t\t)}\n\t\t\t</CossistantSupport.Trigger>\n\t\t</CossistantSupport>\n\t);\n}\n",
       "type": "registry:component"
     },
     {
       "path": "src/registry/provider.tsx",
-      "content": "\"use client\";\n\nimport { SupportProvider } from \"@cossistant/next\";\n\nexport function CossistantProvider({ children }: { children: React.ReactNode }) {\n\treturn <SupportProvider>{children}</SupportProvider>;\n}\n\n",
+      "content": "\"use client\";\n\nimport { SupportProvider } from \"@plasma/next\";\n\nexport function CossistantProvider({ children }: { children: React.ReactNode }) {\n\treturn <SupportProvider>{children}</SupportProvider>;\n}\n\n",
       "type": "registry:component"
     },
     {
       "path": "src/registry/bubble.tsx",
-      "content": "\"use client\";\n\nimport type { TriggerRenderProps } from \"@cossistant/next\";\nimport { ChevronDown, MessageCircle } from \"lucide-react\";\nimport { AnimatePresence, motion } from \"motion/react\";\n\nexport function TriggerContent({\n\tisOpen,\n\tunreadCount,\n}: TriggerRenderProps) {\n\treturn (\n\t\t<>\n\t\t\t<AnimatePresence mode=\"wait\">\n\t\t\t\t{isOpen ? (\n\t\t\t\t\t<motion.div\n\t\t\t\t\t\tanimate={{ scale: 1, opacity: 1 }}\n\t\t\t\t\t\texit={{ scale: 0.8, opacity: 0 }}\n\t\t\t\t\t\tinitial={{ scale: 0.8, opacity: 0 }}\n\t\t\t\t\t\tkey=\"close\"\n\t\t\t\t\t>\n\t\t\t\t\t\t<ChevronDown className=\"size-5\" />\n\t\t\t\t\t</motion.div>\n\t\t\t\t) : (\n\t\t\t\t\t<motion.div\n\t\t\t\t\t\tanimate={{ scale: 1, opacity: 1 }}\n\t\t\t\t\t\texit={{ scale: 0.8, opacity: 0 }}\n\t\t\t\t\t\tinitial={{ scale: 0.8, opacity: 0 }}\n\t\t\t\t\t\tkey=\"open\"\n\t\t\t\t\t>\n\t\t\t\t\t\t<MessageCircle className=\"size-6\" />\n\t\t\t\t\t</motion.div>\n\t\t\t\t)}\n\t\t\t</AnimatePresence>\n\t\t\t{unreadCount > 0 && (\n\t\t\t\t<span className=\"-top-1 -right-1 absolute flex size-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-xs\">\n\t\t\t\t\t{unreadCount}\n\t\t\t\t</span>\n\t\t\t)}\n\t\t</>\n\t);\n}\n",
+      "content": "\"use client\";\n\nimport type { TriggerRenderProps } from \"@plasma/next\";\nimport { ChevronDown, MessageCircle } from \"lucide-react\";\nimport { AnimatePresence, motion } from \"motion/react\";\n\nexport function TriggerContent({\n\tisOpen,\n\tunreadCount,\n}: TriggerRenderProps) {\n\treturn (\n\t\t<>\n\t\t\t<AnimatePresence mode=\"wait\">\n\t\t\t\t{isOpen ? (\n\t\t\t\t\t<motion.div\n\t\t\t\t\t\tanimate={{ scale: 1, opacity: 1 }}\n\t\t\t\t\t\texit={{ scale: 0.8, opacity: 0 }}\n\t\t\t\t\t\tinitial={{ scale: 0.8, opacity: 0 }}\n\t\t\t\t\t\tkey=\"close\"\n\t\t\t\t\t>\n\t\t\t\t\t\t<ChevronDown className=\"size-5\" />\n\t\t\t\t\t</motion.div>\n\t\t\t\t) : (\n\t\t\t\t\t<motion.div\n\t\t\t\t\t\tanimate={{ scale: 1, opacity: 1 }}\n\t\t\t\t\t\texit={{ scale: 0.8, opacity: 0 }}\n\t\t\t\t\t\tinitial={{ scale: 0.8, opacity: 0 }}\n\t\t\t\t\t\tkey=\"open\"\n\t\t\t\t\t>\n\t\t\t\t\t\t<MessageCircle className=\"size-6\" />\n\t\t\t\t\t</motion.div>\n\t\t\t\t)}\n\t\t\t</AnimatePresence>\n\t\t\t{unreadCount > 0 && (\n\t\t\t\t<span className=\"-top-1 -right-1 absolute flex size-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-xs\">\n\t\t\t\t\t{unreadCount}\n\t\t\t\t</span>\n\t\t\t)}\n\t\t</>\n\t);\n}\n",
       "type": "registry:component"
     }
   ],
   "css": {
-    "@import \"@cossistant/next/support.css\"": {}
+    "@import \"@plasma/next/support.css\"": {}
   },
   "envVars": {
     "NEXT_PUBLIC_COSSISTANT_API_KEY": ""

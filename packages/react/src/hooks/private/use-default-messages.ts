@@ -1,6 +1,6 @@
-import { generateMessageId } from "@cossistant/core";
-import { type DefaultMessage, SenderType } from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+import { generateMessageId } from "@plasma/core";
+import { type DefaultMessage, SenderType } from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import { useMemo, useRef } from "react";
 import { useSupport } from "../../provider";
 

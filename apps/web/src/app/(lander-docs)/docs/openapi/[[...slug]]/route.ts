@@ -1,4 +1,4 @@
-const LEGACY_API_DOCS_URL = "https://api.cossistant.com/docs";
+const LEGACY_API_DOCS_URL = "https://api.plasma-pandora.com/docs";
 const SEARCH_ENGINE_NOINDEX = "noindex, nofollow";
 
 function buildRedirectResponse() {

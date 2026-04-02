@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import type { InboxAnalyticsResponse } from "@cossistant/types";
+import type { InboxAnalyticsResponse } from "@plasma/types";
 import { renderToStaticMarkup } from "react-dom/server";
 
 let capturedControllerState: Record<string, unknown> | null = null;

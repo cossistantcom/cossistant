@@ -1,6 +1,6 @@
 import { getOrganizationById } from "@api/db/queries/organization";
 import { validateResponse } from "@api/utils/validate";
-import { organizationResponseSchema } from "@cossistant/types";
+import { organizationResponseSchema } from "@plasma/types";
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import { publicMiddleware } from "../middleware";
 import type { RestContext } from "../types";

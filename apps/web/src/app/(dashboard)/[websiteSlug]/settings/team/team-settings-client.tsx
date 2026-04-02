@@ -1,7 +1,7 @@
 "use client";
 
-import type { RouterOutputs } from "@cossistant/api/types";
-import { parseCommaSeparatedRoles } from "@cossistant/core";
+import type { RouterOutputs } from "@plasma/api/types";
+import { parseCommaSeparatedRoles } from "@plasma/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -374,7 +374,7 @@ export function TeamSettingsClient({
 						{settings.canManageTeam &&
 							(atSeatLimit ? (
 								<div className="flex flex-wrap items-center gap-2">
-									<p className="text-cossistant-orange text-xs">
+									<p className="text-plasma-orange text-xs">
 										You&apos;ve reached your seat limit.
 									</p>
 									<Button

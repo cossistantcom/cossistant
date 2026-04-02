@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { type Conversation, ConversationStatus } from "@cossistant/types";
+import { type Conversation, ConversationStatus } from "@plasma/types";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { SupportTextResolvedFormatter } from "../text/locales/keys";

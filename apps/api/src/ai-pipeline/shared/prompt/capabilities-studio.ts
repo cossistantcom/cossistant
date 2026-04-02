@@ -6,7 +6,7 @@ import {
 	AI_AGENT_TOOL_CATALOG,
 	type AiAgentBehaviorSettingKey,
 	type GetCapabilitiesStudioResponse,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { getBehaviorSettings } from "../settings";
 
 function getBehaviorSettingValue(

@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import type { KnowledgeClarificationRequest } from "@cossistant/types";
+import type { KnowledgeClarificationRequest } from "@plasma/types";
 import { renderToStaticMarkup } from "react-dom/server";
 import { KnowledgeClarificationProposalsSection } from "./proposals-section";
 

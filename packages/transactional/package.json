@@ -1,5 +1,5 @@
 {
-  "name": "@cossistant/transactional",
+  "name": "@plasma/transactional",
   "type": "module",
   "version": "0.0.6",
   "private": true,
@@ -11,7 +11,7 @@
     "./send": "./send-via-resend.ts"
   },
   "dependencies": {
-    "@cossistant/tiny-markdown": "workspace:*",
+    "@plasma/tiny-markdown": "workspace:*",
     "@react-email/components": "^1.0.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
@@ -23,7 +23,7 @@
     "check-types": "tsc --noEmit --project tsconfig.json"
   },
   "devDependencies": {
-    "@cossistant/typescript-config": "workspace:*",
+    "@plasma/typescript-config": "workspace:*",
     "@react-email/preview-server": "^5.0.3",
     "@types/react": "^19.2.4",
     "@types/react-dom": "^19.2.3",

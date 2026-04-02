@@ -1,6 +1,6 @@
 import type { ContactRecord } from "@api/db/queries/contact";
 import type { getCompleteVisitorWithContact } from "@api/db/queries/visitor";
-import type { ContactResponse, VisitorResponse } from "@cossistant/types";
+import type { ContactResponse, VisitorResponse } from "@plasma/types";
 
 export type CompleteVisitorRecord = NonNullable<
 	Awaited<ReturnType<typeof getCompleteVisitorWithContact>>

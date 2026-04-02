@@ -14,7 +14,7 @@ import type {
 	KnowledgeClarificationDraftFaq,
 	KnowledgeClarificationQuestionPlan,
 	KnowledgeClarificationStatus,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { and, asc, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import { ulid } from "ulid";
 

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { SenderType } from "@cossistant/types";
+import { SenderType } from "@plasma/types";
 import type {
 	TimelineItem,
 	TimelinePartEvent,
-} from "@cossistant/types/api/timeline-item";
-import type { ConversationSeen } from "@cossistant/types/schemas";
+} from "@plasma/types/api/timeline-item";
+import type { ConversationSeen } from "@plasma/types/schemas";
 import {
 	buildTimelineReadReceiptData,
 	groupTimelineItems,

@@ -5,4 +5,4 @@
 export {
 	generateVisitorName,
 	getVisitorNameWithFallback,
-} from "@cossistant/core";
+} from "@plasma/core";

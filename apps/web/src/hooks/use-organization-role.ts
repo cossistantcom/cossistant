@@ -1,6 +1,6 @@
 "use client";
 
-import { hasRole } from "@cossistant/core";
+import { hasRole } from "@plasma/core";
 import { useQuery } from "@tanstack/react-query";
 import { authClient } from "@/lib/auth/client";
 

@@ -1,11 +1,11 @@
 "use client";
 
 import {
-	CossistantClient,
+	PlasmaClient,
 	getEnvVarName,
 	resolvePublicKey,
-} from "@cossistant/core";
-import type { CossistantConfig } from "@cossistant/types";
+} from "@plasma/core";
+import type { CossistantConfig } from "@plasma/types";
 import { useMemo } from "react";
 import { processingStoreSingleton } from "../../realtime/processing-store";
 import { seenStoreSingleton } from "../../realtime/seen-store";
@@ -19,7 +19,7 @@ export type ConfigurationError = {
 
 export type UseClientResult =
 	| {
-			client: CossistantClient;
+			client: PlasmaClient;
 			error: null;
 			configurationError: null;
 	  }
@@ -30,15 +30,15 @@ export type UseClientResult =
 	  };
 
 /**
- * Creates a memoised `CossistantClient` instance using the provided endpoints
+ * Creates a memoised `PlasmaClient` instance using the provided endpoints
  * and public key. When no key is passed the hook falls back to environment
  * variables and surfaces missing configuration errors through the returned
  * `configurationError` field instead of throwing.
  */
 export function useClient(
 	publicKey: string | undefined,
-	apiUrl = "https://api.cossistant.com/v1",
-	wsUrl = "wss://api.cossistant.com/ws"
+	apiUrl = "https://api.plasma-pandora.com/v1",
+	wsUrl = "wss://api.plasma-pandora.com/ws"
 ): UseClientResult {
 	return useMemo(() => {
 		const keyToUse = resolvePublicKey(publicKey);
@@ -64,7 +64,7 @@ export function useClient(
 		};
 
 		try {
-			const client = new CossistantClient(config, {
+			const client = new PlasmaClient(config, {
 				processingStore: processingStoreSingleton,
 				seenStore: seenStoreSingleton,
 				typingStore: typingStoreSingleton,

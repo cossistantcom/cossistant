@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { ConversationSeen } from "@cossistant/types/schemas";
+import type { ConversationSeen } from "@plasma/types/schemas";
 import {
 	getTimelineLastReaderIds,
 	resolveTimelineReadReceiptReaders,

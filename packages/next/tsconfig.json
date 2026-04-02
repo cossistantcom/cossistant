@@ -1,5 +1,5 @@
 {
-  "extends": "@cossistant/typescript-config/react-library.json",
+  "extends": "@plasma/typescript-config/react-library.json",
   "compilerOptions": {
     "lib": ["dom", "dom.iterable", "esnext"],
     "target": "ES2020",
@@ -15,8 +15,8 @@
     "strict": true,
     "noEmit": true,
     "paths": {
-      "@cossistant/react": ["../react/src"],
-      "@cossistant/react/*": ["../react/src/*"]
+      "@plasma/react": ["../react/src"],
+      "@plasma/react/*": ["../react/src/*"]
     }
   },
   "include": ["src/**/*", "src/**/*.d.ts", "tsdown.config.ts"],

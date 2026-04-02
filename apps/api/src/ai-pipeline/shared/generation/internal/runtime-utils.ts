@@ -1,4 +1,4 @@
-import { generateVisitorName } from "@cossistant/core";
+import { generateVisitorName } from "@plasma/core";
 import { getBehaviorSettings } from "../../settings";
 import type {
 	PipelineToolContext,

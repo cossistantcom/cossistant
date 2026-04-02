@@ -350,7 +350,7 @@ export const availableHumanAgentSchema = z.object({
 	/** URL to the agent's avatar image. */
 	image: z.string().nullable().openapi({
 		description: "The agent's avatar URL.",
-		example: "https://cossistant.com/avatar.png",
+		example: "https://plasma-pandora.com/avatar.png",
 	}),
 	/** Timestamp used to determine whether the agent is online. */
 	lastSeenAt: z.string().nullable().openapi({
@@ -374,7 +374,7 @@ export const AvailableAIAgentSchema = z.object({
 	/** URL to the AI agent's avatar image. */
 	image: z.string().nullable().openapi({
 		description: "The AI agent's avatar URL.",
-		example: "https://cossistant.com/avatar.png",
+		example: "https://plasma-pandora.com/avatar.png",
 	}),
 });
 

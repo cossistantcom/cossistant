@@ -1,6 +1,6 @@
 "use client";
 
-import type { Mention } from "@cossistant/tiny-markdown";
+import type { Mention } from "@plasma/tiny-markdown";
 
 // Zero Width Space - must match the marker in mention-store.ts
 const MENTION_END_MARKER = "\u200B";
@@ -18,7 +18,7 @@ export function MentionPill({ mention }: MentionPillProps) {
 	const colorClass =
 		mention.type === "tool"
 			? "bg-primary/15 text-primary"
-			: "bg-cossistant-orange/15 text-cossistant-orange";
+			: "bg-plasma-orange/15 text-plasma-orange";
 
 	return (
 		<span

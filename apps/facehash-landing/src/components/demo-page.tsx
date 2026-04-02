@@ -2,7 +2,7 @@
 
 import { Facehash } from "facehash";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CossistantLogo } from "./cossistant-logo";
+import { PlasmaLogo } from "./plasma-logo";
 import { useShape } from "./shape-context";
 
 const COLORS = [
@@ -194,8 +194,8 @@ export function DemoPage() {
 				</code>
 				<div className="flex items-center gap-2 text-primary">
 					<span>by</span>
-					<CossistantLogo className="h-3 w-auto" />
-					<span>cossistant</span>
+					<PlasmaLogo className="h-3 w-auto" />
+					<span>Plasma</span>
 				</div>
 			</div>
 

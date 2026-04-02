@@ -3,7 +3,7 @@ import * as schema from "@api/db/schema";
 import { env } from "@api/env";
 import { generateULID } from "@api/utils/db/ids";
 import { dash } from "@better-auth/infra";
-import { ResetPasswordEmail, sendEmail } from "@cossistant/transactional";
+import { ResetPasswordEmail, sendEmail } from "@plasma/transactional";
 import { polar, portal, usage } from "@polar-sh/better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { betterAuth } from "better-auth/minimal";
@@ -23,7 +23,7 @@ export const auth = betterAuth({
 	baseURL:
 		process.env.BETTER_AUTH_URL ||
 		(process.env.NODE_ENV === "production"
-			? "https://api.cossistant.com"
+			? "https://api.plasma-pandora.com"
 			: "http://localhost:8787"),
 	secret: process.env.BETTER_AUTH_SECRET || undefined,
 	database: drizzleAdapter(db, {
@@ -148,11 +148,11 @@ export const auth = betterAuth({
 	trustedOrigins: [
 		"http://localhost:3000",
 		"http://localhost:3001",
-		"https://cossistant.com",
-		"https://cossistant.com",
-		"https://www.cossistant.com",
-		"https://www.cossistant.com",
-		"https://api.cossistant.com",
+		"https://plasma-pandora.com",
+		"https://plasma-pandora.com",
+		"https://www.plasma-pandora.com",
+		"https://www.plasma-pandora.com",
+		"https://api.plasma-pandora.com",
 	],
 	socialProviders: {
 		google: {
@@ -176,7 +176,7 @@ export const auth = betterAuth({
 		},
 		crossSubDomainCookies: {
 			enabled: true,
-			domain: env.NODE_ENV === "production" ? ".cossistant.com" : undefined,
+			domain: env.NODE_ENV === "production" ? ".plasma-pandora.com" : undefined,
 		},
 		// Add cookie prefix for better organization
 		cookiePrefix: "cossistant-auth",

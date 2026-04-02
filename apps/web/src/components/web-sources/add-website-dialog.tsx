@@ -197,7 +197,7 @@ export function AddWebsiteDialog({
 							<p
 								className={cn(
 									"text-muted-foreground",
-									isFreePlan && "text-cossistant-orange"
+									isFreePlan && "text-plasma-orange"
 								)}
 							>
 								Up to{" "}
@@ -210,7 +210,7 @@ export function AddWebsiteDialog({
 							</p>
 							{isFreePlan && (
 								<button
-									className="font-medium text-cossistant-orange hover:cursor-pointer hover:underline"
+									className="font-medium text-plasma-orange hover:cursor-pointer hover:underline"
 									onClick={onUpgradeClick}
 									type="button"
 								>

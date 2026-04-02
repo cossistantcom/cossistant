@@ -130,11 +130,11 @@ export type PipelineToolFactory = (
 ) => ToolSet[string] | null;
 
 export type PipelineToolDefinition = {
-	id: import("@cossistant/types").AiAgentToolId;
+	id: import("@plasma/types").AiAgentToolId;
 	factory: PipelineToolFactory;
 	availability: ToolAvailability;
 	behaviorSettingKey:
-		| import("@cossistant/types").AiAgentBehaviorSettingKey
+		| import("@plasma/types").AiAgentBehaviorSettingKey
 		| null;
 	telemetry: ToolTelemetrySpec;
 };

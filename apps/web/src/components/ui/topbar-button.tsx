@@ -45,14 +45,14 @@ export function TopbarButton({
 		<TooltipOnHover content={tooltip} shortcuts={shortcuts}>
 			<Link className={cn(topbarButtonLinkClassName, className)} href={href}>
 				{withBrackets && (
-					<span className="text-foreground/30 opacity-0 transition-all duration-100 group-hover:text-cossistant-orange group-hover:opacity-100">
+					<span className="text-foreground/30 opacity-0 transition-all duration-100 group-hover:text-plasma-orange group-hover:opacity-100">
 						[
 					</span>
 				)}
 				{icon && <span className="mr-1">{icon}</span>}
 				{children}
 				{withBrackets && (
-					<span className="text-foreground/30 opacity-0 transition-all duration-100 group-hover:text-cossistant-orange group-hover:opacity-100">
+					<span className="text-foreground/30 opacity-0 transition-all duration-100 group-hover:text-plasma-orange group-hover:opacity-100">
 						]
 					</span>
 				)}

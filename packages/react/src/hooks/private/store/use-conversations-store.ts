@@ -1,8 +1,8 @@
 import type {
 	ConversationPagination,
 	ConversationsState,
-} from "@cossistant/core";
-import type { Conversation } from "@cossistant/types";
+} from "@plasma/core";
+import type { Conversation } from "@plasma/types";
 import { useSupport } from "../../../provider";
 import { useStoreSelector } from "./use-store-selector";
 

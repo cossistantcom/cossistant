@@ -1,6 +1,6 @@
 "use client";
 
-import type { ContactListVisitorStatus } from "@cossistant/types";
+import type { ContactListVisitorStatus } from "@plasma/types";
 import { useQuery } from "@tanstack/react-query";
 import { Search, SortAsc, SortDesc } from "lucide-react";
 import { SidebarUpgradeButton } from "@/components/plan/sidebar-upgrade-button";
@@ -79,7 +79,7 @@ function FilterOptionButton({
 				{title}
 				<span
 					className={cn(
-						"size-1.5 rounded-full bg-cossistant-orange text-primary transition-opacity",
+						"size-1.5 rounded-full bg-plasma-orange text-primary transition-opacity",
 						isSelected ? "opacity-100" : "opacity-0"
 					)}
 				/>

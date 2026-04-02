@@ -1,6 +1,6 @@
 "use client";
 
-import { useSupport } from "@cossistant/next";
+import { useSupport } from "@plasma/next";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useHotkeys } from "react-hotkeys-hook";

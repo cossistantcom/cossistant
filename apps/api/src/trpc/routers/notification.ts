@@ -10,7 +10,7 @@ import {
 	MemberNotificationChannel,
 	memberNotificationSettingsResponseSchema,
 	updateMemberNotificationSettingsRequestSchema,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { TRPCError } from "@trpc/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";

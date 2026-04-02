@@ -10,13 +10,13 @@ import { TOOL_TIMELINE_LOG_TYPE } from "../tool-timeline-policy";
 // ============================================================================
 // AI SDK v6 COMPATIBLE PART SCHEMAS
 // These follow Vercel AI SDK v6 patterns for UIMessagePart types.
-// Cossistant extensions use providerMetadata/callProviderMetadata.cossistant namespace.
+// Cossistant extensions use providerMetadata/callProviderMetadata.plasma namespace.
 // ============================================================================
 
 // ----------------------------------------------------------------------------
 // Cossistant Provider Metadata (extension point for all parts)
 // ----------------------------------------------------------------------------
-const cossistantToolTimelineMetadataSchema = z.object({
+const plasmaToolTimelineMetadataSchema = z.object({
 	logType: z
 		.enum([
 			TOOL_TIMELINE_LOG_TYPE.CUSTOMER_FACING,
@@ -41,7 +41,7 @@ const cossistantToolTimelineMetadataSchema = z.object({
 	}),
 });
 
-const cossistantProviderMetadataSchema = z
+const plasmaProviderMetadataSchema = z
 	.object({
 		cossistant: z
 			.object({
@@ -54,7 +54,7 @@ const cossistantProviderMetadataSchema = z
 				knowledgeId: z.string().optional().openapi({
 					description: "Reference to a Cossistant knowledge entry",
 				}),
-				toolTimeline: cossistantToolTimelineMetadataSchema.optional().openapi({
+				toolTimeline: plasmaToolTimelineMetadataSchema.optional().openapi({
 					description:
 						"Tool timeline metadata used to classify visibility and trigger linkage",
 				}),
@@ -95,7 +95,7 @@ const reasoningPartSchema = z.object({
 		description:
 			"AI SDK state: 'streaming' = still processing, 'done' = complete",
 	}),
-	providerMetadata: cossistantProviderMetadataSchema,
+	providerMetadata: plasmaProviderMetadataSchema,
 });
 
 // ----------------------------------------------------------------------------
@@ -131,8 +131,8 @@ const toolPartSchema = z.object({
 	errorText: z.string().optional().openapi({
 		description: "Error message when state is 'error'",
 	}),
-	callProviderMetadata: cossistantProviderMetadataSchema,
-	providerMetadata: cossistantProviderMetadataSchema,
+	callProviderMetadata: plasmaProviderMetadataSchema,
+	providerMetadata: plasmaProviderMetadataSchema,
 });
 
 // ----------------------------------------------------------------------------
@@ -151,7 +151,7 @@ const sourceUrlPartSchema = z.object({
 	title: z.string().optional().openapi({
 		description: "Title of the source",
 	}),
-	providerMetadata: cossistantProviderMetadataSchema,
+	providerMetadata: plasmaProviderMetadataSchema,
 });
 
 // ----------------------------------------------------------------------------
@@ -174,7 +174,7 @@ const sourceDocumentPartSchema = z.object({
 	filename: z.string().optional().openapi({
 		description: "Filename of the document",
 	}),
-	providerMetadata: cossistantProviderMetadataSchema,
+	providerMetadata: plasmaProviderMetadataSchema,
 });
 
 // ----------------------------------------------------------------------------
@@ -403,10 +403,10 @@ export type TimelinePartText = TextPart;
 
 // Provider metadata type for extensions
 export type CossistantProviderMetadata = z.infer<
-	typeof cossistantProviderMetadataSchema
+	typeof plasmaProviderMetadataSchema
 >;
 export type CossistantToolTimelineMetadata = z.infer<
-	typeof cossistantToolTimelineMetadataSchema
+	typeof plasmaToolTimelineMetadataSchema
 >;
 
 // Tool state type
@@ -425,7 +425,7 @@ export {
 	imagePartSchema,
 	timelinePartEventSchema,
 	timelinePartMetadataSchema,
-	cossistantProviderMetadataSchema,
+	plasmaProviderMetadataSchema,
 };
 
 // REST API Schemas

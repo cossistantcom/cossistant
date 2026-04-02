@@ -17,7 +17,7 @@ import {
 	type WorkflowDirection,
 	type WorkflowPendingJob,
 	type WorkflowState,
-} from "@cossistant/jobs/workflow-state";
+} from "@plasma/jobs/workflow-state";
 import type { Client } from "@upstash/workflow";
 import type { Redis } from "ioredis";
 
@@ -25,8 +25,8 @@ export type {
 	WorkflowDirection,
 	WorkflowPendingJob,
 	WorkflowState,
-} from "@cossistant/jobs/workflow-state";
-export { generateWorkflowRunId } from "@cossistant/jobs/workflow-state";
+} from "@plasma/jobs/workflow-state";
+export { generateWorkflowRunId } from "@plasma/jobs/workflow-state";
 
 function getRedisClient(): Redis {
 	return getRedis();

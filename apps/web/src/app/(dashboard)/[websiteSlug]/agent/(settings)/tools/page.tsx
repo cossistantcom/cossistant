@@ -1,6 +1,6 @@
 "use client";
 
-import type { GetCapabilitiesStudioResponse } from "@cossistant/types";
+import type { GetCapabilitiesStudioResponse } from "@plasma/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -408,7 +408,7 @@ export default function ToolsPage() {
 	const renderToolCard = (tool: StudioTool) => (
 		<Card
 			className={cn("relative flex flex-col border-border/60", {
-				"bg-cossistant-blue/5": tool.enabled,
+				"bg-plasma-blue/5": tool.enabled,
 			})}
 			key={tool.id}
 		>

@@ -3,7 +3,7 @@
 import type {
 	ConversationClarificationSummary,
 	KnowledgeClarificationRequest,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import type React from "react";

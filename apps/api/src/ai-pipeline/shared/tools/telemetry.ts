@@ -1,5 +1,5 @@
 import { generateULID } from "@api/utils/db/ids";
-import { isWidgetVisibleTool } from "@cossistant/types";
+import { isWidgetVisibleTool } from "@plasma/types";
 import type { ToolExecutionOptions, ToolSet } from "ai";
 import {
 	emitPipelineToolProgress,

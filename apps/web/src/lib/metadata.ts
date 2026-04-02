@@ -3,7 +3,7 @@ import { DISCORD_INVITE, GITHUB_URL, X_URL } from "@/constants";
 import { normalizeCanonical, toAbsoluteUrl } from "@/lib/site-url";
 
 export const SITE_NAME = "Cossistant";
-export const SITE_TWITTER_HANDLE = "@cossistant";
+export const SITE_TWITTER_HANDLE = "@plasmapandora";
 export const DEFAULT_OG_IMAGE = "/og-image.png";
 export const TITLE_TEMPLATE = `%s | ${SITE_NAME}`;
 export const DEFAULT_SITE_TITLE =

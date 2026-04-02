@@ -4,7 +4,7 @@ import {
 	type Mention,
 	type UseTinyMentionReturn,
 	useTinyMention,
-} from "@cossistant/tiny-markdown";
+} from "@plasma/tiny-markdown";
 import type {
 	ChangeEvent,
 	KeyboardEvent,

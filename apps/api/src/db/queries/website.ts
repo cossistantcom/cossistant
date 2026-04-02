@@ -9,8 +9,8 @@ import {
 	website,
 } from "@api/db/schema";
 import { auth } from "@api/lib/auth";
-import { hasAnyRole } from "@cossistant/core";
-import type { WebsiteStatus } from "@cossistant/types/enums";
+import { hasAnyRole } from "@plasma/core";
+import type { WebsiteStatus } from "@plasma/types/enums";
 
 import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 

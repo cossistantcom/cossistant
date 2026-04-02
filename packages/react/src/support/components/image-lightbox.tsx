@@ -1,6 +1,6 @@
 "use client";
 
-import type { TimelinePartImage } from "@cossistant/types/api/timeline-item";
+import type { TimelinePartImage } from "@plasma/types/api/timeline-item";
 import type * as React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";

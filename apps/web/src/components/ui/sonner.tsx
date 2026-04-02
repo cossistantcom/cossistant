@@ -54,7 +54,7 @@ function ProgressToastContent({
 					<p className="mt-1 text-pretty text-primary/60 text-xs">{status}</p>
 				</div>
 				{resolvedValueLabel ? (
-					<span className="shrink-0 font-medium text-[11px] text-cossistant-blue">
+					<span className="shrink-0 font-medium text-[11px] text-plasma-blue">
 						{resolvedValueLabel}
 					</span>
 				) : null}
@@ -64,7 +64,7 @@ function ProgressToastContent({
 				aria-valuetext={resolvedValueLabel ?? status}
 				className="mt-3 h-2 bg-background-200/80 dark:bg-background-800"
 				indeterminate={indeterminate}
-				indicatorClassName="text-cossistant-blue"
+				indicatorClassName="text-plasma-blue"
 				value={value}
 			/>
 		</div>

@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import {
 	ConversationTimelineType,
 	TimelineItemVisibility,
-} from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+} from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import { mapDefaultTimelineItemForCreation } from "./conversation-default-timeline-item";
 
 function createBaseTimelineItem(

@@ -160,12 +160,12 @@ function Item({
 					className={cn(
 						keyVariants({
 							deprecated,
-							className: "w-[33%] min-w-fit font-medium text-cossistant-green",
+							className: "w-[33%] min-w-fit font-medium text-plasma-green",
 						})
 					)}
 				>
 					{name}
-					{!required && <span className="ml-1 text-cossistant-orange">?</span>}
+					{!required && <span className="ml-1 text-plasma-orange">?</span>}
 				</code>
 				<div className="@max-xl:hidden min-w-0 flex-1 pe-6">
 					{typeDescriptionLink ? (

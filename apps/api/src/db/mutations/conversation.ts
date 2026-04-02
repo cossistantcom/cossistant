@@ -7,7 +7,7 @@ import {
 	ConversationEventType,
 	ConversationStatus,
 	TimelineItemVisibility,
-} from "@cossistant/types";
+} from "@plasma/types";
 import type { InferSelectModel } from "drizzle-orm";
 import { and, eq } from "drizzle-orm";
 

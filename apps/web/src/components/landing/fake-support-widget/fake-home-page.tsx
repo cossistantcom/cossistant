@@ -1,9 +1,9 @@
 "use client";
 
-import { AvatarStack } from "@cossistant/react/support/components/avatar-stack";
-import { CoButton as Button } from "@cossistant/react/support/components/button";
-import Icon from "@cossistant/react/support/components/icons";
-import { Watermark } from "@cossistant/react/support/components/watermark";
+import { AvatarStack } from "@plasma/react/support/components/avatar-stack";
+import { CoButton as Button } from "@plasma/react/support/components/button";
+import Icon from "@plasma/react/support/components/icons";
+import { Watermark } from "@plasma/react/support/components/watermark";
 import { motion } from "motion/react";
 import { forwardRef } from "react";
 import { useFakeSupport } from "./fake-support-context";

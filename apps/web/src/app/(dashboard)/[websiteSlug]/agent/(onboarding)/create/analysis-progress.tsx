@@ -37,7 +37,7 @@ function StepIndicator({
 				<Spinner className="size-2 text-primary" />
 			) : isComplete ? (
 				<motion.div animate={{ scale: 1 }} initial={{ scale: 0 }}>
-					<Icon className="size-4 text-cossistant-green" name="check" />
+					<Icon className="size-4 text-plasma-green" name="check" />
 				</motion.div>
 			) : null}
 		</div>

@@ -28,7 +28,7 @@ mock.module("@api/utils/queue-triggers", () => ({
 	getAiAgentQueueTriggers: getAiAgentQueueTriggersMock,
 }));
 
-mock.module("@cossistant/jobs", () => ({
+mock.module("@plasma/jobs", () => ({
 	AI_AGENT_INITIAL_DELAY_MS: 5000,
 }));
 

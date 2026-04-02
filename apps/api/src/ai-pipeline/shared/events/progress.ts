@@ -1,5 +1,5 @@
 import { realtime } from "@api/realtime/emitter";
-import { getWidgetToolDefaultProgressMessage } from "@cossistant/types";
+import { getWidgetToolDefaultProgressMessage } from "@plasma/types";
 import { logAiPipeline } from "../../logger";
 
 export type PipelineToolProgressAudience = "all" | "dashboard";

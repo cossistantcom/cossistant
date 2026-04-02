@@ -1,7 +1,7 @@
 import { db } from "@api/db";
 import { getActiveAiAgentForWebsite } from "@api/db/queries/ai-agent";
 import { getAiAgentQueueTriggers } from "@api/utils/queue-triggers";
-import { AI_AGENT_INITIAL_DELAY_MS } from "@cossistant/jobs";
+import { AI_AGENT_INITIAL_DELAY_MS } from "@plasma/jobs";
 
 export type EnqueueAiTriggerParams = {
 	conversationId: string;

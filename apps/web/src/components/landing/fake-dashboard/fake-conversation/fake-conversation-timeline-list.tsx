@@ -1,14 +1,14 @@
 "use client";
 
-import { useGroupedMessages } from "@cossistant/next/hooks";
+import { useGroupedMessages } from "@plasma/next/hooks";
 import {
 	ConversationTimelineContainer,
 	ConversationTimeline as PrimitiveConversationTimeline,
-} from "@cossistant/next/primitives";
+} from "@plasma/next/primitives";
 import type {
 	TimelineItem,
 	TimelinePartEvent,
-} from "@cossistant/types/api/timeline-item";
+} from "@plasma/types/api/timeline-item";
 import { AnimatePresence } from "motion/react";
 import { useEffect, useMemo, useRef } from "react";
 import {

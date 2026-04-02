@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import type { SubmitOpenSourceProgramApplicationRequest } from "@cossistant/types";
+import type { SubmitOpenSourceProgramApplicationRequest } from "@plasma/types";
 
 const getWebsiteByIdWithAccessMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>

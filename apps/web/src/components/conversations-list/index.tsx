@@ -1,6 +1,6 @@
 "use client";
 
-import type { ConversationStatus } from "@cossistant/types";
+import type { ConversationStatus } from "@plasma/types";
 import { useQuery } from "@tanstack/react-query";
 import { Facehash } from "facehash";
 import Link from "next/link";

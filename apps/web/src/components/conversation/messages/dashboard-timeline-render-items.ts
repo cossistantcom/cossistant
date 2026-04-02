@@ -2,13 +2,13 @@ import type {
 	ConversationItem,
 	GroupedActivity,
 	TimelineToolItem,
-} from "@cossistant/next/hooks";
-import { TIMELINE_GROUP_WINDOW_MS } from "@cossistant/react/hooks";
+} from "@plasma/next/hooks";
+import { TIMELINE_GROUP_WINDOW_MS } from "@plasma/react/hooks";
 import {
 	SenderType,
 	type SenderType as SenderTypeValue,
-} from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+} from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import {
 	isCustomerFacingToolTimelineItem,
 	isInternalToolTimelineItem,

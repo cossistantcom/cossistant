@@ -1,4 +1,4 @@
-import { APIKeyType } from "@cossistant/types";
+import { APIKeyType } from "@plasma/types";
 import {
 	type InferInsertModel,
 	type InferSelectModel,

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ConversationStatus } from "@cossistant/types";
+import type { ConversationStatus } from "@plasma/types";
 import { useEffect, useRef } from "react";
 import { ConversationsList } from "@/components/conversations-list";
 import type { VirtualListItem } from "@/components/conversations-list/types";

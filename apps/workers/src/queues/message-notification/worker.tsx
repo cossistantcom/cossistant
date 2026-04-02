@@ -1,17 +1,17 @@
 import {
 	generateInboundReplyAddress,
 	generateThreadingHeaders,
-} from "@cossistant/api/email-threading";
+} from "@plasma/api/email-threading";
 import {
 	getMemberNotificationPreference,
 	getMessagesForEmail,
 	getNotificationData,
 	getVisitorEmailForNotification,
 	isVisitorEmailNotificationEnabled,
-} from "@cossistant/api/notification-helpers";
-import { type MessageNotificationJobData, QUEUE_NAMES } from "@cossistant/jobs";
-import { getSafeRedisUrl, type RedisOptions } from "@cossistant/redis";
-import { NewMessageInConversation, sendEmail } from "@cossistant/transactional";
+} from "@plasma/api/notification-helpers";
+import { type MessageNotificationJobData, QUEUE_NAMES } from "@plasma/jobs";
+import { getSafeRedisUrl, type RedisOptions } from "@plasma/redis";
+import { NewMessageInConversation, sendEmail } from "@plasma/transactional";
 import { type Job, QueueEvents, Worker } from "bullmq";
 import React from "react";
 import { db } from "../../db";

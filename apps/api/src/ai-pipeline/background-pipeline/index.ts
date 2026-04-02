@@ -2,7 +2,7 @@ import { getBehaviorSettings } from "@api/ai-pipeline/shared/settings";
 import type { Database } from "@api/db";
 import { getAiAgentById } from "@api/db/queries/ai-agent";
 import { listActiveWebsiteViews } from "@api/db/queries/view";
-import type { AiAgentToolId } from "@cossistant/types";
+import type { AiAgentToolId } from "@plasma/types";
 import { logAiPipeline } from "../logger";
 import {
 	loadConversationSeed,

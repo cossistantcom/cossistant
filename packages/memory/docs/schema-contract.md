@@ -2,7 +2,7 @@
 
 ## Ownership
 
-`@cossistant/memory` does not create or migrate its own tables.
+`@plasma/memory` does not create or migrate its own tables.
 
 The host application owns:
 

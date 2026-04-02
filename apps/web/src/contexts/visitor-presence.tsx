@@ -1,6 +1,6 @@
 "use client";
 
-import type { VisitorPresenceEntry } from "@cossistant/types";
+import type { VisitorPresenceEntry } from "@plasma/types";
 import { createContext, useContext, useMemo } from "react";
 import { useVisitorPresenceData } from "@/data/use-visitor-presence";
 

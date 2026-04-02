@@ -1,4 +1,4 @@
-import type { TypingEntry } from "@cossistant/core";
+import type { TypingEntry } from "@plasma/core";
 import { useCallback, useMemo } from "react";
 import { useSupport } from "../provider";
 import { useStoreSelector } from "./private/store/use-store-selector";

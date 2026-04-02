@@ -1,6 +1,6 @@
 "use client";
 
-import type { GetPromptStudioResponse } from "@cossistant/types";
+import type { GetPromptStudioResponse } from "@plasma/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";

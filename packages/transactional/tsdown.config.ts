@@ -20,9 +20,9 @@ export default defineConfig({
 	//   "tailwindcss",
 
 	//   // Internal workspace packages that should be bundled
-	//   // Remove "@cossistant/*" to bundle core and types
-	//   "@cossistant/core",
-	//   "@cossistant/types",
+	//   // Remove "@plasma/*" to bundle core and types
+	//   "@plasma/core",
+	//   "@plasma/types",
 
 	//   // Regular dependencies that should stay external
 	//   "react-use-websocket",

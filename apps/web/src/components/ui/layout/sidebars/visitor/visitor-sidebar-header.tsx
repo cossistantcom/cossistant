@@ -1,5 +1,5 @@
 import type { RouterOutputs } from "@api/trpc/types";
-import type { VisitorPresenceEntry } from "@cossistant/types";
+import type { VisitorPresenceEntry } from "@plasma/types";
 import Link from "next/link";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";

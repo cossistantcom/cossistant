@@ -1,4 +1,4 @@
-# @cossistant/location
+# @plasma/location
 
 ## 0.0.6
 

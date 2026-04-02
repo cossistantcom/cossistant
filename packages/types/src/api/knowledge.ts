@@ -18,13 +18,13 @@ const headingSchema = z.object({
 
 const linkSchema = z.url().openapi({
 	description: "Absolute URL discovered in the document",
-	example: "https://docs.cossistant.com/guide",
+	example: "https://docs.plasma-pandora.com/guide",
 });
 
 const imageSchema = z.object({
 	src: z.url().openapi({
 		description: "Image URL captured during scraping",
-		example: "https://cdn.cossistant.com/assets/hero.png",
+		example: "https://cdn.plasma-pandora.com/assets/hero.png",
 	}),
 	alt: z.string().nullable().openapi({
 		description: "Optional alt text attached to the image",
@@ -116,7 +116,7 @@ const baseKnowledgeFields = {
 	sourceUrl: z.url().nullable().openapi({
 		description:
 			"Origin URL for this entry (required for url knowledge; optional for others)",
-		example: "https://docs.cossistant.com/getting-started",
+		example: "https://docs.plasma-pandora.com/getting-started",
 	}),
 	sourceTitle: z.string().nullable().openapi({
 		description: "Readable title captured during scraping",
@@ -239,7 +239,7 @@ export const knowledgeResponseSchema = z
 		type: knowledgeTypeSchema,
 		sourceUrl: z.url().nullable().openapi({
 			description: "Origin URL for this entry",
-			example: "https://docs.cossistant.com/getting-started",
+			example: "https://docs.plasma-pandora.com/getting-started",
 		}),
 		sourceTitle: z.string().nullable().openapi({
 			description: "Readable title captured during scraping",
@@ -435,7 +435,7 @@ export const createKnowledgeRequestSchema = z
 		type: knowledgeTypeSchema,
 		sourceUrl: z.url().nullable().optional().openapi({
 			description: "Origin URL for this entry",
-			example: "https://docs.cossistant.com/getting-started",
+			example: "https://docs.plasma-pandora.com/getting-started",
 		}),
 		sourceTitle: z.string().nullable().optional().openapi({
 			description: "Readable title",
@@ -473,7 +473,7 @@ export const createKnowledgeRestRequestSchema = z
 		type: knowledgeTypeSchema,
 		sourceUrl: z.url().nullable().optional().openapi({
 			description: "Origin URL for this entry",
-			example: "https://docs.cossistant.com/getting-started",
+			example: "https://docs.plasma-pandora.com/getting-started",
 		}),
 		sourceTitle: z.string().nullable().optional().openapi({
 			description: "Readable title",
@@ -521,7 +521,7 @@ export const updateKnowledgeRequestSchema = z
 		}),
 		sourceUrl: z.url().nullable().optional().openapi({
 			description: "Update origin URL",
-			example: "https://docs.cossistant.com/getting-started",
+			example: "https://docs.plasma-pandora.com/getting-started",
 		}),
 		sourceTitle: z.string().nullable().optional().openapi({
 			description: "Update readable title",
@@ -558,7 +558,7 @@ export const updateKnowledgeRestRequestSchema = z
 		}),
 		sourceUrl: z.url().nullable().optional().openapi({
 			description: "Update origin URL",
-			example: "https://docs.cossistant.com/getting-started",
+			example: "https://docs.plasma-pandora.com/getting-started",
 		}),
 		sourceTitle: z.string().nullable().optional().openapi({
 			description: "Update readable title",

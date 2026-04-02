@@ -1,4 +1,4 @@
-import type { Conversation } from "@cossistant/types";
+import type { Conversation } from "@plasma/types";
 import { useCallback, useMemo, useState } from "react";
 import { shouldDisplayConversation } from "../utils/conversation";
 import { useConversations } from "./use-conversations";

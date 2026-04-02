@@ -4,7 +4,7 @@ import {
 	APIKeyType,
 	type CreateWebsiteResponse,
 	type WebsiteInstallationTarget,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { useMutation } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import Link from "next/link";
@@ -292,7 +292,7 @@ export default function CreationFlowWrapper({
 
 									<DashboardCodeBlock
 										code={aiSetupPrompt}
-										fileName={"cossistant-prompt.md"}
+										fileName={"plasma-prompt.md"}
 										language="md"
 									/>
 									{publicApiKey ? null : (

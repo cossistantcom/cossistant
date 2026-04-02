@@ -93,7 +93,7 @@ async function PlanInfoContent({ websiteSlug }: { websiteSlug: string }) {
 			>
 				<div className="flex flex-wrap items-center justify-between gap-4 p-2 pl-4">
 					{plan.name === "free" && (
-						<div className="flex gap-2 text-cossistant-orange">
+						<div className="flex gap-2 text-plasma-orange">
 							<p className="py-2 text-sm">
 								Early bird launch pricing is live. Upgrade now to lock in
 								discounted rates for the lifetime of your subscription.
@@ -104,7 +104,7 @@ async function PlanInfoContent({ websiteSlug }: { websiteSlug: string }) {
 						<span className="font-medium text-lg">{plan.displayName}</span>
 						{pricing.hasPromo && typeof pricing.promoPrice === "number" ? (
 							<div className="flex items-baseline gap-2 text-sm">
-								<span className="font-semibold text-cossistant-orange">
+								<span className="font-semibold text-plasma-orange">
 									${pricing.promoPrice}
 								</span>
 								{typeof pricing.price === "number" && (

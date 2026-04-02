@@ -6,7 +6,7 @@ import {
 	type SupportNavigation,
 	type SupportStore,
 	type SupportStoreState,
-} from "@cossistant/core";
+} from "@plasma/core";
 import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { useControlledState } from "../context/controlled-state";
 

@@ -1,5 +1,5 @@
 {
-  "extends": "@cossistant/typescript-config/react-library.json",
+  "extends": "@plasma/typescript-config/react-library.json",
   "compilerOptions": {
     "lib": ["dom", "dom.iterable", "esnext"],
     "target": "ES2020",
@@ -16,14 +16,14 @@
     "noEmit": true,
     "outDir": "./dist",
     "paths": {
-      "@cossistant/react": ["./src"],
-      "@cossistant/react/*": ["./src/*"],
-      "@cossistant/core": ["../core/src"],
-      "@cossistant/core/*": ["../core/src/*"],
-      "@cossistant/types": ["../types/src"],
-      "@cossistant/types/*": ["../types/src/*"],
-      "@cossistant/tiny-markdown": ["../tiny-markdown/src"],
-      "@cossistant/tiny-markdown/*": ["../tiny-markdown/src/*"]
+      "@plasma/react": ["./src"],
+      "@plasma/react/*": ["./src/*"],
+      "@plasma/core": ["../core/src"],
+      "@plasma/core/*": ["../core/src/*"],
+      "@plasma/types": ["../types/src"],
+      "@plasma/types/*": ["../types/src/*"],
+      "@plasma/tiny-markdown": ["../tiny-markdown/src"],
+      "@plasma/tiny-markdown/*": ["../tiny-markdown/src/*"]
     }
   },
   "include": ["src/**/*", "src/**/*.d.ts"],

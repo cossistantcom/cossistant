@@ -1,4 +1,4 @@
-import { resolveHumanAgentDisplay } from "@cossistant/core";
+import { resolveHumanAgentDisplay } from "@plasma/core";
 
 export const DASHBOARD_TEAM_MEMBER_FALLBACK = "Team member";
 

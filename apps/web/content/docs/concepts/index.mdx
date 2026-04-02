@@ -45,7 +45,7 @@ Transform anonymous visitors into identified [contacts](/docs/concepts/contacts)
 ### Using the Component (Server Components)
 
 ```tsx showLineNumbers title="app/dashboard/layout.tsx"
-import { IdentifySupportVisitor } from "@cossistant/next";
+import { IdentifySupportVisitor } from "@plasma/next";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
@@ -74,7 +74,7 @@ export default async function DashboardLayout({ children }) {
 ```tsx showLineNumbers title="components/auth-handler.tsx"
 "use client";
 
-import { useVisitor } from "@cossistant/next";
+import { useVisitor } from "@plasma/next";
 import { useEffect } from "react";
 
 export function AuthHandler({ user }) {

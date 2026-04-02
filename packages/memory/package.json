@@ -1,5 +1,5 @@
 {
-  "name": "@cossistant/memory",
+  "name": "@plasma/memory",
   "type": "module",
   "version": "0.0.1",
   "private": true,
@@ -19,7 +19,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@cossistant/typescript-config": "workspace:*"
+    "@plasma/typescript-config": "workspace:*"
   },
   "scripts": {
     "build": "tsdown",

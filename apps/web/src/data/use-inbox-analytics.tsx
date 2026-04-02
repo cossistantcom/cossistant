@@ -4,7 +4,7 @@ import {
 	calculateResponseTimeScore,
 	calculateSatisfactionIndex,
 	type InboxAnalyticsResponse,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { InboxAnalyticsRangeDays } from "@/components/inbox-analytics";
 import { queryTinybirdPipe, useTinybirdToken } from "@/lib/tinybird";

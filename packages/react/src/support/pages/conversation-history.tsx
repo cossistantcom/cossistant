@@ -1,5 +1,5 @@
-import { useSupport } from "@cossistant/react";
-import { PENDING_CONVERSATION_ID } from "@cossistant/react/utils/id";
+import { useSupport } from "@plasma/react";
+import { PENDING_CONVERSATION_ID } from "@plasma/react/utils/id";
 import type React from "react";
 import { useConversationHistoryPage } from "../../hooks/use-conversation-history-page";
 import { AvatarStack } from "../components/avatar-stack";

@@ -715,7 +715,7 @@ export const AvatarInput =
 							aria-describedby={instructionsId}
 							aria-label={uploadAriaLabel}
 							className={cn(
-								"relative block size-20 rounded border border-border/50 border-dashed bg-cossistant-300 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+								"relative block size-20 rounded border border-border/50 border-dashed bg-plasma-300 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
 								(disabled || isUploading) && "cursor-not-allowed opacity-70",
 								!(disabled || isUploading) && "cursor-pointer"
 							)}

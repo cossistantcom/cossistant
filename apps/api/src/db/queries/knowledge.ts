@@ -6,7 +6,7 @@ import {
 	knowledge,
 } from "@api/db/schema/knowledge";
 import { generateULID } from "@api/utils/db/ids";
-import type { KnowledgeType } from "@cossistant/types";
+import type { KnowledgeType } from "@plasma/types";
 import { and, count, eq, isNull, sum } from "drizzle-orm";
 
 /**

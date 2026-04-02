@@ -9,7 +9,7 @@ import {
 	isWidgetTimelineTool,
 	TimelineItemVisibility,
 	type ToolTimelineLogType,
-} from "@cossistant/types";
+} from "@plasma/types";
 import type { PipelineToolContext, ToolTelemetrySpec } from "../contracts";
 import { emitStructuredToolLog } from "./logging";
 import { buildToolSummaryText } from "./text";

@@ -5,7 +5,7 @@ import {
 	PRESENCE_ONLINE_WINDOW_MS,
 	PRESENCE_PING_INTERVAL_MS,
 	type VisitorPresenceEntry,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryTinybirdPipe, useTinybirdToken } from "@/lib/tinybird";
 import { useTRPC } from "@/lib/trpc/client";

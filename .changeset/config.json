@@ -7,24 +7,17 @@
     }
   ],
   "commit": false,
-  "fixed": [
-    [
-      "@cossistant/core",
-      "@cossistant/react",
-      "@cossistant/types",
-      "@cossistant/next"
-    ]
-  ],
+  "fixed": [["@plasma/core", "@plasma/react", "@plasma/types", "@plasma/next"]],
   "linked": [],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "minor",
   "ignore": [
-    "@cossistant/api",
-    "@cossistant/web",
-    "@cossistant/location",
-    "@cossistant/transactional",
-    "@cossistant/workers",
-    "@cossistant/facehash-landing"
+    "@plasma/api",
+    "@plasma/web",
+    "@plasma/location",
+    "@plasma/transactional",
+    "@plasma/workers",
+    "@plasma/facehash-landing"
   ]
 }

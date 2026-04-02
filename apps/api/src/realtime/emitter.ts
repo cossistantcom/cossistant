@@ -9,7 +9,7 @@ import {
 	type RealtimeEventData,
 	type RealtimeEventType,
 	validateRealtimeEvent,
-} from "@cossistant/types/realtime-events";
+} from "@plasma/types/realtime-events";
 
 function extractWebsiteId(data: unknown): string | null {
 	if (!data || typeof data !== "object") {

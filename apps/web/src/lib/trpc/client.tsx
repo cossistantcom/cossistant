@@ -1,6 +1,6 @@
 "use client";
 
-import type { OrigamiTRPCRouter } from "@cossistant/api/types";
+import type { OrigamiTRPCRouter } from "@plasma/api/types";
 import { QueryNormalizerProvider } from "@normy/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { isServer, QueryClientProvider } from "@tanstack/react-query";

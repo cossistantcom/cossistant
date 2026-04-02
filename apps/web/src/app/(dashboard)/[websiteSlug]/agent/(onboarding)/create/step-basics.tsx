@@ -1,7 +1,7 @@
 "use client";
 
-import type { RouterOutputs } from "@cossistant/api/types";
-import { AI_AGENT_GOALS } from "@cossistant/types";
+import type { RouterOutputs } from "@plasma/api/types";
+import { AI_AGENT_GOALS } from "@plasma/types";
 import { motion } from "motion/react";
 import { useCallback, useState } from "react";
 import { UpgradeModal } from "@/components/plan/upgrade-modal";
@@ -107,7 +107,7 @@ export function StepBasics({
 						initial={{ opacity: 0, height: 0 }}
 						transition={{ duration: 0.2 }}
 					>
-						<p className="text-cossistant-orange text-sm">
+						<p className="text-plasma-orange text-sm">
 							Free plan includes{" "}
 							<span className="font-semibold">
 								{crawlPagesLimit.toLocaleString()} pages total

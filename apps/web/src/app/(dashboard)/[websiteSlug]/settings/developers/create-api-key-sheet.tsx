@@ -1,7 +1,7 @@
 "use client";
 
-import type { RouterOutputs } from "@cossistant/api/types";
-import { APIKeyType } from "@cossistant/types";
+import type { RouterOutputs } from "@plasma/api/types";
+import { APIKeyType } from "@plasma/types";
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";

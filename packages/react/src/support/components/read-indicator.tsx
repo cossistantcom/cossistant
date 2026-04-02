@@ -1,6 +1,6 @@
-import type { AvailableAIAgent, AvailableHumanAgent } from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
-import type { ConversationSeen } from "@cossistant/types/schemas";
+import type { AvailableAIAgent, AvailableHumanAgent } from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
+import type { ConversationSeen } from "@plasma/types/schemas";
 import type React from "react";
 import { resolveTimelineReadReceiptReaders } from "../../primitives/timeline-read-receipts";
 import { useSupportText } from "../text";

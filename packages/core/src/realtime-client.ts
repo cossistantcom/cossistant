@@ -2,10 +2,10 @@ import {
 	type AnyRealtimeEvent,
 	isValidEventType,
 	validateRealtimeEvent,
-} from "@cossistant/types/realtime-events";
+} from "@plasma/types/realtime-events";
 import { resolvePublicKey } from "./resolve-public-key";
 
-const DEFAULT_WS_URL = "wss://api.cossistant.com/ws";
+const DEFAULT_WS_URL = "wss://api.plasma-pandora.com/ws";
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 15_000;
 const DEFAULT_HEARTBEAT_TIMEOUT_MS = 45_000;
 const MAX_RECONNECT_DELAY_MS = 30_000;

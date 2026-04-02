@@ -13,7 +13,7 @@ export async function getMockSession(): Promise<MockSession> {
 	return {
 		user: {
 			id: "user_123",
-			email: "demo@cossistant.com",
+			email: "demo@plasma-pandora.com",
 			name: "Demo User",
 			image: null,
 			plan: "pro",

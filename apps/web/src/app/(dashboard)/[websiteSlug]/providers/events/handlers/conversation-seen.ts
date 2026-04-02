@@ -1,4 +1,4 @@
-import type { RealtimeEvent } from "@cossistant/types/realtime-events";
+import type { RealtimeEvent } from "@plasma/types/realtime-events";
 import type { ConversationHeader } from "@/data/conversation-header-cache";
 import { updateConversationSeenInCache } from "@/hooks/use-conversation-seen";
 import type { DashboardRealtimeContext } from "../types";

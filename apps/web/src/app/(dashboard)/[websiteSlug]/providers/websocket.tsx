@@ -1,6 +1,6 @@
 "use client";
 
-import { RealtimeProvider } from "@cossistant/next/realtime";
+import { RealtimeProvider } from "@plasma/next/realtime";
 import type { ReactNode } from "react";
 import { useUserSession, useWebsite } from "@/contexts/website";
 import { getWebSocketUrl } from "@/lib/url";

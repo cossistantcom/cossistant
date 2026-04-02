@@ -38,11 +38,11 @@
     "default-avatar"
   ],
   "bugs": {
-    "url": "https://github.com/cossistantcom/cossistant/issues"
+    "url": "https://github.com/plasma-pandora/plasma-pandora/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cossistantcom/cossistant.git",
+    "url": "git+https://github.com/plasma-pandora/plasma-pandora.git",
     "directory": "packages/facehash"
   },
   "license": "MIT",
@@ -58,7 +58,7 @@
     "dist"
   ],
   "devDependencies": {
-    "@cossistant/typescript-config": "workspace:*",
+    "@plasma/typescript-config": "workspace:*",
     "next": "16.1.1"
   },
   "peerDependencies": {

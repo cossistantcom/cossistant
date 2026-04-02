@@ -7,7 +7,7 @@ import type {
 	ConversationClarificationProgress,
 	ConversationClarificationSummary,
 	KnowledgeClarificationTurnRole,
-} from "@cossistant/types";
+} from "@plasma/types";
 
 type ActiveConversationClarificationRequest = Pick<
 	KnowledgeClarificationRequestSelect,

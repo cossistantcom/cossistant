@@ -3,7 +3,7 @@ import type {
 	RealtimeEvent,
 	RealtimeEventData,
 	RealtimeEventType,
-} from "@cossistant/types/realtime-events";
+} from "@plasma/types/realtime-events";
 import Redis, { type RedisOptions } from "ioredis";
 import { env } from "./env";
 

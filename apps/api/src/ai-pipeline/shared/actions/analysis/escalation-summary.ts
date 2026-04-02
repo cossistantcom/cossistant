@@ -12,7 +12,7 @@ import { createModel, DefaultModels, generateText, Output } from "@api/lib/ai";
 import {
 	ConversationTimelineType,
 	TimelineItemVisibility,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { z } from "zod";
 
 /**

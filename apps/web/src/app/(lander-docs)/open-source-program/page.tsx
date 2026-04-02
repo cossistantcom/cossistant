@@ -157,7 +157,7 @@ function Section({
 
 export const ListItem = ({ children }: { children: React.ReactNode }) => (
 	<li className="flex items-start gap-2">
-		<span className="mr-1 font-bold font-mono text-cossistant-orange text-xs leading-7">
+		<span className="mr-1 font-bold font-mono text-plasma-orange text-xs leading-7">
 			&gt;
 		</span>
 		{children}
@@ -174,7 +174,7 @@ export default function OpenSourceProgramPage() {
 	const readmeSnippet = `<br />
 <br />
 <a href="${programUrl}">
-<img alt="Cossistant OSS Program" src="https://cdn.cossistant.com/oss/oss-friends.svg" />
+<img alt="Cossistant OSS Program" src="https://cdn.plasma-pandora.com/oss/oss-friends.svg" />
 </a>`;
 
 	return (
@@ -285,7 +285,7 @@ export default function OpenSourceProgramPage() {
 								alt="Cossistant OSS Program badge"
 								className="h-auto w-auto dark:invert"
 								height={48}
-								src="https://cdn.cossistant.com/oss/oss-friends.svg"
+								src="https://cdn.plasma-pandora.com/oss/oss-friends.svg"
 								width={220}
 							/>
 						</div>
@@ -293,12 +293,12 @@ export default function OpenSourceProgramPage() {
 							<FullWidthBorder className="top-0" />
 
 							<div className="relative flex items-center justify-between p-4">
-								<p className="text-cossistant-orange text-xs leading-7">
+								<p className="text-plasma-orange text-xs leading-7">
 									&gt; ./README.md
 								</p>
 								<a
 									className="absolute top-3.5 right-12 font-mono text-primary/50 text-xs hover:cursor-pointer hover:text-primary"
-									href="https://github.com/cossistantcom/cossistant#:~:text=You%20can%20also%20join%20our%20open%20source%20program%3A"
+									href="https://github.com/plasma-pandora/plasma-pandora#:~:text=You%20can%20also%20join%20our%20open%20source%20program%3A"
 									rel="noreferrer"
 									target="_blank"
 								>
@@ -333,7 +333,7 @@ export default function OpenSourceProgramPage() {
 					<div className="space-y-2 px-4">
 						<h2 className="font-f37-stout text-2xl leading-tight md:text-3xl">
 							Featured open source friends{" "}
-							<span className="text-cossistant-orange"> 👋</span>
+							<span className="text-plasma-orange"> 👋</span>
 						</h2>
 						<p className="mb-6 max-w-2xl text-muted-foreground text-sm leading-7">
 							These are the awesome open source projects that have been accepted
@@ -346,7 +346,7 @@ export default function OpenSourceProgramPage() {
 						{FEATURED_OPEN_SOURCE_PROJECTS.map((project, index) => (
 							<a
 								className="group relative flex flex-col transition-colors hover:bg-background-100"
-								href={`${project.websiteUrl}?utm_source=cossistant&utm_medium=oss-program`}
+								href={`${project.websiteUrl}?utm_source=plasma-pandora&utm_medium=oss-program`}
 								key={project.id}
 								rel="noreferrer"
 								target="_blank"

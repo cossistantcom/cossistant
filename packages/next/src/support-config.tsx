@@ -1,3 +1,3 @@
 "use client";
 
-export * from "@cossistant/react/support-config";
+export * from "@plasma/react/support-config";

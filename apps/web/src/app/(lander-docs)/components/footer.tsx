@@ -21,8 +21,8 @@ export function Footer() {
 						</p>
 						<div className="mt-10 flex items-center gap-2">
 							{/* <StatusWidget
-								href="https://cossistant.openstatus.dev"
-								slug="cossistant"
+								href="https://plasma-pandora.openstatus.dev"
+								slug="plasma-pandora"
 							/> */}
 							<GitHubLink variant="secondary">Star us on GitHub</GitHubLink>
 						</div>
@@ -111,7 +111,7 @@ export function Footer() {
 				<div className="container-wrapper relative mx-auto">
 					<div className="absolute inset-x-0 top-0 z-50 flex flex-col justify-between gap-4 p-4 md:flex-row">
 						<p className="px-6 text-center font-mono text-foreground/60 text-sm md:text-left lg:px-0">
-							© 2025 cossistant. open source under GPL-3.0 license.
+							© 2025 Plasma. open source under GPL-3.0 license.
 						</p>
 						<div className="mx-auto mt-4 flex items-center space-x-6 px-6 md:mx-0 md:mt-0 lg:px-0">
 							<Link
@@ -128,7 +128,7 @@ export function Footer() {
 							</Link>
 							<a
 								className="font-mono text-foreground/60 text-sm transition-colors hover:text-foreground"
-								href="https://github.com/cossistantcom/cossistant?tab=security-ov-file#readme"
+								href="https://github.com/plasma-pandora/plasma-pandora?tab=security-ov-file#readme"
 								rel="noopener noreferrer"
 								target="_blank"
 							>

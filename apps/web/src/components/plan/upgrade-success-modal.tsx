@@ -1,6 +1,6 @@
 "use client";
 
-import type { RouterOutputs } from "@cossistant/api/types";
+import type { RouterOutputs } from "@plasma/api/types";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,7 +52,7 @@ function LimitRow({
 	return (
 		<div className="flex items-center justify-between border-b py-3 last:border-0">
 			<div className="flex items-center gap-2">
-				<Check className="size-4 text-cossistant-green" />
+				<Check className="size-4 text-plasma-green" />
 				<span className="font-medium text-sm">{label}</span>
 			</div>
 			<div className="text-right">
@@ -96,7 +96,7 @@ export function UpgradeSuccessModal({
 						<h3 className="font-semibold text-lg">{plan.displayName} Plan</h3>
 						{pricing.hasPromo && typeof pricing.promoPrice === "number" ? (
 							<div className="flex items-baseline gap-2 text-sm">
-								<p className="font-semibold text-cossistant-orange">
+								<p className="font-semibold text-plasma-orange">
 									${pricing.promoPrice}
 								</p>
 								{typeof pricing.price === "number" && (

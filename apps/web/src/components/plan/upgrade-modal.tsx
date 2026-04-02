@@ -7,7 +7,7 @@ import {
 	PLAN_CONFIG,
 	type PlanName,
 } from "@api/lib/plans/config";
-import type { RouterOutputs } from "@cossistant/api/types";
+import type { RouterOutputs } from "@plasma/api/types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
@@ -100,7 +100,7 @@ function PlanPriceDisplay({
 		>
 			{hasPromo ? (
 				<div className="flex items-baseline gap-2">
-					<p className="font-semibold text-base text-cossistant-orange">
+					<p className="font-semibold text-base text-plasma-orange">
 						${promoPrice}
 					</p>
 					<p className="text-muted-foreground text-sm line-through">${price}</p>
@@ -149,7 +149,7 @@ function FeatureRow({
 			<span
 				className={cn(
 					"font-medium text-sm",
-					isHighlighted && "text-cossistant-orange"
+					isHighlighted && "text-plasma-orange"
 				)}
 			>
 				{label}
@@ -159,7 +159,7 @@ function FeatureRow({
 					className={cn(
 						"text-sm",
 						isHighlighted
-							? "text-cossistant-orange/60"
+							? "text-plasma-orange/60"
 							: isSame
 								? "text-primary/60"
 								: "text-primary/40"
@@ -170,14 +170,14 @@ function FeatureRow({
 				<ArrowRight
 					className={cn(
 						"mx-2 size-4 text-primary/40",
-						isHighlighted && "text-cossistant-orange/60"
+						isHighlighted && "text-plasma-orange/60"
 					)}
 				/>
 				<span
 					className={cn(
 						"min-w-[100px] text-right font-semibold text-sm",
 						upgraded && "text-primary",
-						isHighlighted && "text-cossistant-orange"
+						isHighlighted && "text-plasma-orange"
 					)}
 				>
 					{formatFeatureValueWithUnit(targetValue, valueUnitLabel)}
@@ -186,7 +186,7 @@ function FeatureRow({
 					<Check
 						className={cn(
 							"size-4 text-primary",
-							isHighlighted && "text-cossistant-orange"
+							isHighlighted && "text-plasma-orange"
 						)}
 					/>
 				)}
@@ -213,7 +213,7 @@ function BooleanFeatureRow({
 			<span
 				className={cn(
 					"font-medium text-sm",
-					isHighlighted && "text-cossistant-orange"
+					isHighlighted && "text-plasma-orange"
 				)}
 			>
 				{label}
@@ -222,7 +222,7 @@ function BooleanFeatureRow({
 				<span
 					className={cn(
 						"text-primary/40 text-sm",
-						isHighlighted && "text-cossistant-orange/60"
+						isHighlighted && "text-plasma-orange/60"
 					)}
 				>
 					{currentValue ? "Yes" : "No"}
@@ -230,14 +230,14 @@ function BooleanFeatureRow({
 				<ArrowRight
 					className={cn(
 						"mx-2 size-4 text-primary/40",
-						isHighlighted && "text-cossistant-orange/60"
+						isHighlighted && "text-plasma-orange/60"
 					)}
 				/>
 				<span
 					className={cn(
 						"min-w-[100px] text-right font-semibold text-sm",
 						upgraded && "text-primary",
-						isHighlighted && "text-cossistant-orange"
+						isHighlighted && "text-plasma-orange"
 					)}
 				>
 					{targetValue ? "Yes" : "No"}
@@ -246,7 +246,7 @@ function BooleanFeatureRow({
 					<Check
 						className={cn(
 							"size-4 text-primary",
-							isHighlighted && "text-cossistant-orange"
+							isHighlighted && "text-plasma-orange"
 						)}
 					/>
 				)}
@@ -369,7 +369,7 @@ export function UpgradeModal({
 						<div className="p-2">
 							<PromoBannerOrnaments>
 								<div className="flex flex-col items-center justify-center gap-1 rounded px-4 py-3 text-center">
-									<div className="flex flex-wrap items-center justify-center gap-1 text-cossistant-orange text-sm">
+									<div className="flex flex-wrap items-center justify-center gap-1 text-plasma-orange text-sm">
 										Limited launch offer – up to
 										<span className="font-semibold">
 											{launchDiscountPercent}% off
@@ -417,7 +417,7 @@ export function UpgradeModal({
 														/>
 													)}
 													{planName === "pro" && (
-														<span className="z-0 font-medium text-cossistant-orange text-xs">
+														<span className="z-0 font-medium text-plasma-orange text-xs">
 															[Best value]
 														</span>
 													)}

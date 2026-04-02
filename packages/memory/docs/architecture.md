@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`@cossistant/memory` gives agents durable memory without becoming a framework.
+`@plasma/memory` gives agents durable memory without becoming a framework.
 
 The package is intentionally narrow:
 

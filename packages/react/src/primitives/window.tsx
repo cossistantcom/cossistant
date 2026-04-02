@@ -84,7 +84,7 @@ export const SupportWindow = (() => {
 				closeOnEscape = true,
 				trapFocus = true,
 				restoreFocus = true,
-				id = "cossistant-window",
+				id = "plasma-window",
 				...props
 			},
 			ref

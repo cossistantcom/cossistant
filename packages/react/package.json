@@ -1,5 +1,5 @@
 {
-  "name": "@cossistant/react",
+  "name": "@plasma/react",
   "type": "module",
   "version": "0.1.2",
   "private": false,
@@ -20,15 +20,15 @@
     "accessibility"
   ],
   "bugs": {
-    "url": "https://github.com/cossistantcom/cossistant/issues"
+    "url": "https://github.com/plasma-pandora/plasma-pandora/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cossistantcom/cossistant.git",
+    "url": "git+https://github.com/plasma-pandora/plasma-pandora.git",
     "directory": "packages/react"
   },
   "license": "MIT",
-  "homepage": "https://cossistant.com",
+  "homepage": "https://plasma-pandora.com",
   "exports": {
     ".": "./src/index.ts",
     "./feedback": "./src/feedback/index.tsx",
@@ -55,9 +55,9 @@
     "dist"
   ],
   "dependencies": {
-    "@cossistant/core": "workspace:*",
-    "@cossistant/tiny-markdown": "workspace:*",
-    "@cossistant/types": "workspace:*",
+    "@plasma/core": "workspace:*",
+    "@plasma/tiny-markdown": "workspace:*",
+    "@plasma/types": "workspace:*",
     "facehash": "workspace:*",
     "@floating-ui/react": "^0.27.16",
     "class-variance-authority": "^0.7.1",
@@ -67,7 +67,7 @@
     "ulid": "^3.0.1"
   },
   "devDependencies": {
-    "@cossistant/typescript-config": "workspace:*",
+    "@plasma/typescript-config": "workspace:*",
     "@tailwindcss/postcss": "^4.1.13",
     "@types/react-dom": "^19.2.2",
     "autoprefixer": "^10.4.21",

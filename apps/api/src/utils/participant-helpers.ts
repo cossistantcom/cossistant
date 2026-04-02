@@ -1,7 +1,7 @@
 import type { Database } from "@api/db";
 import { conversationParticipant, member } from "@api/db/schema";
 import { generateShortPrimaryId } from "@api/utils/db/ids";
-import { ConversationParticipationStatus } from "@cossistant/types";
+import { ConversationParticipationStatus } from "@plasma/types";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
 /**

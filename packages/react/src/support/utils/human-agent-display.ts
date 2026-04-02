@@ -1,5 +1,5 @@
-import { resolveHumanAgentDisplay } from "@cossistant/core";
-import type { AvailableHumanAgent } from "@cossistant/types";
+import { resolveHumanAgentDisplay } from "@plasma/core";
+import type { AvailableHumanAgent } from "@plasma/types";
 
 export function resolveSupportHumanAgentDisplay(
 	agent: Pick<AvailableHumanAgent, "id" | "name"> | null | undefined,

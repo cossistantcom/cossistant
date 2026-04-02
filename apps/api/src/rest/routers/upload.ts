@@ -6,7 +6,7 @@ import {
 import {
 	generateUploadUrlRequestSchema,
 	generateUploadUrlResponseSchema,
-} from "@cossistant/types/api/upload";
+} from "@plasma/types/api/upload";
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import { protectedPublicApiKeyMiddleware } from "../middleware";
 import type { RestContext } from "../types";

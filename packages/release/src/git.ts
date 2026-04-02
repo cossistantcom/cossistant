@@ -12,7 +12,7 @@ export async function getLastReleaseTag(): Promise<string | null> {
 		const { stdout } = await execa("git", [
 			"tag",
 			"--list",
-			"@cossistant/react@*",
+			"@plasma/react@*",
 			"--sort=-v:refname",
 		]);
 		const tags = stdout.trim().split("\n").filter(Boolean);

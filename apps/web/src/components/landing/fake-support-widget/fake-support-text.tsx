@@ -1,6 +1,6 @@
 "use client";
 
-import { SupportTextProvider } from "@cossistant/react/support/text";
+import { SupportTextProvider } from "@plasma/react/support/text";
 import type React from "react";
 
 /**
@@ -19,4 +19,4 @@ export function FakeSupportTextProvider({
 }
 
 // Re-export the real hook so components can use it
-export { useSupportText } from "@cossistant/react/support/text";
+export { useSupportText } from "@plasma/react/support/text";

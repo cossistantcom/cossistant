@@ -4,7 +4,7 @@ import {
 	MEMBER_NOTIFICATION_DEFINITION_MAP,
 	MemberNotificationChannel,
 	type MemberNotificationSettingsResponse,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
@@ -491,7 +491,7 @@ export function MemberNotificationSettingsForm({
 				<>
 					<span className="block">{definition.description}</span>
 					{definition.requiresSetup && !current?.config && (
-						<span className="block text-cossistant-orange">
+						<span className="block text-plasma-orange">
 							Set up browser push before enabling alerts.
 						</span>
 					)}

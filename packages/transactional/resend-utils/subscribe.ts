@@ -15,7 +15,7 @@ export async function subscribe({
 		return;
 	}
 
-	if (email.endsWith("@cossistant.com")) {
+	if (email.endsWith("@plasma-pandora.com")) {
 		// don't subscribe internal test emails
 		return;
 	}

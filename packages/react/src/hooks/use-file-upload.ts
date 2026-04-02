@@ -1,15 +1,15 @@
 "use client";
 
-import type { CossistantClient } from "@cossistant/core";
+import type { CossistantClient } from "@plasma/core";
 import {
 	isImageMimeType,
 	MAX_FILES_PER_MESSAGE,
 	validateFiles,
-} from "@cossistant/core";
+} from "@plasma/core";
 import type {
 	TimelinePartFile,
 	TimelinePartImage,
-} from "@cossistant/types/api/timeline-item";
+} from "@plasma/types/api/timeline-item";
 import { useCallback, useState } from "react";
 import { useSupport } from "../provider";
 

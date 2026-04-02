@@ -39,7 +39,7 @@ export function StepBasicsSummary({
 	return (
 		<motion.div
 			animate={{ opacity: 1, y: 0 }}
-			className="rounded border border-cossistant-green bg-cossistant-green/5 p-4"
+			className="rounded border border-plasma-green bg-plasma-green/5 p-4"
 			initial={{ opacity: 0, y: -10 }}
 		>
 			<div className="flex items-start justify-between gap-4">
@@ -97,7 +97,7 @@ export function StepBasicsSummary({
 				discoveredLinksCount > 0 && (
 					<motion.div
 						animate={{ opacity: 1, y: 0 }}
-						className="mt-3 flex items-center gap-2 border-cossistant-green/30 border-t pt-3"
+						className="mt-3 flex items-center gap-2 border-plasma-green/30 border-t pt-3"
 						initial={{ opacity: 0, y: 5 }}
 						transition={{ delay: 0.2 }}
 					>

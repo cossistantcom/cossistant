@@ -75,7 +75,7 @@ const SUPPORT_COMPONENT_TYPES_DOC_PATH = "/docs/support-component/types";
 const SUPPORT_COMPONENT_TYPE_DOCS = {
 	AIAgent: `${SUPPORT_COMPONENT_TYPES_DOC_PATH}#aiagent`,
 	Conversation: `${SUPPORT_COMPONENT_TYPES_DOC_PATH}#conversation`,
-	CossistantClient: `${SUPPORT_COMPONENT_TYPES_DOC_PATH}#cossistantclient`,
+	PlasmaClient: `${SUPPORT_COMPONENT_TYPES_DOC_PATH}#cossistantclient`,
 	DefaultMessage: `${SUPPORT_COMPONENT_TYPES_DOC_PATH}#defaultmessage`,
 	HumanAgent: `${SUPPORT_COMPONENT_TYPES_DOC_PATH}#humanagent`,
 	IdentifyParams: `${SUPPORT_COMPONENT_TYPES_DOC_PATH}#identifyparams`,

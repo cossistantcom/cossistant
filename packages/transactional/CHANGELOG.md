@@ -1,4 +1,4 @@
-# @cossistant/transactional
+# @plasma/transactional
 
 ## 0.0.6
 

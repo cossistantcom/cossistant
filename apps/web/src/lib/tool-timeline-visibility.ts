@@ -1,5 +1,5 @@
-import { getToolLogType, type ToolTimelineLogType } from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+import { getToolLogType, type ToolTimelineLogType } from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 
 type ToolTimelinePart = {
 	type: string;

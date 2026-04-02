@@ -225,10 +225,10 @@ async function createCossistantChangeset(
 	description: string
 ): Promise<void> {
 	const changesetContent = `---
-"@cossistant/core": ${releaseType}
-"@cossistant/react": ${releaseType}
-"@cossistant/next": ${releaseType}
-"@cossistant/types": ${releaseType}
+"@plasma/core": ${releaseType}
+"@plasma/react": ${releaseType}
+"@plasma/next": ${releaseType}
+"@plasma/types": ${releaseType}
 ---
 
 ${description}

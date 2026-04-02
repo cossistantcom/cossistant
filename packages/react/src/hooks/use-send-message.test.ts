@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import type { TimelineItem } from "@cossistant/types";
+import type { TimelineItem } from "@plasma/types";
 
 // Re-implement the pure functions from use-send-message.ts for testing
 // These are the same implementations used in the hook

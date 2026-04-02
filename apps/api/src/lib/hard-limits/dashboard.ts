@@ -10,7 +10,7 @@ import {
 	type ConversationHardLimitCutoff,
 	type DashboardLockableConversation,
 	isConversationAfterHardLimitCutoff,
-} from "@cossistant/types/trpc/conversation-hard-limit";
+} from "@plasma/types/trpc/conversation-hard-limit";
 
 export type DashboardHardLimitPolicy = {
 	enforced: boolean;

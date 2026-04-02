@@ -1,7 +1,7 @@
 "use client";
 
-import { type RealtimeAuthConfig, RealtimeClient } from "@cossistant/core";
-import type { AnyRealtimeEvent } from "@cossistant/types/realtime-events";
+import { type RealtimeAuthConfig, RealtimeClient } from "@plasma/core";
+import type { AnyRealtimeEvent } from "@plasma/types/realtime-events";
 import type React from "react";
 import {
 	createContext,
@@ -14,7 +14,7 @@ import {
 	useSyncExternalStore,
 } from "react";
 
-const DEFAULT_WS_URL = "wss://api.cossistant.com/ws";
+const DEFAULT_WS_URL = "wss://api.plasma-pandora.com/ws";
 
 type SubscribeHandler = (event: AnyRealtimeEvent) => void;
 
@@ -65,7 +65,7 @@ function extractAuthIdentity(auth: RealtimeAuthConfig | null) {
 
 /**
  * Provides websocket connectivity and heartbeating logic for realtime events.
- * Backed by the framework-agnostic RealtimeClient from @cossistant/core.
+ * Backed by the framework-agnostic RealtimeClient from @plasma/core.
  */
 export function RealtimeProvider({
 	children,
@@ -184,6 +184,6 @@ export function useRealtimeConnection(): RealtimeContextValue {
 }
 
 export type { RealtimeContextValue };
-export type { RealtimeAuthConfig } from "@cossistant/core";
+export type { RealtimeAuthConfig } from "@plasma/core";
 export type { RealtimeProviderProps };
-export type { RealtimeEvent } from "@cossistant/types/realtime-events";
+export type { RealtimeEvent } from "@plasma/types/realtime-events";

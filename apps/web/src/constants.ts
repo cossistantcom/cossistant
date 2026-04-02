@@ -1,8 +1,8 @@
-export const SELECTED_WEBSITE_COOKIE_NAME = "cossistant-selected-website";
+export const SELECTED_WEBSITE_COOKIE_NAME = "plasma-selected-website";
 
-export const GITHUB_URL = "https://github.com/cossistantcom/cossistant";
+export const GITHUB_URL = "https://github.com/plasma-pandora/plasma-pandora";
 export const DISCORD_INVITE = "https://discord.gg/vQkPjgvzcc";
-export const X_URL = "https://x.com/cossistant";
+export const X_URL = "https://x.com/plasmapandora";
 
 export const ANTHONY_AVATAR = "/anthony-picture.jpg";
 

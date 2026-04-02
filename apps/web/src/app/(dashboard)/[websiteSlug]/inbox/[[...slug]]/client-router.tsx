@@ -1,7 +1,7 @@
 "use client";
 
-import { SupportConfig } from "@cossistant/next";
-import { SenderType } from "@cossistant/types";
+import { SupportConfig } from "@plasma/next";
+import { SenderType } from "@plasma/types";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useInboxes } from "@/contexts/inboxes";

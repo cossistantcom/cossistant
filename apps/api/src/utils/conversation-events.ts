@@ -6,8 +6,8 @@ import {
 	ConversationEventType,
 	ConversationTimelineType,
 	TimelineItemVisibility,
-} from "@cossistant/types";
-import type { TimelineItemParts } from "@cossistant/types/api/timeline-item";
+} from "@plasma/types";
+import type { TimelineItemParts } from "@plasma/types/api/timeline-item";
 
 /**
  * Create a PARTICIPANT_REQUESTED event in the conversation timeline

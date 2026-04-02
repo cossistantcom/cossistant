@@ -1,4 +1,4 @@
-import type { VisitorAttribution, VisitorCurrentPage } from "@cossistant/types";
+import type { VisitorAttribution, VisitorCurrentPage } from "@plasma/types";
 
 export type FlattenedVisitorTrackingContext = {
 	page_url: string;

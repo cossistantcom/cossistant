@@ -1,5 +1,5 @@
-import { ConversationTimelineType } from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+import { ConversationTimelineType } from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 
 type PreparedMessageDefaultTimelineItem = {
 	kind: "message";

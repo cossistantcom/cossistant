@@ -3,7 +3,7 @@
 import type {
 	ConversationHeader,
 	InboxAnalyticsResponse,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { useMemo, useRef, useState } from "react";
 import {
 	InboxAnalyticsDisplay,

@@ -7,7 +7,7 @@ const en: SupportLocaleMessages = {
 		`Remove ${variables.fileName}`,
 	"common.brand.watermark": "We run on",
 	"common.fallbacks.aiAssistant": "AI assistant",
-	"common.fallbacks.cossistant": "Cossistant",
+	"common.fallbacks.plasma": "Plasma",
 	"common.fallbacks.someone": "Someone",
 	"common.fallbacks.supportTeam": "Support team",
 	"common.fallbacks.unknown": "Unknown",

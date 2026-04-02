@@ -6,8 +6,8 @@ import {
 import {
 	ConversationTimelineType,
 	TimelineItemVisibility,
-} from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+} from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import type {
 	ConversationToolAction,
 	ConversationTranscriptEntry,

@@ -4,7 +4,7 @@
 
 import { isValidULID } from "./utils";
 
-const STORAGE_KEY_PREFIX = "cossistant_visitor";
+const STORAGE_KEY_PREFIX = "plasma_visitor";
 
 /**
  * Get the localStorage key for a specific website

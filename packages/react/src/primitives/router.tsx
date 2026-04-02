@@ -1,4 +1,4 @@
-import type { RouteRegistry } from "@cossistant/core";
+import type { RouteRegistry } from "@plasma/core";
 import type React from "react";
 
 // Type-safe page definition that extracts params from RouteRegistry

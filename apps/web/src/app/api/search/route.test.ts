@@ -45,10 +45,10 @@ describe("search route utils", () => {
 
 	it("falls back to source-based kind when metadata is missing", () => {
 		const index = buildAdvancedSearchIndex({
-			id: "blog:/blog/introducing-cossistant",
+			id: "blog:/blog/introducing-plasma-pandora",
 			source: "blog",
-			path: "introducing-cossistant.mdx",
-			url: "/blog/introducing-cossistant",
+			path: "introducing-plasma-pandora.mdx",
+			url: "/blog/introducing-plasma-pandora",
 			title: "Introducing Cossistant",
 			structuredData: baseStructuredData,
 			extraTags: ["announcement"],

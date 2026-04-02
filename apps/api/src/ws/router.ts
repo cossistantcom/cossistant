@@ -3,7 +3,7 @@ import type {
 	AnyRealtimeEvent,
 	RealtimeEvent,
 	RealtimeEventType,
-} from "@cossistant/types/realtime-events";
+} from "@plasma/types/realtime-events";
 
 type DispatchOptions = {
 	exclude?: string | string[];

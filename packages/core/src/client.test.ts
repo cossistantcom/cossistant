@@ -1,7 +1,7 @@
 import { describe, expect, it, mock } from "bun:test";
-import type { CreateConversationResponseBody } from "@cossistant/types/api/conversation";
-import { ConversationStatus } from "@cossistant/types/enums";
-import type { RealtimeEvent } from "@cossistant/types/realtime-events";
+import type { CreateConversationResponseBody } from "@plasma/types/api/conversation";
+import { ConversationStatus } from "@plasma/types/enums";
+import type { RealtimeEvent } from "@plasma/types/realtime-events";
 import { CossistantClient } from "./client";
 
 const visitorId = "01ARZ3NDEKTSV4RRFFQ69G5FAV";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { Mention } from "@cossistant/tiny-markdown";
+import type { Mention } from "@plasma/tiny-markdown";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { useMentionSearch } from "./use-mention-search";

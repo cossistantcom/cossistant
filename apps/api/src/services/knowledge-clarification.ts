@@ -65,7 +65,7 @@ import {
 	type KnowledgeClarificationStatus,
 	type KnowledgeClarificationStepResponse,
 	TimelineItemVisibility,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { ulid } from "ulid";
 import { z } from "zod";
 

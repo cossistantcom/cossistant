@@ -1,4 +1,4 @@
-import { parseMarkdown } from "@cossistant/tiny-markdown/utils";
+import { parseMarkdown } from "@plasma/tiny-markdown/utils";
 import { mapInlineCommandFromParagraphChildren } from "./command-block-utils";
 
 /**

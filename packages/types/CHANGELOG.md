@@ -1,4 +1,4 @@
-# @cossistant/types
+# @plasma/types
 
 ## 0.1.2
 
@@ -72,19 +72,19 @@
 
 ### Patch Changes
 
-- 46d3f17: Release new version of all packages including @cossistant/next
+- 46d3f17: Release new version of all packages including @plasma/next
 
 ## 0.0.22
 
 ### Patch Changes
 
-- Release new version of all packages including @cossistant/next
+- Release new version of all packages including @plasma/next
 
 ## 0.0.21
 
 ### Patch Changes
 
-- Release new version of all packages including @cossistant/next
+- Release new version of all packages including @plasma/next
 
 ## 0.0.20
 

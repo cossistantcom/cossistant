@@ -1,5 +1,5 @@
 {
-  "name": "@cossistant/example-nextjs-tailwind",
+  "name": "@plasma/example-nextjs-tailwind",
   "version": "0.1.4",
   "private": true,
   "type": "module",
@@ -11,13 +11,13 @@
     "check-types": "tsc --noEmit --project tsconfig.json"
   },
   "dependencies": {
-    "@cossistant/next": "workspace:*",
+    "@plasma/next": "workspace:*",
     "next": "16.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
   "devDependencies": {
-    "@cossistant/typescript-config": "workspace:*",
+    "@plasma/typescript-config": "workspace:*",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^25.0.10",
     "@types/react": "19.2.7",

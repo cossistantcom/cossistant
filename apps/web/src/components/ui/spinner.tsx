@@ -1,7 +1,7 @@
 import {
 	Spinner as SharedSpinner,
 	type SpinnerProps as SharedSpinnerProps,
-} from "@cossistant/react/support/components";
+} from "@plasma/react/support/components";
 
 export type SpinnerProps = SharedSpinnerProps & {
 	className?: string;

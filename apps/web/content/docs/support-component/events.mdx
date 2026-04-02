@@ -31,7 +31,7 @@ The simplest way to listen to events is via callback props on the `<Support>` co
 ```tsx showLineNumbers title="app/layout.tsx"
 "use client";
 
-import { Support } from "@cossistant/next";
+import { Support } from "@plasma/next";
 
 export function SupportWidget() {
   return (
@@ -121,7 +121,7 @@ For more control, use the `useSupportEvents` hook to subscribe to events from an
 ```tsx showLineNumbers title="components/analytics-tracker.tsx"
 "use client";
 
-import { useSupportEvents } from "@cossistant/next/support";
+import { useSupportEvents } from "@plasma/next/support";
 import { useEffect } from "react";
 
 export function AnalyticsTracker() {
@@ -175,7 +175,7 @@ From within custom pages or components, use `useSupportEventEmitter` to emit eve
 ```tsx showLineNumbers title="pages/custom-conversation.tsx"
 "use client";
 
-import { useSupportEventEmitter } from "@cossistant/next/support";
+import { useSupportEventEmitter } from "@plasma/next/support";
 
 export function CustomConversationPage({ conversationId }: { conversationId: string }) {
   const emitter = useSupportEventEmitter();
@@ -204,7 +204,7 @@ export function CustomConversationPage({ conversationId }: { conversationId: str
 ```tsx showLineNumbers title="components/ga-tracker.tsx"
 "use client";
 
-import { Support } from "@cossistant/next";
+import { Support } from "@plasma/next";
 
 export function SupportWithGA() {
   return (
@@ -230,7 +230,7 @@ export function SupportWithGA() {
 ```tsx showLineNumbers title="components/sentry-support.tsx"
 "use client";
 
-import { Support } from "@cossistant/next";
+import { Support } from "@plasma/next";
 import * as Sentry from "@sentry/react";
 
 export function SupportWithSentry() {
@@ -256,7 +256,7 @@ export function SupportWithSentry() {
 ```tsx showLineNumbers title="components/segment-support.tsx"
 "use client";
 
-import { Support } from "@cossistant/next";
+import { Support } from "@plasma/next";
 import { analytics } from "./analytics";
 
 export function SupportWithSegment() {
@@ -291,7 +291,7 @@ export function SupportWithSegment() {
 ```tsx showLineNumbers title="components/posthog-support.tsx"
 "use client";
 
-import { Support } from "@cossistant/next";
+import { Support } from "@plasma/next";
 import { usePostHog } from "posthog-js/react";
 
 export function SupportWithPostHog() {
@@ -328,7 +328,7 @@ import type {
   MessageReceivedEvent,
   ErrorEvent,
   SupportEventCallbacks,
-} from "@cossistant/next/support";
+} from "@plasma/next/support";
 ```
 
 <auto-type-table

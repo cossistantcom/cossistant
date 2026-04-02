@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { Redis } from "@cossistant/redis";
+import type { Redis } from "@plasma/redis";
 import {
 	clearAiAgentRunCursorIfMatches,
 	getAiAgentRunCursor,

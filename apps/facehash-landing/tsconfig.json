@@ -1,5 +1,5 @@
 {
-  "extends": "@cossistant/typescript-config/react-library.json",
+  "extends": "@plasma/typescript-config/react-library.json",
   "compilerOptions": {
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],

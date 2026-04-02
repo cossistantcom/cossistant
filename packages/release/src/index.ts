@@ -9,7 +9,7 @@ import { Command } from "commander";
 import kleur from "kleur";
 import prompts from "prompts";
 import { releaseChangelogOnly } from "./release-changelog-only";
-import { releaseCossistant } from "./release-cossistant";
+import { releasePlasma } from "./release-plasma";
 import { releaseFacehash } from "./release-facehash";
 
 const program = new Command()
@@ -56,7 +56,7 @@ program
 		} else if (target === "changelog-only") {
 			await releaseChangelogOnly();
 		} else {
-			await releaseCossistant();
+			await releasePlasma();
 		}
 	});
 

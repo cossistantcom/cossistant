@@ -1,7 +1,7 @@
-import type { CossistantClient } from "@cossistant/core";
-import type { CreateConversationResponseBody } from "@cossistant/types/api/conversation";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
-import type { Conversation } from "@cossistant/types/schemas";
+import type { CossistantClient } from "@plasma/core";
+import type { CreateConversationResponseBody } from "@plasma/types/api/conversation";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
+import type { Conversation } from "@plasma/types/schemas";
 import { useCallback, useState } from "react";
 import { useSupport } from "../provider";
 

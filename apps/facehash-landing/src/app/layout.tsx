@@ -39,7 +39,7 @@ export const metadata: Metadata = {
 		"typescript",
 		"svg avatar",
 	],
-	authors: [{ name: "Cossistant Team", url: "https://cossistant.com" }],
+	authors: [{ name: "Cossistant Team", url: "https://plasma-pandora.com" }],
 	creator: "Cossistant",
 	publisher: "Cossistant",
 	metadataBase: new URL(siteUrl),
@@ -84,7 +84,7 @@ export const metadata: Metadata = {
 		description:
 			"Beautiful minimalist avatars from any string for React. Zero dependencies, SVG-based depth effects, fully typed.",
 		images: ["/og-image.png"],
-		creator: "@cossistant",
+		creator: "@plasmapandora",
 	},
 	robots: {
 		index: true,
@@ -125,7 +125,7 @@ const jsonLd = {
 	author: {
 		"@type": "Organization",
 		name: "Cossistant",
-		url: "https://cossistant.com",
+		url: "https://plasma-pandora.com",
 	},
 	offers: {
 		"@type": "Offer",

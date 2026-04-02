@@ -19,7 +19,7 @@ export const revalidate = false;
 export const dynamic = "force-static";
 
 const GRID_COUNT = 12;
-const DEFAULT_BLOG_IMAGE = "https://cdn.cossistant.com/landing/main-large.jpg";
+const DEFAULT_BLOG_IMAGE = "https://cdn.plasma-pandora.com/landing/main-large.jpg";
 
 export function generateMetadata() {
 	const title = "Blog";

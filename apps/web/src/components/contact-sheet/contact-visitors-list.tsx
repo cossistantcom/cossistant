@@ -1,4 +1,4 @@
-import type { ContactVisitorSummary } from "@cossistant/types";
+import type { ContactVisitorSummary } from "@plasma/types";
 import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import {

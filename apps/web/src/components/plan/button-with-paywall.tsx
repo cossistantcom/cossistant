@@ -1,7 +1,7 @@
 "use client";
 
 import type { FeatureKey } from "@api/lib/plans/config";
-import type { RouterOutputs } from "@cossistant/api/types";
+import type { RouterOutputs } from "@plasma/api/types";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button, type ButtonProps } from "@/components/ui/button";

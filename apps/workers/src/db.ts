@@ -1,4 +1,4 @@
-import * as schema from "@cossistant/api/schema";
+import * as schema from "@plasma/api/schema";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { env } from "./env";
 

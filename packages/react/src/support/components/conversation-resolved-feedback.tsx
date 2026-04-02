@@ -1,4 +1,4 @@
-import { ConversationStatus } from "@cossistant/types";
+import { ConversationStatus } from "@plasma/types";
 import { useEffect, useRef, useState } from "react";
 import { FeedbackCommentInput } from "../../primitives/feedback-comment-input";
 import { FeedbackRatingSelector } from "../../primitives/feedback-rating-selector";

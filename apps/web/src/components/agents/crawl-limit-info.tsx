@@ -1,6 +1,6 @@
 "use client";
 
-import type { RouterOutputs } from "@cossistant/api/types";
+import type { RouterOutputs } from "@plasma/api/types";
 import { useState } from "react";
 import { UpgradeModal } from "@/components/plan/upgrade-modal";
 import Icon from "@/components/ui/icons";
@@ -63,7 +63,7 @@ export function CrawlLimitInfo({
 							</p>
 						</div>
 						{showUpgradePrompt ? (
-							<p className="pl-6 text-cossistant-orange text-sm">
+							<p className="pl-6 text-plasma-orange text-sm">
 								Only{" "}
 								<span className="font-medium">
 									{pagesToCrawl.toLocaleString()}
@@ -87,7 +87,7 @@ export function CrawlLimitInfo({
 					<p
 						className={cn(
 							"flex items-center justify-between text-muted-foreground text-sm",
-							isFreePlan && "text-cossistant-orange"
+							isFreePlan && "text-plasma-orange"
 						)}
 					>
 						<span className="text-primary/80">
@@ -96,7 +96,7 @@ export function CrawlLimitInfo({
 						</span>
 						{isFreePlan && limit !== null && (
 							<button
-								className="ml-1 font-medium text-cossistant-orange hover:underline"
+								className="ml-1 font-medium text-plasma-orange hover:underline"
 								onClick={() => setShowUpgradeModal(true)}
 								type="button"
 							>

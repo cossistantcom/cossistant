@@ -6,7 +6,7 @@ import {
 } from "@api/ai-pipeline/primary-pipeline/contracts";
 import type { ToolExecutionSnapshot } from "@api/ai-pipeline/shared/tools/contracts";
 import type { KnowledgeSelect } from "@api/db/schema/knowledge";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 
 export type KnowledgeClarificationSourceVisibility = "public" | "private";
 
@@ -223,8 +223,8 @@ function extractToolTimelineMetadata(part: ToolPartRecord): {
 			? part.callProviderMetadata
 			: null;
 	const cossistant =
-		providerMetadata && isRecord(providerMetadata.cossistant)
-			? providerMetadata.cossistant
+		providerMetadata && isRecord(providerMetadata.plasma)
+			? providerMetadata.plasma
 			: null;
 	const toolTimeline =
 		cossistant && isRecord(cossistant.toolTimeline)

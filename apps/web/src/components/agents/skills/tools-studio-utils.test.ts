@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
 	AI_AGENT_TOOL_CATALOG,
 	type GetCapabilitiesStudioResponse,
-} from "@cossistant/types";
+} from "@plasma/types";
 import {
 	buildBehaviorSettingsPatch,
 	buildToolStudioSections,

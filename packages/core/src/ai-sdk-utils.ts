@@ -15,7 +15,7 @@ import type {
 	TimelineItem,
 	TimelineItemParts,
 	ToolTimelineLogType,
-} from "@cossistant/types";
+} from "@plasma/types";
 
 // ============================================================================
 // AI SDK TYPES (re-export for convenience)
@@ -98,7 +98,7 @@ export type CossistantMessageMetadata = {
 };
 
 /**
- * Cossistant-specific metadata stored in part.callProviderMetadata/providerMetadata.cossistant
+ * Cossistant-specific metadata stored in part.callProviderMetadata/providerMetadata.plasma
  */
 export type CossistantToolTimelineMetadata = {
 	logType: ToolTimelineLogType;
@@ -107,7 +107,7 @@ export type CossistantToolTimelineMetadata = {
 	triggerVisibility?: "public" | "private";
 };
 
-export type CossistantPartMetadata = {
+export type PlasmaPartMetadata = {
 	visibility?: "public" | "private";
 	progressMessage?: string;
 	knowledgeId?: string;
@@ -155,9 +155,9 @@ function getMetadataCarrier(
  * Read cossistant part metadata from AI SDK v6-compatible part metadata.
  * Prefers callProviderMetadata but accepts providerMetadata for backward compatibility.
  */
-export function getCossistantPartMetadata(
+export function getPlasmaPartMetadata(
 	part: AISDKPartMetadataCarrier
-): CossistantPartMetadata | undefined {
+): PlasmaPartMetadata | undefined {
 	const { callProviderMetadata, providerMetadata } = getMetadataCarrier(part);
 	const metadata = callProviderMetadata ?? providerMetadata;
 
@@ -170,16 +170,16 @@ export function getCossistantPartMetadata(
 		return;
 	}
 
-	return cossistant as CossistantPartMetadata;
+	return cossistant as PlasmaPartMetadata;
 }
 
 /**
  * Write cossistant part metadata into both callProviderMetadata and providerMetadata.
  * This keeps AI SDK v6 semantics while remaining backward compatible.
  */
-export function setCossistantPartMetadata(
+export function setPlasmaPartMetadata(
 	part: AISDKPartMetadataCarrier,
-	metadata: CossistantPartMetadata
+	metadata: PlasmaPartMetadata
 ): AISDKPartMetadataCarrier {
 	const { callProviderMetadata, providerMetadata } = getMetadataCarrier(part);
 	const nextCallProviderMetadata = {
@@ -203,7 +203,7 @@ export function setCossistantPartMetadata(
 export function getCossistantToolTimelineMetadata(
 	part: AISDKPartMetadataCarrier
 ): CossistantToolTimelineMetadata | undefined {
-	return getCossistantPartMetadata(part)?.toolTimeline;
+	return getPlasmaPartMetadata(part)?.toolTimeline;
 }
 
 /**
@@ -213,8 +213,8 @@ export function setCossistantToolTimelineMetadata(
 	part: AISDKPartMetadataCarrier,
 	toolTimeline: CossistantToolTimelineMetadata
 ): AISDKPartMetadataCarrier {
-	const existing = getCossistantPartMetadata(part) ?? {};
-	return setCossistantPartMetadata(part, {
+	const existing = getPlasmaPartMetadata(part) ?? {};
+	return setPlasmaPartMetadata(part, {
 		...existing,
 		toolTimeline,
 	});

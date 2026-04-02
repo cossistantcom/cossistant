@@ -39,7 +39,7 @@ export function PrecisionFlowSection({
 			>
 				<div className="flex min-w-0 flex-1 flex-col justify-center gap-8 border-dashed px-4 py-16 lg:w-1/2 lg:flex-[0_0_50%] lg:border-r lg:px-8 xl:px-12">
 					<div className="space-y-4">
-						<p className="font-medium font-mono text-cossistant-orange text-sm">
+						<p className="font-medium font-mono text-plasma-orange text-sm">
 							[How it learns]
 						</p>
 						<h2 className="max-w-xl text-balance font-f37-stout text-3xl leading-tight md:text-4xl">

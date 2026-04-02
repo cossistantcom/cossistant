@@ -1,4 +1,4 @@
-import type { Redis } from "@cossistant/redis";
+import type { Redis } from "@plasma/redis";
 
 const RUN_CURSOR_TTL_SECONDS = 86_400; // 24h
 

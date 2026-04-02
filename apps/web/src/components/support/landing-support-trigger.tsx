@@ -1,6 +1,6 @@
 "use client";
 
-import { Support } from "@cossistant/next";
+import { Support } from "@plasma/next";
 import { LandingTriggerContent } from "./custom-trigger";
 
 /**

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { InboxAnalyticsResponse } from "@cossistant/types";
+import type { InboxAnalyticsResponse } from "@plasma/types";
 import { renderToStaticMarkup } from "react-dom/server";
 import { InboxAnalyticsDisplay } from "./inbox-analytics-display";
 

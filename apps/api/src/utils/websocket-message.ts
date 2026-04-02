@@ -3,11 +3,11 @@
  */
 
 import type { EventContext } from "@api/ws/router";
-import type { AnyRealtimeEvent } from "@cossistant/types/realtime-events";
+import type { AnyRealtimeEvent } from "@plasma/types/realtime-events";
 import {
 	isValidEventType,
 	validateRealtimeEvent,
-} from "@cossistant/types/realtime-events";
+} from "@plasma/types/realtime-events";
 import { WEBSOCKET_ERRORS } from "./websocket-errors";
 
 export type ParsedMessage = {

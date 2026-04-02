@@ -12,7 +12,7 @@ describe("VisitorSourceBadge", () => {
 						channel: "social" as const,
 						isDirect: false,
 						referrer: {
-							url: "https://x.com/cossistant/status/123",
+							url: "https://x.com/plasmapandora/status/123",
 							domain: "x.com",
 						},
 						landing: {

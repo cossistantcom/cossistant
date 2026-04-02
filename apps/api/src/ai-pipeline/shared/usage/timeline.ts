@@ -9,7 +9,7 @@ import {
 	ConversationTimelineType,
 	getToolLogType,
 	TimelineItemVisibility,
-} from "@cossistant/types";
+} from "@plasma/types";
 
 export const AI_CREDIT_USAGE_TIMELINE_TOOL_NAME = "aiCreditUsage";
 

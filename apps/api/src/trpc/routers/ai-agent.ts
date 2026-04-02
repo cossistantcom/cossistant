@@ -81,7 +81,7 @@ import {
 	upsertCorePromptRequestSchema,
 	upsertCorePromptResponseSchema,
 	upsertToolSkillOverrideRequestSchema,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { TRPCError } from "@trpc/server";
 import { and, count, eq, gt, isNull } from "drizzle-orm";
 import { z } from "zod";

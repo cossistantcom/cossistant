@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { ConversationHeader } from "@cossistant/types";
+import type { ConversationHeader } from "@plasma/types";
 import { createMarcConversation, fakeConversations } from "../data";
 import { buildFakeSmartOrderedList } from "./smart-grouping";
 

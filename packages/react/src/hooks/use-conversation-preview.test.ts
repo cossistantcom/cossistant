@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { type Conversation, ConversationStatus } from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+import { type Conversation, ConversationStatus } from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { SupportTextResolvedFormatter } from "../support/text/locales/keys";

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { ConversationStatus } from "@cossistant/types";
+import { ConversationStatus } from "@plasma/types";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../src/db";
 import { getConversationHeader } from "../src/db/queries/conversation";

@@ -1,6 +1,6 @@
 import { listActiveWebsiteViews } from "@api/db/queries/view";
 import { getWebsiteBySlugWithAccess } from "@api/db/queries/website";
-import { viewSchema } from "@cossistant/types/schemas";
+import { viewSchema } from "@plasma/types/schemas";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../init";

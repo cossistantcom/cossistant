@@ -1,6 +1,6 @@
 "use client";
 
-import type { KnowledgeClarificationDraftFaq } from "@cossistant/types";
+import type { KnowledgeClarificationDraftFaq } from "@plasma/types";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";

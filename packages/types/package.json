@@ -1,5 +1,5 @@
 {
-  "name": "@cossistant/types",
+  "name": "@plasma/types",
   "type": "module",
   "version": "0.1.2",
   "private": false,
@@ -31,7 +31,7 @@
     "directory": "dist"
   },
   "devDependencies": {
-    "@cossistant/typescript-config": "workspace:*"
+    "@plasma/typescript-config": "workspace:*"
   },
   "dependencies": {
     "zod": "^4.1.8",

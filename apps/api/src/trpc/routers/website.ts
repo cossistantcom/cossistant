@@ -54,7 +54,7 @@ import {
 	websiteDeveloperSettingsResponseSchema,
 	websiteListItemSchema,
 	websiteSummarySchema,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { TRPCError } from "@trpc/server";
 import { and, eq, gte, isNotNull, isNull, lt, ne, sql } from "drizzle-orm";
 import { z } from "zod";

@@ -2,9 +2,9 @@ import type {
 	AvailableAIAgent,
 	AvailableHumanAgent,
 	TimelinePartEvent,
-} from "@cossistant/types";
-import { SenderType } from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+} from "@plasma/types";
+import { SenderType } from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import type React from "react";
 import { useMemo } from "react";
 import type { GroupedActivity } from "../../hooks/private/use-grouped-messages";

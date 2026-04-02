@@ -1,4 +1,4 @@
 export {
 	getTargetVisitorId,
 	shouldDeliverEvent,
-} from "@cossistant/core";
+} from "@plasma/core";

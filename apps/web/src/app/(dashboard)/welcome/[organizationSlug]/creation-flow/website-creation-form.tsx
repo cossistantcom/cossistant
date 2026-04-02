@@ -4,7 +4,7 @@ import {
 	type CreateWebsiteRequest,
 	createWebsiteRequestSchema,
 	WebsiteInstallationTarget,
-} from "@cossistant/types";
+} from "@plasma/types";
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useQuery } from "@tanstack/react-query";

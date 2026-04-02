@@ -14,8 +14,8 @@ import {
 	enqueueConversationScopedAiBackgroundJob,
 	enqueueConversationScopedAiJob,
 	QUEUE_NAMES,
-} from "@cossistant/jobs";
-import { getSafeRedisUrl, type RedisOptions } from "@cossistant/redis";
+} from "@plasma/jobs";
+import { getSafeRedisUrl, type RedisOptions } from "@plasma/redis";
 import { db } from "@workers/db";
 import { env } from "@workers/env";
 import { type Job, Queue, Worker } from "bullmq";

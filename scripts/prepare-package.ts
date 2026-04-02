@@ -39,7 +39,7 @@ const resolveWorkspaceDependencies = async (
 	for (const [name, version] of Object.entries(dependencies)) {
 		if (version === "workspace:*" || version.startsWith("workspace:")) {
 			// Try to resolve the workspace package version
-			const packageName = name.replace("@cossistant/", "");
+			const packageName = name.replace("@plasma/", "");
 			const workspacePkgPath = path.join(
 				packageDir,
 				"..",
@@ -54,7 +54,7 @@ const resolveWorkspaceDependencies = async (
 				resolved[name] = workspacePkg.version;
 			} catch {
 				// If we can't read the package, keep the workspace protocol
-				// This happens for devDependencies like @cossistant/typescript-config
+				// This happens for devDependencies like @plasma/typescript-config
 				resolved[name] = version;
 			}
 		} else {

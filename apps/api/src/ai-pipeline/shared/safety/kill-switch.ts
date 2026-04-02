@@ -9,8 +9,8 @@ import {
 } from "@api/db/queries/conversation";
 import type { ConversationSelect } from "@api/db/schema/conversation";
 import { env } from "@api/env";
-import { clearAiAgentRunCursor } from "@cossistant/jobs";
-import type { Redis } from "@cossistant/redis";
+import { clearAiAgentRunCursor } from "@plasma/jobs";
+import type { Redis } from "@plasma/redis";
 
 const DEFAULT_MANUAL_PAUSE_MINUTES = 15;
 type PauseMode = "extend" | "replace";

@@ -5,7 +5,7 @@
 //
 // export const { GET, HEAD, PUT, POST, PATCH, DELETE } = openapi.createProxy({
 // 	// optional, we recommend to set a list of allowed origins for proxied requests
-// 	allowedOrigins: ["https://cossistant.com"],
+// 	allowedOrigins: ["https://plasma-pandora.com"],
 // });
 
 import { NextResponse } from "next/server";

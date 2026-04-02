@@ -1,8 +1,8 @@
-import type { ConversationTimelineItemsState } from "@cossistant/core";
+import type { ConversationTimelineItemsState } from "@plasma/core";
 import type {
 	GetConversationTimelineItemsRequest,
 	GetConversationTimelineItemsResponse,
-} from "@cossistant/types/api/timeline-item";
+} from "@plasma/types/api/timeline-item";
 import { useCallback, useMemo } from "react";
 import { useSupport } from "../provider";
 import { useStoreSelector } from "./private/store/use-store-selector";

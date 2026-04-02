@@ -1,5 +1,5 @@
 import { env } from "@api/env";
-import { sendEmail, TeamInvitationEmail } from "@cossistant/transactional";
+import { sendEmail, TeamInvitationEmail } from "@plasma/transactional";
 import React from "react";
 
 type SendTeamInvitationEmailParams = {

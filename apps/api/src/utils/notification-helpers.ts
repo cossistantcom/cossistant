@@ -11,11 +11,11 @@ import {
 	visitor,
 	website,
 } from "@api/db/schema";
-import { getVisitorNameWithFallback } from "@cossistant/core";
+import { getVisitorNameWithFallback } from "@plasma/core";
 import {
 	ConversationParticipationStatus,
 	MemberNotificationChannel,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { and, desc, eq, gt, gte, inArray, isNull, ne, or } from "drizzle-orm";
 
 /**

@@ -13,7 +13,7 @@ import {
 	getApiKeyCacheTagForKey,
 } from "@api/utils/cache/api-key-cache";
 import { generateULID } from "@api/utils/db/ids";
-import { APIKeyType } from "@cossistant/types";
+import { APIKeyType } from "@plasma/types";
 import { and, desc, eq } from "drizzle-orm";
 
 export type CreateApiKeyResult = ApiKeySelect;

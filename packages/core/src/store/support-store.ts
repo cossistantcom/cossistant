@@ -14,7 +14,7 @@ export type DefaultRoutes = {
  * Extensible route registry via module augmentation.
  *
  * @example
- * declare module '@cossistant/core' {
+ * declare module '@plasma/core' {
  *   interface RouteRegistry {
  *     SETTINGS: { tab: string };
  *   }
@@ -94,7 +94,7 @@ export type SupportStore<
 	Routes extends Record<string, unknown> = RouteRegistry,
 > = Store<SupportStoreState<Routes>> & SupportStoreActions<Routes>;
 
-const STORAGE_KEY = "cossistant-support-store";
+const STORAGE_KEY = "plasma-support-store";
 
 type PersistedConfig = Pick<SupportConfig, "size" | "isOpen">;
 

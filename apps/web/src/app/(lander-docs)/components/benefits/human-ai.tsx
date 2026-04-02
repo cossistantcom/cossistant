@@ -2,12 +2,12 @@
 /** biome-ignore-all lint/style/useConsistentArrayType: we dont care */
 "use client";
 
-import { ConversationEvent } from "@cossistant/react/support/components/conversation-event";
-import { TimelineMessageGroup } from "@cossistant/react/support/components/timeline-message-group";
-import { SupportTextProvider } from "@cossistant/react/support/text";
-import type { AvailableAIAgent, AvailableHumanAgent } from "@cossistant/types";
-import { type ConversationEventType, SenderType } from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+import { ConversationEvent } from "@plasma/react/support/components/conversation-event";
+import { TimelineMessageGroup } from "@plasma/react/support/components/timeline-message-group";
+import { SupportTextProvider } from "@plasma/react/support/text";
+import type { AvailableAIAgent, AvailableHumanAgent } from "@plasma/types";
+import { type ConversationEventType, SenderType } from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import { motion, useInView } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/ui/logo";

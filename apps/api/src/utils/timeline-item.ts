@@ -7,9 +7,9 @@ import { generateULID } from "@api/utils/db/ids";
 import {
 	ConversationTimelineType,
 	TimelineItemVisibility,
-} from "@cossistant/types";
-import { timelineItemSchema } from "@cossistant/types/api/timeline-item";
-import type { RealtimeEventData } from "@cossistant/types/realtime-events";
+} from "@plasma/types";
+import { timelineItemSchema } from "@plasma/types/api/timeline-item";
+import type { RealtimeEventData } from "@plasma/types/realtime-events";
 import { and, eq, isNull } from "drizzle-orm";
 import * as linkify from "linkifyjs";
 

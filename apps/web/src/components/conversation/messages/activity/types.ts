@@ -1,4 +1,4 @@
-import type { ToolTimelineLogType } from "@cossistant/types";
+import type { ToolTimelineLogType } from "@plasma/types";
 import type { ActivityIcon } from "./activity-wrapper";
 
 // --- Tool activity types (moved from tool-renderers/types.ts) ---

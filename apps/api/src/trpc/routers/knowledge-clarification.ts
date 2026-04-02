@@ -26,7 +26,7 @@ import {
 	startConversationKnowledgeClarification,
 	startFaqKnowledgeClarification,
 } from "@api/services/knowledge-clarification";
-import type { KnowledgeClarificationDraftFaq } from "@cossistant/types";
+import type { KnowledgeClarificationDraftFaq } from "@plasma/types";
 import {
 	answerKnowledgeClarificationRequestSchema,
 	approveKnowledgeClarificationDraftRequestSchema,
@@ -46,7 +46,7 @@ import {
 	startConversationKnowledgeClarificationRequestSchema,
 	startFaqKnowledgeClarificationRequestSchema,
 	updateKnowledgeClarificationStatusRequestSchema,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "../init";
 import { loadConversationContext } from "../utils/conversation";

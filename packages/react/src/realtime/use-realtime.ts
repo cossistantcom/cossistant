@@ -3,7 +3,7 @@ import type {
 	RealtimeEvent,
 	RealtimeEventData,
 	RealtimeEventType,
-} from "@cossistant/types/realtime-events";
+} from "@plasma/types/realtime-events";
 import { useEffect, useRef } from "react";
 import { shouldDeliverEvent } from "./event-filter";
 import { useRealtimeConnection } from "./provider";

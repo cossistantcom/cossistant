@@ -9,20 +9,20 @@ const nextConfig = {
 	reactStrictMode: true,
 	reactCompiler: true,
 	transpilePackages: [
-		"@cossistant/api",
-		"@cossistant/core",
-		"@cossistant/location",
-		"@cossistant/react",
-		"@cossistant/next",
-		"@cossistant/transactional",
-		"@cossistant/types",
+		"@plasma/api",
+		"@plasma/core",
+		"@plasma/location",
+		"@plasma/react",
+		"@plasma/next",
+		"@plasma/transactional",
+		"@plasma/types",
 	],
 	typescript: {
 		ignoreBuildErrors: true,
 	},
 	images: {
 		remotePatterns: [
-			new URL("https://cdn.cossistant.com/**"),
+			new URL("https://cdn.plasma-pandora.com/**"),
 			new URL("https://pbs.twimg.com/**"),
 			new URL("https://facehash.dev/**"),
 			new URL("https://www.facehash.dev/**"),

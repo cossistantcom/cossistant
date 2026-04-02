@@ -1,4 +1,4 @@
-import { formatFileSize } from "@cossistant/core";
+import { formatFileSize } from "@plasma/core";
 import {
 	extractFileParts,
 	extractImageParts,
@@ -7,8 +7,8 @@ import {
 	TimelineItemContent,
 	type TimelineItemContentMarkdownRenderers,
 	TimelineItemTimestamp,
-} from "@cossistant/next/primitives";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+} from "@plasma/next/primitives";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import type React from "react";
 import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -122,7 +122,7 @@ export function TimelineMessageItem({
 									{isPrivate ? (
 										<div
 											className={cn(
-												"flex min-w-0 flex-col gap-1 rounded-lg border border-cossistant-yellow-600/40 border-dashed bg-cossistant-yellow-100/30 px-3 py-2 dark:border-cossistant-yellow-600/20 dark:bg-cossistant-yellow-100/5",
+												"flex min-w-0 flex-col gap-1 rounded-lg border border-plasma-yellow-600/40 border-dashed bg-plasma-yellow-100/30 px-3 py-2 dark:border-plasma-yellow-600/20 dark:bg-plasma-yellow-100/5",
 												messageBubbleWidthClassName,
 												{
 													"rounded-br-[2px]":
@@ -132,7 +132,7 @@ export function TimelineMessageItem({
 												}
 											)}
 										>
-											<span className="font-medium text-cossistant-yellow-700 text-xs opacity-50 dark:text-cossistant-yellow-600">
+											<span className="font-medium text-plasma-yellow-700 text-xs opacity-50 dark:text-plasma-yellow-600">
 												NOTE
 											</span>
 											<TimelineItemContent
@@ -141,7 +141,7 @@ export function TimelineMessageItem({
 												renderMarkdown
 												text={item.text}
 											/>
-											<span className="mt-6 flex items-center gap-1 font-medium text-cossistant-yellow-700 text-xs opacity-40 dark:text-cossistant-yellow-600">
+											<span className="mt-6 flex items-center gap-1 font-medium text-plasma-yellow-700 text-xs opacity-40 dark:text-plasma-yellow-600">
 												<Icon
 													className="mb-[1px] size-3 shrink-0"
 													name="eye-off"

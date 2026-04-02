@@ -14,7 +14,7 @@ If you are contributing to the Cossistant repo itself, start with the [Contribut
 ### 1. Install the package
 
 ```bash
-npm install @cossistant/next
+npm install @plasma/next
 ```
 
 ### 2. Add your public API key
@@ -26,7 +26,7 @@ NEXT_PUBLIC_COSSISTANT_API_KEY=pk_test_xxxx
 ### 3. Add `SupportProvider`
 
 ```tsx title="app/layout.tsx"
-import { SupportProvider } from "@cossistant/next";
+import { SupportProvider } from "@plasma/next";
 
 import "./globals.css";
 
@@ -57,15 +57,15 @@ export default function RootLayout({
 ```css title="app/globals.css"
 @import "tailwindcss";
 
-@import "@cossistant/next/support.css";
+@import "@plasma/next/support.css";
 ```
 
   </TabsContent>
   <TabsContent value="plain">
 
 ```tsx title="app/layout.tsx"
-import { SupportProvider } from "@cossistant/next";
-import "@cossistant/next/styles.css";
+import { SupportProvider } from "@plasma/next";
+import "@plasma/next/styles.css";
 import "./globals.css";
 
 export default function RootLayout({
@@ -89,7 +89,7 @@ export default function RootLayout({
 ### 5. Render the widget
 
 ```tsx title="app/page.tsx"
-import { Support } from "@cossistant/next";
+import { Support } from "@plasma/next";
 
 export default function Page() {
   return (
@@ -104,7 +104,7 @@ export default function Page() {
 ### 6. Identify logged-in visitors (optional)
 
 ```tsx title="app/(app)/layout.tsx"
-import { IdentifySupportVisitor } from "@cossistant/next";
+import { IdentifySupportVisitor } from "@plasma/next";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const user = {
@@ -129,8 +129,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 ### 7. Display custom messages with `SupportConfig defaultMessages`
 
 ```tsx title="app/page.tsx"
-import { Support, SupportConfig } from "@cossistant/next";
-import { type DefaultMessage, SenderType } from "@cossistant/types";
+import { Support, SupportConfig } from "@plasma/next";
+import { type DefaultMessage, SenderType } from "@plasma/types";
 
 const user: { name: string | null } = {
   name: "Jane Doe",

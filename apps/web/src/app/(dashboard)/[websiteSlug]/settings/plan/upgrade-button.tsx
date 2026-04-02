@@ -1,7 +1,7 @@
 "use client";
 
 import { PLAN_CONFIG, type PlanName } from "@api/lib/plans/config";
-import type { RouterOutputs } from "@cossistant/api/types";
+import type { RouterOutputs } from "@plasma/api/types";
 import { useState } from "react";
 import { UpgradeModal } from "@/components/plan/upgrade-modal";
 import { Button } from "@/components/ui/button";
@@ -41,7 +41,7 @@ function UsagePreviewRow({
 			<div className="flex items-center justify-between gap-3 text-[11px]">
 				<span className="font-medium text-primary/85">{label}</span>
 				<span
-					className={cn("text-primary/65", reached && "text-cossistant-orange")}
+					className={cn("text-primary/65", reached && "text-plasma-orange")}
 				>
 					{limit === null
 						? `${used.toLocaleString()} / Unlimited`
@@ -52,10 +52,10 @@ function UsagePreviewRow({
 				<Progress
 					className={cn(
 						"h-1.5 bg-background-200/80 dark:bg-background-800",
-						reached && "bg-cossistant-orange/10"
+						reached && "bg-plasma-orange/10"
 					)}
 					indicatorClassName={
-						reached ? "text-cossistant-orange" : "text-primary/55"
+						reached ? "text-plasma-orange" : "text-primary/55"
 					}
 					value={percentage}
 				/>
@@ -82,12 +82,12 @@ export function UpgradeButton({ planInfo, websiteSlug }: UpgradeButtonProps) {
 		<>
 			{plan.name === "free" ? (
 				<button
-					className="relative flex h-auto min-w-[260px] flex-col gap-3 overflow-hidden rounded-[2px] border border-cossistant-orange/60 border-dashed bg-cossistant-orange/[0.02] p-4 text-left hover:bg-cossistant-orange/5 dark:border-cossistant-orange/20"
+					className="relative flex h-auto min-w-[260px] flex-col gap-3 overflow-hidden rounded-[2px] border border-plasma-orange/60 border-dashed bg-plasma-orange/[0.02] p-4 text-left hover:bg-plasma-orange/5 dark:border-plasma-orange/20"
 					onClick={() => setIsModalOpen(true)}
 					type="button"
 				>
 					<div className="flex items-start justify-between gap-3">
-						<div className="font-medium text-cossistant-orange text-sm">
+						<div className="font-medium text-plasma-orange text-sm">
 							{buttonLabel}
 						</div>
 						<div className="text-[11px] text-primary/60">
@@ -96,7 +96,7 @@ export function UpgradeButton({ planInfo, websiteSlug }: UpgradeButtonProps) {
 					</div>
 
 					{!hardLimitStatus.enforced && (
-						<div className="rounded border border-cossistant-orange/30 bg-cossistant-orange/5 px-2 py-1 text-[11px] text-cossistant-orange">
+						<div className="rounded border border-plasma-orange/30 bg-plasma-orange/5 px-2 py-1 text-[11px] text-plasma-orange">
 							Hard-limit checks are temporarily unavailable while billing sync
 							recovers.
 						</div>

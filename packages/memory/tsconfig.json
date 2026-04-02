@@ -15,8 +15,8 @@
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
     "paths": {
-      "@cossistant/memory": ["./src"],
-      "@cossistant/memory/*": ["./src/*"]
+      "@plasma/memory": ["./src"],
+      "@plasma/memory/*": ["./src/*"]
     }
   },
   "include": ["src/**/*", "examples/**/*.ts"],

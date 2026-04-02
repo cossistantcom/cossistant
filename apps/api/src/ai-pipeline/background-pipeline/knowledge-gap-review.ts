@@ -7,7 +7,7 @@ import {
 	buildSpecificClarificationTopicSummary,
 	getKnowledgeClarificationSearchEvidenceFromTimelineItems,
 } from "@api/lib/knowledge-clarification-context";
-import { TimelineItemVisibility } from "@cossistant/types";
+import { TimelineItemVisibility } from "@plasma/types";
 import { z } from "zod";
 import { requestKnowledgeClarification as requestKnowledgeClarificationAction } from "../shared/actions/request-knowledge-clarification";
 import {

@@ -58,7 +58,7 @@ export default function RootLayout({
 			>
 				<div className="isolate" id="radix-portal-root" />
 				<Script
-					data-domain="cossistant.com"
+					data-domain="plasma-pandora.com"
 					data-website-id="68dfcb6e6f762f4ecaf58bb4"
 					src="https://datafa.st/js/script.js"
 					strategy="afterInteractive"

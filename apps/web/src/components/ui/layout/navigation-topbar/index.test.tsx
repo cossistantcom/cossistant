@@ -65,7 +65,7 @@ mock.module("@tanstack/react-query", () => ({
 	}),
 }));
 
-mock.module("@cossistant/next/support", () => {
+mock.module("@plasma/next/support", () => {
 	function Support({ children }: { children: React.ReactNode }) {
 		return <div>{children}</div>;
 	}

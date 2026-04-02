@@ -28,7 +28,7 @@ RUN bun install
 COPY . .
 
 # Build dependencies (all packages workers depends on)
-RUN bunx turbo run build --filter=@cossistant/workers^...
+RUN bunx turbo run build --filter=@plasma/workers^...
 
 # Railway will set the PORT environment variable
 # EXPOSE is mainly for documentation, the actual port is controlled by env.PORT

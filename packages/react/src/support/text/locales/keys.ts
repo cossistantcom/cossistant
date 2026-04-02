@@ -2,7 +2,7 @@ import type {
 	AvailableAIAgent,
 	AvailableHumanAgent,
 	PublicWebsiteResponse,
-} from "@cossistant/types";
+} from "@plasma/types";
 
 export type SupportLocale = "en" | "fr" | "es";
 
@@ -43,7 +43,7 @@ export const supportTextDefinitions = {
 	"common.actions.removeFile": { variables: { fileName: "" as string } },
 	"common.brand.watermark": { variables: undefined },
 	"common.fallbacks.aiAssistant": { variables: undefined },
-	"common.fallbacks.cossistant": { variables: undefined },
+	"common.fallbacks.plasma": { variables: undefined },
 	"common.fallbacks.someone": { variables: undefined },
 	"common.fallbacks.supportTeam": { variables: undefined },
 	"common.fallbacks.unknown": { variables: undefined },

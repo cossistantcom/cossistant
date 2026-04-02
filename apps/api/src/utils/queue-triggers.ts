@@ -15,8 +15,8 @@ import {
 	createMessageNotificationTriggers,
 	createWebCrawlTriggers,
 	type WebCrawlJobData,
-} from "@cossistant/jobs";
-import { getBullConnectionOptions } from "@cossistant/redis";
+} from "@plasma/jobs";
+import { getBullConnectionOptions } from "@plasma/redis";
 
 // Lazily initialized triggers
 let messageNotificationTriggers: ReturnType<

@@ -8,7 +8,7 @@ import type {
 import type {
 	KnowledgeClarificationQuestionInputMode,
 	KnowledgeClarificationQuestionScope,
-} from "@cossistant/types";
+} from "@plasma/types";
 
 const MAX_GROUNDED_FACTS = 10;
 const MAX_TRANSCRIPT_CLAIMS = 6;

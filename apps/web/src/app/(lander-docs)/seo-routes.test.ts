@@ -75,11 +75,11 @@ describe("lander-docs seo routes", () => {
 	it("builds article metadata for blog posts", async () => {
 		const [blogArticlePageModule] = await seoRoutesModulePromise;
 		const metadata = await blogArticlePageModule.generateMetadata({
-			params: Promise.resolve({ slug: "introducing-cossistant" }),
+			params: Promise.resolve({ slug: "introducing-plasma-pandora" }),
 		});
 
 		expect(metadata.alternates?.canonical).toBe(
-			"http://localhost:3000/blog/introducing-cossistant"
+			"http://localhost:3000/blog/introducing-plasma-pandora"
 		);
 		expect(metadata.openGraph && "type" in metadata.openGraph).toBe(true);
 	});
@@ -133,7 +133,7 @@ describe("lander-docs seo routes", () => {
 
 		expect(response.status).toBe(308);
 		expect(response.headers.get("location")).toBe(
-			"https://api.cossistant.com/docs"
+			"https://api.plasma-pandora.com/docs"
 		);
 		expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow");
 	});

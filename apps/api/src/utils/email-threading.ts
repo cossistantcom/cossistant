@@ -6,35 +6,35 @@ import { env } from "@api/env";
  * and helpers for inbound reply-to addresses.
  */
 
-const INBOUND_EMAIL_DOMAIN = "inbound.cossistant.com";
+const INBOUND_EMAIL_DOMAIN = "inbound.plasma-pandora.com";
 
 /**
  * Generate a unique Message-ID for an email
- * Format: <msg-{messageId}@cossistant.com>
+ * Format: <msg-{messageId}@plasma-pandora.com>
  */
 export function generateMessageId(messageId: string): string {
-	return `<msg-${messageId}@cossistant.com>`;
+	return `<msg-${messageId}@plasma-pandora.com>`;
 }
 
 /**
  * Generate a conversation thread ID
- * Format: <conv-{conversationId}@cossistant.com>
+ * Format: <conv-{conversationId}@plasma-pandora.com>
  */
 export function generateConversationThreadId(conversationId: string): string {
-	return `<conv-${conversationId}@cossistant.com>`;
+	return `<conv-${conversationId}@plasma-pandora.com>`;
 }
 
 /**
  * Generate the inbound reply-to email address for a conversation.
  *
- * Our inbound domain is <anything>@inbound.cossistant.com.
+ * Our inbound domain is <anything>@inbound.plasma-pandora.com.
  * We encode:
  * - environment: in dev/test we prefix "test-", in prod we add nothing
  * - the conversation id: conv-{conversationId}
  *
  * Final format:
- *   - production: conv-{conversationId}@inbound.cossistant.com
- *   - non-production: test-conv-{conversationId}@inbound.cossistant.com
+ *   - production: conv-{conversationId}@inbound.plasma-pandora.com
+ *   - non-production: test-conv-{conversationId}@inbound.plasma-pandora.com
  */
 export function generateInboundReplyAddress(params: {
 	conversationId: string;

@@ -1,4 +1,4 @@
-import type { RouterOutputs } from "@cossistant/api/types";
+import type { RouterOutputs } from "@plasma/api/types";
 
 /**
  * Early bird discount IDs from Polar

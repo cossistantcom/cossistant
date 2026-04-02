@@ -78,10 +78,10 @@ describe("SegmentedControl", () => {
 			value: "one",
 		});
 
-		expect(html).not.toContain("bg-cossistant-yellow-100");
+		expect(html).not.toContain("bg-plasma-yellow-100");
 		expect(getButtonMarkup(html, "One")).toContain('data-state="on"');
 		expect(getButtonMarkup(html, "One")).not.toContain(
-			"text-cossistant-yellow-600"
+			"text-plasma-yellow-600"
 		);
 	});
 
@@ -95,12 +95,12 @@ describe("SegmentedControl", () => {
 		});
 
 		expect(html).toContain("bg-background-100");
-		expect(html).toContain("bg-cossistant-yellow-100");
-		expect(html).toContain("border-cossistant-yellow-600/25");
-		expect(html).toContain("dark:bg-cossistant-yellow-100/25");
+		expect(html).toContain("bg-plasma-yellow-100");
+		expect(html).toContain("border-plasma-yellow-600/25");
+		expect(html).toContain("dark:bg-plasma-yellow-100/25");
 		expect(getButtonMarkup(html, "Two")).toContain('data-state="on"');
 		expect(getButtonMarkup(html, "Two")).toContain(
-			"data-[state=on]:text-cossistant-yellow-600"
+			"data-[state=on]:text-plasma-yellow-600"
 		);
 	});
 

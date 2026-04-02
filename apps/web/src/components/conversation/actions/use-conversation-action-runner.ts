@@ -1,6 +1,6 @@
 "use client";
 
-import { ConversationStatus } from "@cossistant/types";
+import { ConversationStatus } from "@plasma/types";
 import { useCallback } from "react";
 import { toast } from "sonner";
 import { useOptionalInboxes } from "@/contexts/inboxes";

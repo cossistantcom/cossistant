@@ -1,8 +1,8 @@
 import {
 	applyConversationTypingEvent,
 	clearTypingFromTimelineItem,
-} from "@cossistant/react/realtime/typing-store";
-import type { RealtimeEvent } from "@cossistant/types/realtime-events";
+} from "@plasma/react/realtime/typing-store";
+import type { RealtimeEvent } from "@plasma/types/realtime-events";
 import type { DashboardRealtimeContext } from "../types";
 
 type ConversationTypingEvent = RealtimeEvent<"conversationTyping">;

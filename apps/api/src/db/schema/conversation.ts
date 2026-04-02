@@ -6,7 +6,7 @@ import {
 	ConversationStatus,
 	ConversationTimelineType,
 	TimelineItemVisibility,
-} from "@cossistant/types";
+} from "@plasma/types";
 
 import {
 	type InferInsertModel,

@@ -33,7 +33,7 @@ const segmentedControlItemVariants = cva(
 				default:
 					"text-primary/60 hover:text-foreground data-[state=on]:text-primary",
 				private:
-					"text-muted-foreground hover:text-foreground data-[state=on]:text-cossistant-yellow-600",
+					"text-muted-foreground hover:text-foreground data-[state=on]:text-plasma-yellow-600",
 			},
 		},
 		defaultVariants: {
@@ -50,7 +50,7 @@ export const segmentedControlIndicatorVariants = cva(
 			colorVariant: {
 				default: "border-border",
 				private:
-					"border-cossistant-yellow-600/25 dark:border-cossistant-yellow-600/20",
+					"border-plasma-yellow-600/25 dark:border-plasma-yellow-600/20",
 			},
 		},
 		defaultVariants: {
@@ -134,7 +134,7 @@ export function SegmentedControl<T extends string = string>({
 					{activeOption?.colorVariant === "private" ? (
 						<div
 							aria-hidden="true"
-							className="absolute inset-0 rounded-[inherit] bg-cossistant-yellow-100 dark:bg-cossistant-yellow-100/25"
+							className="absolute inset-0 rounded-[inherit] bg-plasma-yellow-100 dark:bg-plasma-yellow-100/25"
 						/>
 					) : null}
 				</div>

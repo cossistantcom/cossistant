@@ -1,6 +1,6 @@
 # Cossistant React SDK
 
-Build fully featured customer support experiences in React with the official `@cossistant/react` package. The SDK wraps the REST and WebSocket APIs, comes with a prebuilt widget, hooks, and UI primitives so you can ship your support quickly and customize later.
+Build fully featured customer support experiences in React with the official `@plasma/react` package. The SDK wraps the REST and WebSocket APIs, comes with a prebuilt widget, hooks, and UI primitives so you can ship your support quickly and customize later.
 
 > 📚 **New to Cossistant?** Follow the [Quickstart guide](https://cossistant.com/docs/quickstart) in our official documentation.
 
@@ -9,11 +9,11 @@ Build fully featured customer support experiences in React with the official `@c
 Pick the command that matches your package manager:
 
 ```bash
-bun add @cossistant/react
+bun add @plasma/react
 # or
-npm install @cossistant/react
+npm install @plasma/react
 # or
-yarn add @cossistant/react
+yarn add @plasma/react
 ```
 
 ## CSS Imports
@@ -25,7 +25,7 @@ The SDK provides two CSS entrypoints to fit your setup:
 If you're using Tailwind CSS v4, import the source file to enable full theme customization:
 
 ```tsx
-import "@cossistant/react/support.css";
+import "@plasma/react/support.css";
 ```
 
 ### Option 2: Plain CSS
@@ -33,7 +33,7 @@ import "@cossistant/react/support.css";
 Import the pre-compiled CSS with no Tailwind dependency:
 
 ```tsx
-import "@cossistant/react/styles.css";
+import "@plasma/react/styles.css";
 ```
 
 This file contains all the compiled styles and works in any React application without requiring Tailwind CSS.
@@ -43,8 +43,8 @@ This file contains all the compiled styles and works in any React application wi
 ## Render the widget
 
 ```tsx
-import { SupportProvider, Support } from "@cossistant/react";
-import "@cossistant/react/styles.css";
+import { SupportProvider, Support } from "@plasma/react";
+import "@plasma/react/styles.css";
 
 export function App() {
   return (
@@ -72,7 +72,7 @@ import {
   SupportConfig,
   SupportProvider,
   SenderType,
-} from "@cossistant/react";
+} from "@plasma/react";
 
 export function Dashboard({
   visitor,

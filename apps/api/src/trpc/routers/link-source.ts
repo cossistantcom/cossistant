@@ -43,7 +43,7 @@ import {
 	scanSubpagesRequestSchema,
 	toggleKnowledgeIncludedRequestSchema,
 	trainingStatsResponseSchema,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../init";

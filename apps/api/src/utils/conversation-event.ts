@@ -1,7 +1,7 @@
 import type { Database } from "@api/db";
-import { TimelineItemVisibility } from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api";
-import type { ConversationEventType } from "@cossistant/types/enums";
+import { TimelineItemVisibility } from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api";
+import type { ConversationEventType } from "@plasma/types/enums";
 import { createTimelineItem } from "./timeline-item";
 
 type ConversationContext = {

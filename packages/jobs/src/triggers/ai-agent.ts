@@ -5,7 +5,7 @@
  * Queue orchestration is conversation-scoped via a stable BullMQ jobId.
  */
 
-import { getSafeRedisUrl, type RedisOptions } from "@cossistant/redis";
+import { getSafeRedisUrl, type RedisOptions } from "@plasma/redis";
 import { Queue } from "bullmq";
 import {
 	AI_AGENT_INITIAL_DELAY_MS,

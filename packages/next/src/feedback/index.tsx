@@ -1,4 +1,4 @@
 "use client";
 
-export * from "@cossistant/react/feedback";
-export { default } from "@cossistant/react/feedback";
+export * from "@plasma/react/feedback";
+export { default } from "@plasma/react/feedback";

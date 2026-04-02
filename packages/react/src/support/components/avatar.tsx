@@ -7,7 +7,7 @@ import {
 	Avatar as AvatarPrimitive,
 } from "../../primitives/avatar";
 import { cn } from "../utils";
-import { CossistantLogo } from "./cossistant-branding";
+import { PlasmaLogo } from "./plasma-branding";
 import { getAgentStatus, OnlineIndicator } from "./online-indicator";
 
 /**
@@ -82,11 +82,11 @@ export function Avatar({
 						className
 					)}
 				>
-					<CossistantLogo className="h-1/2 w-1/2" />
+					<PlasmaLogo className="h-1/2 w-1/2" />
 				</div>
 			);
 		}
-		return <CossistantLogo className={cn("h-full w-full", className)} />;
+		return <PlasmaLogo className={cn("h-full w-full", className)} />;
 	}
 
 	// AI agent with image: show image in a square

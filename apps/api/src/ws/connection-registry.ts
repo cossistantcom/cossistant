@@ -1,4 +1,4 @@
-import type { AnyRealtimeEvent } from "@cossistant/types/realtime-events";
+import type { AnyRealtimeEvent } from "@plasma/types/realtime-events";
 import type { ServerWebSocket } from "bun";
 import type { DispatchOptions } from "./router";
 

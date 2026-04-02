@@ -1,7 +1,7 @@
 "use client";
 
-import type { RouterOutputs } from "@cossistant/api/types";
-import { AI_AGENT_TOOL_CATALOG } from "@cossistant/types";
+import type { RouterOutputs } from "@plasma/api/types";
+import { AI_AGENT_TOOL_CATALOG } from "@plasma/types";
 import { motion } from "motion/react";
 import { useMemo } from "react";
 import { CrawlLimitInfo } from "@/components/agents/crawl-limit-info";

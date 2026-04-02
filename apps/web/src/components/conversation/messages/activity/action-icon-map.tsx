@@ -1,4 +1,4 @@
-import type { TimelinePartEvent } from "@cossistant/types/api/timeline-item";
+import type { TimelinePartEvent } from "@plasma/types/api/timeline-item";
 import type { LucideIcon } from "lucide-react";
 import {
 	Bot,

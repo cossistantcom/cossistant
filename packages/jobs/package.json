@@ -1,5 +1,5 @@
 {
-  "name": "@cossistant/jobs",
+  "name": "@plasma/jobs",
   "type": "module",
   "version": "0.0.1",
   "private": true,
@@ -13,11 +13,11 @@
   "module": "./src/index.ts",
   "types": "./src/index.ts",
   "dependencies": {
-    "@cossistant/redis": "workspace:*",
+    "@plasma/redis": "workspace:*",
     "bullmq": "^5.34.8"
   },
   "devDependencies": {
-    "@cossistant/typescript-config": "workspace:*"
+    "@plasma/typescript-config": "workspace:*"
   },
   "scripts": {
     "lint": "biome check .",

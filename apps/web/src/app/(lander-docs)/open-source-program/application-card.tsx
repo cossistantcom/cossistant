@@ -6,7 +6,7 @@ import {
 	type OpenSourceProgramQualificationReason,
 	type SubmitOpenSourceProgramApplicationRequest,
 	submitOpenSourceProgramApplicationRequestSchema,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";

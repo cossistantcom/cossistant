@@ -27,11 +27,11 @@ mock.module("@api/env", () => ({
 	},
 }));
 
-mock.module("@cossistant/redis", () => ({
+mock.module("@plasma/redis", () => ({
 	getBullConnectionOptions: getBullConnectionOptionsMock,
 }));
 
-mock.module("@cossistant/jobs", () => ({
+mock.module("@plasma/jobs", () => ({
 	createAiAgentTriggers: createAiAgentTriggersMock,
 	createAiTrainingTriggers: createAiTrainingTriggersMock,
 	createMessageNotificationTriggers: createMessageNotificationTriggersMock,

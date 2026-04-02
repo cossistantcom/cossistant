@@ -1,8 +1,8 @@
 "use client";
 
-import type { RouterOutputs } from "@cossistant/api/types";
-import { resolveCountryDetails } from "@cossistant/location/country-utils";
-import type { ContactDetailResponse } from "@cossistant/types";
+import type { RouterOutputs } from "@plasma/api/types";
+import { resolveCountryDetails } from "@plasma/location/country-utils";
+import type { ContactDetailResponse } from "@plasma/types";
 import { useQueryNormalizer } from "@normy/react-query";
 import * as ReactQuery from "@tanstack/react-query";
 import { Monitor, Smartphone } from "lucide-react";

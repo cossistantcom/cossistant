@@ -1,3 +1,3 @@
 "use client";
 
-export * from "@cossistant/react/primitives";
+export * from "@plasma/react/primitives";

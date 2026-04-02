@@ -1,4 +1,4 @@
-import type { RouteRegistry } from "@cossistant/core";
+import type { RouteRegistry } from "@plasma/core";
 import * as React from "react";
 import type { PageDefinition } from "../primitives";
 import * as Primitive from "../primitives";

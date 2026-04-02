@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type DefaultMessage, SenderType } from "@cossistant/types";
+import { type DefaultMessage, SenderType } from "@plasma/types";
 import { reconcileDefaultMessageSeeds } from "./use-default-messages";
 
 const ULID_REGEX = /^[0-9A-HJKMNP-TV-Z]{26}$/;

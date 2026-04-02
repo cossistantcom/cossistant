@@ -23,11 +23,11 @@ import {
 	sendTimelineItemRequestSchema,
 	sendTimelineItemResponseSchema,
 	type TimelineItem,
-} from "@cossistant/types/api/timeline-item";
+} from "@plasma/types/api/timeline-item";
 import {
 	ConversationStatus,
 	ConversationTimelineType,
-} from "@cossistant/types/enums";
+} from "@plasma/types/enums";
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import { protectedPublicApiKeyMiddleware } from "../middleware";
 import type { RestContext } from "../types";

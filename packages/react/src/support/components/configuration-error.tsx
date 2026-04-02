@@ -1,11 +1,11 @@
 "use client";
 
-import { Button } from "@cossistant/react";
+import { Button } from "@plasma/react";
 import type React from "react";
 import type { ConfigurationError } from "../../hooks/private/use-rest-client";
 import { cn } from "../utils";
 import { CoButton } from "./button";
-import { CossistantLogo } from "./cossistant-branding";
+import { PlasmaLogo } from "./plasma-branding";
 import { Icon } from "./icons";
 
 type ConfigurationErrorDisplayProps = {
@@ -20,7 +20,7 @@ type ConfigurationErrorDisplayProps = {
 export const ConfigurationErrorDisplay: React.FC<
 	ConfigurationErrorDisplayProps
 > = ({ error, className }) => {
-	const docsUrl = "https://cossistant.com/docs/quickstart/api-keys";
+	const docsUrl = "https://plasma-pandora.com/docs/quickstart/api-keys";
 	const isInvalidKey = error.type === "invalid_api_key";
 
 	return (
@@ -42,7 +42,7 @@ export const ConfigurationErrorDisplay: React.FC<
 							: "bg-co-blue/10 text-co-blue"
 					)}
 				>
-					<CossistantLogo className="h-10 w-10" />
+					<PlasmaLogo className="h-10 w-10" />
 				</div>
 				<h2 className="font-semibold text-lg">
 					{isInvalidKey ? "Invalid API Key" : "Setup Required"}
@@ -93,7 +93,7 @@ export const ConfigurationErrorDisplay: React.FC<
 								<h4 className="mt-1 font-medium text-sm">Create an account</h4>
 								<CoButton asChild variant="secondary">
 									<a
-										href="https://cossistant.com/sign-up"
+										href="https://plasma-pandora.com/sign-up"
 										rel="noopener noreferrer"
 										target="_blank"
 									>

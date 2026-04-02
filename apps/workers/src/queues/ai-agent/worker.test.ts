@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type {
 	AiAgentBackgroundJobData,
 	AiAgentJobData,
-} from "@cossistant/jobs";
+} from "@plasma/jobs";
 
 type MockJob<T> = {
 	id: string;
@@ -174,7 +174,7 @@ mock.module("@api/ai-pipeline/shared/settings", () => ({
 	getBehaviorSettings: getBehaviorSettingsMock,
 }));
 
-mock.module("@cossistant/jobs", () => ({
+mock.module("@plasma/jobs", () => ({
 	QUEUE_NAMES: {
 		AI_AGENT: "ai-agent",
 		AI_AGENT_BACKGROUND: "ai-agent-background",
@@ -202,7 +202,7 @@ mock.module("./pipeline-runner", () => ({
 
 mock.module("@workers/db", () => ({ db: {} }));
 mock.module("@workers/env", () => ({ env: { AI_AGENT_CONCURRENCY: 7 } }));
-mock.module("@cossistant/redis", () => ({
+mock.module("@plasma/redis", () => ({
 	getSafeRedisUrl: () => "redis://masked",
 }));
 

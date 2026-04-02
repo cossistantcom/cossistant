@@ -1,5 +1,5 @@
-import type { SeenEntry } from "@cossistant/core";
-import type { ConversationSeen } from "@cossistant/types/schemas";
+import type { SeenEntry } from "@plasma/core";
+import type { ConversationSeen } from "@plasma/types/schemas";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSupport } from "../provider";
 import { useStoreSelector } from "./private/store/use-store-selector";

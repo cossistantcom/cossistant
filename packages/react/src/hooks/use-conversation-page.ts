@@ -1,9 +1,9 @@
-import { CossistantAPIError, type CossistantClient } from "@cossistant/core";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+import { CossistantAPIError, type CossistantClient } from "@plasma/core";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import {
 	ConversationTimelineType,
 	TimelineItemVisibility,
-} from "@cossistant/types/enums";
+} from "@plasma/types/enums";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useSupport } from "../provider";
 import { useIdentificationState } from "../support/context/identification";

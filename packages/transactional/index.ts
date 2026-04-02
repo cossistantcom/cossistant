@@ -1,5 +1,5 @@
 /**
- * @cossistant/transactional
+ * @plasma/transactional
  * Centralized email and transactional communication package
  *
  * This package provides:

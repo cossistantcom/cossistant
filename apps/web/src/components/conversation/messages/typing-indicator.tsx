@@ -2,12 +2,12 @@ import {
 	TimelineItemGroupAvatar,
 	TimelineItemGroupContent,
 	TimelineItemGroupHeader,
-} from "@cossistant/next/primitives";
+} from "@plasma/next/primitives";
 import type {
 	AvailableAIAgent,
 	AvailableHumanAgent,
 	VisitorPresenceEntry,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { motion } from "motion/react";
 import * as React from "react";
 import { Avatar } from "@/components/ui/avatar";

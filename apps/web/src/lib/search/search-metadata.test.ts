@@ -42,8 +42,8 @@ describe("search metadata", () => {
 		expect(stripHash("/docs/support-component/hooks#usesupport")).toBe(
 			"/docs/support-component/hooks"
 		);
-		expect(stripHash("/blog/introducing-cossistant")).toBe(
-			"/blog/introducing-cossistant"
+		expect(stripHash("/blog/introducing-plasma-pandora")).toBe(
+			"/blog/introducing-plasma-pandora"
 		);
 	});
 
@@ -82,7 +82,7 @@ describe("search metadata", () => {
 		expect(
 			inferFallbackKind({
 				source: "blog",
-				url: "/blog/introducing-cossistant",
+				url: "/blog/introducing-plasma-pandora",
 				title: "Introducing Cossistant",
 			})
 		).toBe("article");

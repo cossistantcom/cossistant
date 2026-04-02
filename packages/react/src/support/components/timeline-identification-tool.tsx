@@ -1,9 +1,9 @@
-import type { SendTimelineItemRequest } from "@cossistant/types/api/timeline-item";
+import type { SendTimelineItemRequest } from "@plasma/types/api/timeline-item";
 import {
 	ConversationEventType,
 	ConversationTimelineType,
 	TimelineItemVisibility,
-} from "@cossistant/types/enums";
+} from "@plasma/types/enums";
 import { type FormEventHandler, useCallback, useMemo, useState } from "react";
 
 import { useVisitor } from "../../hooks/use-visitor";

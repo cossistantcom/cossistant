@@ -4,7 +4,7 @@ const addUserToDefaultAudienceMock = mock(
 	(async () => true) as (...args: unknown[]) => Promise<boolean>
 );
 
-mock.module("@cossistant/transactional", () => ({
+mock.module("@plasma/transactional", () => ({
 	addUserToDefaultAudience: addUserToDefaultAudienceMock,
 }));
 

@@ -45,7 +45,7 @@ By the end, you'll have:
 ## 1. Install the package
 
 ```bash
-npm install @cossistant/next
+npm install @plasma/next
 ```
 
 ## 2. Add your public API key
@@ -64,7 +64,7 @@ Do not put a private key in browser code.
 In the App Router, the cleanest place is your root layout:
 
 ```tsx title="app/layout.tsx"
-import { SupportProvider } from "@cossistant/next";
+import { SupportProvider } from "@plasma/next";
 
 import "./globals.css";
 
@@ -94,14 +94,14 @@ You have two options.
 ```css title="app/globals.css"
 @import "tailwindcss";
 
-@import "@cossistant/next/support.css";
+@import "@plasma/next/support.css";
 ```
 
 ### Plain CSS
 
 ```tsx title="app/layout.tsx"
-import { SupportProvider } from "@cossistant/next";
-import "@cossistant/next/styles.css";
+import { SupportProvider } from "@plasma/next";
+import "@plasma/next/styles.css";
 import "./globals.css";
 
 export default function RootLayout({
@@ -127,7 +127,7 @@ If not, plain CSS is fine.
 Now drop the widget into a page:
 
 ```tsx title="app/page.tsx"
-import { Support } from "@cossistant/next";
+import { Support } from "@plasma/next";
 
 export default function Page() {
   return (
@@ -146,7 +146,7 @@ That is enough to get the widget running.
 If your app has authentication, identify users so support stays tied to the right person across sessions and devices.
 
 ```tsx title="app/(app)/layout.tsx"
-import { IdentifySupportVisitor } from "@cossistant/next";
+import { IdentifySupportVisitor } from "@plasma/next";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const user = {
@@ -175,8 +175,8 @@ This is optional, but if you're building a real SaaS, you probably want it.
 If you want the widget to feel less empty on first open, configure a default message and a few quick actions.
 
 ```tsx title="app/page.tsx"
-import { Support, SupportConfig } from "@cossistant/next";
-import { type DefaultMessage, SenderType } from "@cossistant/next";
+import { Support, SupportConfig } from "@plasma/next";
+import { type DefaultMessage, SenderType } from "@plasma/next";
 
 const user: { name: string | null } = {
   name: "Jane Doe",
@@ -210,7 +210,7 @@ Small detail, better first impression.
 
 <Steps className="mt-10">
   <Step>
-    Install `@cossistant/next`
+    Install `@plasma/next`
   </Step>
   <Step>
     Add `NEXT_PUBLIC_COSSISTANT_API_KEY` to `.env.local`

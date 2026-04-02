@@ -37,7 +37,7 @@ describe("support store", () => {
 
 	it("hydrates from persisted data", () => {
 		const persisted: StorageData = {
-			"cossistant-support-store": JSON.stringify({
+			"plasma-support-store": JSON.stringify({
 				navigation: {
 					current: { page: "ARTICLES" as NavigationState["page"] },
 					previousPages: [{ page: "HOME" }],
@@ -82,7 +82,7 @@ describe("support store", () => {
 		store.updateConfig({ size: "larger" });
 
 		const persisted = JSON.parse(
-			storage.getItem("cossistant-support-store") ?? "{}"
+			storage.getItem("plasma-support-store") ?? "{}"
 		);
 
 		expect(persisted.config.isOpen).toBe(true);
@@ -101,7 +101,7 @@ describe("support store", () => {
 		expect(state.navigation.previousPages).toHaveLength(0);
 
 		const persisted = JSON.parse(
-			storage.getItem("cossistant-support-store") ?? "{}"
+			storage.getItem("plasma-support-store") ?? "{}"
 		);
 		expect(persisted.config.isOpen).toBe(false);
 		expect(persisted.navigation.previousPages).toHaveLength(0);

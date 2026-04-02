@@ -1,4 +1,4 @@
-import type { ContactDetailResponse } from "@cossistant/types";
+import type { ContactDetailResponse } from "@plasma/types";
 import { Avatar } from "@/components/ui/avatar";
 
 type ContactSheetHeaderProps = {

@@ -30,7 +30,7 @@ Use primitives when you need **complete control** over the support experience.
 Access primitives via the `Primitives` namespace:
 
 ```tsx
-import { Primitives } from "@cossistant/next";
+import { Primitives } from "@plasma/next";
 
 // Use individual primitives
 <Primitives.Trigger>...</Primitives.Trigger>
@@ -41,7 +41,7 @@ import { Primitives } from "@cossistant/next";
 Or import the namespace with an alias:
 
 ```tsx
-import { Primitives as P } from "@cossistant/next";
+import { Primitives as P } from "@plasma/next";
 
 <P.Trigger>...</P.Trigger>
 ```
@@ -49,7 +49,7 @@ import { Primitives as P } from "@cossistant/next";
 ## Quick Example
 
 ```tsx
-import { Primitives, useSupportConfig } from "@cossistant/next";
+import { Primitives, useSupportConfig } from "@plasma/next";
 
 function CustomWidget() {
   const { isOpen, toggle } = useSupportConfig();
@@ -250,7 +250,7 @@ Configure widget behavior per route or page.
 Use these hooks alongside primitives for complete control:
 
 ```tsx
-import { useSupportConfig, useSupportNavigation, useSupport } from "@cossistant/next";
+import { useSupportConfig, useSupportNavigation, useSupport } from "@plasma/next";
 ```
 
 **`useSupportConfig()`** - Widget open/close state
@@ -289,7 +289,7 @@ type TriggerRenderProps = {
 Create a completely custom support experience:
 
 ```tsx
-import { Primitives, SupportProvider, useSupportConfig } from "@cossistant/next";
+import { Primitives, SupportProvider, useSupportConfig } from "@plasma/next";
 import { useState } from "react";
 
 function CustomSupport() {

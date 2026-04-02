@@ -50,4 +50,4 @@ Output only the prompt text with no preamble.`;
 export {
 	createDefaultPromptWithCompany,
 	DEFAULT_AGENT_BASE_PROMPT,
-} from "@cossistant/types";
+} from "@plasma/types";

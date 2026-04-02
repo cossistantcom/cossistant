@@ -1,6 +1,6 @@
 "use client";
 
-import type { KnowledgeClarificationDraftFaq } from "@cossistant/types";
+import type { KnowledgeClarificationDraftFaq } from "@plasma/types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";

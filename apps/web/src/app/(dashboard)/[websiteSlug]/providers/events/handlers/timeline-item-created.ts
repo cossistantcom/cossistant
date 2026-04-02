@@ -1,7 +1,7 @@
-import { clearTypingFromTimelineItem } from "@cossistant/react/realtime/typing-store";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
-import type { RealtimeEvent } from "@cossistant/types/realtime-events";
-import { ensureDashboardConversationLockRedaction } from "@cossistant/types/trpc/conversation-hard-limit";
+import { clearTypingFromTimelineItem } from "@plasma/react/realtime/typing-store";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
+import type { RealtimeEvent } from "@plasma/types/realtime-events";
+import { ensureDashboardConversationLockRedaction } from "@plasma/types/trpc/conversation-hard-limit";
 import {
 	type ConversationHeader,
 	forEachConversationHeadersQuery,

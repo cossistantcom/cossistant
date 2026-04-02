@@ -5,7 +5,7 @@ import type {
 	RouterInputs,
 	RouterOutputs,
 } from "@api/trpc/types";
-import { ConversationStatus } from "@cossistant/types";
+import { ConversationStatus } from "@plasma/types";
 import { useQueryNormalizer } from "@normy/react-query";
 import {
 	type InfiniteData,

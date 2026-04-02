@@ -1,6 +1,6 @@
-import type { CossistantClient } from "@cossistant/core";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
-import type { AnyRealtimeEvent } from "@cossistant/types/realtime-events";
+import type { CossistantClient } from "@plasma/core";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
+import type { AnyRealtimeEvent } from "@plasma/types/realtime-events";
 import { useCallback, useEffect } from "react";
 import {
 	type UseMultimodalInputOptions,

@@ -1,5 +1,5 @@
 {
-  "extends": "@cossistant/typescript-config/nextjs.json",
+  "extends": "@plasma/typescript-config/nextjs.json",
   "compilerOptions": {
     "declaration": false,
     "declarationMap": false,
@@ -14,10 +14,10 @@
       "@/docs-source/*": ["./.source/*"],
       "fumadocs-mdx:collections/*": ["./.source/*"],
       "@api/*": ["../api/src/*"],
-      "@cossistant/react/*": ["../../packages/react/src/*"],
-      "@cossistant/react": ["../../packages/react/src"],
-      "@cossistant/next/*": ["../../packages/next/src/*"],
-      "@cossistant/next": ["../../packages/next/src"]
+      "@plasma/react/*": ["../../packages/react/src/*"],
+      "@plasma/react": ["../../packages/react/src"],
+      "@plasma/next/*": ["../../packages/next/src/*"],
+      "@plasma/next": ["../../packages/next/src"]
     },
     "skipLibCheck": true
   },

@@ -102,11 +102,11 @@ const sections = [
 					The source code is available at{" "}
 					<a
 						className="text-primary underline"
-						href="https://github.com/cossistantcom/cossistant"
+						href="https://github.com/plasma-pandora/plasma-pandora"
 						rel="noopener noreferrer"
 						target="_blank"
 					>
-						github.com/cossistantcom/cossistant
+						github.com/plasma-pandora/plasma-pandora
 					</a>
 					.
 				</p>
@@ -272,9 +272,9 @@ const sections = [
 						<strong>Email:</strong>{" "}
 						<a
 							className="text-primary underline"
-							href="mailto:anthony@cossistant.com"
+							href="mailto:anthony@plasma-pandora.com"
 						>
-							anthony@cossistant.com
+							anthony@plasma-pandora.com
 						</a>
 					</li>
 					<li>

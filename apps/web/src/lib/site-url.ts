@@ -1,4 +1,4 @@
-const SITE_FALLBACK_PRODUCTION_URL = "https://cossistant.com";
+const SITE_FALLBACK_PRODUCTION_URL = "https://plasma-pandora.com";
 const SITE_FALLBACK_DEVELOPMENT_URL = "http://localhost:3000";
 
 const SITE_URL_ENV_KEYS = [

@@ -1,16 +1,16 @@
 import type { RouterOutputs } from "@api/trpc/types";
-import type { GroupedActivity } from "@cossistant/next/hooks";
+import type { GroupedActivity } from "@plasma/next/hooks";
 import {
 	TimelineItemGroup as PrimitiveTimelineItemGroup,
 	TimelineItemGroupAvatar,
 	TimelineItemGroupContent,
-} from "@cossistant/next/primitives";
-import type { AvailableAIAgent } from "@cossistant/types";
-import { SenderType } from "@cossistant/types";
+} from "@plasma/next/primitives";
+import type { AvailableAIAgent } from "@plasma/types";
+import { SenderType } from "@plasma/types";
 import type {
 	TimelineItem,
 	TimelinePartEvent,
-} from "@cossistant/types/api/timeline-item";
+} from "@plasma/types/api/timeline-item";
 import { useMemo } from "react";
 import type { ConversationHeader } from "@/contexts/inboxes";
 import { extractEventPart } from "@/lib/timeline-events";

@@ -1,6 +1,6 @@
 "use client";
 
-import type { InboxAnalyticsResponse } from "@cossistant/types";
+import type { InboxAnalyticsResponse } from "@plasma/types";
 import { useMemo } from "react";
 import { Globe, type GlobeVisitor } from "@/components/globe";
 import {

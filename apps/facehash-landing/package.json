@@ -1,5 +1,5 @@
 {
-  "name": "@cossistant/facehash-landing",
+  "name": "@plasma/facehash-landing",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -17,7 +17,7 @@
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
-    "@cossistant/typescript-config": "workspace:*",
+    "@plasma/typescript-config": "workspace:*",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^25.0.10",
     "@types/react": "19.2.7",

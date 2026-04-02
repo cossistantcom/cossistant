@@ -1,8 +1,8 @@
 // Re-export all types from the shared types package
-export * from "@cossistant/types";
+export * from "@plasma/types";
 
 // Import the error interface for the error class
-import type { CossistantError } from "@cossistant/types";
+import type { CossistantError } from "@plasma/types";
 
 // Core-specific error class (runtime code)
 export class CossistantAPIError extends Error {

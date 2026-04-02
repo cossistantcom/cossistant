@@ -1,8 +1,8 @@
-import type { ConversationPagination } from "@cossistant/core";
+import type { ConversationPagination } from "@plasma/core";
 import type {
 	ListConversationsRequest,
 	ListConversationsResponse,
-} from "@cossistant/types/api/conversation";
+} from "@plasma/types/api/conversation";
 import { useCallback, useMemo } from "react";
 import { useSupport } from "../provider";
 import { useStoreSelector } from "./private/store/use-store-selector";

@@ -1,6 +1,6 @@
 "use client";
 
-import { ConversationTimelineType } from "@cossistant/types";
+import { ConversationTimelineType } from "@plasma/types";
 import type { InfiniteData } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useSyncExternalStore } from "react";

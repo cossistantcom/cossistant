@@ -1,5 +1,5 @@
-import { formatFileSize } from "@cossistant/core";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+import { formatFileSize } from "@plasma/core";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import type React from "react";
 import { useMemo, useState } from "react";
 import {

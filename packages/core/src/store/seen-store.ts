@@ -1,5 +1,5 @@
-import type { RealtimeEvent } from "@cossistant/types/realtime-events";
-import type { ConversationSeen } from "@cossistant/types/schemas";
+import type { RealtimeEvent } from "@plasma/types/realtime-events";
+import type { ConversationSeen } from "@plasma/types/schemas";
 import { createStore, type Store } from "./create-store";
 
 export type SeenActorType = "visitor" | "user" | "ai_agent";

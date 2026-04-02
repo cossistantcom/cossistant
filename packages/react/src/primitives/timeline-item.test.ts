@@ -42,7 +42,7 @@ describe("TimelineItemContent", () => {
 	it("renders fenced code blocks with file metadata and copy affordance", () => {
 		const codeSnippet = [
 			'```tsx title="app/layout.tsx"',
-			'import { Cossistant } from "@cossistant/react";',
+			'import { Cossistant } from "@plasma/react";',
 			"export default function RootLayout() {",
 			"  return null;",
 			"}",
@@ -63,7 +63,7 @@ describe("TimelineItemContent", () => {
 	it("renders command blocks with package-manager tabs and copy affordance", () => {
 		const commandSnippet = [
 			"```bash",
-			"npm install @cossistant/react",
+			"npm install @plasma/react",
 			"```",
 		].join("\n");
 
@@ -75,30 +75,30 @@ describe("TimelineItemContent", () => {
 		expect(html).toContain(">pnpm<");
 		expect(html).toContain(">bun<");
 		expect(html).toContain(">Copy<");
-		expect(html).toContain("npm install @cossistant/react");
+		expect(html).toContain("npm install @plasma/react");
 		expect(html).not.toContain("whitespace-pre-wrap");
 	});
 
 	it("promotes standalone inline commands to command blocks", () => {
-		const html = renderMessageContent("`pnpm add @cossistant/react`");
+		const html = renderMessageContent("`pnpm add @plasma/react`");
 
 		expect(html).toContain('data-co-command-block=""');
 		expect(html).toContain(">npm<");
 		expect(html).toContain(">yarn<");
 		expect(html).toContain(">pnpm<");
 		expect(html).toContain(">bun<");
-		expect(html).toContain("npm install @cossistant/react");
+		expect(html).toContain("npm install @plasma/react");
 	});
 
 	it("promotes inline command code inside prose to a command block", () => {
 		const html = renderMessageContent(
-			"Run `pnpm add @cossistant/react` in your terminal."
+			"Run `pnpm add @plasma/react` in your terminal."
 		);
 
 		expect(html).toContain("Run ");
 		expect(html).toContain("in your terminal.");
 		expect(html).toContain('data-co-command-block=""');
-		expect(html).toContain("npm install @cossistant/react");
-		expect(html).not.toContain("<code>pnpm add @cossistant/react</code>");
+		expect(html).toContain("npm install @plasma/react");
+		expect(html).not.toContain("<code>pnpm add @plasma/react</code>");
 	});
 });

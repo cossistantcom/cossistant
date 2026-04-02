@@ -41,7 +41,7 @@ describe("OpenSourceProgramApplicationCard helpers", () => {
 					id: "site_2",
 					name: "App",
 					domain: "app.acme.dev",
-					logoUrl: "https://cdn.cossistant.com/logo.png",
+					logoUrl: "https://cdn.plasma-pandora.com/logo.png",
 				},
 			]) as never
 		);
@@ -58,7 +58,7 @@ describe("OpenSourceProgramApplicationCard helpers", () => {
 				id: "site_2",
 				name: "App",
 				domain: "app.acme.dev",
-				logoUrl: "https://cdn.cossistant.com/logo.png",
+				logoUrl: "https://cdn.plasma-pandora.com/logo.png",
 				organizationName: "Acme",
 			},
 		]);

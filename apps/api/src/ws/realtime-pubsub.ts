@@ -4,7 +4,7 @@ import {
 	isValidEventType,
 	type RealtimeEvent,
 	validateRealtimeEvent,
-} from "@cossistant/types/realtime-events";
+} from "@plasma/types/realtime-events";
 import Redis, { type RedisOptions } from "ioredis";
 import type { DispatchOptions } from "./router";
 

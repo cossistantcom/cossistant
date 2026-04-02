@@ -1,5 +1,5 @@
 {
-  "name": "@cossistant/next",
+  "name": "@plasma/next",
   "type": "module",
   "version": "0.1.2",
   "private": false,
@@ -21,15 +21,15 @@
     "accessibility"
   ],
   "bugs": {
-    "url": "https://github.com/cossistantcom/cossistant/issues"
+    "url": "https://github.com/plasma-pandora/plasma-pandora/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cossistantcom/cossistant.git",
+    "url": "git+https://github.com/plasma-pandora/plasma-pandora.git",
     "directory": "packages/next"
   },
   "license": "MIT",
-  "homepage": "https://cossistant.com",
+  "homepage": "https://plasma-pandora.com",
   "exports": {
     ".": "./src/index.ts",
     "./feedback": "./src/feedback/index.tsx",
@@ -58,10 +58,10 @@
     "directory": "dist"
   },
   "dependencies": {
-    "@cossistant/react": "workspace:*"
+    "@plasma/react": "workspace:*"
   },
   "devDependencies": {
-    "@cossistant/typescript-config": "workspace:*"
+    "@plasma/typescript-config": "workspace:*"
   },
   "peerDependencies": {
     "react": ">=18 <20",

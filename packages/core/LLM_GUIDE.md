@@ -1,6 +1,6 @@
-# @cossistant/core Contribution Playbook (for LLM agents)
+# @plasma/core Contribution Playbook (for LLM agents)
 
-This guide codifies the structure and rules you **must** follow when extending `@cossistant/core`. Deviations require a human to sign off. Read everything before touching code.
+This guide codifies the structure and rules you **must** follow when extending `@plasma/core`. Deviations require a human to sign off. Read everything before touching code.
 
 ## Directory Map & Responsibilities
 
@@ -58,7 +58,7 @@ For every new store or reducer path:
    - pagination/page merges do not duplicate entities,
    - realtime events update the correct slice,
    - unchanged inputs preserve reference equality.
-2. Mock data **must** conform to types from `@cossistant/types` and mimic API shape (see `messages-store.test.ts` for patterns).
+2. Mock data **must** conform to types from `@plasma/types` and mimic API shape (see `messages-store.test.ts` for patterns).
 3. Include edge cases: empty payloads, out-of-order events, finalization updates.
 4. Run `bun test packages/core/src/store/<domain>-store.test.ts` locally and document it in your final summary.
 

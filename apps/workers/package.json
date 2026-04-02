@@ -1,5 +1,5 @@
 {
-  "name": "@cossistant/workers",
+  "name": "@plasma/workers",
   "private": true,
   "type": "module",
   "exports": {
@@ -8,12 +8,12 @@
   "dependencies": {
     "@bull-board/api": "^6.14.2",
     "@bull-board/hono": "^6.14.2",
-    "@cossistant/api": "workspace:*",
-    "@cossistant/core": "workspace:*",
-    "@cossistant/jobs": "workspace:*",
-    "@cossistant/redis": "workspace:*",
-    "@cossistant/transactional": "workspace:*",
-    "@cossistant/types": "workspace:*",
+    "@plasma/api": "workspace:*",
+    "@plasma/core": "workspace:*",
+    "@plasma/jobs": "workspace:*",
+    "@plasma/redis": "workspace:*",
+    "@plasma/transactional": "workspace:*",
+    "@plasma/types": "workspace:*",
     "@hono/node-server": "^1.19.3",
     "@polar-sh/sdk": "^0.44.0",
     "bullmq": "^5.34.8",

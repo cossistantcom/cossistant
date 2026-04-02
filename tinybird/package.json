@@ -1,5 +1,5 @@
 {
-  "name": "@cossistant/tinybird",
+  "name": "@plasma/tinybird",
   "version": "0.0.0",
   "private": true,
   "type": "module",

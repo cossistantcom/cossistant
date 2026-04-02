@@ -1,9 +1,9 @@
 "use client";
 
-import { useRealtimeSupport } from "@cossistant/next/hooks";
-import { Support } from "@cossistant/next/support";
-import { useSupport } from "@cossistant/react/index";
-import { type DefaultMessage, SenderType } from "@cossistant/types";
+import { useRealtimeSupport } from "@plasma/next/hooks";
+import { Support } from "@plasma/next/support";
+import { useSupport } from "@plasma/react/index";
+import { type DefaultMessage, SenderType } from "@plasma/types";
 import Image from "next/image";
 import { AsciiImage } from "@/components/ui/ascii-image";
 import { Background } from "@/components/ui/background";

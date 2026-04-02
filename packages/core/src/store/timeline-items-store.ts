@@ -1,8 +1,8 @@
-import type { RealtimeEvent } from "@cossistant/types";
+import type { RealtimeEvent } from "@plasma/types";
 import {
 	type TimelineItem,
 	timelineItemPartsSchema,
-} from "@cossistant/types/api/timeline-item";
+} from "@plasma/types/api/timeline-item";
 import { createStore, type Store } from "./create-store";
 
 type TimelineItemCreatedEvent = RealtimeEvent<"timelineItemCreated">;

@@ -11,8 +11,8 @@ import {
 	extractTextFromKnowledgePayload,
 	generateChunkMetadata,
 } from "@api/utils/text-chunker";
-import { type AiTrainingJobData, QUEUE_NAMES } from "@cossistant/jobs";
-import type { RedisOptions } from "@cossistant/redis";
+import { type AiTrainingJobData, QUEUE_NAMES } from "@plasma/jobs";
+import type { RedisOptions } from "@plasma/redis";
 import { db } from "@workers/db";
 import { emitToWebsite } from "@workers/realtime";
 import { type Job, Worker } from "bullmq";

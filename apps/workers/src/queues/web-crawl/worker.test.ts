@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
-import type { WebCrawlJobData } from "@cossistant/jobs";
+import type { WebCrawlJobData } from "@plasma/jobs";
 
 type MockCrawlStatus = {
 	status: "pending" | "crawling" | "completed" | "failed";
@@ -214,13 +214,13 @@ mock.module("@api/services/firecrawl", () => ({
 	FirecrawlService: MockFirecrawlService,
 }));
 
-mock.module("@cossistant/jobs", () => ({
+mock.module("@plasma/jobs", () => ({
 	QUEUE_NAMES: {
 		WEB_CRAWL: "web-crawl",
 	},
 }));
 
-mock.module("@cossistant/redis", () => ({
+mock.module("@plasma/redis", () => ({
 	getSafeRedisUrl: () => "redis://masked",
 	createRedisConnection: () => ({
 		eval: mock(async () => 0),

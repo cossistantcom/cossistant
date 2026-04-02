@@ -1,5 +1,5 @@
 import { generateULID } from "@api/utils/db/ids";
-import type { ConversationSeen } from "@cossistant/types/schemas";
+import type { ConversationSeen } from "@plasma/types/schemas";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 

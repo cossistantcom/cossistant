@@ -1,4 +1,4 @@
-import type { Conversation, ConversationStatus } from "@cossistant/types";
+import type { Conversation, ConversationStatus } from "@plasma/types";
 
 const HIDDEN_STATUSES = new Set<ConversationStatus | "closed">(["closed"]);
 

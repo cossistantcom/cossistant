@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import type {
 	ConversationClarificationSummary,
 	KnowledgeClarificationRequest,
-} from "@cossistant/types";
+} from "@plasma/types";
 import {
 	resolveConversationClarificationDisplayState,
 	resolveEngagedConversationClarificationRequestId,

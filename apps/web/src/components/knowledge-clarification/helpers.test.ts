@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { KnowledgeClarificationRequest } from "@cossistant/types";
+import type { KnowledgeClarificationRequest } from "@plasma/types";
 import {
 	shouldPreferKnowledgeClarificationRequestState,
 	stepFromKnowledgeClarificationRequest,

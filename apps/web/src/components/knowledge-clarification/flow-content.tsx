@@ -4,7 +4,7 @@ import type {
 	KnowledgeClarificationDraftFaq,
 	KnowledgeClarificationRequest,
 	KnowledgeClarificationStepResponse,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { LoaderCircleIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";

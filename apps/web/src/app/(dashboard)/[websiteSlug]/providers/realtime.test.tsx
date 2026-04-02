@@ -7,7 +7,7 @@ const invalidateQueriesMock = mock((async (_args: unknown) => {}) as (
 ) => Promise<void>);
 const useRealtimeMock = mock((_options: unknown) => {});
 
-mock.module("@cossistant/next/realtime", () => ({
+mock.module("@plasma/next/realtime", () => ({
 	useRealtime: useRealtimeMock,
 }));
 

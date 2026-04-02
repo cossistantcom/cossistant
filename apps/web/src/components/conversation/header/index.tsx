@@ -1,6 +1,6 @@
 "use client";
 
-import type { ConversationStatus } from "@cossistant/types";
+import type { ConversationStatus } from "@plasma/types";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";

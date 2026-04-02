@@ -61,9 +61,9 @@ export const Step = ({
 				<div className="flex items-center gap-5">
 					<div
 						className={cn(
-							"flex size-4.5 shrink-0 items-center justify-center rounded border border-cossistant-green bg-cossistant-green/20 font-mono font-semibold text-[10px] text-cossistant-green before:content-[counter(step)]",
+							"flex size-4.5 shrink-0 items-center justify-center rounded border border-plasma-green bg-plasma-green/20 font-mono font-semibold text-[10px] text-plasma-green before:content-[counter(step)]",
 							isCompleted &&
-								"bg-cossistant-green text-primary-foreground line-through",
+								"bg-plasma-green text-primary-foreground line-through",
 							!enabled && "border-primary bg-primary/10 text-primary"
 						)}
 					/>

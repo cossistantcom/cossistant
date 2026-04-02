@@ -37,7 +37,7 @@ function EscalationActionCard({
 	return (
 		<div
 			className={cn(
-				"flex flex-col gap-3 bg-cossistant-orange/5 p-3",
+				"flex flex-col gap-3 bg-plasma-orange/5 p-3",
 				className
 			)}
 		>
@@ -50,7 +50,7 @@ function EscalationActionCard({
 
 			<div className="flex items-center justify-end">
 				<Button
-					className="bg-cossistant-orange text-white hover:bg-cossistant-orange/90"
+					className="bg-plasma-orange text-white hover:bg-plasma-orange/90"
 					disabled={isJoining}
 					onClick={onJoin}
 					ref={joinButtonRef}
@@ -86,7 +86,7 @@ export const EscalationAction: React.FC<EscalationActionProps> = ({
 
 	if (!isStandalone) {
 		return (
-			<ComposerCentralBlock className="border-cossistant-orange/50 border-dashed bg-cossistant-orange/5 dark:border-cossistant-orange/40 dark:bg-cossistant-orange/5">
+			<ComposerCentralBlock className="border-plasma-orange/50 border-dashed bg-plasma-orange/5 dark:border-plasma-orange/40 dark:bg-plasma-orange/5">
 				<EscalationActionCard
 					className="rounded-[2px] border-0 bg-transparent p-4"
 					isJoining={isJoining}

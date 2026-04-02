@@ -230,7 +230,7 @@ function samplePointerTrailInfluence(
 }
 
 export function Background({
-	accentColorVar = "--cossistant-orange",
+	accentColorVar = "--plasma-orange",
 	asciiOpacity = 1,
 	characterPalette = "detailed",
 	characters,
@@ -418,7 +418,7 @@ export function Background({
 			);
 			const accentColor = readCssColor(
 				rootStyle.getPropertyValue(resolvedConfig.accentColorVar).trim() ||
-					rootStyle.getPropertyValue("--cossistant-orange").trim(),
+					rootStyle.getPropertyValue("--plasma-orange").trim(),
 				FALLBACK_ACCENT
 			);
 			const isDarkTheme = getRelativeLuminance(backgroundColor) < 0.5;

@@ -2,10 +2,10 @@
 const nextConfig = {
 	reactStrictMode: true,
 	transpilePackages: [
-		"@cossistant/core",
-		"@cossistant/react",
-		"@cossistant/next",
-		"@cossistant/types",
+		"@plasma/core",
+		"@plasma/react",
+		"@plasma/next",
+		"@plasma/types",
 	],
 	devIndicators: false,
 };

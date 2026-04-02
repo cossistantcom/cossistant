@@ -8,7 +8,7 @@ type BrowserShellProps = {
 	contentClassName?: string;
 };
 
-const DEFAULT_CHROME_URL = "https://cossistant.com/shadcn/inbox";
+const DEFAULT_CHROME_URL = "https://plasma-pandora.com/shadcn/inbox";
 
 export function BrowserShell({
 	children,

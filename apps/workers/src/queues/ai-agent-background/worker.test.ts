@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import type { AiAgentBackgroundJobData } from "@cossistant/jobs";
+import type { AiAgentBackgroundJobData } from "@plasma/jobs";
 
 type MockJob<T> = {
 	id: string;
@@ -105,7 +105,7 @@ mock.module("@api/ai-pipeline", () => ({
 
 mock.module("@workers/db", () => ({ db: {} }));
 mock.module("@workers/env", () => ({ env: { AI_AGENT_CONCURRENCY: 7 } }));
-mock.module("@cossistant/redis", () => ({
+mock.module("@plasma/redis", () => ({
 	getSafeRedisUrl: () => "redis://masked",
 }));
 

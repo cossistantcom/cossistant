@@ -15,9 +15,9 @@ function renderScreenshotFrame(
 			items={[
 				{
 					alt: "Inbox overview",
-					browserUrl: "https://docs.cossistant.com/inbox",
+					browserUrl: "https://docs.plasma-pandora.com/inbox",
 					legend: "Inbox",
-					src: "https://cdn.cossistant.com/landing/main-large.jpg",
+					src: "https://cdn.plasma-pandora.com/landing/main-large.jpg",
 				},
 			]}
 			type="browser"
@@ -53,20 +53,20 @@ describe("ScreenshotFrame", () => {
 		const html = renderScreenshotFrame({
 			backgroundColor: "#e7e4de",
 			backgroundImageSrc:
-				"https://cdn.cossistant.com/landing/secondary-large.jpg",
+				"https://cdn.plasma-pandora.com/landing/secondary-large.jpg",
 			items: [
 				{
 					alt: "Inbox overview",
-					browserUrl: "https://docs.cossistant.com/inbox",
+					browserUrl: "https://docs.plasma-pandora.com/inbox",
 					legend: "Inbox",
-					src: "https://cdn.cossistant.com/landing/main-large.jpg",
+					src: "https://cdn.plasma-pandora.com/landing/main-large.jpg",
 				},
 				{
 					alt: "Assignment screen",
-					browserUrl: "https://docs.cossistant.com/assignments",
+					browserUrl: "https://docs.plasma-pandora.com/assignments",
 					legend: "Assignments",
 					position: "bottom",
-					src: "https://cdn.cossistant.com/landing/main-medium.jpg",
+					src: "https://cdn.plasma-pandora.com/landing/main-medium.jpg",
 				},
 			],
 		});
@@ -77,9 +77,9 @@ describe("ScreenshotFrame", () => {
 		expect(html).toContain('data-breakout="true"');
 		expect(html).toContain("background-color:#e7e4de");
 		expect(html).toContain(
-			"background-image:url(&quot;https://cdn.cossistant.com/landing/secondary-large.jpg&quot;)"
+			"background-image:url(&quot;https://cdn.plasma-pandora.com/landing/secondary-large.jpg&quot;)"
 		);
-		expect(html).toContain("https://docs.cossistant.com/inbox");
+		expect(html).toContain("https://docs.plasma-pandora.com/inbox");
 		expect(html).toContain("Inbox");
 		expect(html).toContain("Assignments");
 		expect(html).toContain('data-slot="screenshot-frame-navigation"');
@@ -91,11 +91,11 @@ describe("ScreenshotFrame", () => {
 			items: [
 				{
 					alt: "Inbox overview",
-					src: "https://cdn.cossistant.com/landing/main-large.jpg",
+					src: "https://cdn.plasma-pandora.com/landing/main-large.jpg",
 				},
 				{
 					alt: "Conversation view",
-					src: "https://cdn.cossistant.com/landing/main-medium.jpg",
+					src: "https://cdn.plasma-pandora.com/landing/main-medium.jpg",
 				},
 			],
 		});
@@ -111,7 +111,7 @@ describe("ScreenshotFrame", () => {
 				{
 					alt: "Support widget home",
 					position: "bottom",
-					src: "https://cdn.cossistant.com/landing/secondary-large.jpg",
+					src: "https://cdn.plasma-pandora.com/landing/secondary-large.jpg",
 					xOffsetRatio: -0.2,
 					zoomLevel: 1.1,
 				},
@@ -134,7 +134,7 @@ describe("ScreenshotFrame", () => {
 			items: [
 				{
 					alt: "Support widget home",
-					src: "https://cdn.cossistant.com/landing/secondary-large.jpg",
+					src: "https://cdn.plasma-pandora.com/landing/secondary-large.jpg",
 					type: "widget",
 				},
 			],
@@ -151,12 +151,12 @@ describe("ScreenshotFrame", () => {
 			items: [
 				{
 					alt: "Dashboard overview",
-					src: "https://cdn.cossistant.com/landing/main-large.jpg",
+					src: "https://cdn.plasma-pandora.com/landing/main-large.jpg",
 					type: "browser",
 				},
 				{
 					alt: "Support widget home",
-					src: "https://cdn.cossistant.com/landing/secondary-large.jpg",
+					src: "https://cdn.plasma-pandora.com/landing/secondary-large.jpg",
 					type: "widget",
 				},
 			],

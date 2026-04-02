@@ -2,7 +2,7 @@ import { Github } from "lucide-react";
 import { ApiRouteExample } from "@/components/api-route-example";
 import { AvatarGenerator } from "@/components/avatar-generator";
 import { CodeExample } from "@/components/code-example";
-import { CossistantLogo } from "@/components/cossistant-logo";
+import { PlasmaLogo } from "@/components/plasma-logo";
 import { FloatingAvatars } from "@/components/floating-avatars";
 import { InlineAvatar } from "@/components/inline-avatar";
 import { InstallCommand } from "@/components/install-command";
@@ -37,13 +37,13 @@ export default function Home() {
 						</h1>
 						<a
 							className="mt-3 flex items-center justify-center gap-1.5 text-[var(--muted-foreground)] text-xs transition-colors hover:text-[var(--foreground)]"
-							href="https://cossistant.com?ref=facehash"
+							href="https://plasma-pandora.com?ref=facehash"
 							rel="noopener noreferrer"
 							target="_blank"
 						>
 							<span>by</span>
-							<CossistantLogo className="h-2.5 w-auto" />
-							<span>cossistant</span>
+							<PlasmaLogo className="h-2.5 w-auto" />
+							<span>Plasma</span>
 						</a>
 					</div>
 
@@ -160,7 +160,7 @@ export default function Home() {
 							made by{" "}
 							<a
 								className="text-[var(--foreground)] underline underline-offset-4 transition-colors hover:text-[var(--accent)]"
-								href="https://cossistant.com?ref=facehash"
+								href="https://plasma-pandora.com?ref=facehash"
 								rel="noopener noreferrer"
 								target="_blank"
 							>
@@ -179,7 +179,7 @@ export default function Home() {
 						<div className="flex items-center gap-4">
 							<a
 								className="text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
-								href="https://github.com/cossistantcom/cossistant"
+								href="https://github.com/plasma-pandora/plasma-pandora"
 								rel="noopener noreferrer"
 								target="_blank"
 							>

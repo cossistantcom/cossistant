@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { Mention } from "@cossistant/tiny-markdown";
+import type { Mention } from "@plasma/tiny-markdown";
 import {
 	convertDisplayToMarkdown,
 	formatMentionDisplay,

@@ -2,7 +2,7 @@ import type { KnowledgeClarificationContextSnapshot } from "@api/lib/knowledge-c
 import type {
 	KnowledgeClarificationDraftFaq,
 	KnowledgeClarificationQuestionPlan,
-} from "@cossistant/types";
+} from "@plasma/types";
 import {
 	type InferInsertModel,
 	type InferSelectModel,

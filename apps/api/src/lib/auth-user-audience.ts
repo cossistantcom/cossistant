@@ -1,4 +1,4 @@
-import { addUserToDefaultAudience } from "@cossistant/transactional";
+import { addUserToDefaultAudience } from "@plasma/transactional";
 
 type AuthUserLike = {
 	id?: unknown;

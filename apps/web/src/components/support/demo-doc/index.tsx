@@ -1,4 +1,4 @@
-import { Support } from "@cossistant/next";
+import { Support } from "@plasma/next";
 import React from "react";
 
 function CossistantSupport() {

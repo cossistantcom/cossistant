@@ -1,14 +1,14 @@
 /** biome-ignore-all lint/correctness/useHookAtTopLevel: ok here */
 "use client";
 
-import { FILE_INPUT_ACCEPT } from "@cossistant/core";
+import { FILE_INPUT_ACCEPT } from "@plasma/core";
 import {
 	CONVERSATION_AUTO_SEEN_DELAY_MS,
 	useMultimodalInput,
 	useWindowVisibilityFocus,
-} from "@cossistant/react";
-import type { AvailableAIAgent } from "@cossistant/types";
-import type { TimelineItem } from "@cossistant/types/api/timeline-item";
+} from "@plasma/react";
+import type { AvailableAIAgent } from "@plasma/types";
+import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import { useQuery } from "@tanstack/react-query";
 import {
 	startTransition,
@@ -708,7 +708,7 @@ export function ConversationPane({
 		<>
 			{/* {!hardLimitsEnforced &&
 			hardLimitsUnavailableReason === "billing_provider_unavailable" ? (
-				<div className="mx-4 mb-2 rounded border border-cossistant-orange/30 bg-cossistant-orange/5 px-3 py-2 text-cossistant-orange text-xs">
+				<div className="mx-4 mb-2 rounded border border-plasma-orange/30 bg-plasma-orange/5 px-3 py-2 text-plasma-orange text-xs">
 					Hard-limit checks are temporarily unavailable while billing sync
 					recovers.
 				</div>

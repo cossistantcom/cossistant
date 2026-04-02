@@ -1,4 +1,4 @@
-import { isWidgetTimelineTool } from "@cossistant/types";
+import { isWidgetTimelineTool } from "@plasma/types";
 import type React from "react";
 import type {
 	ConversationTimelineToolProps,

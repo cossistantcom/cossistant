@@ -1,8 +1,8 @@
-import type { AvailableAIAgent, AvailableHumanAgent } from "@cossistant/types";
+import type { AvailableAIAgent, AvailableHumanAgent } from "@plasma/types";
 import type {
 	TimelineItem,
 	TimelinePartEvent,
-} from "@cossistant/types/api/timeline-item";
+} from "@plasma/types/api/timeline-item";
 import { resolveDashboardHumanAgentDisplay } from "./human-agent-display";
 import { getVisitorNameWithFallback } from "./visitors";
 

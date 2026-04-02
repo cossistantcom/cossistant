@@ -15,7 +15,7 @@ const aiAgentBackground = createWorkerFactoryMock();
 const webCrawl = createWorkerFactoryMock();
 const aiTraining = createWorkerFactoryMock();
 
-mock.module("@cossistant/redis", () => ({
+mock.module("@plasma/redis", () => ({
 	getBullConnectionOptions: getBullConnectionOptionsMock,
 }));
 

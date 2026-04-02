@@ -1,6 +1,6 @@
 "use client";
 
-import type { ContactListVisitorStatus } from "@cossistant/types";
+import type { ContactListVisitorStatus } from "@plasma/types";
 import type { OnChangeFn, SortingState } from "@tanstack/react-table";
 import { parseAsInteger, parseAsString, useQueryState } from "nuqs";
 import { useCallback, useMemo } from "react";

@@ -3,9 +3,9 @@
 import type {
 	CossistantContextValue,
 	UseSupportValue,
-} from "@cossistant/react/provider";
-import { SupportContext } from "@cossistant/react/provider";
-import type { PublicWebsiteResponse } from "@cossistant/types";
+} from "@plasma/react/provider";
+import { SupportContext } from "@plasma/react/provider";
+import type { PublicWebsiteResponse } from "@plasma/types";
 import React from "react";
 
 const ANTHONY_RIERA_ID = "01JGUSER1111111111111111";
@@ -16,7 +16,7 @@ const MARC_VISITOR_ID = "01JGVIS22222222222222222";
 const fakeWebsite: PublicWebsiteResponse = {
 	id: "01JGWEB11111111111111111",
 	name: "Cossistant",
-	domain: "cossistant.com",
+	domain: "plasma-pandora.com",
 	description: "AI-powered customer support",
 	logoUrl: null,
 	organizationId: "01JGORG11111111111111111",
@@ -61,7 +61,7 @@ const fakeClient = {
 } as unknown as CossistantContextValue["client"];
 
 // We need to provide the real SupportContext for the real useSupport() hook.
-// Since SupportContext is not exported from @cossistant/react/provider,
+// Since SupportContext is not exported from @plasma/react/provider,
 // we'll create our own context that matches the same structure.
 // Real components using useSupport() will look for SupportContext, but
 // since it's module-scoped, they won't find our fake one.

@@ -1,9 +1,9 @@
-import type { MarkdownToken } from "@cossistant/tiny-markdown";
+import type { MarkdownToken } from "@plasma/tiny-markdown";
 import {
 	hasMarkdownFormatting,
 	parseMarkdown,
-} from "@cossistant/tiny-markdown/utils";
-import type { TimelineItem as TimelineItemType } from "@cossistant/types/api/timeline-item";
+} from "@plasma/tiny-markdown/utils";
+import type { TimelineItem as TimelineItemType } from "@plasma/types/api/timeline-item";
 import * as React from "react";
 import { useRenderElement } from "../utils/use-render-element";
 import {

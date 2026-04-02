@@ -17,7 +17,7 @@ import {
 	parseSkillFileContent,
 	serializeSkillFileContent,
 	stripSkillMarkdownExtension,
-} from "@cossistant/types";
+} from "@plasma/types";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { ulid } from "ulid";
 

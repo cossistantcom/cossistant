@@ -4,7 +4,7 @@ import { generateUploadUrl } from "@api/services/upload";
 import {
 	generateUploadUrlRequestSchema,
 	generateUploadUrlResponseSchema,
-} from "@cossistant/types/api/upload";
+} from "@plasma/types/api/upload";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "../init";
 

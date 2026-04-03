@@ -61,17 +61,15 @@ export function rankVipCustomers(
         ? sentiments.reduce((a, b) => a + b, 0) / sentiments.length
         : 0;
 
-    const firstConv = convs.sort((a, b) =>
+    const sorted = [...convs].sort((a, b) =>
       a.createdAt.localeCompare(b.createdAt),
-    )[0];
+    );
+    const firstConv = sorted.at(0);
+    const lastConv = sorted.at(-1);
     const daysSinceFirst = firstConv
       ? (Date.now() - new Date(firstConv.createdAt).getTime()) /
         (1000 * 60 * 60 * 24)
       : 0;
-
-    const lastConv = convs.sort((a, b) =>
-      b.createdAt.localeCompare(a.createdAt),
-    )[0];
 
     results.push({
       visitorId,

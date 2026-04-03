@@ -38,10 +38,10 @@ export function findExactMatch(
   let bestDistance = Infinity;
 
   for (const entry of faqEntries) {
-    const distance = levenshtein(
-      normalizedQuery,
-      entry.question.toLowerCase().trim(),
-    );
+    const normalizedQuestion = entry.question.toLowerCase().trim();
+    const lengthRatio = normalizedQuery.length / normalizedQuestion.length;
+    if (lengthRatio < 0.3 || lengthRatio > 3.0) continue;
+    const distance = levenshtein(normalizedQuery, normalizedQuestion);
     if (distance < bestDistance) {
       bestDistance = distance;
       bestMatch = entry;

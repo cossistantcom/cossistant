@@ -45,6 +45,7 @@ export async function executeWaterfall(
         ctx.queryEmbedding,
         ctx.semanticCache,
         config.semanticCacheThreshold,
+        ctx.query,
       );
       if (cached) return cached;
     } catch (err) {
@@ -56,17 +57,19 @@ export async function executeWaterfall(
   }
 
   // L2: Vector Search (~15ms)
+  const ragContext: string[] = [];
   if (ctx.queryEmbedding && ctx.vectorSearch) {
     try {
       const vectorResult = await ctx.vectorSearch(
         ctx.queryEmbedding,
         config.vectorSearchThreshold,
       );
-      if (
-        vectorResult &&
-        vectorResult.confidence >= config.vectorSearchThreshold
-      ) {
-        return vectorResult;
+      if (vectorResult) {
+        if (vectorResult.confidence >= config.vectorSearchThreshold) {
+          return vectorResult;
+        }
+        // Below threshold but has content — carry forward to RAG
+        ragContext.push(vectorResult.content);
       }
     } catch (err) {
       console.warn(
@@ -79,8 +82,18 @@ export async function executeWaterfall(
   // L3: RAG Generation (~500-1500ms)
   if (ctx.ragGenerate) {
     try {
-      const ragResult = await ctx.ragGenerate(ctx.query, []);
+      const ragResult = await ctx.ragGenerate(ctx.query, ragContext);
       if (ragResult && ragResult.confidence >= config.ragConfidenceThreshold) {
+        // Write back to semantic cache for future hits
+        if (ctx.semanticCache && ctx.queryEmbedding) {
+          try {
+            await ctx.semanticCache.set(
+              ctx.query,
+              ragResult.content,
+              ctx.queryEmbedding,
+            );
+          } catch {}
+        }
         return ragResult;
       }
     } catch (err) {

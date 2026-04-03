@@ -6,11 +6,14 @@ export function useVoiceSession(config: VoiceSessionConfig) {
   const [transcript, setTranscript] = useState<string>("");
   const wsRef = useRef<WebSocket | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const stoppingRef = useRef(false);
+  const statusRef = useRef<VoiceStatus>("idle");
 
   const updateStatus = useCallback(
     (newStatus: VoiceStatus) => {
+      statusRef.current = newStatus;
       setStatus(newStatus);
       config.onStatusChange?.(newStatus);
     },
@@ -40,9 +43,15 @@ export function useVoiceSession(config: VoiceSessionConfig) {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: true, noiseSuppression: true },
         });
-        const recorder = new MediaRecorder(stream, {
-          mimeType: "audio/webm;codecs=opus",
-        });
+        streamRef.current = stream;
+        const mimeType =
+          ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/mp4"].find(
+            (t) => MediaRecorder.isTypeSupported(t),
+          ) ?? "";
+        const recorder = new MediaRecorder(
+          stream,
+          mimeType ? { mimeType } : {},
+        );
         mediaRecorderRef.current = recorder;
 
         recorder.ondataavailable = (e) => {
@@ -69,6 +78,7 @@ export function useVoiceSession(config: VoiceSessionConfig) {
   );
 
   const start = useCallback(async () => {
+    if (wsRef.current || statusRef.current !== "idle") return;
     if (stoppingRef.current) return;
     try {
       updateStatus("connecting");
@@ -82,12 +92,15 @@ export function useVoiceSession(config: VoiceSessionConfig) {
           conversation_history: config.conversationHistory || [],
         }),
       });
+      if (!resp.ok) {
+        throw new Error(`Voice session creation failed: ${resp.status}`);
+      }
       const session = await resp.json();
 
       // Connect WebSocket
-      const wsUrl =
-        config.apiUrl.replace(/^http/, "ws") +
-        `/voice/stream/${session.session_id}`;
+      const base = new URL(config.apiUrl);
+      base.protocol = base.protocol === "https:" ? "wss:" : "ws:";
+      const wsUrl = `${base.origin}${base.pathname.replace(/\/$/, "")}/voice/stream/${session.session_id}`;
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
@@ -100,7 +113,13 @@ export function useVoiceSession(config: VoiceSessionConfig) {
 
       ws.onmessage = (event) => {
         if (typeof event.data === "string") {
-          const msg = JSON.parse(event.data);
+          let msg;
+          try {
+            msg = JSON.parse(event.data);
+          } catch {
+            console.warn("Invalid JSON from voice WS:", event.data);
+            return;
+          }
           if (msg.type === "transcript") {
             setTranscript(msg.content);
             config.onTranscript?.(msg.role, msg.content);
@@ -137,18 +156,24 @@ export function useVoiceSession(config: VoiceSessionConfig) {
   const stop = useCallback(() => {
     stoppingRef.current = true;
 
-    // Stop media recorder
+    // Stop media recorder and release mic tracks directly (don't rely on onstop)
     if (
       mediaRecorderRef.current &&
       mediaRecorderRef.current.state !== "inactive"
     ) {
       mediaRecorderRef.current.stop();
-      mediaRecorderRef.current = null;
     }
+    mediaRecorderRef.current = null;
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
 
     // Close WebSocket
     if (wsRef.current) {
-      wsRef.current.send(JSON.stringify({ type: "end" }));
+      if (wsRef.current.readyState === WebSocket.OPEN) {
+        try {
+          wsRef.current.send(JSON.stringify({ type: "end" }));
+        } catch {}
+      }
       wsRef.current.close();
       wsRef.current = null;
     }
@@ -159,8 +184,9 @@ export function useVoiceSession(config: VoiceSessionConfig) {
       audioContextRef.current = null;
     }
 
-    updateStatus("idle");
+    // Null all refs before resetting stopping flag to block re-entry during teardown
     stoppingRef.current = false;
+    updateStatus("idle");
   }, [updateStatus]);
 
   // Cleanup on unmount

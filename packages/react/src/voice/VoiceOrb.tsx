@@ -34,9 +34,20 @@ export function VoiceOrb({
   const scale = 1 + avgLevel * 0.3;
   const isActive = status !== "idle" && status !== "error";
 
+  const statusEmoji = {
+    idle: "🎙️",
+    listening: "🎤",
+    speaking: "🔊",
+    processing: "⏳",
+    connecting: "📡",
+    error: "⚠️",
+  }[status];
+
   return (
     <button
       type="button"
+      aria-label={`Voice: ${status}`}
+      aria-pressed={isActive}
       onClick={onClick}
       className={className}
       style={{
@@ -103,12 +114,7 @@ export function VoiceOrb({
           fontSize: size * 0.25,
         }}
       >
-        {status === "idle" && "🎙️"}
-        {status === "listening" && "🎤"}
-        {status === "speaking" && "🔊"}
-        {status === "processing" && "⏳"}
-        {status === "connecting" && "📡"}
-        {status === "error" && "⚠️"}
+        <span aria-hidden="true">{statusEmoji}</span>
       </div>
     </button>
   );

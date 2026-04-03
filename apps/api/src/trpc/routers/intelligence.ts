@@ -2,10 +2,10 @@ import { member } from "@api/db/schema/auth";
 import { conversation } from "@api/db/schema/conversation";
 import { dossier } from "@api/db/schema/dossier";
 import { contact, visitor } from "@api/db/schema/website";
-import { TRPCError } from "@trpc/server";
 import { and, asc, count, desc, eq, gte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../init";
+import { assertOrgAccess } from "../utils/assert-org-access";
 
 const periodSchema = z.enum(["day", "week", "month"]);
 
@@ -18,27 +18,6 @@ function periodToWindowStart(period: z.infer<typeof periodSchema>): Date {
     return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   }
   return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-}
-
-async function assertOrgAccess(
-  db: Parameters<typeof createTRPCRouter>[0] extends never ? never : any,
-  userId: string,
-  organizationId: string,
-) {
-  const [membership] = await db
-    .select()
-    .from(member)
-    .where(
-      and(eq(member.userId, userId), eq(member.organizationId, organizationId)),
-    )
-    .limit(1);
-
-  if (!membership) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "You do not have access to this organization",
-    });
-  }
 }
 
 export const intelligenceRouter = createTRPCRouter({

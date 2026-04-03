@@ -1,5 +1,12 @@
 import { type InferInsertModel, type InferSelectModel } from "drizzle-orm";
-import { index, integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
+import {
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 import { ulidPrimaryKey, ulidReference } from "../../utils/db/ids";
 import { isoTimestamp as timestamp } from "../../utils/db/timestamp";
 import { organization } from "./auth";
@@ -32,6 +39,10 @@ export const waitlistEntry = pgTable(
     index("waitlist_email_idx").on(table.email),
     index("waitlist_status_idx").on(table.status),
     index("waitlist_score_idx").on(table.score),
+    uniqueIndex("waitlist_org_email_uniq").on(
+      table.organizationId,
+      table.email,
+    ),
   ],
 );
 

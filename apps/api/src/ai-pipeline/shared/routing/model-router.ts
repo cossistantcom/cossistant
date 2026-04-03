@@ -49,7 +49,17 @@ export function classifyComplexity(
 export function routeModel(
   config: TieredRoutingConfig,
   level: ComplexityLevel,
+  fallbackModel?: string,
 ): RouteDecision {
+  if (!config.enabled) {
+    return {
+      level,
+      model: fallbackModel ?? config.complex.model,
+      temperature: 0.5,
+      maxTokens: 1024,
+      reasoning: "tiered routing disabled",
+    };
+  }
   const tier = config[level];
   return {
     level,

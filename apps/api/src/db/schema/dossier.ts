@@ -11,6 +11,7 @@ import {
 } from "../../utils/db/ids";
 import { isoTimestamp as timestamp } from "../../utils/db/timestamp";
 import { organization } from "./auth";
+import { visitor } from "./website";
 
 export const dossier = pgTable(
   "dossier",
@@ -20,7 +21,9 @@ export const dossier = pgTable(
       () => organization.id,
       { onDelete: "cascade" },
     ),
-    visitorId: ulidReference("visitor_id").notNull(),
+    visitorId: ulidReference("visitor_id")
+      .notNull()
+      .references(() => visitor.id, { onDelete: "cascade" }),
     contactId: ulidNullableReference("contact_id"),
     content: text("content").notNull().default(""),
     tokenCount: integer("token_count").default(0).notNull(),

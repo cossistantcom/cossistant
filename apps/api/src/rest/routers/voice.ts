@@ -1,9 +1,20 @@
 import { Hono } from "hono";
+import { protectedPublicApiKeyMiddleware } from "../middleware";
 
 const VOICE_SIDECAR_URL =
   process.env.VOICE_SIDECAR_URL || "http://localhost:8001";
 
+const parsedSidecarUrl = new URL(VOICE_SIDECAR_URL);
+const ALLOWED_SIDECAR_HOSTS = ["localhost", "127.0.0.1", "voice-sidecar"];
+if (!ALLOWED_SIDECAR_HOSTS.includes(parsedSidecarUrl.hostname)) {
+  throw new Error(
+    `Untrusted VOICE_SIDECAR_URL hostname: ${parsedSidecarUrl.hostname}`,
+  );
+}
+
 export const voiceRouter = new Hono();
+
+voiceRouter.use("/*", ...protectedPublicApiKeyMiddleware);
 
 // Proxy: Create voice session
 voiceRouter.post("/sessions", async (c) => {

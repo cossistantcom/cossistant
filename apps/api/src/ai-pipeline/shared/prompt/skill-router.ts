@@ -24,10 +24,10 @@ const COMPLIANCE_KEYWORDS = [
 
 export function routeSkill(ctx: SkillRoutingContext, query: string): SkillName {
   // Explicit escalation triggers
-  if (ctx.humanRequested || ctx.confidenceBelowThreshold) return "escalation";
-  if (ctx.isFrustrated && ctx.conversationLength > 4) return "escalation";
+  if (ctx.isFrustrated || ctx.humanRequested || ctx.confidenceBelowThreshold)
+    return "escalation";
 
-  // Compliance topics take priority
+  // Compliance topics take priority — checked before voice to prevent bypass
   if (ctx.isComplianceTopic || COMPLIANCE_KEYWORDS.some((p) => p.test(query))) {
     return "compliance_guard";
   }

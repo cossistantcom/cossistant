@@ -2,18 +2,16 @@ import type { RetrievalResult } from "./types";
 
 // Interface for Redis-backed semantic cache
 export interface SemanticCacheStore {
-  get(
-    embeddingKey: string,
-  ): Promise<{
+  get(key: string): Promise<{
     content: string;
     embedding: number[];
     similarity: number;
   } | null>;
   set(
-    embeddingKey: string,
+    key: string,
     content: string,
     embedding: number[],
-    ttlSeconds: number,
+    ttlSeconds?: number,
   ): Promise<void>;
 }
 
@@ -27,18 +25,21 @@ function cosineSimilarity(a: number[], b: number[]): number {
     normA += a[i] * a[i];
     normB += b[i] * b[i];
   }
-  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+  const norm = Math.sqrt(normA) * Math.sqrt(normB);
+  if (norm === 0) return 0;
+  return dotProduct / norm;
 }
 
 export async function checkSemanticCache(
   queryEmbedding: number[],
   cache: SemanticCacheStore,
   threshold: number = 0.92,
+  query: string,
 ): Promise<RetrievalResult | null> {
   const start = performance.now();
 
-  // Cache lookup by nearest embedding
-  const cached = await cache.get(queryEmbedding.slice(0, 8).join(","));
+  const key = query.toLowerCase().trim();
+  const cached = await cache.get(key);
   if (!cached) return null;
 
   const similarity = cosineSimilarity(queryEmbedding, cached.embedding);

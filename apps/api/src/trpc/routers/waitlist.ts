@@ -116,35 +116,28 @@ export const waitlistRouter = createTRPCRouter({
     .input(
       z.object({
         id: z.string(),
+        organizationId: z.string(),
         status: waitlistStatusSchema,
       }),
     )
     .mutation(async ({ ctx: { db, user }, input }) => {
-      const [existing] = await db
-        .select()
-        .from(waitlistEntry)
-        .where(eq(waitlistEntry.id, input.id))
-        .limit(1);
-
-      if (!existing) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Waitlist entry not found",
-        });
-      }
-
-      await assertOrgAccess(db, user.id, existing.organizationId);
+      await assertOrgAccess(db, user.id, input.organizationId);
 
       const [updated] = await db
         .update(waitlistEntry)
         .set({ status: input.status, updatedAt: new Date().toISOString() })
-        .where(eq(waitlistEntry.id, input.id))
+        .where(
+          and(
+            eq(waitlistEntry.id, input.id),
+            eq(waitlistEntry.organizationId, input.organizationId),
+          ),
+        )
         .returning();
 
       if (!updated) {
         throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to update waitlist entry",
+          code: "NOT_FOUND",
+          message: "Waitlist entry not found",
         });
       }
 

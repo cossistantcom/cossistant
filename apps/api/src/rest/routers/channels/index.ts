@@ -7,6 +7,12 @@ channelsRouter.post("/telegram/webhook", async (c) => {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) return c.json({ error: "Telegram not configured" }, 503);
 
+  const secret = c.req.header("x-telegram-bot-api-secret-token");
+  const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (expectedSecret && secret !== expectedSecret) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+
   try {
     const { TelegramAdapter } = await import("@plasma/channels");
     const adapter = new TelegramAdapter(token);
@@ -18,7 +24,7 @@ channelsRouter.post("/telegram/webhook", async (c) => {
     // TODO: Queue for AI pipeline via QStash
     // For now, echo back that we received it
     console.log(
-      `[telegram] Received from ${message.visitorExternalId}: ${message.content}`,
+      `[telegram] Received from ${message.visitorExternalId}: [${message.content.length} chars]`,
     );
 
     return c.json({ ok: true });
@@ -35,15 +41,26 @@ channelsRouter.post("/discord/interactions", async (c) => {
   if (!botToken) return c.json({ error: "Discord not configured" }, 503);
 
   try {
-    const body = await c.req.json();
+    const rawBody = await c.req.text();
+    const body = JSON.parse(rawBody);
+
+    const { DiscordAdapter } = await import("@plasma/channels");
+    const adapter = new DiscordAdapter(botToken, publicKey);
+
+    // Validate Ed25519 signature before any response (including PING)
+    const headers: Record<string, string> = {};
+    c.req.raw.headers.forEach((v, k) => {
+      headers[k] = v;
+    });
+    if (publicKey && !adapter.validateWebhook(headers, rawBody)) {
+      return c.json({ error: "Invalid signature" }, 401);
+    }
 
     // Handle Discord PING verification
     if (body.type === 1) {
       return c.json({ type: 1 });
     }
 
-    const { DiscordAdapter } = await import("@plasma/channels");
-    const adapter = new DiscordAdapter(botToken, publicKey);
     const message = adapter.parseIncoming(body);
 
     if (!message) {
@@ -55,7 +72,7 @@ channelsRouter.post("/discord/interactions", async (c) => {
 
     // TODO: Queue for AI pipeline
     console.log(
-      `[discord] Received from ${message.visitorExternalId}: ${message.content}`,
+      `[discord] Received from ${message.visitorExternalId}: [${message.content.length} chars]`,
     );
 
     return c.json(
@@ -79,15 +96,10 @@ channelsRouter.post("/slack/events", async (c) => {
     const rawBody = await c.req.text();
     const body = JSON.parse(rawBody);
 
-    // Handle Slack URL verification challenge
-    if (body.type === "url_verification") {
-      return c.json({ challenge: body.challenge });
-    }
-
     const { SlackAdapter } = await import("@plasma/channels");
     const adapter = new SlackAdapter(botToken, signingSecret);
 
-    // Validate webhook signature
+    // Validate webhook signature before handling any event type
     const headers: Record<string, string> = {};
     c.req.raw.headers.forEach((v, k) => {
       headers[k] = v;
@@ -96,12 +108,17 @@ channelsRouter.post("/slack/events", async (c) => {
       return c.json({ error: "Invalid signature" }, 401);
     }
 
+    // Handle Slack URL verification challenge
+    if (body.type === "url_verification") {
+      return c.json({ challenge: body.challenge });
+    }
+
     const message = adapter.parseIncoming(body);
     if (!message) return c.json({ ok: true });
 
     // TODO: Queue for AI pipeline
     console.log(
-      `[slack] Received from ${message.visitorExternalId}: ${message.content}`,
+      `[slack] Received from ${message.visitorExternalId}: [${message.content.length} chars]`,
     );
 
     return c.json({ ok: true });
@@ -114,20 +131,32 @@ channelsRouter.post("/slack/events", async (c) => {
 // Intercom webhook
 channelsRouter.post("/intercom/webhook", async (c) => {
   const apiKey = process.env.INTERCOM_API_KEY || "";
+  const webhookSecret = process.env.INTERCOM_WEBHOOK_SECRET;
   if (!apiKey) return c.json({ error: "Intercom not configured" }, 503);
 
   try {
-    const body = await c.req.json();
+    const rawBody = await c.req.text();
+    const body = JSON.parse(rawBody);
 
     const { IntercomAdapter } = await import("@plasma/channels");
-    const adapter = new IntercomAdapter(apiKey);
+    const adapter = new IntercomAdapter(apiKey, webhookSecret);
+
+    // Validate HMAC signature before processing body
+    const headers: Record<string, string> = {};
+    c.req.raw.headers.forEach((v, k) => {
+      headers[k] = v;
+    });
+    if (!adapter.validateWebhook(headers, rawBody)) {
+      return c.json({ error: "Invalid signature" }, 401);
+    }
+
     const message = adapter.parseIncoming(body);
 
     if (!message) return c.json({ ok: true });
 
     // TODO: Queue for AI pipeline
     console.log(
-      `[intercom] Received from ${message.visitorExternalId}: ${message.content}`,
+      `[intercom] Received from ${message.visitorExternalId}: [${message.content.length} chars]`,
     );
 
     return c.json({ ok: true });
@@ -139,10 +168,5 @@ channelsRouter.post("/intercom/webhook", async (c) => {
 
 // Channel health
 channelsRouter.get("/health", async (c) => {
-  return c.json({
-    telegram: !!process.env.TELEGRAM_BOT_TOKEN,
-    discord: !!process.env.DISCORD_BOT_TOKEN,
-    slack: !!process.env.SLACK_BOT_TOKEN,
-    intercom: !!process.env.INTERCOM_API_KEY,
-  });
+  return c.json({ status: "ok" });
 });

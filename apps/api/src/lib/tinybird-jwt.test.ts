@@ -1,17 +1,19 @@
-import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
 const createTinybirdLocalJwtMock = mock(
 	async (_websiteId: string) => "local-jwt"
 );
+const readTinybirdLocalStatusMock = mock(async () => null);
 const jsonwebtokenSignMock = mock(() => "cloud-jwt");
 
 describe("tinybird jwt generation", () => {
 	beforeEach(() => {
 		createTinybirdLocalJwtMock.mockClear();
+		readTinybirdLocalStatusMock.mockClear();
 		jsonwebtokenSignMock.mockClear();
 	});
 
-	afterAll(() => {
+	afterEach(() => {
 		mock.restore();
 	});
 
@@ -24,9 +26,10 @@ describe("tinybird jwt generation", () => {
 				TINYBIRD_WORKSPACE: "workspace-local",
 			},
 		}));
-		mock.module("@api/lib/tinybird-local-cli", () => ({
-			createTinybirdLocalJwt: createTinybirdLocalJwtMock,
-		}));
+			mock.module("@api/lib/tinybird-local-cli", () => ({
+				createTinybirdLocalJwt: createTinybirdLocalJwtMock,
+				readTinybirdLocalStatus: readTinybirdLocalStatusMock,
+			}));
 		mock.module("jsonwebtoken", () => ({
 			default: {
 				sign: jsonwebtokenSignMock,
@@ -56,9 +59,10 @@ describe("tinybird jwt generation", () => {
 				TINYBIRD_WORKSPACE: "workspace-cloud",
 			},
 		}));
-		mock.module("@api/lib/tinybird-local-cli", () => ({
-			createTinybirdLocalJwt: createTinybirdLocalJwtMock,
-		}));
+			mock.module("@api/lib/tinybird-local-cli", () => ({
+				createTinybirdLocalJwt: createTinybirdLocalJwtMock,
+				readTinybirdLocalStatus: readTinybirdLocalStatusMock,
+			}));
 		mock.module("jsonwebtoken", () => ({
 			default: {
 				sign: jsonwebtokenSignMock,

@@ -3,6 +3,7 @@ import { conversation } from "@api/db/schema/conversation";
 import { dossier } from "@api/db/schema/dossier";
 import { contact, visitor } from "@api/db/schema/website";
 import { and, asc, count, desc, eq, gte, sql } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../init";
 import { assertOrgAccess } from "../utils/assert-org-access";

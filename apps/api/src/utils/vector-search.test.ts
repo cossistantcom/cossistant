@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
 
 const actualDrizzleOrm = await import("drizzle-orm");
 
@@ -94,6 +94,10 @@ describe("findSimilarKnowledge", () => {
 		descMock.mockClear();
 		cosineDistanceMock.mockClear();
 		sqlMock.mockClear();
+	});
+
+	afterAll(() => {
+		mock.restore();
 	});
 
 	it("joins knowledge rows and filters out deleted parents", async () => {

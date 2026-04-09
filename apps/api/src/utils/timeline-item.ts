@@ -1,6 +1,9 @@
 import type { Database } from "@api/db";
 import { getConversationById } from "@api/db/queries/conversation";
-import { conversation, conversationTimelineItem } from "@api/db/schema";
+import {
+	conversation,
+	conversationTimelineItem,
+} from "@api/db/schema/conversation";
 import { trackConversationMetricForVisitor } from "@api/lib/tinybird-sdk";
 import { realtime } from "@api/realtime/emitter";
 import { generateULID } from "@api/utils/db/ids";

@@ -18,7 +18,13 @@ mock.module("@api/db/queries/conversation", () => ({
 	getConversationById: getConversationByIdMock,
 }));
 
-const timelineItemModulePromise = import("./timeline-item");
+mock.module("@api/lib/tinybird-sdk", () => ({
+	trackConversationMetricForVisitor: mock(async () => {}),
+}));
+
+function loadTimelineItemModule() {
+	return import(`./timeline-item.ts?test=${Math.random()}`);
+}
 
 type DbHarness = {
 	db: {
@@ -107,7 +113,7 @@ describe("timeline-item utils", () => {
 		const harness = createDbHarness({
 			insertRows: [createdRow],
 		});
-		const { createTimelineItem } = await timelineItemModulePromise;
+			const { createTimelineItem } = await loadTimelineItemModule();
 
 		const created = await createTimelineItem({
 			db: harness.db as never,
@@ -172,7 +178,7 @@ describe("timeline-item utils", () => {
 		const harness = createDbHarness({
 			updateRows: [updatedRow],
 		});
-		const { updateTimelineItem } = await timelineItemModulePromise;
+			const { updateTimelineItem } = await loadTimelineItemModule();
 
 		const updated = await updateTimelineItem({
 			db: harness.db as never,
@@ -228,7 +234,7 @@ describe("timeline-item utils", () => {
 			insertRows: [createdRow],
 			updateRows: [],
 		});
-		const { createMessageTimelineItem } = await timelineItemModulePromise;
+			const { createMessageTimelineItem } = await loadTimelineItemModule();
 
 		const result = await createMessageTimelineItem({
 			db: harness.db as never,

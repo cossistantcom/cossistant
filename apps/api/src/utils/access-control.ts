@@ -1,5 +1,5 @@
 import type { Database } from "@api/db";
-import { member } from "@api/db/schema";
+import { member } from "@api/db/schema/auth";
 import { and, eq, inArray } from "drizzle-orm";
 
 const ORGANIZATION_ADMIN_ROLES = ["owner", "admin"] as const;

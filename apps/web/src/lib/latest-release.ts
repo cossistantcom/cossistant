@@ -1,4 +1,7 @@
-import { changelog } from "@/lib/source";
+import {
+	getChangelogData,
+	getSortedChangelogEntries,
+} from "@/lib/seo-content";
 
 export type LatestRelease = {
 	version: string;
@@ -7,27 +10,23 @@ export type LatestRelease = {
 	date: string;
 };
 
-type LatestReleasePage = ReturnType<typeof changelog.getPages>[number];
+type LatestReleasePage = ReturnType<typeof getSortedChangelogEntries>[number];
 type LatestReleaseBody = LatestReleasePage["data"]["body"];
 
 export function getLatestRelease(): LatestRelease | null {
-	const pages = changelog
-		.getPages()
-		.sort(
-			(a, b) =>
-				new Date(b.data.date).getTime() - new Date(a.data.date).getTime()
-		);
-
+	const pages = getSortedChangelogEntries();
 	const latest = pages[0];
 	if (!latest) {
 		return null;
 	}
 
+	const data = getChangelogData(latest);
+
 	return {
-		version: latest.data.version ?? "",
-		description: latest.data.description,
-		tinyExcerpt: latest.data["tiny-excerpt"] ?? "New release available",
-		date: latest.data.date,
+		version: data.version ?? "",
+		description: data.description,
+		tinyExcerpt: data["tiny-excerpt"] ?? "New release available",
+		date: data.date,
 	};
 }
 
@@ -38,17 +37,11 @@ export function getLatestRelease(): LatestRelease | null {
  * passed as children through client component boundaries.
  */
 export function getLatestReleaseBody(): LatestReleaseBody | null {
-	const pages = changelog
-		.getPages()
-		.sort(
-			(a, b) =>
-				new Date(b.data.date).getTime() - new Date(a.data.date).getTime()
-		);
-
+	const pages = getSortedChangelogEntries();
 	const latest = pages[0];
 	if (!latest) {
 		return null;
 	}
 
-	return latest.data.body;
+	return getChangelogData(latest).body ?? null;
 }

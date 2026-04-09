@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import type { AnyRealtimeEvent } from "@plasma/types/realtime-events";
 import type { EventContext } from "./router";
 import type { RawSocket } from "./socket";
@@ -34,6 +34,10 @@ mock.module("@api/db/schema", () => ({
 	conversationSeen: {},
 	conversationTimelineItem: {},
 	aiAgent: {},
+}));
+mock.module("@api/services/presence", () => ({
+	markUserPresence: async () => {},
+	markVisitorPresence: async () => {},
 }));
 mock.module("@api/lib/auth", () => ({
 	auth: {
@@ -118,6 +122,10 @@ beforeEach(async () => {
 	routeEventCalls.length = 0;
 	const { localConnections } = await socketModulePromise;
 	localConnections.clear();
+});
+
+afterAll(() => {
+	mock.restore();
 });
 
 describe("handleConnectionClose", () => {

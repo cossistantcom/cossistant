@@ -79,7 +79,7 @@ export class IntercomAdapter implements ChannelAdapter {
   validateWebhook(headers: Record<string, string>, body: string): boolean {
     const hubSignature = headers["x-hub-signature"];
     if (!hubSignature) return false;
-    if (!this.webhookSecret) return true; // presence-only check when no secret configured
+    if (!this.webhookSecret) return false;
 
     const expected =
       "sha256=" +

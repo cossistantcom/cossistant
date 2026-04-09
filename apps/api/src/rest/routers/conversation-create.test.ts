@@ -147,6 +147,7 @@ mock.module("@api/utils/geo-helpers", () => ({
 
 mock.module("@api/lib/tinybird-sdk", () => ({
 	trackConversationMetric: mock(() => {}),
+	trackConversationMetricForVisitor: mock(async () => {}),
 }));
 
 mock.module("../middleware", () => ({

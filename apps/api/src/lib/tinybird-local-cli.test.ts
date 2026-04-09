@@ -1,13 +1,10 @@
 import { describe, expect, it, mock } from "bun:test";
-import {
-	createTinybirdLocalJwt,
-	parseTinybirdJwtOutput,
-	parseTinybirdLocalStatusOutput,
-	readTinybirdLocalStatus,
-} from "./tinybird-local-cli";
 
 describe("tinybird local cli helpers", () => {
-	it("parses tb local status output", () => {
+	it("parses tb local status output", async () => {
+		const { parseTinybirdLocalStatusOutput } = await import(
+			`./tinybird-local-cli.ts?status=${Math.random()}`
+		);
 		const status = parseTinybirdLocalStatusOutput(`
 » Tinybird Local:
 --------------------------------------------------------------------------------
@@ -22,7 +19,10 @@ token: tb.local.token
 		});
 	});
 
-	it("parses tb token create jwt output", () => {
+	it("parses tb token create jwt output", async () => {
+		const { parseTinybirdJwtOutput } = await import(
+			`./tinybird-local-cli.ts?jwt=${Math.random()}`
+		);
 		expect(
 			parseTinybirdJwtOutput(`
 Running against Tinybird Local
@@ -33,6 +33,9 @@ The token is: header.payload.signature
 	});
 
 	it("reads Tinybird Local status via tb local status", async () => {
+		const { readTinybirdLocalStatus } = await import(
+			`./tinybird-local-cli.ts?read=${Math.random()}`
+		);
 		const execFileMock = mock(
 			async (_command: string, _args: string[], _options: { cwd: string }) => ({
 				stdout: "workspace_id: workspace-live\ntoken: tb.live.token\n",
@@ -56,6 +59,9 @@ The token is: header.payload.signature
 	});
 
 	it("creates a multi-scope local jwt via tb token create jwt", async () => {
+		const { createTinybirdLocalJwt } = await import(
+			`./tinybird-local-cli.ts?create=${Math.random()}`
+		);
 		const execFileMock = mock(
 			async (_command: string, _args: string[], _options: { cwd: string }) => ({
 				stdout:

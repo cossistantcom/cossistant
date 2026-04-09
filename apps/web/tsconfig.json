@@ -12,6 +12,7 @@
       "@/*": ["./src/*"],
       "@/docs/*": ["./src/app/(docs)/*"],
       "@/docs-source/*": ["./.source/*"],
+      "fumadocs-mdx:collections/server": ["./src/fumadocs-mdx-collections-server.d.ts"],
       "fumadocs-mdx:collections/*": ["./.source/*"],
       "@api/*": ["../api/src/*"],
       "@plasma/react/*": ["../../packages/react/src/*"],
@@ -25,6 +26,7 @@
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
+    "**/*.d.ts",
     ".next/types/**/*.ts",
     "../api/src/lib/loops.ts",
     "next.config.mjs"

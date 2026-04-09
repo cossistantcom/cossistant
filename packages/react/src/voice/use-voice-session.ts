@@ -86,7 +86,10 @@ export function useVoiceSession(config: VoiceSessionConfig) {
       // Create session via REST
       const resp = await fetch(`${config.apiUrl}/voice/sessions`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(config.publicKey ? { "X-Public-Key": config.publicKey } : {}),
+        },
         body: JSON.stringify({
           visitor_id: config.visitorId || "",
           conversation_history: config.conversationHistory || [],
@@ -99,8 +102,10 @@ export function useVoiceSession(config: VoiceSessionConfig) {
 
       // Connect WebSocket
       const base = new URL(config.apiUrl);
-      base.protocol = base.protocol === "https:" ? "wss:" : "ws:";
-      const wsUrl = `${base.origin}${base.pathname.replace(/\/$/, "")}/voice/stream/${session.session_id}`;
+      const wsUrl = new URL(
+        session.ws_url ?? `/voice/stream/${session.session_id}`,
+        `${base.protocol}//${base.host}`,
+      ).toString();
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 

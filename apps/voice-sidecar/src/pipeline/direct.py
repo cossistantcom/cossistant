@@ -202,17 +202,34 @@ class DirectVoicePipeline:
     async def _get_response(self, query: str) -> str:
         """Call main API for AI response."""
         client = get_http_client()
+        conversation_history = [
+            *self.session.conversation_history[-10:],
+            *[
+                {"role": turn.role, "content": turn.content}
+                for turn in self.session.turns[-10:]
+            ],
+        ]
+        if (
+            conversation_history
+            and conversation_history[-1].get("role") == "visitor"
+            and conversation_history[-1].get("content") == query
+        ):
+            conversation_history = conversation_history[:-1]
         try:
             resp = await client.post(
                 f"{self.settings.main_api_url}/v1/voice/query",
+                headers={
+                    "Authorization": f"Bearer {self.settings.voice_api_key}",
+                }
+                if self.settings.voice_api_key
+                else None,
                 json={
                     "query": query,
                     "session_id": self.session.id,
                     "visitor_id": self.session.visitor_id,
-                    "conversation_history": [
-                        {"role": t.role, "content": t.content}
-                        for t in self.session.turns[-10:]
-                    ],
+                    "website_id": self.session.website_id,
+                    "organization_id": self.session.organization_id,
+                    "conversation_history": conversation_history,
                 },
             )
             resp.raise_for_status()

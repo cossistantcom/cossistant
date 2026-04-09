@@ -9,7 +9,7 @@ import { Command } from "commander";
 import kleur from "kleur";
 import prompts from "prompts";
 import { releaseChangelogOnly } from "./release-changelog-only";
-import { releasePlasma } from "./release-plasma";
+import { releaseCossistant as releasePlasma } from "./release-cossistant";
 import { releaseFacehash } from "./release-facehash";
 
 const program = new Command()

@@ -277,8 +277,13 @@ function getPartVisibility(part: AISDKPart): "public" | "private" {
 	if (metadata) {
 		const typedMetadata = metadata as {
 			plasma?: PlasmaPartMetadata;
+			cossistant?: PlasmaPartMetadata;
 		};
-		return typedMetadata.cossistant?.visibility ?? "public";
+		return (
+			typedMetadata.plasma?.visibility ??
+			typedMetadata.cossistant?.visibility ??
+			"public"
+		);
 	}
 	return "public";
 }
@@ -291,11 +296,19 @@ function getTimelineItemPartVisibility(
 ): "public" | "private" {
 	if ("providerMetadata" in part || "callProviderMetadata" in part) {
 		const typedPart = part as {
-			callProviderMetadata?: { plasma?: PlasmaPartMetadata };
-			providerMetadata?: { plasma?: PlasmaPartMetadata };
+			callProviderMetadata?: {
+				plasma?: PlasmaPartMetadata;
+				cossistant?: PlasmaPartMetadata;
+			};
+			providerMetadata?: {
+				plasma?: PlasmaPartMetadata;
+				cossistant?: PlasmaPartMetadata;
+			};
 		};
 		return (
+			typedPart.callProviderMetadata?.plasma?.visibility ??
 			typedPart.callProviderMetadata?.cossistant?.visibility ??
+			typedPart.providerMetadata?.plasma?.visibility ??
 			typedPart.providerMetadata?.cossistant?.visibility ??
 			"public"
 		);

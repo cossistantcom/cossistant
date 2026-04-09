@@ -10,7 +10,9 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@api/*": ["src/*"]
+      "@api/*": ["src/*"],
+      "@plasma/channels": ["../../packages/channels/src"],
+      "@plasma/channels/*": ["../../packages/channels/src/*"]
     },
     "outDir": "./dist"
   },

@@ -68,11 +68,14 @@ export class SlackAdapter implements ChannelAdapter {
       .update(sigBasestring)
       .digest("hex");
     const expectedSignature = `v0=${hmac}`;
+    const signatureBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expectedSignature);
 
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature),
-    );
+    if (signatureBuffer.length !== expectedBuffer.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(signatureBuffer, expectedBuffer);
   }
 
   async sendMessage(

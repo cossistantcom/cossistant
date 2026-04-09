@@ -1,6 +1,22 @@
+import { db } from "@api/db";
+import { ingestInboundChannelMessage } from "@api/services/channel-ingestion";
 import { Hono } from "hono";
 
 export const channelsRouter = new Hono();
+
+function getChannelTargetConfig() {
+  const websiteId = process.env.CHANNELS_WEBSITE_ID?.trim() || "";
+  const organizationId = process.env.CHANNELS_ORGANIZATION_ID?.trim() || "";
+
+  if (!(websiteId && organizationId)) {
+    return null;
+  }
+
+  return {
+    websiteId,
+    organizationId,
+  };
+}
 
 // Telegram webhook
 channelsRouter.post("/telegram/webhook", async (c) => {
@@ -9,6 +25,9 @@ channelsRouter.post("/telegram/webhook", async (c) => {
 
   const secret = c.req.header("x-telegram-bot-api-secret-token");
   const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (!expectedSecret) {
+    return c.json({ error: "Telegram webhook secret not configured" }, 503);
+  }
   if (expectedSecret && secret !== expectedSecret) {
     return c.json({ error: "Unauthorized" }, 401);
   }
@@ -20,12 +39,16 @@ channelsRouter.post("/telegram/webhook", async (c) => {
     const message = adapter.parseIncoming(body);
 
     if (!message) return c.json({ ok: true }); // Ignore non-message updates
+    const target = getChannelTargetConfig();
+    if (!target) {
+      return c.json({ error: "Channel target not configured" }, 503);
+    }
 
-    // TODO: Queue for AI pipeline via QStash
-    // For now, echo back that we received it
-    console.log(
-      `[telegram] Received from ${message.visitorExternalId}: [${message.content.length} chars]`,
-    );
+    await ingestInboundChannelMessage({
+      db,
+      target,
+      message,
+    });
 
     return c.json({ ok: true });
   } catch (err) {
@@ -39,6 +62,9 @@ channelsRouter.post("/discord/interactions", async (c) => {
   const botToken = process.env.DISCORD_BOT_TOKEN;
   const publicKey = process.env.DISCORD_PUBLIC_KEY || "";
   if (!botToken) return c.json({ error: "Discord not configured" }, 503);
+  if (!publicKey) {
+    return c.json({ error: "Discord public key not configured" }, 503);
+  }
 
   try {
     const rawBody = await c.req.text();
@@ -69,11 +95,16 @@ channelsRouter.post("/discord/interactions", async (c) => {
         data: { content: "I didn't understand that command." },
       });
     }
+    const target = getChannelTargetConfig();
+    if (!target) {
+      return c.json({ error: "Channel target not configured" }, 503);
+    }
 
-    // TODO: Queue for AI pipeline
-    console.log(
-      `[discord] Received from ${message.visitorExternalId}: [${message.content.length} chars]`,
-    );
+    await ingestInboundChannelMessage({
+      db,
+      target,
+      message,
+    });
 
     return c.json(
       adapter.formatOutgoing({
@@ -91,6 +122,9 @@ channelsRouter.post("/slack/events", async (c) => {
   const botToken = process.env.SLACK_BOT_TOKEN || "";
   const signingSecret = process.env.SLACK_SIGNING_SECRET || "";
   if (!botToken) return c.json({ error: "Slack not configured" }, 503);
+  if (!signingSecret) {
+    return c.json({ error: "Slack signing secret not configured" }, 503);
+  }
 
   try {
     const rawBody = await c.req.text();
@@ -115,11 +149,16 @@ channelsRouter.post("/slack/events", async (c) => {
 
     const message = adapter.parseIncoming(body);
     if (!message) return c.json({ ok: true });
+    const target = getChannelTargetConfig();
+    if (!target) {
+      return c.json({ error: "Channel target not configured" }, 503);
+    }
 
-    // TODO: Queue for AI pipeline
-    console.log(
-      `[slack] Received from ${message.visitorExternalId}: [${message.content.length} chars]`,
-    );
+    await ingestInboundChannelMessage({
+      db,
+      target,
+      message,
+    });
 
     return c.json({ ok: true });
   } catch (err) {
@@ -133,6 +172,9 @@ channelsRouter.post("/intercom/webhook", async (c) => {
   const apiKey = process.env.INTERCOM_API_KEY || "";
   const webhookSecret = process.env.INTERCOM_WEBHOOK_SECRET;
   if (!apiKey) return c.json({ error: "Intercom not configured" }, 503);
+  if (!webhookSecret) {
+    return c.json({ error: "Intercom webhook secret not configured" }, 503);
+  }
 
   try {
     const rawBody = await c.req.text();
@@ -153,11 +195,16 @@ channelsRouter.post("/intercom/webhook", async (c) => {
     const message = adapter.parseIncoming(body);
 
     if (!message) return c.json({ ok: true });
+    const target = getChannelTargetConfig();
+    if (!target) {
+      return c.json({ error: "Channel target not configured" }, 503);
+    }
 
-    // TODO: Queue for AI pipeline
-    console.log(
-      `[intercom] Received from ${message.visitorExternalId}: [${message.content.length} chars]`,
-    );
+    await ingestInboundChannelMessage({
+      db,
+      target,
+      message,
+    });
 
     return c.json({ ok: true });
   } catch (err) {

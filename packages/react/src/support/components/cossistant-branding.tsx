@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 
 import { cn } from "../utils";
 
-type CossistantLogoProps = {
+export type CossistantLogoProps = {
 	className?: string;
 };
 

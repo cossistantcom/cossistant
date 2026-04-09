@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
 
 const getAiCreditMeterStateMock = mock((async () => ({
 	organizationId: "org-1",
@@ -21,6 +21,10 @@ const guardModulePromise = import("./guard");
 describe("guardAiCreditRun", () => {
 	beforeEach(() => {
 		getAiCreditMeterStateMock.mockReset();
+	});
+
+	afterAll(() => {
+		mock.restore();
 	});
 
 	it("allows run when balance covers minimum credits", async () => {

@@ -42,6 +42,7 @@ __pycache__/
 .venv/
 apps/api/server
 .devtools
+.tinyb
 tinybird.log
 apps/workers/.logs/
 
@@ -52,3 +53,4 @@ terraform.tfstate
 terraform.tfstate.*
 crash.log
 *.tfplan
+.omx/

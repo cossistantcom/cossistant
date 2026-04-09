@@ -2,13 +2,15 @@
 
 import logging
 from contextlib import asynccontextmanager
+from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel, Field
 
 from .config import settings
-from .session import SessionManager
+from .session import SessionManager, issue_session_token, validate_session_token
 
 logger = logging.getLogger(__name__)
 
@@ -16,14 +18,41 @@ session_manager = SessionManager()
 _bearer = HTTPBearer(auto_error=False)
 
 
+class VoiceSessionCreateRequest(BaseModel):
+    visitor_id: str = ""
+    website_id: str = ""
+    organization_id: str = ""
+    conversation_history: list[dict] = Field(default_factory=list)
+
+
+class WebRtcSessionCreateRequest(BaseModel):
+    visitor_id: str = ""
+    website_id: str = ""
+    organization_id: str = ""
+
+
 def _require_api_key(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> None:
     if not settings.voice_api_key:
-        # Not configured — open in dev
-        return
+        raise HTTPException(status_code=503, detail="Voice auth not configured")
     if credentials is None or credentials.credentials != settings.voice_api_key:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+
+def _build_ws_url(session_id: str) -> str:
+    base_url = settings.voice_public_base_url.rstrip("/")
+    if base_url.startswith("https://"):
+        base_url = f"wss://{base_url.removeprefix('https://')}"
+    elif base_url.startswith("http://"):
+        base_url = f"ws://{base_url.removeprefix('http://')}"
+
+    token = issue_session_token(
+        session_id=session_id,
+        secret=settings.voice_api_key,
+        ttl_seconds=settings.session_ttl_seconds,
+    )
+    return f"{base_url}/voice/stream/{session_id}?token={quote(token)}"
 
 
 @asynccontextmanager
@@ -51,6 +80,7 @@ async def health():
     return {
         "status": "ok",
         "service": "voice-sidecar",
+        "auth_configured": bool(settings.voice_api_key),
         "deepgram_configured": bool(settings.deepgram_api_key),
         "cartesia_configured": bool(settings.cartesia_api_key),
         "daily_configured": bool(settings.daily_api_key),
@@ -60,18 +90,19 @@ async def health():
 
 @app.post("/voice/sessions", dependencies=[Depends(_require_api_key)])
 async def create_voice_session(
-    visitor_id: str = "",
-    conversation_history: list[dict] | None = None,
+    payload: VoiceSessionCreateRequest,
 ):
     """Create a new voice session, returns session_id for WS connection."""
     session = await session_manager.create_session(
-        visitor_id=visitor_id,
-        conversation_history=conversation_history or [],
+        visitor_id=payload.visitor_id,
+        website_id=payload.website_id,
+        organization_id=payload.organization_id,
+        conversation_history=payload.conversation_history,
         max_sessions=settings.max_concurrent_sessions,
     )
     return {
         "session_id": session.id,
-        "ws_url": f"/voice/stream/{session.id}",
+        "ws_url": _build_ws_url(session.id),
     }
 
 
@@ -97,6 +128,19 @@ async def end_voice_session(session_id: str):
 @app.websocket("/voice/stream/{session_id}")
 async def voice_stream(websocket: WebSocket, session_id: str):
     """WebSocket endpoint for voice streaming (audio in, audio out)."""
+    if not settings.voice_api_key:
+        await websocket.close(code=1013, reason="Voice auth not configured")
+        return
+
+    token = websocket.query_params.get("token")
+    if not validate_session_token(
+        token=token,
+        session_id=session_id,
+        secret=settings.voice_api_key,
+    ):
+        await websocket.close(code=4401, reason="Unauthorized")
+        return
+
     session = session_manager.get_session(session_id)
     if not session:
         await websocket.close(code=4004, reason="Session not found")
@@ -119,7 +163,7 @@ async def voice_stream(websocket: WebSocket, session_id: str):
 
 
 @app.post("/webrtc/sessions", dependencies=[Depends(_require_api_key)])
-async def create_webrtc_session(visitor_id: str = ""):
+async def create_webrtc_session(payload: WebRtcSessionCreateRequest):
     """Create a Daily.co WebRTC room for voice."""
     if not settings.daily_api_key:
         raise HTTPException(status_code=503, detail="Daily.co not configured")
@@ -128,7 +172,9 @@ async def create_webrtc_session(visitor_id: str = ""):
     room = await create_daily_room(settings.daily_api_key)
 
     session = await session_manager.create_session(
-        visitor_id=visitor_id,
+        visitor_id=payload.visitor_id,
+        website_id=payload.website_id,
+        organization_id=payload.organization_id,
         conversation_history=[],
         channel="webrtc",
         max_sessions=settings.max_concurrent_sessions,

@@ -1,4 +1,4 @@
-import type { Dossier } from "./types";
+import type { Dossier } from "./types.js";
 
 const STALE_THRESHOLD_HOURS = 72;
 
@@ -14,8 +14,8 @@ export function generateSessionOpener(dossier: Dossier): string | null {
   }
 
   // Extract the last topic from dossier content
-  const lines = dossier.content.split("\n").filter((l) => l.trim());
-  const lastTopic = lines[lines.length - 1];
+  const lines = dossier.content.split("\n").filter((line) => line.trim());
+  const lastTopic = lines.at(-1);
 
   if (lastTopic && lastTopic.length < 200) {
     return `Welcome back! Last time we were discussing: ${lastTopic.trim()}. Would you like to continue with that, or is there something new I can help with?`;

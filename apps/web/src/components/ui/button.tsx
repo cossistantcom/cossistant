@@ -49,7 +49,7 @@ function Button({
 	asChild = false,
 	...props
 }: ButtonProps) {
-	const Comp = asChild ? Slot : "button";
+	const Comp: React.ElementType = asChild ? Slot : "button";
 
 	return (
 		<Comp

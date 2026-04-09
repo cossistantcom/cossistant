@@ -1,14 +1,15 @@
 import { readFileSync } from "node:fs";
 import type { MetadataRoute } from "next";
+import type React from "react";
 import { parse } from "yaml";
 import { getLLMText } from "@/lib/llm";
 import { SEO_DESCRIPTION_LIMITS, SEO_TITLE_LIMITS } from "@/lib/metadata";
 import { toAbsoluteUrl } from "@/lib/site-url";
 import { blog, changelog, source } from "@/lib/source";
 
-type BlogPage = ReturnType<typeof blog.getPages>[number];
-type ChangelogPage = ReturnType<typeof changelog.getPages>[number];
-type DocsPage = ReturnType<typeof source.getPages>[number];
+type RawBlogPage = ReturnType<typeof blog.getPages>[number];
+type RawChangelogPage = ReturnType<typeof changelog.getPages>[number];
+type RawDocsPage = ReturnType<typeof source.getPages>[number];
 type PageWithPath = {
 	absolutePath: string;
 	data: unknown;
@@ -61,8 +62,20 @@ type BlogTagRegistryEntry = {
 	aliases?: string[];
 };
 
-type HydratedBlogPage = Omit<BlogPage, "data"> & {
-	data: BlogFrontmatter & BlogPage["data"];
+export type BlogPage = Omit<RawBlogPage, "data"> & {
+	data: BlogFrontmatter & RawBlogPage["data"];
+};
+
+export type ChangelogPage = Omit<RawChangelogPage, "data"> & {
+	data: ChangelogFrontmatter & RawChangelogPage["data"];
+};
+
+export type DocsPage = Omit<RawDocsPage, "data"> & {
+	data: DocsFrontmatter &
+		RawDocsPage["data"] & {
+			body?: React.ComponentType<any>;
+			toc?: unknown[];
+		};
 };
 
 export const BLOG_TAG_MIN_INDEXABLE_POSTS = 3;
@@ -222,7 +235,7 @@ function isDescriptionWeak(description: string): boolean {
 }
 
 export function getPublishedBlogPosts(): BlogPage[] {
-	const hydratedPosts: HydratedBlogPage[] = [];
+	const hydratedPosts: BlogPage[] = [];
 
 	for (const post of blog.getPages()) {
 		const data = getBlogData(post);
@@ -247,7 +260,7 @@ export function getBlogPostSlug(post: BlogPage): string {
 }
 
 export function getBlogData(
-	post: BlogPage
+	post: RawBlogPage | BlogPage
 ): BlogFrontmatter & BlogPage["data"] {
 	const cacheKey = post.absolutePath ?? post.path;
 	const cached = mergedFrontmatterCache.get(cacheKey);
@@ -310,16 +323,28 @@ export function getIndexableBlogTags(): string[] {
 export function getDocsPages(): DocsPage[] {
 	return source
 		.getPages()
+		.map((page) => ({
+			...page,
+			data: getDocsData(page),
+		}))
 		.filter((page) => getDocsData(page).type !== "openapi")
-		.sort((a, b) => a.url.localeCompare(b.url));
+		.sort((a, b) => a.url.localeCompare(b.url)) as DocsPage[];
 }
 
 export function getDocsPageBySlug(slug?: string[]): DocsPage | undefined {
-	return source.getPage(slug);
+	const page = source.getPage(slug);
+	if (!page) {
+		return;
+	}
+
+	return {
+		...page,
+		data: getDocsData(page),
+	} as DocsPage;
 }
 
 export function getDocsData(
-	page: DocsPage
+	page: RawDocsPage | DocsPage
 ): DocsFrontmatter & DocsPage["data"] {
 	return mergeFrontmatter<DocsFrontmatter & DocsPage["data"]>(
 		page as unknown as PageWithPath
@@ -330,16 +355,13 @@ export function getSortedChangelogEntries(): ChangelogPage[] {
 	return sortByNewestDate(
 		changelog.getPages().map((entry) => ({
 			...entry,
-			data: {
-				...entry.data,
-				date: getChangelogData(entry).date,
-			},
+			data: getChangelogData(entry),
 		}))
-	);
+	) as ChangelogPage[];
 }
 
 export function getChangelogData(
-	entry: ChangelogPage
+	entry: RawChangelogPage | ChangelogPage
 ): ChangelogFrontmatter & ChangelogPage["data"] {
 	return mergeFrontmatter<ChangelogFrontmatter & ChangelogPage["data"]>(
 		entry as unknown as PageWithPath

@@ -1,5 +1,5 @@
-import type { DossierUpdate } from "./types";
-import { sanitizeDossierContent } from "./sanitizer";
+import type { DossierUpdate } from "./types.js";
+import { sanitizeDossierContent } from "./sanitizer.js";
 
 export function formatDossierEntry(update: DossierUpdate): string {
   const timestamp = new Date().toISOString().split("T")[0];
@@ -30,7 +30,7 @@ export function appendToDossier(
   // Keep under 4000 tokens — trim oldest entries
   if (estimatedTokens > 4000) {
     const sections = combined.split(/\n## /);
-    const header = sections[0];
+    const header = sections[0] ?? "";
     const entries = sections.slice(1);
     // Keep the most recent entries that fit
     let kept = header;

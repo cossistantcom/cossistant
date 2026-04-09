@@ -5,6 +5,10 @@ const createAiAgentTriggersMock = mock(() => ({
 	enqueueAiAgentJob: mock(async () => "job_1"),
 	close: async () => {},
 }));
+const createAiAgentBackgroundTriggersMock = mock(() => ({
+	enqueueAiAgentBackgroundJob: mock(async () => ({ status: "queued" })),
+	close: async () => {},
+}));
 const createAiTrainingTriggersMock = mock(() => ({
 	enqueueAiTraining: mock(async () => "job_2"),
 	cancelAiTraining: mock(async () => true),
@@ -32,6 +36,7 @@ mock.module("@plasma/redis", () => ({
 }));
 
 mock.module("@plasma/jobs", () => ({
+	createAiAgentBackgroundTriggers: createAiAgentBackgroundTriggersMock,
 	createAiAgentTriggers: createAiAgentTriggersMock,
 	createAiTrainingTriggers: createAiTrainingTriggersMock,
 	createMessageNotificationTriggers: createMessageNotificationTriggersMock,
@@ -41,6 +46,7 @@ mock.module("@plasma/jobs", () => ({
 describe("queue-triggers", () => {
 	beforeEach(() => {
 		getBullConnectionOptionsMock.mockClear();
+		createAiAgentBackgroundTriggersMock.mockClear();
 		createAiAgentTriggersMock.mockClear();
 		createAiTrainingTriggersMock.mockClear();
 		createMessageNotificationTriggersMock.mockClear();

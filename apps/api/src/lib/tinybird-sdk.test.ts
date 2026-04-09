@@ -10,8 +10,12 @@ mock.module("@api/db/queries/visitor", () => ({
 	updateVisitorForWebsite: async () => null,
 }));
 
-const modulePromise = import("./tinybird-sdk");
 const originalFetch = globalThis.fetch;
+let currentModule: Awaited<ReturnType<typeof loadTinybirdSdk>> | null = null;
+
+function loadTinybirdSdk() {
+	return import(`./tinybird-sdk.ts?test=${Math.random()}`);
+}
 
 function createTrackingContext() {
 	return {
@@ -64,8 +68,10 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-	const { flushAllEvents } = await modulePromise;
-	await flushAllEvents();
+	if (currentModule?.flushAllEvents) {
+		await currentModule.flushAllEvents();
+		currentModule = null;
+	}
 	globalThis.fetch = originalFetch;
 });
 
@@ -77,10 +83,11 @@ describe("tinybird visitor tracking", () => {
 					status: 200,
 					headers: { "Content-Type": "application/json" },
 				})
-		);
-		globalThis.fetch = fetchMock as unknown as typeof fetch;
-		const { attribution, currentPage } = createTrackingContext();
-		const { trackVisitorEvent, flushAllEvents } = await modulePromise;
+			);
+			globalThis.fetch = fetchMock as unknown as typeof fetch;
+			const { attribution, currentPage } = createTrackingContext();
+			currentModule = await loadTinybirdSdk();
+			const { trackVisitorEvent, flushAllEvents } = currentModule;
 
 		trackVisitorEvent({
 			website_id: "site-1",
@@ -119,10 +126,11 @@ describe("tinybird visitor tracking", () => {
 					status: 200,
 					headers: { "Content-Type": "application/json" },
 				})
-		);
-		globalThis.fetch = fetchMock as unknown as typeof fetch;
-		const { attribution, currentPage } = createTrackingContext();
-		const { flushAllEvents, trackVisitorActivity } = await modulePromise;
+			);
+			globalThis.fetch = fetchMock as unknown as typeof fetch;
+			const { attribution, currentPage } = createTrackingContext();
+			currentModule = await loadTinybirdSdk();
+			const { flushAllEvents, trackVisitorActivity } = currentModule;
 
 		trackVisitorActivity({
 			website_id: "site-1",
@@ -162,12 +170,13 @@ describe("tinybird visitor tracking", () => {
 		);
 		globalThis.fetch = fetchMock as unknown as typeof fetch;
 		const { attribution, currentPage } = createTrackingContext();
-		findVisitorForWebsiteMock.mockResolvedValue({
-			attribution,
-			currentPage,
-		});
-		const { flushAllEvents, trackConversationMetricForVisitor } =
-			await modulePromise;
+			findVisitorForWebsiteMock.mockResolvedValue({
+				attribution,
+				currentPage,
+			});
+			currentModule = await loadTinybirdSdk();
+			const { flushAllEvents, trackConversationMetricForVisitor } =
+				currentModule;
 
 		await trackConversationMetricForVisitor({} as never, {
 			website_id: "site-1",

@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 
 const trackConversationMetricMock = mock(() => {});
+const trackConversationMetricForVisitorMock = mock(async () => {});
 
 mock.module("@api/lib/tinybird-sdk", () => ({
 	trackConversationMetric: trackConversationMetricMock,
+	trackConversationMetricForVisitor: trackConversationMetricForVisitorMock,
 }));
 
 const conversationQueriesModulePromise = import("./conversation");
@@ -79,6 +81,8 @@ describe("upsertConversation", () => {
 	beforeEach(() => {
 		trackConversationMetricMock.mockReset();
 		trackConversationMetricMock.mockImplementation(() => {});
+		trackConversationMetricForVisitorMock.mockReset();
+		trackConversationMetricForVisitorMock.mockImplementation(async () => {});
 	});
 
 	it("returns created when insert succeeds", async () => {
@@ -105,7 +109,7 @@ describe("upsertConversation", () => {
 		expect(result.conversation.websiteId).toBe(created.websiteId);
 		expect(result.conversation.visitorId).toBe(created.visitorId);
 		expect(harness.selectMock).not.toHaveBeenCalled();
-		expect(trackConversationMetricMock).toHaveBeenCalledTimes(1);
+			expect(trackConversationMetricForVisitorMock).toHaveBeenCalledTimes(1);
 	});
 
 	it("returns existing when conversation already exists for same owner tuple", async () => {
@@ -131,7 +135,7 @@ describe("upsertConversation", () => {
 		expect(result.conversation.organizationId).toBe(existing.organizationId);
 		expect(result.conversation.websiteId).toBe(existing.websiteId);
 		expect(result.conversation.visitorId).toBe(existing.visitorId);
-		expect(trackConversationMetricMock).not.toHaveBeenCalled();
+			expect(trackConversationMetricForVisitorMock).not.toHaveBeenCalled();
 	});
 
 	it("returns ownership_mismatch conflict when existing conversation belongs to another owner tuple", async () => {

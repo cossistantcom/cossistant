@@ -13,6 +13,7 @@ class Settings(BaseSettings):
 
     # Auth
     voice_api_key: str = ""
+    voice_public_base_url: str = "http://localhost:8001"
 
     # CORS
     allowed_origins: str = "http://localhost:3000"

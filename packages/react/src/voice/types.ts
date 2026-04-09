@@ -8,6 +8,7 @@ export type VoiceStatus =
 
 export interface VoiceSessionConfig {
   apiUrl: string;
+  publicKey?: string;
   sessionId?: string;
   visitorId?: string;
   conversationHistory?: Array<{ role: string; content: string }>;

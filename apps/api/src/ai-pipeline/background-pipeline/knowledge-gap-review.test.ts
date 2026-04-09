@@ -82,12 +82,12 @@ function createToolTimelineItem(params: {
 						retrievalQuality: params.retrievalQuality,
 						clarificationSignal: params.clarificationSignal,
 					},
-				},
-				providerMetadata: {
-					cossistant: {
-						toolTimeline: {
-							workflowRunId: params.workflowRunId,
-							triggerMessageId: "msg-prev",
+					},
+					providerMetadata: {
+						plasma: {
+							toolTimeline: {
+								workflowRunId: params.workflowRunId,
+								triggerMessageId: "msg-prev",
 						},
 					},
 				},

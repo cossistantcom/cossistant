@@ -14,6 +14,23 @@ import type { WebsiteStatus } from "@plasma/types/enums";
 
 import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 
+export class WebsiteCreationError extends Error {
+	constructor(
+		message = "Failed to create website",
+		options?: { cause?: unknown }
+	) {
+		super(message, options);
+		this.name = "WebsiteCreationError";
+	}
+}
+
+export class WebsiteSlugConflictError extends WebsiteCreationError {
+	constructor() {
+		super("Website slug already exists");
+		this.name = "WebsiteSlugConflictError";
+	}
+}
+
 // Create website
 export async function createWebsite(
 	db: Database,
@@ -22,16 +39,22 @@ export async function createWebsite(
 		data: Omit<WebsiteInsert, "organizationId" | "teamId">;
 	}
 ) {
-	// Create a team for the website using better-auth API
-	const teamResponse = await auth.api.createTeam({
-		body: {
-			name: params.data.slug,
-			organizationId: params.organizationId,
-		},
-	});
+	let teamResponse: Awaited<ReturnType<typeof auth.api.createTeam>>;
+
+	try {
+		// Create a team for the website using better-auth API
+		teamResponse = await auth.api.createTeam({
+			body: {
+				name: params.data.slug,
+				organizationId: params.organizationId,
+			},
+		});
+	} catch (error) {
+		throw new WebsiteCreationError(undefined, { cause: error });
+	}
 
 	if (!teamResponse?.id) {
-		throw new Error("Failed to create team for website");
+		throw new WebsiteCreationError();
 	}
 
 	// Create the website with the team
@@ -43,22 +66,20 @@ export async function createWebsite(
 				organizationId: params.organizationId,
 				teamId: teamResponse.id,
 			})
+			.onConflictDoNothing({ target: website.slug })
 			.returning();
 
 		if (!newWebsite) {
-			throw new Error("Failed to create website: no record returned");
+			throw new WebsiteSlugConflictError();
 		}
 
 		return newWebsite;
 	} catch (error) {
-		// Re-throw with more context to help debug
-		if (error instanceof Error) {
-			throw new Error(
-				`Failed to create website: ${error.message}. Data: ${JSON.stringify(params.data)}`,
-				{ cause: error }
-			);
+		if (error instanceof WebsiteCreationError) {
+			throw error;
 		}
-		throw error;
+
+		throw new WebsiteCreationError(undefined, { cause: error });
 	}
 }
 

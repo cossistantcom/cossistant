@@ -15,6 +15,7 @@ type KnowledgeClarificationQuestionCardProps = {
 	suggestedAnswers: [string, string, string] | string[];
 	inputMode?: KnowledgeClarificationQuestionInputMode;
 	stepIndex: number;
+	draftPersistenceId?: string | null;
 	onSubmit: (payload: {
 		selectedAnswer?: string;
 		freeAnswer?: string;
@@ -41,6 +42,7 @@ export function KnowledgeClarificationQuestionCard({
 	question,
 	suggestedAnswers,
 	stepIndex,
+	draftPersistenceId = null,
 	onSubmit,
 	onDismiss,
 	onDefer,
@@ -52,7 +54,11 @@ export function KnowledgeClarificationQuestionCard({
 	description = "Answer one short question so the AI can turn this into a stronger FAQ draft.",
 	variant = "dialog",
 }: KnowledgeClarificationQuestionCardProps) {
-	const draft = useKnowledgeClarificationAnswerDraft(question, inputMode);
+	const draft = useKnowledgeClarificationAnswerDraft(
+		question,
+		inputMode,
+		draftPersistenceId
+	);
 
 	const handleSubmit = () => {
 		const submitPayload = draft.submitPayload;

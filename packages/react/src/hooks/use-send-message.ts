@@ -1,6 +1,5 @@
 import type { CossistantClient } from "@plasma/core";
 import {
-	generateMessageId,
 	isImageMimeType,
 	validateFiles,
 } from "@plasma/core";

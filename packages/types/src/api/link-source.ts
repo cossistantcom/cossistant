@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { apiTimestampSchema, nullableApiTimestampSchema } from "./common";
 
 export const linkSourceStatusSchema = z
 	.enum(["pending", "mapping", "crawling", "completed", "failed"])
@@ -82,7 +83,7 @@ export const linkSourceResponseSchema = z
 					"URLs explicitly ignored by user (excluded from future crawls)",
 				example: ["https://docs.example.com/deprecated"],
 			}),
-		lastCrawledAt: z.string().nullable().openapi({
+		lastCrawledAt: nullableApiTimestampSchema.openapi({
 			description: "Timestamp of last successful crawl",
 			example: "2024-06-10T12:00:00.000Z",
 		}),
@@ -90,15 +91,15 @@ export const linkSourceResponseSchema = z
 			description: "Error message if crawl failed",
 			example: null,
 		}),
-		createdAt: z.string().openapi({
+		createdAt: apiTimestampSchema.openapi({
 			description: "Creation timestamp",
 			example: "2024-06-10T12:00:00.000Z",
 		}),
-		updatedAt: z.string().openapi({
+		updatedAt: apiTimestampSchema.openapi({
 			description: "Last update timestamp",
 			example: "2024-06-11T08:00:00.000Z",
 		}),
-		deletedAt: z.string().nullable().openapi({
+		deletedAt: nullableApiTimestampSchema.openapi({
 			description: "Soft delete timestamp",
 			example: null,
 		}),

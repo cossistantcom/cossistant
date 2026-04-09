@@ -74,6 +74,7 @@ function getActorName(params: EventDisplayParams): {
 		return {
 			actorName,
 			avatarType: "ai",
+			avatarImage: aiAgent?.image ?? null,
 			avatarFallbackName: actorName,
 		};
 	}

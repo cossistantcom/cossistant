@@ -1,16 +1,27 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MessageVisibility } from "@/components/conversation/composer";
+import {
+	DEMO_DELETE_ACCOUNT_FAQ_ANSWER,
+	DEMO_DELETE_ACCOUNT_FAQ_TITLE,
+	DEMO_DELETE_ACCOUNT_QUESTION,
+	DEMO_DELETE_ACCOUNT_SEARCH_QUERY,
+	DEMO_DELETE_ACCOUNT_SEARCH_TEXT,
+} from "@/components/demo/demo-copy";
 import type { ConversationTimelineItem } from "@/data/conversation-message-cache";
 import { useAnimationScheduler } from "@/hooks/use-animation-scheduler";
 import {
 	ANTHONY_RIERA_ID,
 	createMarcEscalatedConversation,
+	createPieterDeleteAccountAnsweredConversation,
 	type FakeConversationHandledPayload,
+	type FakeDashboardScenarioId,
 	type FakeTypingActor,
 	fakeAIAgent,
 	MARC_CONVERSATION_ID,
 	MARC_VISITOR_ID,
 	marcVisitor,
+	PIETER_VISITOR_ID,
+	pieterVisitor,
 } from "../data";
 
 const CONVERSATION_ID = MARC_CONVERSATION_ID;
@@ -23,6 +34,11 @@ const PARTICIPANT_JOINED_EVENT_ID = "01JGEVE22222222222222230";
 const HUMAN_REPLY_MESSAGE_ID = "01JGTIM22222222222222231";
 const VISITOR_CONFIRM_MESSAGE_ID = "01JGTIM22222222222222232";
 const MARC_UPDATED_TITLE = "Custom domain blocked by stale edge allowlist";
+const PROMO_TOOL_SEARCH_ID = "01JGVIDEO22222222222222222";
+const PROMO_AI_REPLY_MESSAGE_ID = "01JGVIDEO22222222222222223";
+const PROMO_KNOWLEDGE_BASE_SOURCE_URL =
+	"https://docs.cossistant.dev/account/delete-your-account";
+
 export const FAKE_CONVERSATION_HUMAN_REPLY_TEXT =
 	"I joined and deployed the allowlist patch to production. Please hard refresh and run a checkout test. I'll stay here while you verify.";
 export const FAKE_CONVERSATION_HUMAN_TYPING_START_AT = 5400;
@@ -36,6 +52,7 @@ type UseFakeConversationProps = {
 	onComplete?: () => void;
 	onConversationHandled?: (payload: FakeConversationHandledPayload) => void;
 	onShowJoinCursor?: () => void;
+	scenario?: FakeDashboardScenarioId;
 };
 
 function createMessage(params: {
@@ -147,10 +164,9 @@ function createParticipantJoinedEvent(
 
 export function createTypingPreview(
 	fullText: string,
-	progressPercent: number
+	revealedCharacters: number
 ): string {
-	const charsToShow = Math.floor((fullText.length * progressPercent) / 100);
-	return fullText.slice(0, charsToShow);
+	return fullText.slice(0, Math.max(0, revealedCharacters));
 }
 
 export function getFakeConversationHumanReplyState(atMs: number) {
@@ -180,7 +196,13 @@ export function getFakeConversationHumanReplyState(atMs: number) {
 	};
 }
 
-function createInitialTimeline(now: number): ConversationTimelineItem[] {
+export function isFakeConversationEscalationPendingByScenario(
+	scenario: FakeDashboardScenarioId
+) {
+	return scenario === "landing_escalation";
+}
+
+function createLandingInitialTimeline(now: number): ConversationTimelineItem[] {
 	const visitorMessageTime = new Date(now - 7 * 60 * 1000);
 	const searchResultTime = new Date(now - 6 * 60 * 1000 + 40 * 1000);
 	const titleResultTime = new Date(now - 5 * 60 * 1000 + 28 * 1000);
@@ -252,18 +274,98 @@ function createInitialTimeline(now: number): ConversationTimelineItem[] {
 	];
 }
 
+export function createPromoDeleteAccountAnsweredTimeline(
+	now: number
+): [
+	ConversationTimelineItem,
+	ConversationTimelineItem,
+	ConversationTimelineItem,
+	ConversationTimelineItem,
+] {
+	const visitorMessageTime = new Date(now - 70 * 1000);
+	const searchPartialTime = new Date(now - 64 * 1000);
+	const searchResultTime = new Date(now - 62 * 1000);
+	const aiAnswerTime = new Date(now - 58 * 1000);
+
+	return [
+		createMessage({
+			id: VISITOR_MESSAGE_ID,
+			text: DEMO_DELETE_ACCOUNT_QUESTION,
+			userId: null,
+			visitorId: PIETER_VISITOR_ID,
+			aiAgentId: null,
+			timestamp: visitorMessageTime,
+		}),
+		createToolTimelineItem({
+			id: PROMO_TOOL_SEARCH_ID,
+			text: DEMO_DELETE_ACCOUNT_SEARCH_TEXT,
+			toolName: "searchKnowledgeBase",
+			input: {
+				query: DEMO_DELETE_ACCOUNT_SEARCH_QUERY,
+			},
+			state: "partial",
+			timestamp: searchPartialTime,
+		}),
+		createToolTimelineItem({
+			id: PROMO_TOOL_SEARCH_ID,
+			text: "Found 1 source",
+			toolName: "searchKnowledgeBase",
+			input: {
+				query: DEMO_DELETE_ACCOUNT_SEARCH_QUERY,
+			},
+			state: "result",
+			output: {
+				success: true,
+				data: {
+					totalFound: 1,
+					articles: [
+						{
+							title: DEMO_DELETE_ACCOUNT_FAQ_TITLE,
+							sourceUrl: PROMO_KNOWLEDGE_BASE_SOURCE_URL,
+						},
+					],
+				},
+			},
+			timestamp: searchResultTime,
+		}),
+		createMessage({
+			id: PROMO_AI_REPLY_MESSAGE_ID,
+			text: DEMO_DELETE_ACCOUNT_FAQ_ANSWER,
+			userId: null,
+			visitorId: null,
+			aiAgentId: fakeAIAgent.id,
+			timestamp: aiAnswerTime,
+		}),
+	];
+}
+
+function getConversationForScenario(scenario: FakeDashboardScenarioId) {
+	if (scenario === "promo_delete_account_answered") {
+		return createPieterDeleteAccountAnsweredConversation();
+	}
+
+	return createMarcEscalatedConversation();
+}
+
 export function useFakeConversation({
 	isPlaying,
 	onComplete,
 	onConversationHandled,
 	onShowJoinCursor,
+	scenario = "landing_escalation",
 }: UseFakeConversationProps) {
-	const conversation = createMarcEscalatedConversation();
+	const conversation = useMemo(
+		() => getConversationForScenario(scenario),
+		[scenario]
+	);
+	const startsEscalated =
+		isFakeConversationEscalationPendingByScenario(scenario);
 	const [timelineItems, setTimelineItems] = useState<
 		ConversationTimelineItem[]
 	>([]);
 	const [typingActors, setTypingActors] = useState<FakeTypingActor[]>([]);
-	const [isEscalationPending, setIsEscalationPending] = useState(true);
+	const [isEscalationPending, setIsEscalationPending] =
+		useState(startsEscalated);
 	const [composerValue, setComposerValue] = useState("");
 	const [composerVisibility, setComposerVisibility] =
 		useState<MessageVisibility>("public");
@@ -307,27 +409,29 @@ export function useFakeConversation({
 			}
 
 			setTimelineItems((prev) => {
-				const existingIds = new Set(prev.map((item) => item.id));
-				const dedupedItems = itemsArray.filter((item) => {
-					if (existingIds.has(item.id)) {
-						return false;
-					}
-					existingIds.add(item.id);
-					return true;
-				});
+				const nextItems = [...prev];
 
-				if (dedupedItems.length === 0) {
-					return prev;
+				for (const item of itemsArray) {
+					const existingIndex = nextItems.findIndex(
+						(existingItem) => existingItem.id === item.id
+					);
+
+					if (existingIndex === -1) {
+						nextItems.push(item);
+						continue;
+					}
+
+					nextItems[existingIndex] = item;
 				}
 
-				return [...prev, ...dedupedItems];
+				return nextItems;
 			});
 		},
 		[]
 	);
 
 	const joinEscalation = useCallback(() => {
-		if (hasJoinedRef.current) {
+		if (scenario !== "landing_escalation" || hasJoinedRef.current) {
 			return;
 		}
 
@@ -335,12 +439,12 @@ export function useFakeConversation({
 		setIsEscalationPending(false);
 		setTypingActors([]);
 		appendTimelineItems(createParticipantJoinedEvent(new Date()));
-	}, [appendTimelineItems]);
+	}, [appendTimelineItems, scenario]);
 
 	const resetDemoData = useCallback(() => {
 		setTimelineItems([]);
 		setTypingActors([]);
-		setIsEscalationPending(true);
+		setIsEscalationPending(startsEscalated);
 		setComposerValue("");
 		setComposerVisibility("public");
 		setIsComposerTyping(false);
@@ -350,7 +454,7 @@ export function useFakeConversation({
 		hasHandledRef.current = false;
 		hasInitializedRef.current = false;
 		visitorConfirmationMessageRef.current = null;
-	}, [resetScheduler]);
+	}, [resetScheduler, startsEscalated]);
 
 	useEffect(() => {
 		if (!isPlaying || hasScheduledRef.current) {
@@ -368,7 +472,28 @@ export function useFakeConversation({
 			const now = Date.now();
 
 			if (!hasInitializedRef.current) {
-				setTimelineItems(createInitialTimeline(now));
+				if (scenario === "promo_delete_account_answered") {
+					const promoTimeline = createPromoDeleteAccountAnsweredTimeline(now);
+					setTimelineItems([promoTimeline[0]]);
+					hasInitializedRef.current = true;
+
+					currentSchedule(1450, () => {
+						appendTimelineItems(promoTimeline[1]);
+					});
+
+					currentSchedule(3100, () => {
+						appendTimelineItems(promoTimeline[2]);
+					});
+
+					currentSchedule(4700, () => {
+						appendTimelineItems(promoTimeline[3]);
+					});
+
+					currentSchedule(6500, () => {});
+					return;
+				}
+
+				setTimelineItems(createLandingInitialTimeline(now));
 				hasInitializedRef.current = true;
 			}
 
@@ -408,8 +533,8 @@ export function useFakeConversation({
 
 			const visitorTypingStartAt = FAKE_CONVERSATION_VISITOR_TYPING_START_AT;
 			const visitorTypingDuration = 5200;
-			const visitorTypingSteps = 13;
-			const typingStepDuration = visitorTypingDuration / visitorTypingSteps;
+			const typingStepDuration =
+				visitorTypingDuration / VISITOR_TYPING_CONFIRM_TEXT.length;
 
 			currentSchedule(visitorTypingStartAt, () => {
 				if (!hasJoinedRef.current) {
@@ -426,9 +551,13 @@ export function useFakeConversation({
 				]);
 			});
 
-			for (let step = 1; step <= visitorTypingSteps; step += 1) {
+			for (
+				let characterCount = 1;
+				characterCount <= VISITOR_TYPING_CONFIRM_TEXT.length;
+				characterCount += 1
+			) {
 				currentSchedule(
-					visitorTypingStartAt + step * typingStepDuration,
+					visitorTypingStartAt + characterCount * typingStepDuration,
 					() => {
 						if (!hasJoinedRef.current) {
 							return;
@@ -441,7 +570,7 @@ export function useFakeConversation({
 								actorId: MARC_VISITOR_ID,
 								preview: createTypingPreview(
 									VISITOR_TYPING_CONFIRM_TEXT,
-									(step / visitorTypingSteps) * 100
+									characterCount
 								),
 							},
 						]);
@@ -494,12 +623,15 @@ export function useFakeConversation({
 		};
 
 		scheduleTasks();
-	}, [appendTimelineItems, isPlaying]);
+	}, [appendTimelineItems, isPlaying, scenario]);
 
 	return {
 		conversation,
 		timelineItems,
-		visitor: marcVisitor,
+		visitor:
+			scenario === "promo_delete_account_answered"
+				? pieterVisitor
+				: marcVisitor,
 		resetDemoData,
 		typingActors,
 		isEscalationPending,

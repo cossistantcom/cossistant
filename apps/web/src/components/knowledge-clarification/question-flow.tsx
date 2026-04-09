@@ -24,6 +24,57 @@ const EMPTY_ANSWER_DRAFT_STATE: KnowledgeClarificationAnswerDraftState = {
 	freeAnswer: "",
 };
 
+export function buildKnowledgeClarificationAnswerDraftPersistenceId(params: {
+	websiteSlug: string;
+	requestId: string;
+	stepIndex: number;
+}): string {
+	return `clarification-answer:${params.websiteSlug}:${params.requestId}:${Math.max(params.stepIndex, 1)}`;
+}
+
+function normalizeClarificationQuestion(
+	value: string | null | undefined
+): string {
+	return value?.replace(/\s+/g, " ").trim().toLowerCase() ?? "";
+}
+
+export function shouldClearKnowledgeClarificationAnswerDraft(params: {
+	currentQuestion: string | null | undefined;
+	currentStepIndex: number;
+	result:
+		| Pick<
+				KnowledgeClarificationRequest,
+				"currentQuestion" | "status" | "stepIndex"
+		  >
+		| Pick<KnowledgeClarificationStreamStepResponse, "request" | "status">;
+}): boolean {
+	const request =
+		"request" in params.result ? params.result.request : params.result;
+
+	if (
+		request.status === "draft_ready" ||
+		request.status === "retry_required" ||
+		request.status === "deferred" ||
+		request.status === "dismissed" ||
+		request.status === "applied"
+	) {
+		return true;
+	}
+
+	if (request.status === "analyzing") {
+		return false;
+	}
+
+	if (request.stepIndex > params.currentStepIndex) {
+		return true;
+	}
+
+	return (
+		normalizeClarificationQuestion(request.currentQuestion) !==
+		normalizeClarificationQuestion(params.currentQuestion)
+	);
+}
+
 export function isKnowledgeClarificationOtherSelected(freeAnswer: string) {
 	return freeAnswer.trim().length > 0;
 }
@@ -82,32 +133,54 @@ export type KnowledgeClarificationQuestionContentProps = {
 
 export function useKnowledgeClarificationAnswerDraft(
 	question: string | null | undefined,
-	inputMode: KnowledgeClarificationQuestionInputMode = "suggested_answers"
+	inputMode: KnowledgeClarificationQuestionInputMode = "suggested_answers",
+	draftPersistenceId?: string | null
 ) {
-	const [draftState, setDraftState] =
-		useState<KnowledgeClarificationAnswerDraftState>(EMPTY_ANSWER_DRAFT_STATE);
+	const freeAnswerDraft = useLocalStorageDraftValue({
+		id: draftPersistenceId ?? null,
+		initialValue: "",
+	});
+	const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
 	const isOtherSelected = isKnowledgeClarificationOtherSelected(
-		draftState.freeAnswer
+		freeAnswerDraft.value
 	);
+	const resetKey = draftPersistenceId ?? `${inputMode}:${question ?? ""}`;
 
 	useEffect(() => {
-		setDraftState(EMPTY_ANSWER_DRAFT_STATE);
-	}, [inputMode, question]);
+		setSelectedAnswer(null);
+
+		if (!draftPersistenceId) {
+			freeAnswerDraft.clearValue();
+		}
+	}, [draftPersistenceId, freeAnswerDraft.clearValue, resetKey]);
+
+	const draftState: KnowledgeClarificationAnswerDraftState = {
+		selectedAnswer,
+		freeAnswer: freeAnswerDraft.value,
+	};
 
 	const submitPayload = getKnowledgeClarificationSubmitPayload(draftState);
 
 	return {
 		canSubmit: Boolean(submitPayload),
+		clearPersistedDraft: () => {
+			setSelectedAnswer(null);
+			freeAnswerDraft.clearValue();
+		},
 		freeAnswer: draftState.freeAnswer,
 		isOtherSelected,
 		selectedAnswer: draftState.selectedAnswer,
 		setFreeAnswer: (value: string) => {
-			setDraftState((currentState) =>
-				changeKnowledgeClarificationFreeAnswer(currentState, value)
+			setSelectedAnswer((currentSelectedAnswer) =>
+				value.length > 0 ? null : currentSelectedAnswer
 			);
+			freeAnswerDraft.setValue(value);
 		},
 		selectAnswer: (answer: string) => {
-			setDraftState(selectKnowledgeClarificationAnswer(answer));
+			setSelectedAnswer(
+				selectKnowledgeClarificationAnswer(answer).selectedAnswer
+			);
+			freeAnswerDraft.clearValue();
 		},
 		submitPayload,
 	};

@@ -1,6 +1,14 @@
 import { z } from "@hono/zod-openapi";
-import { conversationSchema } from "../schemas";
+import {
+	ConversationPriority,
+	ConversationSentiment,
+	ConversationStatus,
+} from "../enums";
+import { conversationSchema, conversationSeenSchema } from "../schemas";
+import { apiTimestampSchema, nullableApiTimestampSchema } from "./common";
+import { conversationClarificationSummarySchema } from "./knowledge-clarification";
 import { timelineItemSchema } from "./timeline-item";
+import { visitorProfileSchema } from "./visitor";
 
 export const createConversationRequestSchema = z
 	.object({
@@ -116,6 +124,199 @@ export type ListConversationsResponse = z.infer<
 	typeof listConversationsResponseSchema
 >;
 
+export const listInboxConversationsRequestSchema = z
+	.object({
+		limit: z.coerce.number().int().min(1).max(500).default(50).openapi({
+			description: "Maximum number of conversations to return per page.",
+			default: 50,
+		}),
+		cursor: z.string().nullable().optional().openapi({
+			description:
+				"Opaque cursor returned by the previous inbox response, or null for the first page.",
+		}),
+	})
+	.openapi({
+		description: "Query parameters for listing inbox conversations.",
+	});
+
+export type ListInboxConversationsRequest = z.infer<
+	typeof listInboxConversationsRequestSchema
+>;
+
+const conversationInboxStatusSchema = z.enum([
+	ConversationStatus.OPEN,
+	ConversationStatus.RESOLVED,
+	ConversationStatus.SPAM,
+]);
+
+const conversationInboxPrioritySchema = z.enum([
+	ConversationPriority.LOW,
+	ConversationPriority.NORMAL,
+	ConversationPriority.HIGH,
+	ConversationPriority.URGENT,
+]);
+
+const conversationInboxSentimentSchema = z
+	.enum([
+		ConversationSentiment.POSITIVE,
+		ConversationSentiment.NEGATIVE,
+		ConversationSentiment.NEUTRAL,
+	])
+	.nullable();
+
+export const conversationInboxItemSchema = z
+	.object({
+		id: z.string().openapi({
+			description: "Unique identifier for the conversation.",
+		}),
+		status: conversationInboxStatusSchema.openapi({
+			description: "Current status of the conversation.",
+		}),
+		priority: conversationInboxPrioritySchema.openapi({
+			description: "Current priority level of the conversation.",
+		}),
+		organizationId: z.string().openapi({
+			description: "Organization that owns the conversation.",
+		}),
+		visitorId: z.string().openapi({
+			description: "Visitor who owns the conversation.",
+		}),
+		visitor: visitorProfileSchema.openapi({
+			description: "Visitor profile summary for the conversation.",
+		}),
+		websiteId: z.string().openapi({
+			description: "Website that owns the conversation.",
+		}),
+		channel: z.string().openapi({
+			description: "Channel where the conversation started.",
+			example: "widget",
+		}),
+		title: z.string().nullable().openapi({
+			description: "Conversation title if one has been generated or set.",
+		}),
+		titleSource: z.enum(["ai", "user"]).nullable().openapi({
+			description: "Whether the title was set by AI or a user.",
+		}),
+		sentiment: conversationInboxSentimentSchema.openapi({
+			description: "Most recent inferred conversation sentiment.",
+		}),
+		sentimentConfidence: z.number().nullable().openapi({
+			description: "Confidence score for the inferred sentiment, if available.",
+		}),
+		resolutionTime: z.number().nullable().openapi({
+			description:
+				"Resolution time in seconds once the conversation has been resolved.",
+		}),
+		visitorRating: z.number().int().min(1).max(5).nullable().openapi({
+			description: "Visitor satisfaction rating, if one has been submitted.",
+		}),
+		visitorRatingAt: nullableApiTimestampSchema.openapi({
+			description: "When the visitor rating was submitted.",
+		}),
+		startedAt: nullableApiTimestampSchema.openapi({
+			description: "When the conversation was considered started.",
+		}),
+		firstResponseAt: nullableApiTimestampSchema.openapi({
+			description: "When the first response was sent, if available.",
+		}),
+		resolvedAt: nullableApiTimestampSchema.openapi({
+			description: "When the conversation was resolved, if applicable.",
+		}),
+		resolvedByUserId: z.string().nullable().openapi({
+			description: "User who resolved the conversation, if applicable.",
+		}),
+		resolvedByAiAgentId: z.string().nullable().openapi({
+			description: "AI agent that resolved the conversation, if applicable.",
+		}),
+		escalatedAt: nullableApiTimestampSchema.openapi({
+			description: "When the conversation was escalated, if applicable.",
+		}),
+		escalatedByAiAgentId: z.string().nullable().openapi({
+			description: "AI agent that escalated the conversation, if applicable.",
+		}),
+		escalationReason: z.string().nullable().openapi({
+			description: "Reason provided for the escalation, if applicable.",
+		}),
+		escalationHandledAt: nullableApiTimestampSchema.openapi({
+			description: "When the escalation was handled, if applicable.",
+		}),
+		escalationHandledByUserId: z.string().nullable().openapi({
+			description: "User who handled the escalation, if applicable.",
+		}),
+		aiPausedUntil: nullableApiTimestampSchema.openapi({
+			description: "If AI replies are paused, when the pause expires.",
+		}),
+		createdAt: apiTimestampSchema.openapi({
+			description: "When the conversation record was created.",
+		}),
+		updatedAt: apiTimestampSchema.openapi({
+			description: "When the conversation record was last updated.",
+		}),
+		deletedAt: nullableApiTimestampSchema.openapi({
+			description: "When the conversation was archived, if applicable.",
+		}),
+		lastMessageAt: nullableApiTimestampSchema.openapi({
+			description:
+				"Timestamp of the latest message-like activity in the thread.",
+		}),
+		lastSeenAt: nullableApiTimestampSchema.openapi({
+			description:
+				"User-specific last-seen timestamp when available, otherwise null.",
+		}),
+		lastMessageTimelineItem: timelineItemSchema.nullable().openapi({
+			description: "Latest message timeline item for the conversation, if any.",
+		}),
+		lastTimelineItem: timelineItemSchema.nullable().openapi({
+			description:
+				"Latest timeline item for the conversation, including private events.",
+		}),
+		activeClarification: conversationClarificationSummarySchema
+			.nullable()
+			.openapi({
+				description:
+					"Active knowledge clarification summary linked to the conversation, if any.",
+			}),
+		dashboardLocked: z.boolean().optional().openapi({
+			description:
+				"Whether the dashboard has hard-limited access to the conversation.",
+		}),
+		dashboardLockReason: z
+			.union([z.literal("conversation_limit"), z.null()])
+			.optional()
+			.openapi({
+				description: "Why the dashboard access is locked, when applicable.",
+			}),
+		viewIds: z.array(z.string()).openapi({
+			description: "View identifiers associated with the conversation.",
+		}),
+		seenData: z.array(conversationSeenSchema).openapi({
+			description: "Seen-state records associated with the conversation.",
+		}),
+	})
+	.openapi({
+		description: "Conversation summary returned by the inbox listing endpoint.",
+	});
+
+export type ConversationInboxItem = z.infer<typeof conversationInboxItemSchema>;
+
+export const listInboxConversationsResponseSchema = z
+	.object({
+		items: z.array(conversationInboxItemSchema).openapi({
+			description: "Inbox conversations for the authenticated website.",
+		}),
+		nextCursor: z.string().nullable().openapi({
+			description:
+				"Cursor for the next page, or null when the current page is final.",
+		}),
+	})
+	.openapi({
+		description: "Cursor-paginated inbox conversations.",
+	});
+
+export type ListInboxConversationsResponse = z.infer<
+	typeof listInboxConversationsResponseSchema
+>;
+
 export const getConversationRequestSchema = z
 	.object({
 		conversationId: z.string().openapi({
@@ -163,7 +364,7 @@ export const markConversationSeenResponseSchema = z
 		conversationId: z.string().openapi({
 			description: "The ID of the conversation that was marked as seen",
 		}),
-		lastSeenAt: z.string().openapi({
+		lastSeenAt: apiTimestampSchema.openapi({
 			description:
 				"Timestamp indicating when the visitor last saw the conversation",
 		}),
@@ -211,7 +412,7 @@ export const setConversationTypingResponseSchema = z
 			description:
 				"Preview text that was forwarded with the typing event, or null when none was sent.",
 		}),
-		sentAt: z.string().openapi({
+		sentAt: apiTimestampSchema.openapi({
 			description: "Timestamp when the typing event was recorded",
 		}),
 	})
@@ -253,7 +454,7 @@ export const submitConversationRatingResponseSchema = z
 		rating: z.number().int().min(1).max(5).openapi({
 			description: "The rating that was saved",
 		}),
-		ratedAt: z.string().openapi({
+		ratedAt: apiTimestampSchema.openapi({
 			description: "Timestamp when the rating was recorded",
 		}),
 	})
@@ -285,16 +486,16 @@ export const getConversationSeenDataResponseSchema = z
 					description:
 						"The AI agent ID who saw the conversation, if applicable",
 				}),
-				lastSeenAt: z.string().openapi({
+				lastSeenAt: apiTimestampSchema.openapi({
 					description: "Timestamp when the conversation was last seen",
 				}),
-				createdAt: z.string().openapi({
+				createdAt: apiTimestampSchema.openapi({
 					description: "When the seen record was created",
 				}),
-				updatedAt: z.string().openapi({
+				updatedAt: apiTimestampSchema.openapi({
 					description: "When the seen record was last updated",
 				}),
-				deletedAt: z.string().nullable().openapi({
+				deletedAt: nullableApiTimestampSchema.openapi({
 					description: "When the seen record was deleted, if applicable",
 				}),
 			})

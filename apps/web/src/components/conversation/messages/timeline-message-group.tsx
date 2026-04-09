@@ -124,13 +124,21 @@ export function TimelineMessageGroup({
 											url={visitor?.contact?.image}
 										/>
 									) : isAI ? (
-										<div
-											className={cn(
-												"flex size-6 shrink-0 items-center justify-center"
-											)}
-										>
-											<Logo className="size-5 text-primary/90" />
-										</div>
+										aiAgent?.image ? (
+											<Avatar
+												className="size-6"
+												fallbackName={aiAgent.name || "AI Assistant"}
+												url={aiAgent.image}
+											/>
+										) : (
+											<div
+												className={cn(
+													"flex size-6 shrink-0 items-center justify-center"
+												)}
+											>
+												<Logo className="size-5 text-primary/90" />
+											</div>
+										)
 									) : (
 										<Avatar
 											className="size-6"

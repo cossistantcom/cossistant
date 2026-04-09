@@ -41,7 +41,6 @@ const QUICK_OPTIONS = ["How to install Cossistant?", "Pricing"];
 
 export default function Playground() {
 	const { isConnected } = useRealtimeSupport();
-	const { size, isOpen } = useSupport();
 
 	return (
 		<div className="relative flex min-h-screen flex-col items-center justify-center bg-background p-4 md:p-20">
@@ -58,15 +57,14 @@ export default function Playground() {
 			</div>
 
 			{/* Centered Widget */}
-			<div className="z-10 flex flex-col items-center gap-6">
-				<Support
-					defaultMessages={DEFAULT_MESSAGES}
-					onOpenChange={() => {}}
-					open={true}
-					quickOptions={QUICK_OPTIONS}
-				>
-					<Support.Content className="md:!fixed md:!inset-auto md:!left-1/2 md:!top-1/2 md:!-translate-x-1/2 md:!-translate-y-1/2 relative" />
-				</Support>
+			<div className="z-10 flex w-full max-w-[420px] flex-col items-center gap-6">
+				<div className="h-[640px] w-full overflow-hidden rounded-xl border border-primary/10 bg-background/90 shadow-2xl backdrop-blur">
+					<Support
+						defaultMessages={DEFAULT_MESSAGES}
+						mode="responsive"
+						quickOptions={QUICK_OPTIONS}
+					/>
+				</div>
 			</div>
 
 			{/* Status Display */}

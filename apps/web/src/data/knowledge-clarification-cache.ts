@@ -1,5 +1,14 @@
 import type { RouterOutputs } from "@api/trpc/types";
+import type {
+	ConversationClarificationProgress,
+	ConversationClarificationSummary,
+	KnowledgeClarificationRequest,
+} from "@cossistant/types";
 import type { QueryClient } from "@tanstack/react-query";
+import {
+	forEachConversationHeadersQuery,
+	updateConversationHeaderInCache,
+} from "@/data/conversation-header-cache";
 
 export type KnowledgeClarificationProposalsResponse =
 	RouterOutputs["knowledgeClarification"]["listProposals"];
@@ -17,6 +26,47 @@ type QueryKeyInput = {
 	input?: ActiveClarificationQueryInput;
 	type?: string;
 };
+
+function isActiveConversationClarificationStatus(
+	status: KnowledgeClarificationRequest["status"]
+): status is ConversationClarificationSummary["status"] {
+	return (
+		status === "analyzing" ||
+		status === "awaiting_answer" ||
+		status === "retry_required" ||
+		status === "draft_ready"
+	);
+}
+
+export function buildConversationClarificationSummaryFromRequest(params: {
+	request: KnowledgeClarificationRequest | null;
+	progress?: ConversationClarificationProgress | null;
+}): ConversationClarificationSummary | null {
+	if (
+		!(
+			params.request?.conversationId &&
+			isActiveConversationClarificationStatus(params.request.status)
+		)
+	) {
+		return null;
+	}
+
+	return {
+		requestId: params.request.id,
+		status: params.request.status,
+		topicSummary: params.request.topicSummary,
+		engagementMode: params.request.engagementMode,
+		linkedConversationCount: params.request.linkedConversationCount,
+		question: params.request.currentQuestion,
+		currentSuggestedAnswers: params.request.currentSuggestedAnswers,
+		currentQuestionInputMode: params.request.currentQuestionInputMode,
+		currentQuestionScope: params.request.currentQuestionScope,
+		stepIndex: params.request.stepIndex,
+		maxSteps: params.request.maxSteps,
+		updatedAt: params.request.updatedAt,
+		progress: params.progress ?? null,
+	};
+}
 
 function shouldAppearInProposalList(
 	request: KnowledgeClarificationProposalRequest
@@ -97,6 +147,82 @@ export function invalidateActiveConversationClarificationQuery(
 				exact: true,
 			});
 		},
+	});
+}
+
+export function setActiveConversationClarificationResponseInCache(
+	queryClient: QueryClient,
+	queryKey: readonly unknown[],
+	request: KnowledgeClarificationRequest | null
+): void {
+	queryClient.setQueryData<{ request: KnowledgeClarificationRequest | null }>(
+		queryKey,
+		{
+			request,
+		}
+	);
+}
+
+export function syncConversationClarificationRequestInCache(
+	queryClient: QueryClient,
+	params: {
+		websiteSlug: string;
+		request: KnowledgeClarificationRequest | null;
+		conversationId?: string | null;
+		progress?: ConversationClarificationProgress | null;
+	}
+): void {
+	const conversationId =
+		params.conversationId ?? params.request?.conversationId ?? null;
+	if (!conversationId) {
+		return;
+	}
+
+	const summary = buildConversationClarificationSummaryFromRequest({
+		request: params.request,
+		progress: params.progress ?? null,
+	});
+
+	forEachActiveConversationClarificationQuery(queryClient, {
+		websiteSlug: params.websiteSlug,
+		conversationId,
+		callback: (queryKey) => {
+			setActiveConversationClarificationResponseInCache(
+				queryClient,
+				queryKey,
+				params.request
+			);
+		},
+	});
+
+	forEachConversationHeadersQuery(
+		queryClient,
+		params.websiteSlug,
+		(queryKey) => {
+			updateConversationHeaderInCache(
+				queryClient,
+				queryKey,
+				conversationId,
+				(header) => ({
+					...header,
+					activeClarification: summary,
+				})
+			);
+		}
+	);
+}
+
+export function clearConversationClarificationInCache(
+	queryClient: QueryClient,
+	params: {
+		websiteSlug: string;
+		conversationId: string;
+	}
+): void {
+	syncConversationClarificationRequestInCache(queryClient, {
+		websiteSlug: params.websiteSlug,
+		request: null,
+		conversationId: params.conversationId,
 	});
 }
 

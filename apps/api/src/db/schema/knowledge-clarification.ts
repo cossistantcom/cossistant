@@ -1,4 +1,7 @@
-import type { KnowledgeClarificationContextSnapshot } from "@api/lib/knowledge-clarification-context";
+import type {
+	KnowledgeClarificationContextSnapshot,
+	KnowledgeClarificationSearchEvidence,
+} from "@api/lib/knowledge-clarification-context";
 import type {
 	KnowledgeClarificationDraftFaq,
 	KnowledgeClarificationQuestionPlan,
@@ -18,6 +21,7 @@ import {
 	text,
 	uniqueIndex,
 	varchar,
+	vector,
 } from "drizzle-orm/pg-core";
 import {
 	ulidNullableReference,
@@ -54,6 +58,11 @@ export const knowledgeClarificationTurnRoleEnum = pgEnum(
 	["ai_question", "human_answer", "human_skip"]
 );
 
+export const knowledgeClarificationSignalSourceKindEnum = pgEnum(
+	"knowledge_clarification_signal_source_kind",
+	["conversation", "faq"]
+);
+
 export const knowledgeClarificationRequest = pgTable(
 	"knowledge_clarification_request",
 	{
@@ -79,6 +88,7 @@ export const knowledgeClarificationRequest = pgTable(
 		topicSummary: text("topic_summary").notNull(),
 		sourceTriggerMessageId: text("source_trigger_message_id"),
 		topicFingerprint: varchar("topic_fingerprint", { length: 32 }),
+		topicEmbedding: vector("topic_embedding", { dimensions: 1536 }),
 		stepIndex: integer("step_index").notNull().default(0),
 		maxSteps: integer("max_steps").notNull().default(3),
 		contextSnapshot:
@@ -112,6 +122,10 @@ export const knowledgeClarificationRequest = pgTable(
 		index("knowledge_clarification_request_topic_fingerprint_idx").on(
 			table.topicFingerprint
 		),
+		index("knowledge_clarification_request_topic_embedding_idx").using(
+			"hnsw",
+			table.topicEmbedding.op("vector_cosine_ops")
+		),
 		index("knowledge_clarification_request_target_knowledge_idx").on(
 			table.targetKnowledgeId
 		),
@@ -124,6 +138,62 @@ export const knowledgeClarificationRequest = pgTable(
 			.on(table.conversationId, table.topicFingerprint)
 			.where(
 				sql`${table.source} = 'conversation' and ${table.conversationId} is not null and ${table.sourceTriggerMessageId} is null and ${table.topicFingerprint} is not null and ${table.status} in ('analyzing', 'awaiting_answer', 'retry_required', 'draft_ready', 'deferred')`
+			),
+	]
+);
+
+export const knowledgeClarificationSignal = pgTable(
+	"knowledge_clarification_signal",
+	{
+		id: ulidPrimaryKey("id"),
+		requestId: ulidReference("request_id").references(
+			() => knowledgeClarificationRequest.id,
+			{ onDelete: "cascade" }
+		),
+		sourceKind:
+			knowledgeClarificationSignalSourceKindEnum("source_kind").notNull(),
+		conversationId: varchar("conversation_id", { length: 18 }).references(
+			() => conversation.id,
+			{ onDelete: "set null" }
+		),
+		knowledgeId: ulidNullableReference("knowledge_id").references(
+			() => knowledge.id,
+			{ onDelete: "set null" }
+		),
+		triggerMessageId: text("trigger_message_id"),
+		summary: text("summary").notNull(),
+		searchEvidence:
+			jsonb("search_evidence").$type<KnowledgeClarificationSearchEvidence[]>(),
+		createdAt: timestamp("created_at")
+			.$defaultFn(() => new Date().toISOString())
+			.notNull(),
+	},
+	(table) => [
+		index("knowledge_clarification_signal_request_idx").on(table.requestId),
+		index("knowledge_clarification_signal_conversation_idx").on(
+			table.conversationId
+		),
+		index("knowledge_clarification_signal_knowledge_idx").on(table.knowledgeId),
+		index("knowledge_clarification_signal_source_kind_idx").on(
+			table.sourceKind
+		),
+		index("knowledge_clarification_signal_trigger_message_idx").on(
+			table.triggerMessageId
+		),
+		uniqueIndex("knowledge_clarification_signal_request_conv_trigger_unique")
+			.on(table.requestId, table.conversationId, table.triggerMessageId)
+			.where(
+				sql`${table.sourceKind} = 'conversation' and ${table.conversationId} is not null and ${table.triggerMessageId} is not null`
+			),
+		uniqueIndex("knowledge_clarification_signal_request_conv_unique")
+			.on(table.requestId, table.conversationId)
+			.where(
+				sql`${table.sourceKind} = 'conversation' and ${table.conversationId} is not null and ${table.triggerMessageId} is null`
+			),
+		uniqueIndex("knowledge_clarification_signal_request_faq_unique")
+			.on(table.requestId, table.knowledgeId)
+			.where(
+				sql`${table.sourceKind} = 'faq' and ${table.knowledgeId} is not null`
 			),
 	]
 );
@@ -177,7 +247,26 @@ export const knowledgeClarificationRequestRelations = relations(
 			fields: [knowledgeClarificationRequest.targetKnowledgeId],
 			references: [knowledge.id],
 		}),
+		signals: many(knowledgeClarificationSignal),
 		turns: many(knowledgeClarificationTurn),
+	})
+);
+
+export const knowledgeClarificationSignalRelations = relations(
+	knowledgeClarificationSignal,
+	({ one }) => ({
+		request: one(knowledgeClarificationRequest, {
+			fields: [knowledgeClarificationSignal.requestId],
+			references: [knowledgeClarificationRequest.id],
+		}),
+		conversation: one(conversation, {
+			fields: [knowledgeClarificationSignal.conversationId],
+			references: [conversation.id],
+		}),
+		knowledge: one(knowledge, {
+			fields: [knowledgeClarificationSignal.knowledgeId],
+			references: [knowledge.id],
+		}),
 	})
 );
 
@@ -196,6 +285,12 @@ export type KnowledgeClarificationRequestSelect = InferSelectModel<
 >;
 export type KnowledgeClarificationRequestInsert = InferInsertModel<
 	typeof knowledgeClarificationRequest
+>;
+export type KnowledgeClarificationSignalSelect = InferSelectModel<
+	typeof knowledgeClarificationSignal
+>;
+export type KnowledgeClarificationSignalInsert = InferInsertModel<
+	typeof knowledgeClarificationSignal
 >;
 export type KnowledgeClarificationTurnSelect = InferSelectModel<
 	typeof knowledgeClarificationTurn

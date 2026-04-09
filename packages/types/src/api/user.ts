@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { apiTimestampSchema, nullableApiTimestampSchema } from "./common";
 
 /**
  * Visitor data update request schema
@@ -24,15 +25,15 @@ export const userResponseSchema = z.object({
 		description: "The user's image URL.",
 		example: "https://example.com/image.png",
 	}),
-	createdAt: z.string().openapi({
+	createdAt: apiTimestampSchema.openapi({
 		description: "The user's creation date.",
 		example: "2021-01-01T00:00:00.000Z",
 	}),
-	updatedAt: z.string().openapi({
+	updatedAt: apiTimestampSchema.openapi({
 		description: "The user's last update date.",
 		example: "2021-01-01T00:00:00.000Z",
 	}),
-	lastSeenAt: z.string().nullable().openapi({
+	lastSeenAt: nullableApiTimestampSchema.openapi({
 		description: "The user's last seen date.",
 		example: "2021-01-01T00:00:00.000Z",
 	}),

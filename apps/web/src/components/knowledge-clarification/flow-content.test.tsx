@@ -17,9 +17,12 @@ function createRequest(
 		source: "conversation",
 		status: "awaiting_answer",
 		topicSummary: "Clarify billing timing",
+		engagementMode: "owner",
+		linkedConversationCount: 1,
 		stepIndex: 1,
 		maxSteps: 3,
 		targetKnowledgeId: null,
+		targetKnowledgeSummary: null,
 		currentQuestion: null,
 		currentSuggestedAnswers: null,
 		currentQuestionInputMode: null,
@@ -86,6 +89,7 @@ describe("KnowledgeClarificationFlowContent terminal states", () => {
 				pageDraftReviewState={createDraftReviewState()}
 				showPageApprovalPendingState
 				variant="page"
+				websiteSlug="acme"
 			/>
 		);
 
@@ -121,6 +125,7 @@ describe("KnowledgeClarificationFlowContent terminal states", () => {
 				onDismiss={() => {}}
 				onRetry={() => {}}
 				variant="page"
+				websiteSlug="acme"
 			/>
 		);
 
@@ -144,6 +149,7 @@ describe("KnowledgeClarificationFlowContent terminal states", () => {
 				onDismiss={() => {}}
 				onRetry={() => {}}
 				variant="page"
+				websiteSlug="acme"
 			/>
 		);
 

@@ -106,7 +106,7 @@ cd apps/api
 bun db:studio
 ```
 
-## Optional S3 Setup
+## Optional Storage Setup
 
 S3 file storage is **only needed if you're testing file uploads**. For most development work, you can skip this.
 
@@ -116,8 +116,8 @@ If you do need S3:
    ```bash
    cd infra/aws/s3-public-setup
    ```
-2. Follow the instructions in the [S3 Setup README](/infra/aws/s3-public-setup/README.md)
-3. The Terraform configuration will create the necessary AWS resources
+2. Follow the [Storage guide](/docs/self-host/storage) for the recommended AWS setup, the runtime env vars Cossistant expects, and a verification checklist.
+3. The Terraform configuration will create the AWS resources needed for signed uploads and public asset reads.
 
 ## Repo Map For Contributors
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { clearLocalStorageDraftValue } from "@cossistant/react";
 import type {
 	KnowledgeClarificationDraftFaq,
 	KnowledgeClarificationRequest,
@@ -7,6 +8,7 @@ import type {
 } from "@plasma/types";
 import { LoaderCircleIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import type { KnowledgeClarificationDraftReviewState } from "./draft-review";
 import {
@@ -14,8 +16,10 @@ import {
 	KnowledgeClarificationDraftReviewBody,
 } from "./draft-review";
 import { KnowledgeClarificationQuestionCard } from "./question-card";
+import { buildKnowledgeClarificationAnswerDraftPersistenceId } from "./question-flow";
 
 type KnowledgeClarificationFlowContentProps = {
+	websiteSlug: string;
 	variant: "dialog" | "page";
 	isLoading?: boolean;
 	currentStep: KnowledgeClarificationStepResponse | null;
@@ -27,6 +31,7 @@ type KnowledgeClarificationFlowContentProps = {
 	isRetrying?: boolean;
 	onAnswer: (
 		requestId: string,
+		expectedStepIndex: number,
 		payload: {
 			selectedAnswer?: string;
 			freeAnswer?: string;
@@ -219,6 +224,7 @@ function TerminalState({
 }
 
 export function KnowledgeClarificationFlowContent({
+	websiteSlug,
 	variant,
 	isLoading = false,
 	currentStep,
@@ -236,6 +242,40 @@ export function KnowledgeClarificationFlowContent({
 	onClose,
 	pageDraftReviewState = null,
 }: KnowledgeClarificationFlowContentProps) {
+	const activeQuestionStep = useMemo(() => {
+		if (currentStep?.kind === "question") {
+			return currentStep;
+		}
+
+		if (fallbackStep?.kind === "question") {
+			return fallbackStep;
+		}
+
+		return null;
+	}, [currentStep, fallbackStep]);
+	const activeQuestionDraftPersistenceId = activeQuestionStep
+		? buildKnowledgeClarificationAnswerDraftPersistenceId({
+				websiteSlug,
+				requestId: activeQuestionStep.request.id,
+				stepIndex: activeQuestionStep.request.stepIndex,
+			})
+		: null;
+	const previousQuestionDraftPersistenceIdRef = useRef<string | null>(null);
+
+	useEffect(() => {
+		const previousDraftPersistenceId =
+			previousQuestionDraftPersistenceIdRef.current;
+		if (
+			previousDraftPersistenceId &&
+			previousDraftPersistenceId !== activeQuestionDraftPersistenceId
+		) {
+			clearLocalStorageDraftValue(previousDraftPersistenceId);
+		}
+
+		previousQuestionDraftPersistenceIdRef.current =
+			activeQuestionDraftPersistenceId;
+	}, [activeQuestionDraftPersistenceId]);
+
 	if (isLoading) {
 		return variant === "page" ? (
 			<PageMessageRow
@@ -269,6 +309,7 @@ export function KnowledgeClarificationFlowContent({
 						? "Answer one short question so the AI can complete the draft."
 						: "Answer the current question now, save it for later, or remove it entirely."
 				}
+				draftPersistenceId={activeQuestionDraftPersistenceId}
 				inputMode={currentStep.inputMode}
 				isAnalyzing={isSubmittingAnswer}
 				isSubmitting={isSubmittingAnswer}
@@ -279,7 +320,13 @@ export function KnowledgeClarificationFlowContent({
 					runFlowAction(() => onDismiss(currentStep.request.id));
 				}}
 				onSubmit={(payload) => {
-					runFlowAction(() => onAnswer(currentStep.request.id, payload));
+					runFlowAction(() =>
+						onAnswer(
+							currentStep.request.id,
+							currentStep.request.stepIndex,
+							payload
+						)
+					);
 				}}
 				question={currentStep.question}
 				stepIndex={currentStep.request.stepIndex}
@@ -334,6 +381,7 @@ export function KnowledgeClarificationFlowContent({
 						? "This suggestion is waiting for another answer."
 						: "This proposal is waiting for another answer."
 				}
+				draftPersistenceId={activeQuestionDraftPersistenceId}
 				inputMode={fallbackStep.inputMode}
 				isSubmitting={isSubmittingAnswer}
 				onDefer={() => {
@@ -343,7 +391,13 @@ export function KnowledgeClarificationFlowContent({
 					runFlowAction(() => onDismiss(fallbackStep.request.id));
 				}}
 				onSubmit={(payload) => {
-					runFlowAction(() => onAnswer(fallbackStep.request.id, payload));
+					runFlowAction(() =>
+						onAnswer(
+							fallbackStep.request.id,
+							fallbackStep.request.stepIndex,
+							payload
+						)
+					);
 				}}
 				question={fallbackStep.question}
 				stepIndex={fallbackStep.request.stepIndex}

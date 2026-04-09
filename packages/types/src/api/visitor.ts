@@ -1,4 +1,9 @@
 import { z } from "@hono/zod-openapi";
+import {
+	apiTimestampInputSchema,
+	apiTimestampSchema,
+	nullableApiTimestampSchema,
+} from "./common";
 import { contactResponseSchema } from "./contact";
 
 /**
@@ -166,7 +171,7 @@ export const visitorAttributionFirstTouchSchema = z.object({
 	landing: visitorAttributionLandingSchema,
 	utm: visitorAttributionUtmSchema,
 	clickIds: visitorAttributionClickIdsSchema,
-	capturedAt: z.string().openapi({
+	capturedAt: apiTimestampInputSchema.openapi({
 		description: "When the first-touch attribution snapshot was captured.",
 		example: "2026-03-12T10:00:00.000Z",
 	}),
@@ -199,7 +204,7 @@ export const visitorCurrentPageSchema = z.object({
 			"Sanitized document referrer URL for the current page context.",
 		example: "https://news.ycombinator.com/item?id=123",
 	}),
-	updatedAt: z.string().openapi({
+	updatedAt: apiTimestampInputSchema.openapi({
 		description: "When the current page context was last updated.",
 		example: "2026-03-12T10:00:05.000Z",
 	}),
@@ -245,9 +250,7 @@ export const visitorActivityRequestSchema = z.object({
 	currentPage: visitorCurrentPageSchema.openapi({
 		description: "Current page context captured in the widget.",
 	}),
-	occurredAt: z
-		.string()
-		.datetime({ offset: true })
+	occurredAt: apiTimestampInputSchema
 		.openapi({
 			description:
 				"Optional client-observed timestamp for diagnostics. Server ingestion time remains authoritative.",
@@ -261,7 +264,7 @@ export const visitorActivityResponseSchema = z.object({
 		description: "Whether the activity event was accepted.",
 		example: true,
 	}),
-	acceptedAt: z.string().datetime({ offset: true }).openapi({
+	acceptedAt: apiTimestampSchema.openapi({
 		description: "Server timestamp when the activity event was accepted.",
 		example: "2026-03-26T10:00:01.000Z",
 	}),
@@ -458,11 +461,11 @@ export const visitorProfileSchema = z.object({
 		description: "The visitor's unique identifier (ULID).",
 		example: "01JG000000000000000000000",
 	}),
-	lastSeenAt: z.string().nullable().openapi({
+	lastSeenAt: nullableApiTimestampSchema.openapi({
 		description: "When the visitor was last seen.",
 		example: "2021-01-01T00:00:00.000Z",
 	}),
-	blockedAt: z.string().nullable().openapi({
+	blockedAt: nullableApiTimestampSchema.openapi({
 		description: "When the visitor was blocked, if applicable.",
 		example: "2024-01-01T12:00:00.000Z",
 	}),
@@ -553,15 +556,15 @@ export const visitorResponseSchema = z.object({
 		description: "The visitor's viewport size.",
 		example: "1920x900",
 	}),
-	createdAt: z.string().openapi({
+	createdAt: apiTimestampSchema.openapi({
 		description: "When the visitor was first seen.",
 		example: "2021-01-01T00:00:00.000Z",
 	}),
-	updatedAt: z.string().openapi({
+	updatedAt: apiTimestampSchema.openapi({
 		description: "When the visitor record was last updated.",
 		example: "2021-01-01T00:00:00.000Z",
 	}),
-	lastSeenAt: z.string().nullable().openapi({
+	lastSeenAt: nullableApiTimestampSchema.openapi({
 		description: "When the visitor was last connected or active.",
 		example: "2021-01-01T00:00:00.000Z",
 	}),
@@ -574,7 +577,7 @@ export const visitorResponseSchema = z.object({
 			"The organization's unique identifier that the visitor belongs to.",
 		example: "01JG000000000000000000000",
 	}),
-	blockedAt: z.string().nullable().openapi({
+	blockedAt: nullableApiTimestampSchema.openapi({
 		description: "When the visitor was blocked, if applicable.",
 		example: "2024-01-01T12:00:00.000Z",
 	}),

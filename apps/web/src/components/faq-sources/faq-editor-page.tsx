@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useKnowledgeClarificationStreamAction } from "@/components/knowledge-clarification/use-clarification-stream";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -65,12 +66,6 @@ function areFaqDraftsEqual(
 export function FaqEditorPage({ knowledgeId }: FaqEditorPageProps) {
 	const router = useRouter();
 	const trpc = useTRPC();
-	const [question, setQuestion] = useState("");
-	const [answer, setAnswer] = useState("");
-	const [categories, setCategories] = useState("");
-	const [relatedQuestions, setRelatedQuestions] = useState("");
-	const [initialDraft, setInitialDraft] =
-		useState<NormalizedFaqDraft>(EMPTY_FAQ_DRAFT);
 	const pageState = useTrainingPageState({
 		highlightedFeatureKey: "ai-agent-training-faqs",
 	});
@@ -84,6 +79,36 @@ export function FaqEditorPage({ knowledgeId }: FaqEditorPageProps) {
 		}),
 		enabled: Boolean(knowledgeId),
 	});
+	const initialDraftFromKnowledge = useMemo(() => {
+		if (!knowledge || knowledge.type !== "faq") {
+			return EMPTY_FAQ_DRAFT;
+		}
+
+		const payload = knowledge.payload as FaqKnowledgePayload;
+		return normalizeFaqDraft({
+			question: payload.question,
+			answer: payload.answer,
+			categories: payload.categories.join(", "),
+			relatedQuestions: payload.relatedQuestions.join(", "),
+		});
+	}, [knowledge]);
+	const [question, setQuestion] = useState(
+		() => initialDraftFromKnowledge.question
+	);
+	const [answer, setAnswer] = useState(() => initialDraftFromKnowledge.answer);
+	const [categories, setCategories] = useState(() =>
+		initialDraftFromKnowledge.categories.length > 0
+			? initialDraftFromKnowledge.categories.join(", ")
+			: ""
+	);
+	const [relatedQuestions, setRelatedQuestions] = useState(() =>
+		initialDraftFromKnowledge.relatedQuestions.length > 0
+			? initialDraftFromKnowledge.relatedQuestions.join(", ")
+			: ""
+	);
+	const [initialDraft, setInitialDraft] = useState<NormalizedFaqDraft>(
+		() => initialDraftFromKnowledge
+	);
 
 	const {
 		handleCreate,
@@ -100,35 +125,37 @@ export function FaqEditorPage({ knowledgeId }: FaqEditorPageProps) {
 		trainingControls: pageState.trainingControls,
 	});
 
-	const startClarificationMutation = useMutation(
-		trpc.knowledgeClarification.startFromFaq.mutationOptions({
+	const clarificationStream =
+		useKnowledgeClarificationStreamAction<"start_faq">({
 			onError: (error) => {
 				toast.error(error.message || "Failed to start FAQ clarification");
 			},
-		})
-	);
+			onFinish: (result) => {
+				router.push(
+					`/${pageState.websiteSlug}/agent/training/faq/proposals/${result.request.id}`
+				);
+			},
+		});
 
 	useEffect(() => {
 		if (!knowledge || knowledge.type !== "faq") {
 			return;
 		}
 
-		const payload = knowledge.payload as FaqKnowledgePayload;
-		const nextCategories = payload.categories.join(", ");
-		const nextRelatedQuestions = payload.relatedQuestions.join(", ");
-		const nextDraft = normalizeFaqDraft({
-			question: payload.question,
-			answer: payload.answer,
-			categories: nextCategories,
-			relatedQuestions: nextRelatedQuestions,
-		});
-
-		setQuestion(payload.question);
-		setAnswer(payload.answer);
-		setCategories(nextCategories);
-		setRelatedQuestions(nextRelatedQuestions);
-		setInitialDraft(nextDraft);
-	}, [knowledge]);
+		setQuestion(initialDraftFromKnowledge.question);
+		setAnswer(initialDraftFromKnowledge.answer);
+		setCategories(
+			initialDraftFromKnowledge.categories.length > 0
+				? initialDraftFromKnowledge.categories.join(", ")
+				: ""
+		);
+		setRelatedQuestions(
+			initialDraftFromKnowledge.relatedQuestions.length > 0
+				? initialDraftFromKnowledge.relatedQuestions.join(", ")
+				: ""
+		);
+		setInitialDraft(initialDraftFromKnowledge);
+	}, [initialDraftFromKnowledge, knowledge]);
 
 	const isAtFaqLimit =
 		pageState.stats?.planLimitFaqs !== null &&
@@ -204,13 +231,11 @@ export function FaqEditorPage({ knowledgeId }: FaqEditorPageProps) {
 			return;
 		}
 
-		const result = await startClarificationMutation.mutateAsync({
+		clarificationStream.submitAction("start_faq", {
+			action: "start_faq",
 			websiteSlug: pageState.websiteSlug,
 			knowledgeId,
 		});
-		router.push(
-			`/${pageState.websiteSlug}/agent/training/faq/proposals/${result.step.request.id}`
-		);
 	};
 
 	const canSave =
@@ -230,13 +255,13 @@ export function FaqEditorPage({ knowledgeId }: FaqEditorPageProps) {
 			) : null}
 			{isCreateMode ? null : (
 				<Button
-					disabled={startClarificationMutation.isPending || isLoadingKnowledge}
+					disabled={clarificationStream.isLoading || isLoadingKnowledge}
 					onClick={handleDeepen}
 					size="sm"
 					type="button"
 					variant="ghost"
 				>
-					{startClarificationMutation.isPending ? "Opening..." : "Deepen"}
+					{clarificationStream.isLoading ? "Opening..." : "Deepen"}
 				</Button>
 			)}
 			{isCreateMode ? null : (

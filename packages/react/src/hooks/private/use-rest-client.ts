@@ -1,5 +1,6 @@
 "use client";
 
+import { CossistantClient } from "@cossistant/core/client";
 import {
 	PlasmaClient,
 	getEnvVarName,

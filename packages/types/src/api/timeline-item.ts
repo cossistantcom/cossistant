@@ -6,6 +6,11 @@ import {
 	TimelineItemVisibility,
 } from "../enums";
 import { TOOL_TIMELINE_LOG_TYPE } from "../tool-timeline-policy";
+import {
+	apiTimestampInputSchema,
+	apiTimestampSchema,
+	nullableApiTimestampSchema,
+} from "./common";
 
 // ============================================================================
 // AI SDK v6 COMPATIBLE PART SCHEMAS
@@ -365,10 +370,10 @@ export const timelineItemSchema = z.object({
 		description:
 			"ID of the visitor who created this timeline item, if applicable",
 	}),
-	createdAt: z.string().openapi({
+	createdAt: apiTimestampSchema.openapi({
 		description: "ISO 8601 timestamp when the timeline item was created",
 	}),
-	deletedAt: z.string().nullable().optional().openapi({
+	deletedAt: nullableApiTimestampSchema.optional().openapi({
 		description:
 			"ISO 8601 timestamp when the timeline item was deleted, if applicable",
 	}),
@@ -513,7 +518,7 @@ export const sendTimelineItemRequestSchema = z
 			visitorId: z.string().nullable().optional().openapi({
 				description: "ID of the visitor creating this timeline item",
 			}),
-			createdAt: z.string().optional().openapi({
+			createdAt: apiTimestampInputSchema.optional().openapi({
 				description: "Optional timestamp for the timeline item",
 			}),
 		}),

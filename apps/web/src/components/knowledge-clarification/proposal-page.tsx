@@ -178,6 +178,20 @@ export function KnowledgeClarificationProposalPage({
 						{getClarificationRequestStatusLabel(flow.currentRequest)}
 					</Badge>
 				) : null}
+				{flow.currentRequest?.linkedConversationCount &&
+				flow.currentRequest.linkedConversationCount > 1 ? (
+					<Badge variant="secondary">
+						{flow.currentRequest.linkedConversationCount} conversations
+					</Badge>
+				) : null}
+				{flow.currentRequest?.targetKnowledgeSummary ? (
+					<Badge variant="secondary">
+						Updating FAQ:{" "}
+						{flow.currentRequest.targetKnowledgeSummary.question ??
+							flow.currentRequest.targetKnowledgeSummary.sourceTitle ??
+							flow.currentRequest.targetKnowledgeSummary.id}
+					</Badge>
+				) : null}
 			</div>
 			<KnowledgeClarificationFlowContent
 				currentRequest={flow.currentRequest}
@@ -196,6 +210,7 @@ export function KnowledgeClarificationProposalPage({
 				pageDraftReviewState={draftReviewPayload ? draftReviewState : null}
 				showPageApprovalPendingState={isApprovalPendingUi}
 				variant="page"
+				websiteSlug={website.slug}
 			/>
 		</TrainingEntryDetailLayout>
 	);

@@ -43,6 +43,11 @@ type WebSocketProviderProps = {
 };
 
 const WebSocketContext = createContext<WebSocketContextValue | null>(null);
+const DISCONNECTED_STATE = {
+	status: "disconnected" as const,
+	error: null,
+	connectionId: null,
+};
 
 /**
  * Support-specific realtime provider that authenticates visitors using the
@@ -50,44 +55,15 @@ const WebSocketContext = createContext<WebSocketContextValue | null>(null);
  */
 export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 	children,
-	publicKey,
 	websiteId,
 	visitorId,
 	wsUrl: _wsUrl,
-	autoConnect = true,
 	onConnect: _onConnect,
 	onDisconnect: _onDisconnect,
-	onError,
+	onError: _onError,
 }) => {
-	const { client } = useSupport();
+	const { client, website } = useSupport();
 	const realtime = client?.realtime ?? null;
-
-	// Build auth config
-	const auth = useMemo<RealtimeAuthConfig | null>(() => {
-		const normalizedVisitorId = visitorId?.trim();
-		if (!normalizedVisitorId) {
-			return null;
-		}
-		return {
-			kind: "visitor",
-			visitorId: normalizedVisitorId,
-			websiteId: websiteId?.trim() || null,
-			publicKey: publicKey?.trim() || null,
-		};
-	}, [visitorId, websiteId, publicKey]);
-
-	// Connect/disconnect
-	useEffect(() => {
-		if (!realtime) {
-			return;
-		}
-
-		if (autoConnect && auth) {
-			realtime.connect(auth);
-		} else {
-			realtime.disconnect();
-		}
-	}, [realtime, auth, autoConnect]);
 
 	// Subscribe to connection state
 	const connectionState = useSyncExternalStore(
@@ -96,18 +72,8 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 				realtime?.onStateChange(onStoreChange) ?? (() => {}),
 			[realtime]
 		),
-		() =>
-			realtime?.getState() ?? {
-				status: "disconnected" as const,
-				error: null,
-				connectionId: null,
-			},
-		() =>
-			realtime?.getState() ?? {
-				status: "disconnected" as const,
-				error: null,
-				connectionId: null,
-			}
+		() => realtime?.getState() ?? DISCONNECTED_STATE,
+		() => realtime?.getState() ?? DISCONNECTED_STATE
 	);
 
 	// Track last event via subscription
@@ -144,6 +110,16 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 		realtime?.reconnect();
 	}, [realtime]);
 
+	const resolvedVisitorId = useMemo(
+		() => visitorId ?? website?.visitor?.id ?? null,
+		[visitorId, website]
+	);
+
+	const resolvedWebsiteId = useMemo(
+		() => websiteId ?? website?.id ?? null,
+		[websiteId, website]
+	);
+
 	const value = useMemo<WebSocketContextValue>(
 		() => ({
 			isConnected: connectionState.status === "connected",
@@ -155,8 +131,8 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 			lastEvent,
 			connectionId: connectionState.connectionId,
 			reconnect,
-			visitorId: visitorId ?? null,
-			websiteId: websiteId ?? null,
+			visitorId: resolvedVisitorId,
+			websiteId: resolvedWebsiteId,
 			userId: null,
 		}),
 		[
@@ -166,8 +142,8 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 			subscribe,
 			lastEvent,
 			reconnect,
-			visitorId,
-			websiteId,
+			resolvedVisitorId,
+			resolvedWebsiteId,
 		]
 	);
 

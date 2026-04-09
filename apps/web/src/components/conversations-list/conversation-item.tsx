@@ -19,6 +19,7 @@ import type { ConversationHeader } from "@/contexts/inboxes";
 import { useVisitorPresenceById } from "@/contexts/visitor-presence";
 import { useUserSession, useWebsiteMembers } from "@/contexts/website";
 import { useLatestConversationMessage } from "@/data/use-latest-conversation-message";
+import { usePrefetchContactVisitorDetail } from "@/data/use-prefetch-contact-visitor-detail";
 import { usePrefetchConversationData } from "@/data/use-prefetch-conversation-data";
 import { useContactVisitorDetailState } from "@/hooks/use-contact-visitor-detail-state";
 import { isInboundVisitorMessage } from "@/lib/conversation-messages";
@@ -57,6 +58,7 @@ type ConversationItemViewProps = {
 	rightContent?: ReactNode;
 	className?: string;
 	onMouseEnter?: () => void;
+	onAvatarHoverOrFocus?: () => void;
 	onClick?: () => void;
 	onAvatarClick?: () => void;
 	href?: string;
@@ -83,6 +85,7 @@ export function ConversationItemView({
 	rightContent,
 	className,
 	onMouseEnter,
+	onAvatarHoverOrFocus,
 	onClick,
 	onAvatarClick,
 	href,
@@ -119,7 +122,8 @@ export function ConversationItemView({
 				className="size-8 cursor-pointer rounded-[2px] transition-transform duration-150 hover:scale-105 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
 				data-slot="conversation-item-avatar-trigger"
 				onClick={onAvatarClick}
-				onMouseEnter={onMouseEnter}
+				onFocus={onAvatarHoverOrFocus}
+				onMouseEnter={onAvatarHoverOrFocus}
 				type="button"
 			>
 				{avatar}
@@ -291,6 +295,7 @@ export function ConversationItem({
 	} = header;
 	const isLocked = Boolean(header.dashboardLocked);
 	const { prefetchConversation } = usePrefetchConversationData();
+	const { prefetchDetail } = usePrefetchContactVisitorDetail({ websiteSlug });
 	const { user } = useUserSession();
 	const members = useWebsiteMembers();
 	const trpc = useTRPC();
@@ -385,6 +390,14 @@ export function ConversationItem({
 
 		void openVisitorDetail(detailTarget.id);
 	}, [detailTarget, openContactDetail, openVisitorDetail]);
+
+	const handleDetailPrefetch = useCallback(() => {
+		if (!detailTarget) {
+			return;
+		}
+
+		void prefetchDetail(detailTarget);
+	}, [detailTarget, prefetchDetail]);
 
 	const typingEntries = useConversationTyping(header.id, {
 		excludeUserId: user.id,
@@ -586,6 +599,7 @@ export function ConversationItem({
 			needsClarification={showNeedsClarification}
 			needsHumanIntervention={showNeedsHuman}
 			onAvatarClick={detailTarget ? handleAvatarClick : undefined}
+			onAvatarHoverOrFocus={detailTarget ? handleDetailPrefetch : undefined}
 			onClick={isLocked ? () => onLockedActivate?.(header.id) : undefined}
 			onMouseEnter={() => {
 				setFocused?.();

@@ -21,4 +21,15 @@ describe("TextEffect", () => {
 		expect(getTextEffectVisibleText(segments, 2)).toBe("Ty");
 		expect(getTextEffectVisibleText(segments, segments.length)).toBe("Typing");
 	});
+
+	it("renders a controlled caret reveal without running the internal typing scheduler", () => {
+		const html = renderToStaticMarkup(
+			<TextEffect as="span" per="char" revealedCount={4} showCaret={true}>
+				Typing
+			</TextEffect>
+		);
+
+		expect(html).toContain("Typi");
+		expect(html).toContain('data-text-effect-caret="true"');
+	});
 });

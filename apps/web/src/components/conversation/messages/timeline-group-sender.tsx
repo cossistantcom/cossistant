@@ -73,6 +73,16 @@ export function TimelineGroupSenderAvatar({
 	}
 
 	if (senderType === SenderType.AI) {
+		if (aiAgent?.image) {
+			return (
+				<Avatar
+					className="size-6"
+					fallbackName={aiAgent.name || "AI Assistant"}
+					url={aiAgent.image}
+				/>
+			);
+		}
+
 		return (
 			<div className="flex size-6 shrink-0 items-center justify-center">
 				<Logo className="size-5 text-primary/90" />

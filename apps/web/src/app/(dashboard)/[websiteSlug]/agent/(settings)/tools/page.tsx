@@ -1,4 +1,5 @@
-"use client";
+import { prefetchAgentToolsPageData } from "../../_lib/prefetch";
+import ToolsPage from "./tools-page";
 
 import type { GetCapabilitiesStudioResponse } from "@plasma/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -37,13 +38,10 @@ import { useWebsite } from "@/contexts/website";
 import { useTRPC } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 
-type StudioTool = GetCapabilitiesStudioResponse["tools"][number];
+export default async function Page({ params }: PageProps) {
+	const { websiteSlug } = await params;
 
-type SkillEditorTarget =
-	| { kind: "tool"; toolId: StudioTool["id"] }
-	| { kind: "custom"; skillId: string }
-	| { kind: "create-custom" }
-	| null;
+	await prefetchAgentToolsPageData(websiteSlug);
 
 export default function ToolsPage() {
 	const website = useWebsite();

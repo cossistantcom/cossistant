@@ -94,10 +94,13 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 
 ### 4. Import styles
 
-<Tabs defaultValue="tailwind" className="mt-6">
+The widget does not inject styles automatically. Import one CSS entrypoint at the app root.
+Start with plain CSS unless your app is already running Tailwind CSS v4.
+
+<Tabs defaultValue="plain" className="mt-6">
   <TabsList>
-    <TabsTrigger value="tailwind">Tailwind v4</TabsTrigger>
     <TabsTrigger value="plain">Plain CSS</TabsTrigger>
+    <TabsTrigger value="tailwind">Tailwind v4</TabsTrigger>
   </TabsList>
   <TabsContent value="tailwind">
 
@@ -125,6 +128,15 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     </SupportProvider>
   </React.StrictMode>,
 );
+```
+
+  </TabsContent>
+  <TabsContent value="tailwind">
+
+```css title="src/index.css"
+@import "tailwindcss";
+
+@import "@cossistant/react/support.css";
 ```
 
   </TabsContent>

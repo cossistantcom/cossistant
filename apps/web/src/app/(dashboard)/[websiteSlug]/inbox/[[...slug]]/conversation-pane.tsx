@@ -96,10 +96,7 @@ export function ConversationPane({
 			{
 				id: aiAgent.id,
 				name: aiAgent.name,
-				image:
-					"image" in aiAgent
-						? ((aiAgent as { image?: string | null }).image ?? null)
-						: null,
+				image: aiAgent.image ?? null,
 			},
 		];
 	}, [aiAgent]);
@@ -167,6 +164,7 @@ export function ConversationPane({
 		removeFile,
 		submit,
 	} = useMultimodalInput({
+		draftPersistenceId: `conversation-composer:${websiteSlug}:${conversationId}`,
 		onSubmit: async (payload) => {
 			if (isMessageLimitReached) {
 				handleMessageLimitReached();
@@ -539,6 +537,7 @@ export function ConversationPane({
 	const clarificationPromptContent =
 		activeClarificationSummary && showClarificationPrompt ? (
 			<ClarificationPrompt
+				conversationId={conversationId}
 				onClarify={handleStartClarification}
 				summary={activeClarificationSummary}
 				websiteSlug={websiteSlug}
@@ -546,6 +545,7 @@ export function ConversationPane({
 		) : null;
 
 	const clarificationComposerBlocks = useClarificationComposerFlow({
+		conversationId,
 		onCancel: handleCancelClarification,
 		request: showClarificationDraftBanner
 			? clarificationBannerRequest
@@ -674,10 +674,7 @@ export function ConversationPane({
 							id: aiAgent.id,
 							name: aiAgent.name,
 							isActive: aiAgent.isActive,
-							image:
-								"image" in aiAgent
-									? ((aiAgent as { image?: string | null }).image ?? null)
-									: null,
+							image: aiAgent.image ?? null,
 						}
 					: null,
 				teamMembers: members.map((member) => ({

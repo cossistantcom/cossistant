@@ -24,6 +24,10 @@ export function resolveEngagedConversationClarificationRequestId(params: {
 		return null;
 	}
 
+	if (params.summary.engagementMode === "linked") {
+		return null;
+	}
+
 	if (params.summary.status === "draft_ready") {
 		return null;
 	}
@@ -46,6 +50,10 @@ export function shouldShowConversationClarificationPrompt(params: {
 		return false;
 	}
 
+	if (params.summary.engagementMode === "linked") {
+		return true;
+	}
+
 	if (params.summary.status !== "retry_required" && !params.summary.question) {
 		return false;
 	}
@@ -57,6 +65,10 @@ export function shouldShowConversationClarificationAction(params: {
 	summary: ConversationClarificationSummary | null | undefined;
 	engagedRequestId: string | null;
 }): boolean {
+	if (params.summary?.engagementMode === "linked") {
+		return false;
+	}
+
 	if (
 		!(
 			params.summary &&
@@ -88,7 +100,11 @@ export function resolveConversationClarificationDisplayState(params: {
 			engagedRequestId,
 		});
 	const showDraftBanner = Boolean(
-		!(params.hasLimitAction || params.summary?.status !== "draft_ready")
+		!(
+			params.hasLimitAction ||
+			params.summary?.status !== "draft_ready" ||
+			params.summary?.engagementMode === "linked"
+		)
 	);
 	const showPrompt = shouldShowConversationClarificationPrompt({
 		summary: params.summary,

@@ -15,6 +15,7 @@ const logAiPipelineMock = mock(() => {});
 const emitPipelineGenerationProgressMock = mock((async () => {}) as (
 	...args: unknown[]
 ) => Promise<void>);
+let mockSearchKnowledgeResult: unknown;
 
 type MockAgentOptions = {
 	model: string;
@@ -59,6 +60,7 @@ class ToolLoopAgentMock {
 const buildPipelineToolsetMock = mock(
 	({
 		context,
+		allowedToolNames,
 	}: {
 		context: {
 			allowPublicMessages: boolean;
@@ -67,7 +69,15 @@ const buildPipelineToolsetMock = mock(
 				toolCallCounts: Record<string, number>;
 				mutationToolCallCounts: Record<string, number>;
 				publicMessagesSent: number;
+				publicReplyTexts?: string[];
 				publicSendSequence: number;
+				toolExecutions: Array<{
+					toolName: string;
+					state: "result" | "error";
+					input: Record<string, unknown>;
+					output?: unknown;
+					errorText?: string;
+				}>;
 				finalAction: {
 					action: "respond" | "skip" | "escalate";
 					reasoning: string;
@@ -75,6 +85,7 @@ const buildPipelineToolsetMock = mock(
 				} | null;
 			};
 		};
+		allowedToolNames?: string[];
 	}) => {
 		const increment = (toolName: string) => {
 			context.runtimeState.toolCallCounts[toolName] =
@@ -84,18 +95,35 @@ const buildPipelineToolsetMock = mock(
 			context.runtimeState.mutationToolCallCounts[toolName] =
 				(context.runtimeState.mutationToolCallCounts[toolName] ?? 0) + 1;
 		};
+		const recordResult = (
+			toolName: string,
+			input: Record<string, unknown>,
+			output: unknown
+		) => {
+			context.runtimeState.toolExecutions.push({
+				toolName,
+				state: "result",
+				input,
+				output,
+			});
+		};
 
 		const publicTools = {
 			sendMessage: {
 				description: "Chat message",
-				execute: async (_input: unknown) => {
+				execute: async (input: unknown) => {
+					const parsed = input as { message: string };
 					increment("sendMessage");
 					context.runtimeState.publicSendSequence += 1;
 					context.runtimeState.publicMessagesSent += 1;
-					return {
+					context.runtimeState.publicReplyTexts ??= [];
+					context.runtimeState.publicReplyTexts.push(parsed.message);
+					const output = {
 						success: true,
 						data: { messageId: `msg-${Date.now()}`, created: true },
 					};
+					recordResult("sendMessage", { message: parsed.message }, output);
+					return output;
 				},
 			},
 		};
@@ -164,53 +192,62 @@ const buildPipelineToolsetMock = mock(
 			},
 		};
 
-		return {
-			tools: {
-				...(context.pipelineKind === "background"
-					? backgroundTools
-					: {
-							searchKnowledgeBase: {
-								description: "Search KB",
-								execute: async () => {
-									increment("searchKnowledgeBase");
-									return { success: true };
-								},
+		const allTools = {
+			...(context.pipelineKind === "background"
+				? backgroundTools
+				: {
+						searchKnowledgeBase: {
+							description: "Search KB",
+							execute: async (input: unknown) => {
+								const parsed = input as {
+									query?: string;
+									questionContext?: string;
+								};
+								increment("searchKnowledgeBase");
+								recordResult(
+									"searchKnowledgeBase",
+									{
+										query: parsed.query ?? "",
+										...(parsed.questionContext
+											? { questionContext: parsed.questionContext }
+											: {}),
+									},
+									mockSearchKnowledgeResult
+								);
+								return mockSearchKnowledgeResult;
 							},
-						}),
-				...(context.allowPublicMessages ? publicTools : {}),
-				...(context.allowPublicMessages ? publicFinishTools : {}),
-				skip: {
-					description: "Finish skip",
-					execute: async (input: unknown) => {
-						const parsed = input as { reasoning: string };
-						increment("skip");
-						context.runtimeState.finalAction = {
-							action: "skip",
-							reasoning: parsed.reasoning,
-							confidence: 1,
-						};
-						return { success: true };
-					},
+						},
+					}),
+			...(context.allowPublicMessages ? publicTools : {}),
+			...(context.allowPublicMessages ? publicFinishTools : {}),
+			skip: {
+				description: "Finish skip",
+				execute: async (input: unknown) => {
+					const parsed = input as { reasoning: string };
+					increment("skip");
+					context.runtimeState.finalAction = {
+						action: "skip",
+						reasoning: parsed.reasoning,
+						confidence: 1,
+					};
+					return { success: true };
 				},
 			},
-			toolNames:
-				context.pipelineKind === "background"
-					? ["updateSentiment", "setPriority", "skip"]
-					: context.allowPublicMessages
-						? [
-								"searchKnowledgeBase",
-								"sendMessage",
-								"respond",
-								"escalate",
-								"skip",
-							]
-						: ["searchKnowledgeBase", "skip"],
-			finishToolNames:
-				context.pipelineKind === "background"
-					? ["skip"]
-					: context.allowPublicMessages
-						? ["respond", "escalate", "skip"]
-						: ["skip"],
+		};
+
+		const filteredEntries = Object.entries(allTools).filter(([toolName]) =>
+			allowedToolNames ? allowedToolNames.includes(toolName) : true
+		);
+		const tools = Object.fromEntries(filteredEntries);
+		const toolNames = filteredEntries.map(([toolName]) => toolName);
+		const finishToolNames = toolNames.filter((toolName) =>
+			["respond", "escalate", "skip"].includes(toolName)
+		);
+
+		return {
+			tools,
+			toolNames,
+			finishToolNames,
 		};
 	}
 );
@@ -332,6 +369,36 @@ function createAbortError(): Error {
 	return error;
 }
 
+function createSearchKnowledgeResult(
+	overrides: Partial<Record<string, unknown>> = {}
+) {
+	return {
+		success: true,
+		data: {
+			articles: [
+				{
+					content: "The Pro plan starts at $29/month.",
+					knowledgeId: "kb-1",
+					similarity: 0.91,
+					title: "Pricing",
+					sourceUrl: "https://example.com/pricing",
+					sourceType: "faq",
+				},
+			],
+			query: "pricing",
+			questionContext: "How much is the product?",
+			totalFound: 1,
+			maxSimilarity: 0.91,
+			retrievalQuality: "strong",
+			clarificationSignal: "none",
+			lowConfidence: false,
+			guidance:
+				"Strong knowledge match found. Answer directly from the retrieved snippets first.",
+			...overrides,
+		},
+	};
+}
+
 function createInput(overrides: Partial<Record<string, unknown>> = {}) {
 	return {
 		db: {} as never,
@@ -373,6 +440,7 @@ describe("runGenerationRuntime", () => {
 	beforeEach(() => {
 		queuedGenerateHandlers.length = 0;
 		process.env.NODE_ENV = "test";
+		mockSearchKnowledgeResult = createSearchKnowledgeResult();
 		createModelMock.mockClear();
 		hasToolCallMock.mockClear();
 		stepCountIsMock.mockClear();
@@ -568,10 +636,22 @@ ${secondPrompt}`);
 		expect(result.attempts?.[0]?.outcome).toBe("completed");
 	});
 
-	it("fails visitor-facing completion when main sendMessage was not called", async () => {
+	it("repairs visitor-facing completion when main sendMessage was not called", async () => {
 		queuedGenerateHandlers.push(async ({ options }) => {
 			await options.tools.respond.execute({
 				reasoning: "No public reply sent",
+				confidence: 1,
+			});
+			return { usage: {} };
+		});
+		queuedGenerateHandlers.push(async ({ options }) => {
+			expect(options.instructions).toContain("## Answer-First Repair");
+			expect(options.tools.searchKnowledgeBase).toBeUndefined();
+			await options.tools.sendMessage.execute({
+				message: "Here's the grounded reply the visitor should have received.",
+			});
+			await options.tools.respond.execute({
+				reasoning: "Repaired missing public reply",
 				confidence: 1,
 			});
 			return { usage: {} };
@@ -580,9 +660,13 @@ ${secondPrompt}`);
 		const { runGenerationRuntime } = await modulePromise;
 		const result = await runGenerationRuntime(createInput() as never);
 
-		expect(result.status).toBe("error");
-		expect(result.failureCode).toBe("runtime_error");
-		expect(result.error).toContain("requires sendMessage");
+		expect(result.status).toBe("completed");
+		expect(result.action.action).toBe("respond");
+		expect(result.publicMessagesSent).toBe(1);
+		expect(result.attempts).toHaveLength(2);
+		expect(buildPipelineToolsetMock.mock.calls[1]?.[0]).toMatchObject({
+			allowedToolNames: ["sendMessage", "respond", "escalate"],
+		});
 	});
 
 	it("fails command completion when main sendMessage was not called", async () => {
@@ -626,10 +710,30 @@ ${secondPrompt}`);
 		expect(result.publicMessagesSent).toBe(0);
 	});
 
-	it("fails completion when no public sendMessage was sent", async () => {
+	it("repairs a strong KB clarification-only reply into an answer-first reply", async () => {
 		queuedGenerateHandlers.push(async ({ options }) => {
+			await options.tools.searchKnowledgeBase.execute({
+				query: "pricing",
+				questionContext: "How much is the product?",
+			});
+			await options.tools.sendMessage.execute({
+				message: "Which plan are you asking about?",
+			});
 			await options.tools.respond.execute({
-				reasoning: "Sent no public reply",
+				reasoning: "Asked only for clarification",
+				confidence: 1,
+			});
+			return { usage: {} };
+		});
+		queuedGenerateHandlers.push(async ({ options }) => {
+			expect(options.instructions).toContain("## Earlier KB Evidence");
+			expect(options.tools.searchKnowledgeBase).toBeUndefined();
+			await options.tools.sendMessage.execute({
+				message:
+					"The Pro plan starts at $29/month. Which team size are you pricing out?",
+			});
+			await options.tools.respond.execute({
+				reasoning: "Shared the grounded answer before clarifying",
 				confidence: 1,
 			});
 			return { usage: {} };
@@ -638,9 +742,121 @@ ${secondPrompt}`);
 		const { runGenerationRuntime } = await modulePromise;
 		const result = await runGenerationRuntime(createInput() as never);
 
-		expect(result.status).toBe("error");
-		expect(result.failureCode).toBe("runtime_error");
-		expect(result.error).toContain("requires sendMessage");
+		expect(result.status).toBe("completed");
+		expect(result.action.action).toBe("respond");
+		expect(result.publicMessagesSent).toBe(2);
+		expect(result.attempts).toHaveLength(2);
+	});
+
+	it("repairs a strong KB skip into a grounded public answer", async () => {
+		queuedGenerateHandlers.push(async ({ options }) => {
+			await options.tools.searchKnowledgeBase.execute({
+				query: "pricing",
+				questionContext: "How much is the product?",
+			});
+			await options.tools.skip.execute({
+				reasoning: "Nothing left to say",
+			});
+			return { usage: {} };
+		});
+		queuedGenerateHandlers.push(async ({ options }) => {
+			expect(options.instructions).toContain(
+				"KB search found actionable evidence"
+			);
+			await options.tools.sendMessage.execute({
+				message: "The Pro plan starts at $29/month.",
+			});
+			await options.tools.respond.execute({
+				reasoning: "Converted skip into an answer",
+				confidence: 1,
+			});
+			return { usage: {} };
+		});
+
+		const { runGenerationRuntime } = await modulePromise;
+		const result = await runGenerationRuntime(createInput() as never);
+
+		expect(result.status).toBe("completed");
+		expect(result.action.action).toBe("respond");
+		expect(result.attempts).toHaveLength(2);
+	});
+
+	it("accepts a weak KB partial answer plus a narrow follow-up without repair", async () => {
+		mockSearchKnowledgeResult = createSearchKnowledgeResult({
+			articles: [
+				{
+					content: "The Pro plan starts at $29/month.",
+					knowledgeId: "kb-1",
+					similarity: 0.62,
+					title: "Pricing",
+					sourceUrl: "https://example.com/pricing",
+					sourceType: "faq",
+				},
+			],
+			maxSimilarity: 0.62,
+			retrievalQuality: "weak",
+			clarificationSignal: "background_review",
+			lowConfidence: true,
+		});
+
+		queuedGenerateHandlers.push(async ({ options }) => {
+			await options.tools.searchKnowledgeBase.execute({
+				query: "pricing",
+				questionContext: "How much is the product?",
+			});
+			await options.tools.sendMessage.execute({
+				message:
+					"I found pricing for the Pro plan, but not the yearly rate. Are you asking about monthly or annual billing?",
+			});
+			await options.tools.respond.execute({
+				reasoning: "Shared the partial answer and asked one narrow follow-up",
+				confidence: 1,
+			});
+			return { usage: {} };
+		});
+
+		const { runGenerationRuntime } = await modulePromise;
+		const result = await runGenerationRuntime(createInput() as never);
+
+		expect(result.status).toBe("completed");
+		expect(result.action.action).toBe("respond");
+		expect(result.attempts).toHaveLength(1);
+	});
+
+	it("accepts a none-hit escalation after explaining the gap", async () => {
+		mockSearchKnowledgeResult = createSearchKnowledgeResult({
+			articles: [],
+			totalFound: 0,
+			maxSimilarity: null,
+			retrievalQuality: "none",
+			clarificationSignal: "immediate",
+			guidance:
+				"No relevant knowledge found. Tell the visitor you could not confirm it from the knowledge base and offer escalation.",
+		});
+
+		queuedGenerateHandlers.push(async ({ options }) => {
+			await options.tools.searchKnowledgeBase.execute({
+				query: "pricing",
+				questionContext: "How much is the product?",
+			});
+			await options.tools.sendMessage.execute({
+				message:
+					"I couldn't confirm that from the current knowledge base, so I'm looping in a teammate.",
+			});
+			await options.tools.escalate.execute({
+				reason: "Need human confirmation",
+				reasoning: "Escalated after explaining the KB gap",
+				confidence: 1,
+			});
+			return { usage: {} };
+		});
+
+		const { runGenerationRuntime } = await modulePromise;
+		const result = await runGenerationRuntime(createInput() as never);
+
+		expect(result.status).toBe("completed");
+		expect(result.action.action).toBe("escalate");
+		expect(result.attempts).toHaveLength(1);
 	});
 
 	it("allows multiple sendMessage calls in one run", async () => {

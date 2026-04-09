@@ -8,61 +8,18 @@ import type { DefaultMessage, PublicWebsiteResponse } from "@plasma/types";
 import type { TimelineItem } from "@plasma/types/api/timeline-item";
 import { ConversationTimelineType } from "@plasma/types/enums";
 import React from "react";
+import { SupportControllerContext } from "./controller-context";
 import { useStoreSelector } from "./hooks/private/store/use-store-selector";
-import { useWebsiteStore } from "./hooks/private/store/use-website-store";
-import {
-	type ConfigurationError,
-	useClient,
-} from "./hooks/private/use-rest-client";
-import { WebSocketProvider } from "./support";
+import { processingStoreSingleton } from "./realtime/processing-store";
+import { seenStoreSingleton } from "./realtime/seen-store";
+import { typingStoreSingleton } from "./realtime/typing-store";
 import { IdentificationProvider } from "./support/context/identification";
-import {
-	initializeSupportStore,
-	useSupportStore,
-} from "./support/store/support-store";
-
-/**
- * Auth-related error codes that indicate API key issues.
- */
-const AUTH_ERROR_CODES = new Set([
-	"UNAUTHORIZED",
-	"FORBIDDEN",
-	"INVALID_API_KEY",
-	"API_KEY_EXPIRED",
-	"API_KEY_MISSING",
-	"HTTP_401",
-	"HTTP_403",
-]);
-
-/**
- * Check if an error is an authentication/authorization error.
- */
-function isAuthError(error: Error | null): boolean {
-	if (!error) {
-		return false;
-	}
-
-	if (error instanceof CossistantAPIError) {
-		const code = error.code?.toUpperCase() ?? "";
-		return (
-			AUTH_ERROR_CODES.has(code) ||
-			code.includes("AUTH") ||
-			code.includes("API_KEY")
-		);
-	}
-
-	// Check error message as fallback
-	const message = error.message?.toLowerCase() ?? "";
-	return (
-		message.includes("api key") ||
-		message.includes("unauthorized") ||
-		message.includes("forbidden") ||
-		message.includes("not authorized")
-	);
-}
+import { WebSocketProvider } from "./support/context/websocket";
+import { useSupportStore } from "./support/store/support-store";
 
 export type SupportProviderProps = {
-	children: React.ReactNode;
+	children?: React.ReactNode;
+	controller?: SupportController;
 	defaultOpen?: boolean;
 	apiUrl?: string;
 	wsUrl?: string;
@@ -125,7 +82,7 @@ export type CossistantContextValue = {
 	/**
 	 * Configuration error caused by missing or invalid widget setup.
 	 */
-	configurationError: ConfigurationError | null;
+	configurationError: SupportControllerConfigurationError | null;
 	/**
 	 * Underlying client instance for direct API access.
 	 *
@@ -158,58 +115,19 @@ export type CossistantContextValue = {
 	toggle: () => void;
 };
 
+type ConfigurationError = SupportControllerConfigurationError;
+
 type WebsiteData = NonNullable<CossistantContextValue["website"]>;
 
 type VisitorWithLocale = WebsiteData["visitor"] extends null | undefined
 	? undefined
 	: NonNullable<WebsiteData["visitor"]> & { locale: string | null };
 
-type ConversationSnapshot = {
-	id: string;
-	lastTimelineItem: TimelineItem | null;
-	visitorLastSeenAt: string | null;
-	status: string;
-	deletedAt: string | null;
-};
-
-function areConversationSnapshotsEqual(
-	a: ConversationSnapshot[],
-	b: ConversationSnapshot[]
-): boolean {
-	if (a === b) {
-		return true;
-	}
-
-	if (a.length !== b.length) {
-		return false;
-	}
-
-	for (let index = 0; index < a.length; index += 1) {
-		const snapshotA = a[index];
-		const snapshotB = b[index];
-
-		if (!snapshotA) {
-			return false;
-		}
-		if (!snapshotB) {
-			return false;
-		}
-
-		const aLastCreatedAt = snapshotA.lastTimelineItem?.createdAt ?? null;
-		const bLastCreatedAt = snapshotB.lastTimelineItem?.createdAt ?? null;
-		if (
-			snapshotA.id !== snapshotB.id ||
-			aLastCreatedAt !== bLastCreatedAt ||
-			snapshotA.visitorLastSeenAt !== snapshotB.visitorLastSeenAt ||
-			snapshotA.status !== snapshotB.status ||
-			snapshotA.deletedAt !== snapshotB.deletedAt
-		) {
-			return false;
-		}
-	}
-
-	return true;
-}
+const sharedClientOptions = {
+	processingStore: processingStoreSingleton,
+	seenStore: seenStoreSingleton,
+	typingStore: typingStoreSingleton,
+} satisfies CossistantClientOptions;
 
 export type UseSupportValue = CossistantContextValue & {
 	/**
@@ -252,6 +170,7 @@ export const SupportContext = React.createContext<
  */
 function SupportProviderInner({
 	children,
+	controller: externalController,
 	apiUrl,
 	wsUrl,
 	publicKey,
@@ -264,326 +183,112 @@ function SupportProviderInner({
 	size = "normal",
 	defaultOpen = false,
 }: SupportProviderProps) {
-	const [unreadCount, setUnreadCount] = React.useState(0);
-	const prefetchedVisitorRef = React.useRef<string | null>(null);
-	const [_defaultMessages, _setDefaultMessages] = React.useState<
-		DefaultMessage[]
-	>(defaultMessages ?? []);
-	const [_quickOptions, _setQuickOptions] = React.useState<string[]>(
-		quickOptions ?? []
+	const ownedController = React.useMemo(
+		() =>
+			createSupportController({
+				apiUrl,
+				wsUrl,
+				publicKey,
+				clientOptions: sharedClientOptions,
+				autoConnect,
+				defaultMessages: defaultMessages ?? [],
+				quickOptions: quickOptions ?? [],
+				size,
+				defaultOpen,
+				onWsConnect,
+				onWsDisconnect,
+				onWsError,
+			}),
+		[apiUrl, publicKey, wsUrl]
 	);
-
-	// Initialize support store with configuration
-	React.useEffect(() => {
-		initializeSupportStore({ size, defaultOpen });
-	}, [size, defaultOpen]);
-
-	// Get support store state and actions
-	const { config, open, close, toggle } = useSupportStore();
-
-	// Update state when props change (for initial values from provider)
-	React.useEffect(() => {
-		if (defaultMessages?.length) {
-			_setDefaultMessages(defaultMessages);
-		}
-	}, [defaultMessages]);
+	const controller = externalController ?? ownedController;
+	const ownsController = externalController === undefined;
 
 	React.useEffect(() => {
-		if (quickOptions?.length) {
-			_setQuickOptions(quickOptions);
-		}
-	}, [quickOptions]);
-
-	const { client, configurationError: clientConfigError } = useClient(
-		publicKey,
-		apiUrl,
-		wsUrl
-	);
-
-	// Only use website store if we have a valid client
-	const { website, isLoading, error: websiteError } = useWebsiteStore(client);
-	const isVisitorBlocked = website?.visitor?.isBlocked ?? false;
-	const visitorId = website?.visitor?.id ?? null;
-
-	// Derive final configuration error from both client error and API auth errors
-	const configurationError = React.useMemo<ConfigurationError | null>(() => {
-		// Client-level config error takes precedence (missing API key)
-		if (clientConfigError) {
-			return clientConfigError;
-		}
-
-		// Check if website error is an auth error (invalid/expired API key)
-		if (websiteError && isAuthError(websiteError)) {
-			return {
-				type: "invalid_api_key",
-				message: websiteError.message,
-				envVarName: getEnvVarName(),
-			};
-		}
-
-		return null;
-	}, [clientConfigError, websiteError]);
-
-	const seenEntriesByConversation = useStoreSelector(
-		client?.seenStore ?? null,
-		React.useCallback(
-			(
-				state: {
-					conversations: Record<
-						string,
-						Record<
-							string,
-							{ actorType: string; actorId: string; lastSeenAt: string }
-						>
-					>;
-				} | null
-			) => state?.conversations ?? {},
-			[]
-		)
-	);
-
-	const conversationSnapshots = useStoreSelector(
-		client?.conversationsStore ?? null,
-		React.useCallback(
-			(
-				state: {
-					ids: string[];
-					byId: Record<
-						string,
-						| {
-								id: string;
-								lastTimelineItem?: TimelineItem | null;
-								visitorLastSeenAt?: string | null;
-								status?: string;
-								deletedAt?: string | null;
-						  }
-						| undefined
-					>;
-				} | null
-			): ConversationSnapshot[] =>
-				state
-					? state.ids
-							.map((id) => {
-								const conversation = state.byId[id];
-
-								if (!conversation) {
-									return null;
-								}
-
-								return {
-									id: conversation.id,
-									lastTimelineItem: conversation.lastTimelineItem ?? null,
-									visitorLastSeenAt: conversation.visitorLastSeenAt ?? null,
-									status: conversation.status ?? "open",
-									deletedAt: conversation.deletedAt ?? null,
-								} satisfies ConversationSnapshot;
-							})
-							.filter(
-								(snapshot): snapshot is ConversationSnapshot =>
-									snapshot !== null
-							)
-					: [],
-			[]
-		),
-		areConversationSnapshotsEqual
-	);
-
-	const derivedUnreadCount = React.useMemo(() => {
-		if (!visitorId) {
-			return 0;
-		}
-
-		let count = 0;
-
-		for (const {
-			id: conversationId,
-			lastTimelineItem,
-			visitorLastSeenAt,
-			status,
-			deletedAt,
-		} of conversationSnapshots) {
-			// Skip resolved, spam, or deleted conversations
-			if (status !== "open" || deletedAt) {
-				continue;
-			}
-
-			if (!lastTimelineItem) {
-				continue;
-			}
-
-			if (lastTimelineItem.type !== ConversationTimelineType.MESSAGE) {
-				continue;
-			}
-
-			if (
-				lastTimelineItem.visitorId &&
-				lastTimelineItem.visitorId === visitorId
-			) {
-				continue;
-			}
-
-			const createdAtTime = Date.parse(lastTimelineItem.createdAt);
-
-			if (Number.isNaN(createdAtTime)) {
-				continue;
-			}
-
-			// First check visitorLastSeenAt from the API response (available immediately)
-			if (visitorLastSeenAt) {
-				const lastSeenTime = Date.parse(visitorLastSeenAt);
-				if (!Number.isNaN(lastSeenTime) && createdAtTime <= lastSeenTime) {
-					continue;
-				}
-			}
-
-			// Fall back to seen store (updated via realtime events)
-			const seenEntries = seenEntriesByConversation[conversationId];
-
-			if (seenEntries) {
-				const visitorSeenEntry = Object.values(seenEntries).find(
-					(entry) =>
-						entry.actorType === "visitor" && entry.actorId === visitorId
-				);
-
-				if (visitorSeenEntry) {
-					const lastSeenTime = Date.parse(visitorSeenEntry.lastSeenAt);
-
-					if (!Number.isNaN(lastSeenTime) && createdAtTime <= lastSeenTime) {
-						continue;
-					}
-				}
-			}
-
-			count += 1;
-		}
-
-		return count;
-	}, [conversationSnapshots, seenEntriesByConversation, visitorId]);
-
-	React.useEffect(() => {
-		setUnreadCount(derivedUnreadCount);
-	}, [derivedUnreadCount, setUnreadCount]);
-
-	// Prime REST client with website/visitor context so headers are sent reliably
-	React.useEffect(() => {
-		if (!(website && client)) {
-			return;
-		}
-
-		client.setWebsiteContext(website.id, website.visitor?.id ?? undefined);
-	}, [client, website]);
-
-	React.useEffect(() => {
-		if (!client) {
-			return;
-		}
-
-		if (isVisitorBlocked) {
-			prefetchedVisitorRef.current = null;
-			return;
-		}
-
-		if (!autoConnect) {
-			return;
-		}
-
-		if (!website) {
-			return;
-		}
-
-		if (!visitorId) {
-			return;
-		}
-
-		if (prefetchedVisitorRef.current === visitorId) {
-			return;
-		}
-
-		const hasExistingConversations =
-			client.conversationsStore.getState().ids.length > 0;
-
-		prefetchedVisitorRef.current = visitorId;
-
-		if (hasExistingConversations) {
-			return;
-		}
-
-		void client.listConversations().catch((err) => {
-			console.error("[SupportProvider] Failed to prefetch conversations", err);
-			prefetchedVisitorRef.current = null;
+		controller.updateOptions({
+			autoConnect,
+			defaultMessages: defaultMessages ?? [],
+			quickOptions: quickOptions ?? [],
+			size,
+			defaultOpen,
+			onWsConnect,
+			onWsDisconnect,
+			onWsError,
 		});
-	}, [autoConnect, client, isVisitorBlocked, visitorId, website]);
-
-	const error = websiteError;
+	}, [
+		autoConnect,
+		controller,
+		defaultMessages,
+		defaultOpen,
+		onWsConnect,
+		onWsDisconnect,
+		onWsError,
+		quickOptions,
+		size,
+	]);
 
 	React.useEffect(() => {
-		if (!client) {
-			return;
-		}
-		client.setVisitorBlocked(isVisitorBlocked);
-	}, [client, isVisitorBlocked]);
+		controller.start();
+		return () => {
+			if (ownsController) {
+				controller.destroy();
+			}
+		};
+	}, [controller, ownsController]);
 
-	const setDefaultMessages = React.useCallback((messages: DefaultMessage[]) => {
-		_setDefaultMessages(messages);
-	}, []);
-
-	const setQuickOptions = React.useCallback((options: string[]) => {
-		_setQuickOptions(options);
-	}, []);
+	const snapshot = useStoreSelector(
+		controller,
+		React.useCallback((state) => state, [])
+	);
 
 	const value = React.useMemo<CossistantContextValue>(
 		() => ({
-			website,
-			unreadCount,
-			setUnreadCount,
-			isLoading,
-			error,
-			configurationError,
-			client,
-			defaultMessages: _defaultMessages,
-			setDefaultMessages,
-			quickOptions: _quickOptions,
-			setQuickOptions,
-			isOpen: config.isOpen,
-			open,
-			close,
-			toggle,
+			website: snapshot.website,
+			unreadCount: snapshot.unreadCount,
+			setUnreadCount: controller.setUnreadCount,
+			isLoading: snapshot.isLoading,
+			error: snapshot.error,
+			configurationError: snapshot.configurationError,
+			client: snapshot.client,
+			defaultMessages: snapshot.defaultMessages,
+			setDefaultMessages: controller.setDefaultMessages,
+			quickOptions: snapshot.quickOptions,
+			setQuickOptions: controller.setQuickOptions,
+			isOpen: snapshot.isOpen,
+			open: controller.open,
+			close: controller.close,
+			toggle: controller.toggle,
 		}),
-		[
-			website,
-			unreadCount,
-			isLoading,
-			error,
-			configurationError,
-			client,
-			_defaultMessages,
-			_quickOptions,
-			setDefaultMessages,
-			setQuickOptions,
-			config.isOpen,
-			open,
-			close,
-			toggle,
-		]
+		[controller, snapshot]
 	);
 
 	return (
-		<SupportContext.Provider value={value}>
-			<IdentificationProvider>
-				<WebSocketProvider
-					autoConnect={autoConnect && !isVisitorBlocked && !configurationError}
-					onConnect={onWsConnect}
-					onDisconnect={onWsDisconnect}
-					onError={onWsError}
-					publicKey={publicKey}
-					visitorId={isVisitorBlocked ? undefined : website?.visitor?.id}
-					websiteId={website?.id}
-					wsUrl={wsUrl}
-				>
-					{children}
-				</WebSocketProvider>
-			</IdentificationProvider>
-		</SupportContext.Provider>
+		<SupportControllerContext.Provider value={controller}>
+			<SupportContext.Provider value={value}>
+				<IdentificationProvider>
+					<WebSocketProvider
+						autoConnect={
+							autoConnect &&
+							!snapshot.isVisitorBlocked &&
+							!snapshot.configurationError
+						}
+						onConnect={onWsConnect}
+						onDisconnect={onWsDisconnect}
+						onError={onWsError}
+						publicKey={publicKey}
+						visitorId={
+							snapshot.isVisitorBlocked
+								? undefined
+								: snapshot.website?.visitor?.id
+						}
+						websiteId={snapshot.website?.id}
+						wsUrl={wsUrl}
+					>
+						{children}
+					</WebSocketProvider>
+				</IdentificationProvider>
+			</SupportContext.Provider>
+		</SupportControllerContext.Provider>
 	);
 }
 
@@ -663,4 +368,4 @@ export function useSupport(): UseSupportValue {
 }
 
 // Re-export ConfigurationError type for consumers
-export type { ConfigurationError } from "./hooks/private/use-rest-client";
+export type { ConfigurationError };

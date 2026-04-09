@@ -21,24 +21,28 @@ export function isValidWebsiteSlug(slug: string | undefined | null): boolean {
 	return true;
 }
 
+export function getApiOrigin() {
+	if (process.env.NEXT_PUBLIC_API_BASE_URL) {
+		return process.env.NEXT_PUBLIC_API_BASE_URL;
+	}
+
+	return process.env.NODE_ENV === "development"
+		? "http://localhost:8787"
+		: "https://api.cossistant.com";
+}
+
 export function getAPIBaseUrl(path: `/${string}`) {
-	const baseUrl =
-		process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8787";
-	return `${baseUrl}/api${path}`;
+	return `${getApiOrigin()}/api${path}`;
 }
 
 export function getTRPCUrl() {
-	const baseUrl =
-		process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8787";
-	return `${baseUrl}/trpc`;
+	return `${getApiOrigin()}/trpc`;
 }
 
 const HTTP_REGEX = /^http/;
 
 export function getWebSocketUrl() {
-	const baseUrl =
-		process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8787";
-	return `${baseUrl.replace(HTTP_REGEX, "ws")}/ws`;
+	return `${getApiOrigin().replace(HTTP_REGEX, "ws")}/ws`;
 }
 
 export function getLandingBaseUrl() {

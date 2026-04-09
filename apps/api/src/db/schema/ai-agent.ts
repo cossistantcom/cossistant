@@ -56,6 +56,7 @@ export const aiAgent = pgTable(
 	{
 		id: ulidPrimaryKey("id"),
 		name: text("name").notNull(),
+		image: text("image"),
 		description: text("description"),
 		basePrompt: text("base_prompt").notNull(),
 		model: text("model").notNull(),

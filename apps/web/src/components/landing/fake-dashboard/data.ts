@@ -21,6 +21,10 @@ export type FakeConversationHandledPayload = {
 	title?: string | null;
 };
 
+export type FakeDashboardScenarioId =
+	| "landing_escalation"
+	| "promo_delete_account_answered";
+
 // Kept for fake-support-widget compatibility.
 export type FakeTypingVisitor = {
 	conversationId: string;
@@ -34,6 +38,7 @@ const WEBSITE_ID = "01JGWEB11111111111111111";
 export const ANTHONY_RIERA_ID = "01JGUSER1111111111111111";
 export const MARC_CONVERSATION_ID = "01JGAA2222222222222222222";
 export const MARC_VISITOR_ID = "01JGVIS22222222222222222";
+export const PIETER_VISITOR_ID = "01JGVIS11111111111111111";
 export const PIPELINE_TYPING_CONVERSATION_ID = "01JGAA6666666666666666666";
 
 const WAITING_CONVERSATION_ID = "01JGAA1111111111111111111";
@@ -208,8 +213,8 @@ const createConversation = (params: {
 	};
 };
 
-const pieterVisitor = createFakeVisitor({
-	id: "01JGVIS11111111111111111",
+export const pieterVisitor: FakeVisitor = createFakeVisitor({
+	id: PIETER_VISITOR_ID,
 	lastSeenAt: minutesAgo(35),
 	contact: {
 		id: "01JGCON11111111111111111",
@@ -408,112 +413,152 @@ export const createMarcEscalatedConversation = (): ConversationHeader => {
 	});
 };
 
-export const fakeConversations: ConversationHeader[] = [
-	createMarcEscalatedConversation(),
-	createConversation({
-		id: NEEDS_HUMAN_CONVERSATION_ID,
-		visitor: nicoVisitor,
-		title: "Annual renewal paid but entitlements still on free plan",
-		priority: "high",
-		status: ConversationStatus.OPEN,
-		startedAt: hoursAgo(12),
-		updatedAt: hoursAgo(1.9),
-		escalatedAt: hoursAgo(2.4),
-		escalationReason:
-			"AI can reconcile entitlements, but backdated credit approval needs a human decision.",
-		lastTimelineItem: createMessageTimelineItem({
-			id: "01JGTIM44444444444444444",
-			conversationId: NEEDS_HUMAN_CONVERSATION_ID,
-			text: "I found a Stripe webhook race and prepared the entitlement fix. A human needs to approve the prorated credit before I apply it.",
-			aiAgentId: fakeAIAgent.id,
-			createdAt: hoursAgo(1.9),
+export const createPieterDeleteAccountAnsweredConversation =
+	(): ConversationHeader => {
+		const startedAt = minutesAgo(22);
+		const questionAt = minutesAgo(1);
+
+		return createConversation({
+			id: MARC_CONVERSATION_ID,
+			visitor: pieterVisitor,
+			title: DEMO_DELETE_ACCOUNT_FAQ_TITLE,
+			priority: "normal",
+			status: ConversationStatus.OPEN,
+			startedAt,
+			updatedAt: questionAt,
+			lastTimelineItem: createMessageTimelineItem({
+				id: "01JGVIDEO22222222222222221",
+				conversationId: MARC_CONVERSATION_ID,
+				text: DEMO_DELETE_ACCOUNT_QUESTION,
+				visitorId: PIETER_VISITOR_ID,
+				createdAt: questionAt,
+			}),
+		});
+	};
+
+export function getFakeDashboardPrimaryConversation(
+	scenario: FakeDashboardScenarioId = "landing_escalation"
+): ConversationHeader {
+	if (scenario === "promo_delete_account_answered") {
+		return createPieterDeleteAccountAnsweredConversation();
+	}
+
+	return createMarcEscalatedConversation();
+}
+
+export function getFakeDashboardConversations(
+	scenario: FakeDashboardScenarioId = "landing_escalation"
+): ConversationHeader[] {
+	return [
+		getFakeDashboardPrimaryConversation(scenario),
+		createConversation({
+			id: NEEDS_HUMAN_CONVERSATION_ID,
+			visitor: nicoVisitor,
+			title: "Annual renewal paid but entitlements still on free plan",
+			priority: "high",
+			status: ConversationStatus.OPEN,
+			startedAt: hoursAgo(12),
+			updatedAt: hoursAgo(1.9),
+			escalatedAt: hoursAgo(2.4),
+			escalationReason:
+				"AI can reconcile entitlements, but backdated credit approval needs a human decision.",
+			lastTimelineItem: createMessageTimelineItem({
+				id: "01JGTIM44444444444444444",
+				conversationId: NEEDS_HUMAN_CONVERSATION_ID,
+				text: "I found a Stripe webhook race and prepared the entitlement fix. A human needs to approve the prorated credit before I apply it.",
+				aiAgentId: fakeAIAgent.id,
+				createdAt: hoursAgo(1.9),
+			}),
 		}),
-	}),
-	createConversation({
-		id: WAITING_CONVERSATION_ID,
-		visitor: pieterVisitor,
-		title: "Webhook failures since 02:17 UTC",
-		priority: "normal",
-		status: ConversationStatus.OPEN,
-		startedAt: hoursAgo(14),
-		updatedAt: hoursAgo(12.8),
-		lastTimelineItem: createMessageTimelineItem({
-			id: "01JGTIM11111111111111111",
-			conversationId: WAITING_CONVERSATION_ID,
-			text: "We're still seeing checkout.completed failures in production. Can you export the failed event IDs so we can reconcile?",
-			visitorId: pieterVisitor.id,
-			createdAt: hoursAgo(12.8),
+		createConversation({
+			id: WAITING_CONVERSATION_ID,
+			visitor: pieterVisitor,
+			title: "Webhook failures since 02:17 UTC",
+			priority: "normal",
+			status: ConversationStatus.OPEN,
+			startedAt: hoursAgo(14),
+			updatedAt: hoursAgo(12.8),
+			lastTimelineItem: createMessageTimelineItem({
+				id: "01JGTIM11111111111111111",
+				conversationId: WAITING_CONVERSATION_ID,
+				text: "We're still seeing checkout.completed failures in production. Can you export the failed event IDs so we can reconcile?",
+				visitorId: pieterVisitor.id,
+				createdAt: hoursAgo(12.8),
+			}),
 		}),
-	}),
-	createConversation({
-		id: OTHER_CONVERSATION_ID,
-		visitor: dannyVisitor,
-		title: "Staging signature mismatch after secret rotation",
-		priority: "normal",
-		status: ConversationStatus.OPEN,
-		startedAt: hoursAgo(3),
-		updatedAt: minutesAgo(26),
-		lastSeenAt: minutesAgo(10),
-		lastTimelineItem: createMessageTimelineItem({
-			id: "01JGTIM55555555555555555",
-			conversationId: OTHER_CONVERSATION_ID,
-			text: "I rotated the staging signing secret and replayed the last 20 failed events. If you want, I can stage the same runbook for production.",
-			aiAgentId: fakeAIAgent.id,
-			createdAt: minutesAgo(26),
+		createConversation({
+			id: OTHER_CONVERSATION_ID,
+			visitor: dannyVisitor,
+			title: "Staging signature mismatch after secret rotation",
+			priority: "normal",
+			status: ConversationStatus.OPEN,
+			startedAt: hoursAgo(3),
+			updatedAt: minutesAgo(26),
+			lastSeenAt: minutesAgo(10),
+			lastTimelineItem: createMessageTimelineItem({
+				id: "01JGTIM55555555555555555",
+				conversationId: OTHER_CONVERSATION_ID,
+				text: "I rotated the staging signing secret and replayed the last 20 failed events. If you want, I can stage the same runbook for production.",
+				aiAgentId: fakeAIAgent.id,
+				createdAt: minutesAgo(26),
+			}),
 		}),
-	}),
-	createConversation({
-		id: PIPELINE_TYPING_CONVERSATION_ID,
-		visitor: lucasVisitor,
-		title: "SAML callback rejected on workspace invite",
-		priority: "normal",
-		status: ConversationStatus.OPEN,
-		startedAt: minutesAgo(52),
-		updatedAt: minutesAgo(11),
-		lastSeenAt: minutesAgo(11),
-		lastTimelineItem: createMessageTimelineItem({
-			id: "01JGTIM66666666666666666",
-			conversationId: PIPELINE_TYPING_CONVERSATION_ID,
-			text: "I found an outdated callback URL in your SSO settings. I can apply the fix after you confirm the new redirect URI.",
-			aiAgentId: fakeAIAgent.id,
-			createdAt: minutesAgo(11),
+		createConversation({
+			id: PIPELINE_TYPING_CONVERSATION_ID,
+			visitor: lucasVisitor,
+			title: "SAML callback rejected on workspace invite",
+			priority: "normal",
+			status: ConversationStatus.OPEN,
+			startedAt: minutesAgo(52),
+			updatedAt: minutesAgo(11),
+			lastSeenAt: minutesAgo(11),
+			lastTimelineItem: createMessageTimelineItem({
+				id: "01JGTIM66666666666666666",
+				conversationId: PIPELINE_TYPING_CONVERSATION_ID,
+				text: "I found an outdated callback URL in your SSO settings. I can apply the fix after you confirm the new redirect URI.",
+				aiAgentId: fakeAIAgent.id,
+				createdAt: minutesAgo(11),
+			}),
 		}),
-	}),
-	createConversation({
-		id: OTHER_CONVERSATION_ID_TWO,
-		visitor: sarahVisitor,
-		title: "Public docs access restored",
-		priority: "low",
-		status: ConversationStatus.OPEN,
-		startedAt: minutesAgo(35),
-		updatedAt: minutesAgo(15),
-		lastTimelineItem: createMessageTimelineItem({
-			id: "01JGTIM77777777777777777",
-			conversationId: OTHER_CONVERSATION_ID_TWO,
-			text: "Thanks, docs access is fixed. Could you also add rate-limit headers to the API examples?",
-			visitorId: sarahVisitor.id,
-			createdAt: minutesAgo(15),
+		createConversation({
+			id: OTHER_CONVERSATION_ID_TWO,
+			visitor: sarahVisitor,
+			title: "Public docs access restored",
+			priority: "low",
+			status: ConversationStatus.OPEN,
+			startedAt: minutesAgo(35),
+			updatedAt: minutesAgo(15),
+			lastTimelineItem: createMessageTimelineItem({
+				id: "01JGTIM77777777777777777",
+				conversationId: OTHER_CONVERSATION_ID_TWO,
+				text: "Thanks, docs access is fixed. Could you also add rate-limit headers to the API examples?",
+				visitorId: sarahVisitor.id,
+				createdAt: minutesAgo(15),
+			}),
 		}),
-	}),
-	createConversation({
-		id: RESOLVED_CONVERSATION_ID,
-		visitor: tonyVisitor,
-		title: "React integration docs",
-		priority: "low",
-		status: ConversationStatus.RESOLVED,
-		startedAt: daysAgo(2),
-		updatedAt: daysAgo(2),
-		resolvedAt: daysAgo(2),
-		resolvedByUserId: ANTHONY_RIERA_ID,
-		lastTimelineItem: createMessageTimelineItem({
-			id: "01JGTIM33333333333333333",
-			conversationId: RESOLVED_CONVERSATION_ID,
-			text: "Got it working, thanks for the docs link!",
-			visitorId: tonyVisitor.id,
-			createdAt: daysAgo(2),
+		createConversation({
+			id: RESOLVED_CONVERSATION_ID,
+			visitor: tonyVisitor,
+			title: "React integration docs",
+			priority: "low",
+			status: ConversationStatus.RESOLVED,
+			startedAt: daysAgo(2),
+			updatedAt: daysAgo(2),
+			resolvedAt: daysAgo(2),
+			resolvedByUserId: ANTHONY_RIERA_ID,
+			lastTimelineItem: createMessageTimelineItem({
+				id: "01JGTIM33333333333333333",
+				conversationId: RESOLVED_CONVERSATION_ID,
+				text: "Got it working, thanks for the docs link!",
+				visitorId: tonyVisitor.id,
+				createdAt: daysAgo(2),
+			}),
 		}),
-	}),
-];
+	];
+}
+
+export const fakeConversations: ConversationHeader[] =
+	getFakeDashboardConversations();
 
 export const fakeVisitors: FakeVisitor[] = [
 	pieterVisitor,

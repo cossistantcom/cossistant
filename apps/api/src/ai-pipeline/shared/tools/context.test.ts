@@ -141,6 +141,7 @@ describe("createSearchKnowledgeBaseTool", () => {
 				retrievalQuality: "none",
 				clarificationSignal: "immediate",
 				questionContext: "How do I permanently delete my account?",
+				guidance: expect.stringContaining("offer escalation or human help"),
 			},
 		});
 		expect(requestKnowledgeClarificationMock).toHaveBeenCalledWith(
@@ -187,6 +188,7 @@ describe("createSearchKnowledgeBaseTool", () => {
 				maxSimilarity: 0.62,
 				retrievalQuality: "weak",
 				clarificationSignal: "background_review",
+				guidance: expect.stringContaining("best grounded partial answer first"),
 			},
 		});
 		expect(requestKnowledgeClarificationMock).not.toHaveBeenCalled();
@@ -225,6 +227,9 @@ describe("createSearchKnowledgeBaseTool", () => {
 				maxSimilarity: 0.81,
 				retrievalQuality: "strong",
 				clarificationSignal: "none",
+				guidance: expect.stringContaining(
+					"Answer directly from the retrieved snippets first"
+				),
 			},
 		});
 		expect(requestKnowledgeClarificationMock).not.toHaveBeenCalled();

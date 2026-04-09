@@ -24,6 +24,7 @@ export type VisitorSidebarHeaderProps = {
 		RouterOutputs["conversation"]["getVisitorById"]
 	>["attribution"];
 	onOpenDetail?: () => void;
+	onOpenDetailPrefetch?: () => void;
 };
 
 export function VisitorSidebarHeader({
@@ -35,6 +36,7 @@ export function VisitorSidebarHeader({
 	contact,
 	attribution,
 	onOpenDetail,
+	onOpenDetailPrefetch,
 }: VisitorSidebarHeaderProps) {
 	const headerContent = (
 		<>
@@ -69,6 +71,8 @@ export function VisitorSidebarHeader({
 						"hover:bg-background-200 dark:hover:bg-background-300"
 					)}
 					onClick={onOpenDetail}
+					onFocus={onOpenDetailPrefetch}
+					onMouseEnter={onOpenDetailPrefetch}
 					type="button"
 				>
 					{headerContent}

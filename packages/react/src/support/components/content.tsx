@@ -10,6 +10,7 @@ import {
 } from "@floating-ui/react";
 import * as React from "react";
 import * as Primitive from "../../primitives";
+import { useSupportMode } from "../context/mode";
 import { useTriggerRef } from "../context/positioning";
 import { SlotProvider, useSlots } from "../context/slots";
 import { useSupportConfig } from "../store/support-store";
@@ -104,6 +105,13 @@ function useIsMobile(): boolean {
 	const [isMobile, setIsMobile] = React.useState(false);
 
 	React.useEffect(() => {
+		if (
+			typeof window === "undefined" ||
+			typeof window.matchMedia !== "function"
+		) {
+			return;
+		}
+
 		const mediaQuery = window.matchMedia("(max-width: 767px)");
 		setIsMobile(mediaQuery.matches);
 
@@ -156,8 +164,10 @@ export const Content: React.FC<ContentPropsType> = ({
 	const containerRef = React.useRef<HTMLDivElement>(null);
 	const hasEverPositionedRef = React.useRef(false);
 	const isMobile = useIsMobile();
+	const mode = useSupportMode();
 	const triggerRefContext = useTriggerRef();
 	const { isOpen } = useSupportConfig();
+	const isResponsive = mode === "responsive";
 
 	// Set up Floating UI middleware
 	const middleware = React.useMemo(() => {
@@ -190,7 +200,7 @@ export const Content: React.FC<ContentPropsType> = ({
 		strategy: "fixed",
 		middleware,
 		whileElementsMounted: autoUpdate,
-		open: isOpen,
+		open: isResponsive ? false : isOpen,
 		elements: {
 			reference: triggerElement,
 		},
@@ -207,18 +217,18 @@ export const Content: React.FC<ContentPropsType> = ({
 	// Force position recalculation when trigger element becomes available
 	// This handles the case where content mounts before trigger
 	React.useEffect(() => {
-		if (triggerElement && isOpen) {
+		if (!isResponsive && triggerElement && isOpen) {
 			// Defer update to ensure DOM is ready
 			requestAnimationFrame(() => {
 				update();
 			});
 		}
-	}, [triggerElement, isOpen, update]);
+	}, [isResponsive, triggerElement, isOpen, update]);
 
 	// Determine if we should use Floating UI positioning
 	// Only use Floating UI when trigger element is available
 	const useFloatingPositioning =
-		avoidCollisions && !isMobile && triggerElement !== null;
+		!isResponsive && avoidCollisions && !isMobile && triggerElement !== null;
 
 	// Scroll indicator logic
 	const checkScroll = React.useCallback(() => {
@@ -285,6 +295,10 @@ export const Content: React.FC<ContentPropsType> = ({
 	// Compute styles based on positioning mode
 	// Use raw x, y coordinates from Floating UI when available
 	const computedStyles = React.useMemo<React.CSSProperties>(() => {
+		if (isResponsive) {
+			return {};
+		}
+
 		if (isMobile) {
 			// Mobile: no positioning styles needed, handled by CSS classes
 			return {};
@@ -309,6 +323,7 @@ export const Content: React.FC<ContentPropsType> = ({
 		y,
 		side,
 		sideOffset,
+		isResponsive,
 	]);
 
 	// Compute className based on positioning mode
@@ -316,41 +331,52 @@ export const Content: React.FC<ContentPropsType> = ({
 		// Common base styles
 		"flex flex-col overflow-hidden overscroll-none bg-co-background",
 
-		// Entrance animation
-		"co-animate-panel-in",
+		isResponsive
+			? "h-full min-h-0 w-full"
+			: [
+					// Entrance animation
+					"co-animate-panel-in",
 
-		// Mobile: fullscreen fixed
-		"max-md:fixed max-md:inset-0 max-md:z-[9999]",
+					// Mobile: fullscreen fixed
+					"max-md:fixed max-md:inset-0 max-md:z-[9999]",
 
-		// Desktop: floating window base styles
-		"md:z-[9999] md:aspect-[9/17] md:max-h-[calc(100vh-6rem)] md:w-[400px] md:rounded-md md:border md:border-co-border md:shadow md:dark:shadow-co-background-600/50",
+					// Desktop: floating window base styles
+					"md:z-[9999] md:aspect-[9/17] md:max-h-[calc(100vh-6rem)] md:w-[400px] md:rounded-md md:border md:border-co-border md:shadow md:dark:shadow-co-background-600/50",
 
-		// Positioning mode specific styles
-		// Use fixed positioning when Floating UI has valid coordinates,
-		// otherwise use fallback absolute positioning with CSS classes
-		useFloatingPositioning && hasValidFloatingPosition
-			? "md:fixed"
-			: cn("md:absolute", getFallbackPositioningClasses(side, align)),
+					// Positioning mode specific styles
+					// Use fixed positioning when Floating UI has valid coordinates,
+					// otherwise use fallback absolute positioning with CSS classes
+					useFloatingPositioning && hasValidFloatingPosition
+						? "md:fixed"
+						: cn("md:absolute", getFallbackPositioningClasses(side, align)),
+				],
 
 		className
 	);
 
+	const content = (
+		<div
+			className={computedClassName}
+			data-support-mode={mode}
+			ref={isResponsive ? undefined : setFloatingRef}
+			style={computedStyles}
+		>
+			<ContentInner
+				containerRef={containerRef}
+				showScrollIndicator={showScrollIndicator}
+			>
+				{children}
+			</ContentInner>
+		</div>
+	);
+
 	return (
 		<SlotProvider>
-			<Primitive.Window asChild>
-				<div
-					className={computedClassName}
-					ref={setFloatingRef}
-					style={computedStyles}
-				>
-					<ContentInner
-						containerRef={containerRef}
-						showScrollIndicator={showScrollIndicator}
-					>
-						{children}
-					</ContentInner>
-				</div>
-			</Primitive.Window>
+			{isResponsive ? (
+				content
+			) : (
+				<Primitive.Window asChild>{content}</Primitive.Window>
+			)}
 		</SlotProvider>
 	);
 };

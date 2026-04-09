@@ -1,4 +1,8 @@
 import type {
+	TimelineItem,
+	TimelinePartEvent,
+} from "@cossistant/types/api/timeline-item";
+import type {
 	AvailableAIAgent,
 	AvailableHumanAgent,
 	TimelinePartEvent,

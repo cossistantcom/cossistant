@@ -16,6 +16,7 @@ export type UseMultimodalInputOptions = {
 	maxFileSize?: number; // in bytes
 	maxFiles?: number;
 	allowedFileTypes?: string[]; // MIME types
+	draftPersistenceId?: string | null;
 };
 
 export type UseMultimodalInputReturn = {
@@ -49,14 +50,31 @@ export const useMultimodalInput = ({
 	maxFileSize = 10 * 1024 * 1024, // 10MB default
 	maxFiles = 5,
 	allowedFileTypes = DEFAULT_ALLOWED_FILE_TYPES,
+	draftPersistenceId = null,
 }: UseMultimodalInputOptions = {}): UseMultimodalInputReturn => {
-	const [message, setMessage] = useState("");
+	const persistedDraft = useLocalStorageDraftValue({
+		id: draftPersistenceId,
+		initialValue: "",
+	});
+	const [message, setMessageState] = useState(persistedDraft.value);
 	const [files, setFiles] = useState<File[]>([]);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
 
 	// Use ref to prevent re-renders when tracking file URLs
 	const fileUrlsRef = useRef<string[]>([]);
+
+	useEffect(() => {
+		if (isSubmitting) {
+			return;
+		}
+
+		setMessageState((currentMessage) =>
+			currentMessage === persistedDraft.value
+				? currentMessage
+				: persistedDraft.value
+		);
+	}, [isSubmitting, persistedDraft.value]);
 
 	// Validation helpers
 	const validateFile = useCallback(
@@ -143,11 +161,20 @@ export const useMultimodalInput = ({
 	}, []);
 
 	const reset = useCallback(() => {
-		setMessage("");
+		setMessageState("");
+		persistedDraft.clearValue();
 		clearFiles();
 		setError(null);
 		setIsSubmitting(false);
-	}, [clearFiles]);
+	}, [clearFiles, persistedDraft]);
+
+	const setMessage = useCallback(
+		(nextMessage: string) => {
+			setMessageState(nextMessage);
+			persistedDraft.setValue(nextMessage);
+		},
+		[persistedDraft]
+	);
 
 	const submit = useCallback(async () => {
 		if (!onSubmit) {
@@ -170,7 +197,7 @@ export const useMultimodalInput = ({
 
 		setIsSubmitting(true);
 		setError(null);
-		setMessage("");
+		setMessageState("");
 		setFiles([]);
 		fileUrlsRef.current = [];
 
@@ -182,9 +209,10 @@ export const useMultimodalInput = ({
 			}
 			reset();
 		} catch (err) {
-			setMessage(previousState.message);
+			setMessageState(previousState.message);
 			setFiles(previousState.files);
 			fileUrlsRef.current = previousState.fileUrls;
+			persistedDraft.setValue(previousState.message);
 
 			const _error = err instanceof Error ? err : new Error("Failed to submit");
 			setError(_error);
@@ -192,7 +220,7 @@ export const useMultimodalInput = ({
 		} finally {
 			setIsSubmitting(false);
 		}
-	}, [message, files, onSubmit, onError, reset]);
+	}, [files, message, onError, onSubmit, persistedDraft, reset]);
 
 	// Computed values
 	const isValid = message.trim().length > 0 || files.length > 0;

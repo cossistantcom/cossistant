@@ -6,6 +6,7 @@ import {
 	getConversationSeenData,
 	getConversationTimelineItems,
 	listConversations,
+	listConversationsHeaders,
 	upsertConversation,
 } from "@api/db/queries/conversation";
 import {
@@ -45,13 +46,17 @@ import {
 import { APIKeyType, TimelineItemVisibility } from "@plasma/types";
 import {
 	type CreateConversationConflictCode,
+	conversationInboxItemSchema,
 	createConversationConflictResponseSchema,
 	createConversationRequestSchema,
 	createConversationResponseSchema,
 	getConversationRequestSchema,
 	getConversationResponseSchema,
+	getConversationSeenDataResponseSchema,
 	listConversationsRequestSchema,
 	listConversationsResponseSchema,
+	listInboxConversationsRequestSchema,
+	listInboxConversationsResponseSchema,
 	markConversationSeenRequestSchema,
 	markConversationSeenResponseSchema,
 	setConversationTypingRequestSchema,
@@ -72,6 +77,13 @@ import {
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import { and, eq } from "drizzle-orm";
 import { protectedPublicApiKeyMiddleware } from "../middleware";
+import {
+	errorJsonResponse,
+	privateControlAuth,
+	requirePrivateControlContext,
+	restError,
+	runtimeDualAuth,
+} from "../openapi";
 import type { RestContext } from "../types";
 import { mapDefaultTimelineItemForCreation } from "./conversation-default-timeline-item";
 import { persistFeedbackSubmission } from "./feedback-shared";
@@ -186,6 +198,81 @@ function buildDefaultTimelineItemId(params: {
 	);
 }
 
+const conversationIdPathParameter = {
+	name: "conversationId",
+	in: "path",
+	description: "The ID of the conversation.",
+	required: true,
+	schema: {
+		type: "string",
+	},
+} as const;
+
+function getConversationPathParams(c: {
+	req: { param(name: string): string | undefined };
+}) {
+	return getConversationRequestSchema.parse({
+		conversationId: c.req.param("conversationId"),
+	});
+}
+
+async function resolvePublicConversationVisitor(params: {
+	c: Parameters<typeof restError>[0];
+	db: RestContext["Variables"]["db"];
+	websiteId: string;
+	apiKey: { keyType?: APIKeyType } | null | undefined;
+	visitorId: string | null;
+}) {
+	if (params.apiKey?.keyType !== APIKeyType.PUBLIC) {
+		return { visitor: null, error: null };
+	}
+
+	if (!params.visitorId) {
+		return {
+			visitor: null,
+			error: restError(
+				params.c,
+				400,
+				"BAD_REQUEST",
+				"Visitor not found, please pass a valid visitorId"
+			),
+		};
+	}
+
+	const visitor = await getVisitor(params.db, {
+		visitorId: params.visitorId,
+	});
+
+	if (!visitor || visitor.websiteId !== params.websiteId) {
+		return {
+			visitor: null,
+			error: restError(
+				params.c,
+				400,
+				"BAD_REQUEST",
+				"Visitor not found, please pass a valid visitorId"
+			),
+		};
+	}
+
+	return { visitor, error: null };
+}
+
+function ensureConversationViewerOwnsRecord(params: {
+	c: Parameters<typeof restError>[0];
+	conversationVisitorId: string | null;
+	viewerVisitorId: string | null;
+}) {
+	if (
+		params.viewerVisitorId &&
+		params.conversationVisitorId !== params.viewerVisitorId
+	) {
+		return restError(params.c, 404, "NOT_FOUND", "Conversation not found");
+	}
+
+	return null;
+}
+
 export const conversationRouter = new OpenAPIHono<RestContext>();
 
 // Apply middleware to all routes in this router
@@ -227,60 +314,11 @@ conversationRouter.openapi(
 					},
 				},
 			},
-			400: {
-				description: "Invalid request",
-				content: {
-					"application/json": {
-						schema: z.object({ error: z.string() }),
-					},
-				},
-			},
+			400: errorJsonResponse("Invalid request"),
+			401: errorJsonResponse("Unauthorized - Invalid or missing API key"),
+			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-			{
-				"Private API Key": [],
-			},
-		],
-		parameters: [
-			{
-				name: "Authorization",
-				in: "header",
-				description:
-					"Private API key in Bearer token format. Use this for server-to-server authentication. Format: `Bearer sk_[live|test]_...`",
-				required: false,
-				schema: {
-					type: "string",
-					pattern: "^Bearer sk_(live|test)_[a-f0-9]{64}$",
-					example: "Bearer sk_test_xxx",
-				},
-			},
-			{
-				name: "X-Public-Key",
-				in: "header",
-				description:
-					"Public API key for browser-based authentication. Can only be used from whitelisted domains. Format: `pk_[live|test]_...`",
-				required: false,
-				schema: {
-					type: "string",
-					pattern: "^pk_(live|test)_[a-f0-9]{64}$",
-					example: "pk_test_xxx",
-				},
-			},
-			{
-				name: "X-Visitor-Id",
-				in: "header",
-				description: "Visitor ID from localStorage.",
-				required: false,
-				schema: {
-					type: "string",
-					pattern: "^[0-9A-HJKMNP-TV-Z]{26}$",
-					example: "01JG000000000000000000000",
-				},
-			},
-		],
+		...runtimeDualAuth({ includeVisitorIdHeader: true }),
 	},
 	async (c) => {
 		const { db, website, organization, body, visitorIdHeader } =
@@ -498,7 +536,10 @@ conversationRouter.openapi(
 			}),
 		};
 
-		return c.json(validateResponse(response, createConversationResponseSchema));
+		return c.json(
+			validateResponse(response, createConversationResponseSchema),
+			200
+		);
 	}
 );
 
@@ -522,60 +563,11 @@ conversationRouter.openapi(
 					},
 				},
 			},
-			400: {
-				description: "Invalid request",
-				content: {
-					"application/json": {
-						schema: z.object({ error: z.string() }),
-					},
-				},
-			},
+			400: errorJsonResponse("Invalid request"),
+			401: errorJsonResponse("Unauthorized - Invalid or missing API key"),
+			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-			{
-				"Private API Key": [],
-			},
-		],
-		parameters: [
-			{
-				name: "Authorization",
-				in: "header",
-				description:
-					"Private API key in Bearer token format. Use this for server-to-server authentication. Format: `Bearer sk_[live|test]_...`",
-				required: false,
-				schema: {
-					type: "string",
-					pattern: "^Bearer sk_(live|test)_[a-f0-9]{64}$",
-					example: "Bearer sk_test_xxx",
-				},
-			},
-			{
-				name: "X-Public-Key",
-				in: "header",
-				description:
-					"Public API key for browser-based authentication. Can only be used from whitelisted domains. Format: `pk_[live|test]_...`",
-				required: false,
-				schema: {
-					type: "string",
-					pattern: "^pk_(live|test)_[a-f0-9]{64}$",
-					example: "pk_test_xxx",
-				},
-			},
-			{
-				name: "X-Visitor-Id",
-				in: "header",
-				description: "Visitor ID from localStorage.",
-				required: false,
-				schema: {
-					type: "string",
-					pattern: "^[0-9A-HJKMNP-TV-Z]{26}$",
-					example: "01JG000000000000000000000",
-				},
-			},
-		],
+		...runtimeDualAuth({ includeVisitorIdHeader: true }),
 	},
 	async (c) => {
 		const { db, website, organization, query, visitorIdHeader } =
@@ -612,7 +604,87 @@ conversationRouter.openapi(
 			pagination: result.pagination,
 		};
 
-		return c.json(validateResponse(response, listConversationsResponseSchema));
+		return c.json(
+			validateResponse(response, listConversationsResponseSchema),
+			200
+		);
+	}
+);
+
+conversationRouter.openapi(
+	{
+		method: "get",
+		path: "/inbox",
+		summary: "List inbox conversations",
+		description:
+			"Returns a cursor-paginated inbox view for the authenticated website. This control-plane endpoint requires a private API key.",
+		tags: ["Conversations"],
+		request: {
+			query: listInboxConversationsRequestSchema,
+		},
+		responses: {
+			200: {
+				description: "Inbox conversations retrieved successfully",
+				content: {
+					"application/json": {
+						schema: listInboxConversationsResponseSchema,
+					},
+				},
+			},
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			403: errorJsonResponse("Forbidden - Private API key required"),
+			500: errorJsonResponse("Internal server error"),
+		},
+		...privateControlAuth(),
+	},
+	async (c) => {
+		const extracted = await safelyExtractRequestQuery(
+			c,
+			listInboxConversationsRequestSchema
+		);
+		const privateContext = requirePrivateControlContext(c, extracted);
+
+		if (privateContext instanceof Response) {
+			return privateContext;
+		}
+
+		const [planInfo, result] = await Promise.all([
+			getPlanForWebsite(privateContext.website),
+			listConversationsHeaders(extracted.db, {
+				organizationId: privateContext.organization.id,
+				websiteId: privateContext.website.id,
+				userId: null,
+				limit: extracted.query.limit,
+				cursor: extracted.query.cursor ?? null,
+			}),
+		]);
+
+		const hardLimitPolicy = resolveDashboardHardLimitPolicy(planInfo);
+		const lockCutoff = await getDashboardConversationLockCutoff(extracted.db, {
+			websiteId: privateContext.website.id,
+			organizationId: privateContext.organization.id,
+			policy: hardLimitPolicy,
+		});
+
+		const response = {
+			items: result.items.map((item) =>
+				conversationInboxItemSchema.parse(
+					applyDashboardConversationHardLimit({
+						conversation: item,
+						policy: hardLimitPolicy,
+						cutoff: lockCutoff,
+					})
+				)
+			),
+			nextCursor: result.nextCursor,
+		};
+
+		return c.json(
+			validateResponse(response, listInboxConversationsResponseSchema),
+			200
+		);
 	}
 );
 
@@ -635,77 +707,21 @@ conversationRouter.openapi(
 					},
 				},
 			},
-			404: {
-				description: "Conversation not found",
-				content: {
-					"application/json": {
-						schema: z.object({ error: z.string() }),
-					},
-				},
-			},
+			400: errorJsonResponse("Invalid request"),
+			401: errorJsonResponse("Unauthorized - Invalid or missing API key"),
+			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
+			404: errorJsonResponse("Conversation not found"),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-			{
-				"Private API Key": [],
-			},
-		],
-		parameters: [
-			{
-				name: "conversationId",
-				in: "path",
-				description: "The ID of the conversation to retrieve",
-				required: true,
-				schema: {
-					type: "string",
-				},
-			},
-			{
-				name: "Authorization",
-				in: "header",
-				description:
-					"Private API key in Bearer token format. Use this for server-to-server authentication. Format: `Bearer sk_[live|test]_...`",
-				required: false,
-				schema: {
-					type: "string",
-					pattern: "^Bearer sk_(live|test)_[a-f0-9]{64}$",
-					example: "Bearer sk_test_xxx",
-				},
-			},
-			{
-				name: "X-Public-Key",
-				in: "header",
-				description:
-					"Public API key for browser-based authentication. Can only be used from whitelisted domains. Format: `pk_[live|test]_...`",
-				required: false,
-				schema: {
-					type: "string",
-					pattern: "^pk_(live|test)_[a-f0-9]{64}$",
-					example: "pk_test_xxx",
-				},
-			},
-			{
-				name: "X-Visitor-Id",
-				in: "header",
-				description: "Visitor ID from localStorage.",
-				required: false,
-				schema: {
-					type: "string",
-					pattern: "^[0-9A-HJKMNP-TV-Z]{26}$",
-					example: "01JG000000000000000000000",
-				},
-			},
-		],
+		...runtimeDualAuth({
+			parameters: [conversationIdPathParameter],
+			includeVisitorIdHeader: true,
+		}),
 	},
 	async (c) => {
-		const { db, website, organization } = await safelyExtractRequestData(c);
-
-		// Validate path params manually for now
-		const params = getConversationRequestSchema.parse({
-			conversationId: c.req.param("conversationId"),
-		});
+		const { db, website, organization, apiKey, visitorIdHeader } =
+			await safelyExtractRequestData(c);
+		const params = getConversationPathParams(c);
 
 		const conversationRecord = await getConversationByIdWithLastMessage(db, {
 			organizationId: organization.id,
@@ -722,12 +738,37 @@ conversationRouter.openapi(
 			);
 		}
 
+		const publicVisitor = await resolvePublicConversationVisitor({
+			c,
+			db,
+			websiteId: website.id,
+			apiKey,
+			visitorId: visitorIdHeader,
+		});
+
+		if (publicVisitor.error) {
+			return publicVisitor.error;
+		}
+
+		const ownershipError = ensureConversationViewerOwnsRecord({
+			c,
+			conversationVisitorId: conversationRecord.visitorId,
+			viewerVisitorId: publicVisitor.visitor?.id ?? null,
+		});
+
+		if (ownershipError) {
+			return ownershipError;
+		}
+
 		try {
 			const response = {
 				conversation: serializeConversationForResponse(conversationRecord),
 			};
 
-			return c.json(validateResponse(response, getConversationResponseSchema));
+			return c.json(
+				validateResponse(response, getConversationResponseSchema),
+				200
+			);
 		} catch (error) {
 			console.error(
 				"[GET_CONVERSATION] Failed to serialize conversation response",
@@ -774,62 +815,15 @@ conversationRouter.openapi(
 					},
 				},
 			},
-			400: {
-				description: "Invalid request",
-				content: {
-					"application/json": {
-						schema: z.object({ error: z.string() }),
-					},
-				},
-			},
-			404: {
-				description: "Conversation not found",
-				content: {
-					"application/json": {
-						schema: z.object({ error: z.string() }),
-					},
-				},
-			},
+			400: errorJsonResponse("Invalid request"),
+			401: errorJsonResponse("Unauthorized - Invalid or missing API key"),
+			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
+			404: errorJsonResponse("Conversation not found"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-		],
-		inputSchema: [
-			{
-				name: "conversationId",
-				in: "path",
-				description: "The ID of the conversation to mark as seen",
-				required: true,
-				schema: {
-					type: "string",
-				},
-			},
-			{
-				name: "X-Public-Key",
-				in: "header",
-				description:
-					"Public API key for browser-based authentication. Can only be used from whitelisted domains. Format: `pk_[live|test]_...`",
-				required: false,
-				schema: {
-					type: "string",
-					pattern: "^pk_(live|test)_[a-f0-9]{64}$",
-					example: "pk_test_xxx",
-				},
-			},
-			{
-				name: "X-Visitor-Id",
-				in: "header",
-				description: "Visitor ID from localStorage.",
-				required: false,
-				schema: {
-					type: "string",
-					pattern: "^[0-9A-HJKMNP-TV-Z]{26}$",
-					example: "01JG000000000000000000000",
-				},
-			},
-		],
+		...runtimeDualAuth({
+			parameters: [conversationIdPathParameter],
+			includeVisitorIdHeader: true,
+		}),
 	},
 	async (c) => {
 		const { db, website, organization, body, visitorIdHeader } =
@@ -918,60 +912,15 @@ conversationRouter.openapi(
 					},
 				},
 			},
-			400: {
-				description: "Invalid request",
-				content: {
-					"application/json": {
-						schema: z.object({ error: z.string() }),
-					},
-				},
-			},
-			404: {
-				description: "Conversation not found",
-				content: {
-					"application/json": {
-						schema: z.object({ error: z.string() }),
-					},
-				},
-			},
+			400: errorJsonResponse("Invalid request"),
+			401: errorJsonResponse("Unauthorized - Invalid or missing API key"),
+			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
+			404: errorJsonResponse("Conversation not found"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-		],
-		inputSchema: [
-			{
-				name: "conversationId",
-				in: "path",
-				description: "The ID of the conversation receiving the typing update",
-				required: true,
-				schema: {
-					type: "string",
-				},
-			},
-			{
-				name: "X-Public-Key",
-				in: "header",
-				description:
-					"Public API key for browser-based authentication. Can only be used from whitelisted domains. Format: `pk_[live|test]_...`",
-				required: false,
-				schema: {
-					type: "string",
-					pattern: "^pk_(live|test)_[a-f0-9]{64}$",
-				},
-			},
-			{
-				name: "X-Visitor-Id",
-				in: "header",
-				description: "Visitor ID from localStorage.",
-				required: false,
-				schema: {
-					type: "string",
-					pattern: "^[0-9A-HJKMNP-TV-Z]{26}$",
-				},
-			},
-		],
+		...runtimeDualAuth({
+			parameters: [conversationIdPathParameter],
+			includeVisitorIdHeader: true,
+		}),
 	},
 	async (c) => {
 		const { db, website, organization, body, visitorIdHeader } =
@@ -1073,70 +1022,15 @@ conversationRouter.openapi(
 					},
 				},
 			},
-			400: {
-				description: "Invalid request",
-				content: {
-					"application/json": {
-						schema: z.object({ error: z.string() }),
-					},
-				},
-			},
-			403: {
-				description: "Forbidden",
-				content: {
-					"application/json": {
-						schema: z.object({ error: z.string() }),
-					},
-				},
-			},
-			404: {
-				description: "Conversation not found",
-				content: {
-					"application/json": {
-						schema: z.object({ error: z.string() }),
-					},
-				},
-			},
+			400: errorJsonResponse("Invalid request"),
+			401: errorJsonResponse("Unauthorized - Invalid or missing API key"),
+			403: errorJsonResponse("Forbidden"),
+			404: errorJsonResponse("Conversation not found"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-		],
-		inputSchema: [
-			{
-				name: "conversationId",
-				in: "path",
-				description: "The ID of the conversation to rate",
-				required: true,
-				schema: {
-					type: "string",
-				},
-			},
-			{
-				name: "X-Public-Key",
-				in: "header",
-				description:
-					"Public API key for browser-based authentication. Can only be used from whitelisted domains. Format: `pk_[live|test]_...`",
-				required: false,
-				schema: {
-					type: "string",
-					pattern: "^pk_(live|test)_[a-f0-9]{64}$",
-					example: "pk_test_xxx",
-				},
-			},
-			{
-				name: "X-Visitor-Id",
-				in: "header",
-				description: "Visitor ID from localStorage.",
-				required: false,
-				schema: {
-					type: "string",
-					pattern: "^[0-9A-HJKMNP-TV-Z]{26}$",
-					example: "01JG000000000000000000000",
-				},
-			},
-		],
+		...runtimeDualAuth({
+			parameters: [conversationIdPathParameter],
+			includeVisitorIdHeader: true,
+		}),
 	},
 	async (c) => {
 		const { db, website, organization, body, visitorIdHeader } =
@@ -1226,57 +1120,25 @@ conversationRouter.openapi(
 				description: "Seen data retrieved successfully",
 				content: {
 					"application/json": {
-						schema: z.object({
-							seenData: z.array(conversationSeenSchema),
-						}),
+						schema: getConversationSeenDataResponseSchema,
 					},
 				},
 			},
-			404: {
-				description: "Conversation not found",
-				content: {
-					"application/json": {
-						schema: z.object({ error: z.string() }),
-					},
-				},
-			},
+			400: errorJsonResponse("Invalid request"),
+			401: errorJsonResponse("Unauthorized - Invalid or missing API key"),
+			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
+			404: errorJsonResponse("Conversation not found"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-		],
-		inputSchema: [
-			{
-				name: "conversationId",
-				in: "path",
-				description: "The ID of the conversation",
-				required: true,
-				schema: {
-					type: "string",
-				},
-			},
-			{
-				name: "X-Public-Key",
-				in: "header",
-				description: "Public API key for browser-based authentication.",
-				required: false,
-				schema: {
-					type: "string",
-					pattern: "^pk_(live|test)_[a-f0-9]{64}$",
-				},
-			},
-		],
+		...runtimeDualAuth({
+			parameters: [conversationIdPathParameter],
+			includeVisitorIdHeader: true,
+		}),
 	},
 	async (c) => {
-		const { db, website, organization } = await safelyExtractRequestQuery(
-			c,
-			z.object({})
-		);
+		const { db, website, organization, apiKey, visitorIdHeader } =
+			await safelyExtractRequestQuery(c, z.object({}));
 
-		const params = getConversationRequestSchema.parse({
-			conversationId: c.req.param("conversationId"),
-		});
+		const params = getConversationPathParams(c);
 
 		const conversationRecord = await getConversationByIdWithLastMessage(db, {
 			organizationId: organization.id,
@@ -1293,12 +1155,37 @@ conversationRouter.openapi(
 			);
 		}
 
+		const publicVisitor = await resolvePublicConversationVisitor({
+			c,
+			db,
+			websiteId: website.id,
+			apiKey,
+			visitorId: visitorIdHeader,
+		});
+
+		if (publicVisitor.error) {
+			return publicVisitor.error;
+		}
+
+		const ownershipError = ensureConversationViewerOwnsRecord({
+			c,
+			conversationVisitorId: conversationRecord.visitorId,
+			viewerVisitorId: publicVisitor.visitor?.id ?? null,
+		});
+
+		if (ownershipError) {
+			return ownershipError;
+		}
+
 		const seenData = await getConversationSeenData(db, {
 			conversationId: params.conversationId,
 			organizationId: organization.id,
 		});
 
-		return c.json({ seenData }, 200);
+		return c.json(
+			validateResponse({ seenData }, getConversationSeenDataResponseSchema),
+			200
+		);
 	}
 );
 
@@ -1323,62 +1210,24 @@ conversationRouter.openapi(
 					},
 				},
 			},
-			404: {
-				description: "Conversation not found",
-				content: {
-					"application/json": {
-						schema: z.object({ error: z.string() }),
-					},
-				},
-			},
+			400: errorJsonResponse("Invalid request"),
+			401: errorJsonResponse("Unauthorized - Invalid or missing API key"),
+			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
+			404: errorJsonResponse("Conversation not found"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-		],
-		inputSchema: [
-			{
-				name: "conversationId",
-				in: "path",
-				description: "The ID of the conversation",
-				required: true,
-				schema: {
-					type: "string",
-				},
-			},
-			{
-				name: "X-Public-Key",
-				in: "header",
-				description: "Public API key for browser-based authentication.",
-				required: false,
-				schema: {
-					type: "string",
-					pattern: "^pk_(live|test)_[a-f0-9]{64}$",
-				},
-			},
-			{
-				name: "X-Visitor-Id",
-				in: "header",
-				description: "Visitor ID from localStorage.",
-				required: false,
-				schema: {
-					type: "string",
-					pattern: "^[0-9A-HJKMNP-TV-Z]{26}$",
-				},
-			},
-		],
+		...runtimeDualAuth({
+			parameters: [conversationIdPathParameter],
+			includeVisitorIdHeader: true,
+		}),
 	},
 	async (c) => {
-		const { db, website, organization, query, apiKey } =
+		const { db, website, organization, query, apiKey, visitorIdHeader } =
 			await safelyExtractRequestQuery(
 				c,
 				getConversationTimelineItemsRequestSchema
 			);
 
-		const params = getConversationRequestSchema.parse({
-			conversationId: c.req.param("conversationId"),
-		});
+		const params = getConversationPathParams(c);
 
 		const conversationRecord = await getConversationByIdWithLastMessage(db, {
 			organizationId: organization.id,
@@ -1393,6 +1242,28 @@ conversationRouter.openapi(
 				},
 				404
 			);
+		}
+
+		const publicVisitor = await resolvePublicConversationVisitor({
+			c,
+			db,
+			websiteId: website.id,
+			apiKey,
+			visitorId: visitorIdHeader,
+		});
+
+		if (publicVisitor.error) {
+			return publicVisitor.error;
+		}
+
+		const ownershipError = ensureConversationViewerOwnsRecord({
+			c,
+			conversationVisitorId: conversationRecord.visitorId,
+			viewerVisitorId: publicVisitor.visitor?.id ?? null,
+		});
+
+		if (ownershipError) {
+			return ownershipError;
 		}
 
 		const visibilityFilter =

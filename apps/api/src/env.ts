@@ -46,9 +46,28 @@ export const env = {
 	GOOGLE_CLIENT_SECRET: getEnvVariable("GOOGLE_CLIENT_SECRET"),
 	GITHUB_CLIENT_ID: getEnvVariable("GITHUB_CLIENT_ID"),
 	GITHUB_CLIENT_SECRET: getEnvVariable("GITHUB_CLIENT_SECRET"),
+	EMAIL_TRANSPORT_PROVIDER: getEnvVariable(
+		"EMAIL_TRANSPORT_PROVIDER",
+		"resend"
+	),
+	EMAIL_NOTIFICATION_FROM: getEnvVariable("EMAIL_NOTIFICATION_FROM", ""),
+	EMAIL_MARKETING_FROM: getEnvVariable("EMAIL_MARKETING_FROM", ""),
+	EMAIL_RESEND_INBOUND_DOMAIN: getEnvVariable(
+		"EMAIL_RESEND_INBOUND_DOMAIN",
+		"inbound.cossistant.com"
+	),
+	EMAIL_SES_INBOUND_DOMAIN: getEnvVariable(
+		"EMAIL_SES_INBOUND_DOMAIN",
+		"ses-inbound.cossistant.com"
+	),
 	RESEND_API_KEY: getEnvVariable("RESEND_API_KEY"),
 	RESEND_AUDIENCE_ID: getEnvVariable("RESEND_AUDIENCE_ID"),
 	RESEND_WEBHOOK_SECRET: getEnvVariable("RESEND_WEBHOOK_SECRET"),
+	SES_REGION: getEnvVariable("SES_REGION", "us-east-1"),
+	SES_ACCESS_KEY_ID: getEnvVariable("SES_ACCESS_KEY_ID", ""),
+	SES_SECRET_ACCESS_KEY: getEnvVariable("SES_SECRET_ACCESS_KEY", ""),
+	SES_CONFIGURATION_SET: getEnvVariable("SES_CONFIGURATION_SET", ""),
+	SES_WEBHOOK_SECRET: getEnvVariable("SES_WEBHOOK_SECRET", ""),
 	SLACK_WEBHOOK_URL: getEnvVariable("SLACK_WEBHOOK_URL", ""),
 	PUBLIC_APP_URL: getEnvVariable("PUBLIC_APP_URL"),
 	PORT: +getEnvVariable("PORT", "8787"),

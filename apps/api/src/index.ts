@@ -1,12 +1,15 @@
 import { env } from "@api/env";
 import { auth } from "@api/lib/auth";
+import { createApiBrowserCorsMiddleware } from "@api/lib/browser-cors";
 import {
 	authRateLimiter,
 	defaultRateLimiter,
 	trpcRateLimiter,
 	websocketRateLimiter,
 } from "@api/middleware/rate-limit";
+import { openApiSecuritySchemes } from "@api/rest/openapi";
 import { routers } from "@api/rest/routers";
+import { knowledgeClarificationStreamRouter } from "@api/routes/knowledge-clarification-stream";
 import { createTRPCContext } from "@api/trpc/init";
 import { origamiTRPCRouter } from "@api/trpc/routers/_app";
 import { checkHealth } from "@api/utils/health";
@@ -22,6 +25,7 @@ import { getTRPCSession } from "./db/queries/session";
 import { polarRouters } from "./polar";
 import { realtime } from "./realtime/emitter";
 import { resendRouters } from "./resend";
+import { sesRouters } from "./ses";
 import { workflowsRouters } from "./workflows";
 import { upgradedWebsocket, websocket } from "./ws/socket";
 
@@ -85,23 +89,11 @@ app.get("/health", async (c) => {
 app.get("/robots.txt", (c) => c.text("User-agent: *\nDisallow: /\n"));
 
 // CORS middleware for auth and TRPC endpoints (trusted domains only)
-app.use(
-	"/api/auth/*",
-	cors({
-		origin: acceptedOrigins,
-		maxAge: 86_400,
-		credentials: true,
-	})
-);
+app.use("/api/auth/*", apiBrowserCors);
 
-app.use(
-	"/trpc/*",
-	cors({
-		origin: acceptedOrigins,
-		maxAge: 86_400,
-		credentials: true,
-	})
-);
+app.use("/trpc/*", apiBrowserCors);
+
+app.use("/api/knowledge-clarification/*", apiBrowserCors);
 
 // CORS middleware for V1 API (public access)
 app.use(
@@ -115,8 +107,27 @@ app.use(
 
 // Apply rate limiting before session handling
 app.use("/trpc/*", trpcRateLimiter);
+app.use("/api/knowledge-clarification/*", trpcRateLimiter);
 
 app.use("/trpc/*", async (c, next) => {
+	const session = await getTRPCSession(db, {
+		headers: c.req.raw.headers,
+	});
+
+	if (!session) {
+		c.set("user", null);
+		c.set("session", null);
+
+		return next();
+	}
+
+	c.set("user", session.user);
+	c.set("session", session.session);
+
+	return next();
+});
+
+app.use("/api/knowledge-clarification/*", async (c, next) => {
 	const session = await getTRPCSession(db, {
 		headers: c.req.raw.headers,
 	});
@@ -147,6 +158,8 @@ app.use(
 	})
 );
 
+app.route("/api/knowledge-clarification", knowledgeClarificationStreamRouter);
+
 // REST API routes with default rate limiting
 app.use("/v1/*", defaultRateLimiter);
 app.use("/v1/*", stripSetCookie);
@@ -154,13 +167,14 @@ app.route("/v1", routers);
 
 app.route("/polar", polarRouters);
 app.route("/resend", resendRouters);
+app.route("/ses", sesRouters);
 app.route("/workflow", workflowsRouters);
 
 // WebSocket endpoint for real-time communication with rate limiting
 app.use("/ws", websocketRateLimiter);
 app.get("/ws", upgradedWebsocket);
 
-app.doc("/openapi", {
+const openApiDocument = {
 	openapi: "3.1.0",
 	info: {
 		version: "0.0.1",
@@ -177,12 +191,12 @@ app.doc("/openapi", {
 			description: "Production server",
 		},
 	],
-	security: [
-		{
-			bearerAuth: [],
-		},
-	],
-});
+	components: {
+		securitySchemes: openApiSecuritySchemes,
+	},
+};
+
+app.doc("/openapi", openApiDocument as Parameters<typeof app.doc>[1]);
 
 app.get(
 	"/docs",
@@ -190,6 +204,8 @@ app.get(
 		url: "/openapi",
 	})
 );
+
+export { app };
 
 export default {
 	port: env.PORT,

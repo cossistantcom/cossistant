@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { apiTimestampSchema, nullableApiTimestampSchema } from "./api/common";
 import { timelineItemSchema } from "./api/timeline-item";
 import { ConversationEventType, ConversationStatus } from "./enums";
 
@@ -9,9 +10,9 @@ export const viewSchema = z.object({
 	prompt: z.string().nullable(),
 	organizationId: z.string(),
 	websiteId: z.string(),
-	createdAt: z.string(),
-	updatedAt: z.string(),
-	deletedAt: z.string().nullable(),
+	createdAt: apiTimestampSchema,
+	updatedAt: apiTimestampSchema,
+	deletedAt: nullableApiTimestampSchema,
 });
 
 export type InboxView = z.infer<typeof viewSchema>;
@@ -19,8 +20,8 @@ export type InboxView = z.infer<typeof viewSchema>;
 export const conversationSchema = z.object({
 	id: z.string(),
 	title: z.string().optional(),
-	createdAt: z.string(),
-	updatedAt: z.string(),
+	createdAt: apiTimestampSchema,
+	updatedAt: apiTimestampSchema,
 	visitorId: z.string(),
 	websiteId: z.string(),
 	status: z
@@ -31,9 +32,9 @@ export const conversationSchema = z.object({
 		])
 		.default(ConversationStatus.OPEN),
 	visitorRating: z.number().int().min(1).max(5).nullable().optional(),
-	visitorRatingAt: z.string().nullable().optional(),
-	deletedAt: z.string().nullable().default(null),
-	visitorLastSeenAt: z.string().nullable().optional(),
+	visitorRatingAt: nullableApiTimestampSchema.optional(),
+	deletedAt: nullableApiTimestampSchema.default(null),
+	visitorLastSeenAt: nullableApiTimestampSchema.optional(),
 	lastTimelineItem: timelineItemSchema.optional(),
 });
 
@@ -45,10 +46,10 @@ export const conversationSeenSchema = z.object({
 	userId: z.string().nullable(),
 	visitorId: z.string().nullable(),
 	aiAgentId: z.string().nullable(),
-	lastSeenAt: z.string(),
-	createdAt: z.string(),
-	updatedAt: z.string(),
-	deletedAt: z.string().nullable(),
+	lastSeenAt: apiTimestampSchema,
+	createdAt: apiTimestampSchema,
+	updatedAt: apiTimestampSchema,
+	deletedAt: nullableApiTimestampSchema,
 });
 
 export type ConversationSeen = z.infer<typeof conversationSeenSchema>;

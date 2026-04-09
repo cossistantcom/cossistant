@@ -20,6 +20,7 @@ import {
 } from "@plasma/types";
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import { protectedPrivateApiKeyMiddleware } from "../middleware";
+import { errorJsonResponse, privateControlAuth } from "../openapi";
 import type { RestContext } from "../types";
 
 export const knowledgeRouter = new OpenAPIHono<RestContext>();
@@ -148,46 +149,14 @@ knowledgeRouter.openapi(
 					},
 				},
 			},
-			400: {
-				description: "Bad request - Invalid query parameters",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			401: {
-				description: "Unauthorized - Invalid or missing private API key",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			500: {
-				description: "Internal server error",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
+			400: errorJsonResponse("Bad request - Invalid query parameters"),
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Private API Key": [],
-			},
-		],
 		tags: ["Knowledge"],
+		...privateControlAuth(),
 	},
 	async (c) => {
 		try {
@@ -251,17 +220,6 @@ knowledgeRouter.openapi(
 		path: "/:id",
 		summary: "Get a knowledge entry",
 		description: "Retrieves a single knowledge entry by ID",
-		inputSchema: [
-			{
-				name: "id",
-				in: "path",
-				required: true,
-				description: "The knowledge entry ID",
-				schema: {
-					type: "string",
-				},
-			},
-		],
 		responses: {
 			200: {
 				description: "Knowledge entry retrieved successfully",
@@ -271,46 +229,26 @@ knowledgeRouter.openapi(
 					},
 				},
 			},
-			401: {
-				description: "Unauthorized - Invalid or missing private API key",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			404: {
-				description: "Knowledge entry not found",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			500: {
-				description: "Internal server error",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			404: errorJsonResponse("Knowledge entry not found"),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Private API Key": [],
-			},
-		],
 		tags: ["Knowledge"],
+		...privateControlAuth({
+			parameters: [
+				{
+					name: "id",
+					in: "path",
+					required: true,
+					description: "The knowledge entry ID",
+					schema: {
+						type: "string",
+					},
+				},
+			],
+		}),
 	},
 	async (c) => {
 		try {
@@ -388,46 +326,14 @@ knowledgeRouter.openapi(
 					},
 				},
 			},
-			400: {
-				description: "Invalid request data",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			401: {
-				description: "Unauthorized - Invalid or missing private API key",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			500: {
-				description: "Internal server error",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
+			400: errorJsonResponse("Invalid request data"),
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Private API Key": [],
-			},
-		],
 		tags: ["Knowledge"],
+		...privateControlAuth(),
 	},
 	async (c) => {
 		try {
@@ -483,17 +389,6 @@ knowledgeRouter.openapi(
 		path: "/:id",
 		summary: "Update a knowledge entry",
 		description: "Updates an existing knowledge entry",
-		inputSchema: [
-			{
-				name: "id",
-				in: "path",
-				required: true,
-				description: "The knowledge entry ID",
-				schema: {
-					type: "string",
-				},
-			},
-		],
 		request: {
 			body: {
 				content: {
@@ -512,57 +407,27 @@ knowledgeRouter.openapi(
 					},
 				},
 			},
-			400: {
-				description: "Invalid request data",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			401: {
-				description: "Unauthorized - Invalid or missing private API key",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			404: {
-				description: "Knowledge entry not found",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			500: {
-				description: "Internal server error",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
+			400: errorJsonResponse("Invalid request data"),
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			404: errorJsonResponse("Knowledge entry not found"),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Private API Key": [],
-			},
-		],
 		tags: ["Knowledge"],
+		...privateControlAuth({
+			parameters: [
+				{
+					name: "id",
+					in: "path",
+					required: true,
+					description: "The knowledge entry ID",
+					schema: {
+						type: "string",
+					},
+				},
+			],
+		}),
 	},
 	async (c) => {
 		try {
@@ -630,61 +495,30 @@ knowledgeRouter.openapi(
 		path: "/:id",
 		summary: "Delete a knowledge entry",
 		description: "Soft deletes a knowledge entry",
-		inputSchema: [
-			{
-				name: "id",
-				in: "path",
-				required: true,
-				description: "The knowledge entry ID",
-				schema: {
-					type: "string",
-				},
-			},
-		],
 		responses: {
 			204: {
 				description: "Knowledge entry deleted successfully",
 			},
-			401: {
-				description: "Unauthorized - Invalid or missing private API key",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			404: {
-				description: "Knowledge entry not found",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			500: {
-				description: "Internal server error",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			404: errorJsonResponse("Knowledge entry not found"),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Private API Key": [],
-			},
-		],
 		tags: ["Knowledge"],
+		...privateControlAuth({
+			parameters: [
+				{
+					name: "id",
+					in: "path",
+					required: true,
+					description: "The knowledge entry ID",
+					schema: {
+						type: "string",
+					},
+				},
+			],
+		}),
 	},
 	async (c) => {
 		try {

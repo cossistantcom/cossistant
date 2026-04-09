@@ -30,6 +30,7 @@ import {
 } from "@plasma/types/enums";
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import { protectedPublicApiKeyMiddleware } from "../middleware";
+import { errorJsonResponse, runtimeDualAuth } from "../openapi";
 import type { RestContext } from "../types";
 
 export const messagesRouter = new OpenAPIHono<RestContext>();
@@ -97,60 +98,14 @@ messagesRouter.openapi(
 					},
 				},
 			},
-			400: {
-				description: "Invalid request",
-				content: {
-					"application/json": {
-						schema: z.object({ error: z.string() }),
-					},
-				},
-			},
+			400: errorJsonResponse("Invalid request"),
+			401: errorJsonResponse("Unauthorized - Invalid or missing API key"),
+			403: errorJsonResponse(
+				"Forbidden - Public key origin validation failed or actor constraints failed"
+			),
+			404: errorJsonResponse("Conversation not found"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-			{
-				"Private API Key": [],
-			},
-		],
-		parameters: [
-			{
-				name: "Authorization",
-				in: "header",
-				description:
-					"Private API key in Bearer token format. Use this for server-to-server authentication. Format: `Bearer sk_[live|test]_...`",
-				required: false,
-				schema: {
-					type: "string",
-					pattern: "^Bearer sk_(live|test)_[a-f0-9]{64}$",
-					example: "Bearer sk_test_xxx",
-				},
-			},
-			{
-				name: "X-Public-Key",
-				in: "header",
-				description:
-					"Public API key for browser-based authentication. Can only be used from whitelisted domains. Format: `pk_[live|test]_...`",
-				required: false,
-				schema: {
-					type: "string",
-					pattern: "^pk_(live|test)_[a-f0-9]{64}$",
-					example: "pk_test_xxx",
-				},
-			},
-			{
-				name: "X-Visitor-Id",
-				in: "header",
-				description: "Visitor ID from localStorage.",
-				required: false,
-				schema: {
-					type: "string",
-					pattern: "^[0-9A-HJKMNP-TV-Z]{26}$",
-					example: "01JG000000000000000000000",
-				},
-			},
-		],
+		...runtimeDualAuth({ includeVisitorIdHeader: true }),
 	},
 	async (c) => {
 		const { db, website, organization, body, visitorIdHeader, apiKey } =
@@ -375,7 +330,8 @@ messagesRouter.openapi(
 			validateResponse(
 				{ item: createdTimelineItem as TimelineItem },
 				sendTimelineItemResponseSchema
-			)
+			),
+			200
 		);
 	}
 );

@@ -3,7 +3,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { SupportControllerContext } from "../controller-context";
 import { type CossistantContextValue, SupportContext } from "../provider";
+import { createMockSupportController } from "../test-utils/create-mock-support-controller";
 import { Feedback } from "./index";
 
 function createSupportContextValue(): CossistantContextValue {
@@ -45,13 +47,21 @@ function createSupportContextValue(): CossistantContextValue {
 
 function renderWithSupportContext(node: React.ReactNode): string {
 	return renderToStaticMarkup(
-		<SupportContext.Provider value={createSupportContextValue()}>
-			{node}
-		</SupportContext.Provider>
+		<SupportControllerContext.Provider value={createMockSupportController()}>
+			<SupportContext.Provider value={createSupportContextValue()}>
+				{node}
+			</SupportContext.Provider>
+		</SupportControllerContext.Provider>
 	);
 }
 
 describe("Feedback widget", () => {
+	it("keeps shared styles opt-in from the feedback entrypoint", () => {
+		const source = readFileSync(join(import.meta.dir, "index.tsx"), "utf8");
+
+		expect(source).not.toContain('import "../support/support.css";');
+	});
+
 	it("renders the default panel with shared feedback primitives", () => {
 		const html = renderWithSupportContext(
 			<Feedback

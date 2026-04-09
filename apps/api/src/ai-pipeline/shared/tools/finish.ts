@@ -3,6 +3,7 @@ import { z } from "zod";
 import { escalate as escalateAction } from "../actions/escalate";
 import { sendMessage as sendPublicMessage } from "../actions/send-message";
 import { updateStatus } from "../actions/update-status";
+import { normalizePublicReplyText } from "../reply-contract";
 import type {
 	PipelineToolContext,
 	PipelineToolResult,
@@ -87,6 +88,10 @@ async function sendEscalationReassurance(
 		) {
 			ctx.runtimeState.sentPublicMessageIds.add(result.messageId);
 			ctx.runtimeState.publicMessagesSent += 1;
+			ctx.runtimeState.publicReplyTexts ??= [];
+			ctx.runtimeState.publicReplyTexts.push(
+				normalizePublicReplyText(ESCALATION_REASSURANCE_MESSAGE)
+			);
 		}
 	} catch (error) {
 		ctx.debugLogger?.warn(

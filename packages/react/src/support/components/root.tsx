@@ -1,6 +1,7 @@
 "use client";
 
 import type * as React from "react";
+import { useSupportMode } from "../context/mode";
 import { TriggerRefProvider } from "../context/positioning";
 import { cn } from "../utils";
 
@@ -21,10 +22,21 @@ export type RootProps = {
  *   </Support.Content>
  * </Support.Root>
  */
-export const Root: React.FC<RootProps> = ({ className, children }) => (
-	<TriggerRefProvider>
-		<div className={cn("cossistant co-animate-fade-in relative", className)}>
-			{children}
-		</div>
-	</TriggerRefProvider>
-);
+export const Root: React.FC<RootProps> = ({ className, children }) => {
+	const mode = useSupportMode();
+
+	return (
+		<TriggerRefProvider>
+			<div
+				className={cn(
+					"cossistant co-animate-fade-in relative",
+					mode === "responsive" && "h-full min-h-0 w-full",
+					className
+				)}
+				data-support-mode={mode}
+			>
+				{children}
+			</div>
+		</TriggerRefProvider>
+	);
+};

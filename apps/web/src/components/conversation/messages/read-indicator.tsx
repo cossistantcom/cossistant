@@ -37,6 +37,7 @@ type ReaderInfo =
 			id: string;
 			type: "ai";
 			name: string | null;
+			image: string | null;
 	  }
 	| {
 			id: string;
@@ -113,6 +114,7 @@ export function ReadIndicator({
 					return {
 						id,
 						name: ai.name,
+						image: ai.image ?? null,
 						type: "ai" as const,
 					};
 				}
@@ -198,7 +200,15 @@ export function ReadIndicator({
 									);
 								})()
 							) : reader.participant.type === "ai" ? (
-								<Logo className="size-5 text-primary" />
+								reader.participant.image ? (
+									<Avatar
+										className="size-5 rounded border border-background"
+										fallbackName={reader.participant.name || "AI Assistant"}
+										url={reader.participant.image}
+									/>
+								) : (
+									<Logo className="size-5 text-primary" />
+								)
 							) : (
 								<Avatar
 									className="size-5 rounded border border-background"

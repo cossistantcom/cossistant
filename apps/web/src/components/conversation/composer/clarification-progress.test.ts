@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
-	CLARIFICATION_PROGRESS_FALLBACK_DELAY_MS,
+	CLARIFICATION_PROGRESS_PREPARING_DELAY_MS,
 	resolveClarificationProgressView,
 } from "./clarification-progress";
 
@@ -21,10 +21,10 @@ describe("resolveClarificationProgressView", () => {
 		});
 	});
 
-	it("falls back to a generic waiting state when the server stays silent", () => {
+	it("advances to the preparing stage when the server stays silent", () => {
 		const startedAt = "2026-03-14T10:00:00.000Z";
 		const nowMs =
-			Date.parse(startedAt) + CLARIFICATION_PROGRESS_FALLBACK_DELAY_MS;
+			Date.parse(startedAt) + CLARIFICATION_PROGRESS_PREPARING_DELAY_MS;
 
 		expect(
 			resolveClarificationProgressView({
@@ -33,8 +33,8 @@ describe("resolveClarificationProgressView", () => {
 				localStartedAt: startedAt,
 			})
 		).toMatchObject({
-			phase: "waiting_for_server",
-			label: "Reviewing your answer...",
+			phase: "preparing_next_step",
+			label: "Preparing the next step...",
 		});
 	});
 });

@@ -15,10 +15,6 @@ export function handleConversationTyping({
 	event: ConversationTypingEvent;
 	context: DashboardRealtimeContext;
 }) {
-	if (event.payload.websiteId !== context.website.id) {
-		return;
-	}
-
 	// Update typing store, but ignore events from the current user (their own typing)
 	applyConversationTypingEvent(event, {
 		ignoreUserId: context.userId,

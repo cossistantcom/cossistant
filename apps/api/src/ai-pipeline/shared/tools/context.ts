@@ -93,6 +93,7 @@ export function createSearchKnowledgeBaseTool(ctx: PipelineToolContext) {
 			PipelineToolResult<{
 				articles: Array<{
 					content: string;
+					knowledgeId: string | null;
 					similarity: number;
 					title: string | null;
 					sourceUrl: string | null;
@@ -120,6 +121,7 @@ export function createSearchKnowledgeBaseTool(ctx: PipelineToolContext) {
 
 				return {
 					content: item.content,
+					knowledgeId: item.knowledgeId,
 					similarity: Math.round(item.similarity * 100) / 100,
 					title:
 						typeof metadata?.title === "string"
@@ -153,12 +155,18 @@ export function createSearchKnowledgeBaseTool(ctx: PipelineToolContext) {
 				articles.every((article) => article.similarity < 0.75);
 
 			let guidance: string | null = null;
-			if (totalFound === 0) {
+			if (retrievalQuality === "strong") {
 				guidance =
-					"No relevant knowledge found. Do not invent facts. Try a different keyword query or offer escalation.";
+					"Strong knowledge match found. Answer directly from the retrieved snippets first. If a follow-up is still needed, ask only after giving the grounded answer.";
+			} else if (retrievalQuality === "weak") {
+				guidance =
+					"Partial knowledge match found. Give the best grounded partial answer first, briefly note uncertainty, then ask one narrow follow-up or offer escalation.";
+			} else if (totalFound === 0) {
+				guidance =
+					"No relevant knowledge found. Do not invent facts. Tell the visitor you could not confirm it from the knowledge base and offer escalation or human help instead of sending only a clarification question.";
 			} else if (lowConfidence) {
 				guidance =
-					"Results have low confidence. Use cautious language and offer escalation if uncertain.";
+					"Results have low confidence. Give only the grounded parts, then offer escalation if the answer is still uncertain.";
 			}
 
 			const searchResult = {

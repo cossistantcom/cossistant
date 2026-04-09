@@ -3,6 +3,10 @@ import type React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const openVisitorDetailCalls: string[] = [];
+const prefetchDetailCalls: Array<{
+	id: string;
+	type: "contact" | "visitor";
+}> = [];
 
 mock.module("next/link", () => ({
 	default: ({
@@ -19,6 +23,21 @@ mock.module("@/hooks/use-contact-visitor-detail-state", () => ({
 		openVisitorDetail: (visitorId: string) => {
 			openVisitorDetailCalls.push(visitorId);
 			return Promise.resolve([]);
+		},
+	}),
+}));
+
+mock.module("@/contexts/website", () => ({
+	useWebsite: () => ({
+		slug: "acme",
+	}),
+}));
+
+mock.module("@/data/use-prefetch-contact-visitor-detail", () => ({
+	usePrefetchContactVisitorDetail: () => ({
+		prefetchDetail: (target: { id: string; type: "contact" | "visitor" }) => {
+			prefetchDetailCalls.push(target);
+			return Promise.resolve();
 		},
 	}),
 }));
@@ -51,6 +70,7 @@ mock.module("./visitor-sidebar-header", () => ({
 	VisitorSidebarHeader: ({
 		attribution,
 		onOpenDetail,
+		onOpenDetailPrefetch,
 	}: {
 		attribution?: {
 			firstTouch?: {
@@ -60,7 +80,9 @@ mock.module("./visitor-sidebar-header", () => ({
 			};
 		} | null;
 		onOpenDetail?: () => void;
+		onOpenDetailPrefetch?: () => void;
 	}) => {
+		onOpenDetailPrefetch?.();
 		onOpenDetail?.();
 		return (
 			<div
@@ -114,6 +136,7 @@ const modulePromise = import("./visitor-sidebar");
 describe("VisitorSidebar", () => {
 	it("opens the visitor detail page with visitorId from the sidebar header", async () => {
 		openVisitorDetailCalls.length = 0;
+		prefetchDetailCalls.length = 0;
 		const { VisitorSidebar } = await modulePromise;
 
 		const html = renderToStaticMarkup(
@@ -212,6 +235,7 @@ describe("VisitorSidebar", () => {
 		expect(html).toContain('data-slot="visitor-attribution-group"');
 		expect(html).toContain(">Hacker News<");
 		expect(html).not.toContain(">Channel<");
+		expect(prefetchDetailCalls).toEqual([{ id: "visitor-1", type: "visitor" }]);
 		expect(openVisitorDetailCalls).toEqual(["visitor-1"]);
 	});
 });

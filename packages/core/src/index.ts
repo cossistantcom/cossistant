@@ -160,6 +160,21 @@ export {
   type WebsiteStatus,
   type WebsiteStore,
 } from "./store/website-store";
+export {
+	createSupportController,
+	PENDING_SUPPORT_CONVERSATION_ID,
+	type SupportController,
+	type SupportControllerConfigurationError,
+	type SupportControllerConversationEndEvent,
+	type SupportControllerConversationStartEvent,
+	type SupportControllerErrorEvent,
+	type SupportControllerEvent,
+	type SupportControllerEventType,
+	type SupportControllerMessageReceivedEvent,
+	type SupportControllerMessageSentEvent,
+	type SupportControllerOptions,
+	type SupportControllerSnapshot,
+} from "./support-controller";
 // Core-specific exports
 export { CossistantAPIError } from "./types";
 export type { TypingReporter, TypingReporterConfig } from "./typing-reporter";

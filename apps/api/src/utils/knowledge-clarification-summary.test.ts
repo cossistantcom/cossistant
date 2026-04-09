@@ -18,9 +18,13 @@ type SummaryRequest = Pick<
 	| "stepIndex"
 	| "maxSteps"
 	| "updatedAt"
+	| "questionPlan"
 >;
 
-type SummaryTurn = Pick<KnowledgeClarificationTurnSelect, "role" | "question">;
+type SummaryTurn = Pick<
+	KnowledgeClarificationTurnSelect,
+	"role" | "question" | "suggestedAnswers"
+>;
 
 function createRequest(
 	overrides: Partial<SummaryRequest> = {}
@@ -32,6 +36,7 @@ function createRequest(
 		topicSummary: "Clarify billing timing",
 		stepIndex: 2,
 		maxSteps: 5,
+		questionPlan: null,
 		updatedAt: "2026-03-13T10:00:00.000Z",
 		...overrides,
 	};
@@ -41,6 +46,11 @@ function createTurn(overrides: Partial<SummaryTurn> = {}): SummaryTurn {
 	return {
 		role: "ai_question",
 		question: "Does the billing change immediately?",
+		suggestedAnswers: [
+			"Immediately",
+			"At the next billing cycle",
+			"It depends on the plan",
+		],
 		...overrides,
 	};
 }
@@ -94,7 +104,16 @@ describe("buildConversationClarificationSummary", () => {
 			requestId: "req_1",
 			status: "awaiting_answer",
 			topicSummary: "Clarify billing timing",
+			engagementMode: "owner",
+			linkedConversationCount: 1,
 			question: "Latest question",
+			currentSuggestedAnswers: [
+				"Immediately",
+				"At the next billing cycle",
+				"It depends on the plan",
+			],
+			currentQuestionInputMode: null,
+			currentQuestionScope: null,
 			stepIndex: 2,
 			maxSteps: 5,
 			progress: null,
@@ -102,7 +121,7 @@ describe("buildConversationClarificationSummary", () => {
 		});
 	});
 
-	it("clears the question while analyzing", () => {
+	it("keeps the latest question metadata available while analyzing", () => {
 		expect(
 			buildConversationClarificationSummary({
 				request: createRequest({ status: "analyzing" }),
@@ -110,7 +129,12 @@ describe("buildConversationClarificationSummary", () => {
 			})
 		).toMatchObject({
 			status: "analyzing",
-			question: null,
+			question: "Does the billing change immediately?",
+			currentSuggestedAnswers: [
+				"Immediately",
+				"At the next billing cycle",
+				"It depends on the plan",
+			],
 		});
 	});
 
@@ -124,7 +148,12 @@ describe("buildConversationClarificationSummary", () => {
 			requestId: "req_1",
 			status: "retry_required",
 			topicSummary: "Clarify billing timing",
+			engagementMode: "owner",
+			linkedConversationCount: 1,
 			question: null,
+			currentSuggestedAnswers: null,
+			currentQuestionInputMode: null,
+			currentQuestionScope: null,
 			stepIndex: 2,
 			maxSteps: 5,
 			progress: null,
@@ -142,7 +171,12 @@ describe("buildConversationClarificationSummary", () => {
 			requestId: "req_1",
 			status: "draft_ready",
 			topicSummary: "Clarify billing timing",
+			engagementMode: "owner",
+			linkedConversationCount: 1,
 			question: null,
+			currentSuggestedAnswers: null,
+			currentQuestionInputMode: null,
+			currentQuestionScope: null,
 			stepIndex: 2,
 			maxSteps: 5,
 			progress: null,

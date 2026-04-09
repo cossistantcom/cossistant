@@ -11,12 +11,18 @@ const avatarProps: Array<{
 }> = [];
 const closeLiveVisitorsOverlayCalls: string[] = [];
 const openVisitorDetailCalls: string[] = [];
+const prefetchDetailCalls: Array<{
+	id: string;
+	type: "contact" | "visitor";
+}> = [];
 const liveVisitorsOverlayState = {
 	isOpen: false,
 };
-const onlineNowQueryState: {
+const liveVisitorsQueryState: {
 	data:
 		| Array<{
+				contactId: string | null;
+				email: string | null;
 				attribution_channel: string | null;
 				city: string | null;
 				country_code: string | null;
@@ -39,7 +45,9 @@ const onlineNowQueryState: {
 	isFetching: false,
 	isLoading: false,
 };
-const rowButtonHandlers: Array<() => void> = [];
+const rowButtonClickHandlers: Array<() => void> = [];
+const rowButtonFocusHandlers: Array<() => void> = [];
+const rowButtonMouseEnterHandlers: Array<() => void> = [];
 
 mock.module("next/link", () => ({
 	default: ({
@@ -158,11 +166,29 @@ mock.module("@/components/ui/button", () => ({
 	Button: ({
 		children,
 		onClick,
+		onFocus,
+		onMouseEnter,
 		...props
 	}: React.ButtonHTMLAttributes<HTMLButtonElement>) => {
 		if (onClick) {
-			rowButtonHandlers.push(() => {
+			rowButtonClickHandlers.push(() => {
 				onClick({
+					preventDefault() {},
+					stopPropagation() {},
+				} as never);
+			});
+		}
+		if (onFocus) {
+			rowButtonFocusHandlers.push(() => {
+				onFocus({
+					preventDefault() {},
+					stopPropagation() {},
+				} as never);
+			});
+		}
+		if (onMouseEnter) {
+			rowButtonMouseEnterHandlers.push(() => {
+				onMouseEnter({
 					preventDefault() {},
 					stopPropagation() {},
 				} as never);
@@ -199,9 +225,22 @@ mock.module("@/contexts/website", () => ({
 	}),
 }));
 
+mock.module("@/data/use-live-visitors-data", () => ({
+	useLiveVisitorsData: () => liveVisitorsQueryState,
+}));
+
 mock.module("@/data/use-online-now", () => ({
-	isVisitorOnlineEntity: () => true,
-	useOnlineNow: () => onlineNowQueryState,
+	isVisitorOnlineEntity: (entity: { entity_type: string }) =>
+		entity.entity_type === "visitor",
+}));
+
+mock.module("@/data/use-prefetch-contact-visitor-detail", () => ({
+	usePrefetchContactVisitorDetail: () => ({
+		prefetchDetail: (target: { id: string; type: "contact" | "visitor" }) => {
+			prefetchDetailCalls.push(target);
+			return Promise.resolve();
+		},
+	}),
 }));
 
 mock.module("@/hooks/use-contact-visitor-detail-state", () => ({
@@ -230,11 +269,14 @@ function resetState() {
 	closeLiveVisitorsOverlayCalls.length = 0;
 	liveVisitorsOverlayState.isOpen = false;
 	openVisitorDetailCalls.length = 0;
-	onlineNowQueryState.data = [];
-	onlineNowQueryState.isError = false;
-	onlineNowQueryState.isFetching = false;
-	onlineNowQueryState.isLoading = false;
-	rowButtonHandlers.length = 0;
+	prefetchDetailCalls.length = 0;
+	liveVisitorsQueryState.data = [];
+	liveVisitorsQueryState.isError = false;
+	liveVisitorsQueryState.isFetching = false;
+	liveVisitorsQueryState.isLoading = false;
+	rowButtonClickHandlers.length = 0;
+	rowButtonFocusHandlers.length = 0;
+	rowButtonMouseEnterHandlers.length = 0;
 }
 
 async function renderView(
@@ -250,7 +292,9 @@ async function renderView(
 			avatarUrl: string | null;
 			attributionChannel: string | null;
 			city: string | null;
+			contactId: string | null;
 			countryCode: string | null;
+			email: string | null;
 			id: string;
 			lastSeen: string;
 			latitude: number | null;
@@ -259,6 +303,7 @@ async function renderView(
 			pagePath: string | null;
 		}>;
 		onClose: () => void;
+		onVisitorPrefetch: (visitorId: string) => void;
 		onVisitorSelect: (visitorId: string) => void;
 	}>
 ) {
@@ -284,7 +329,9 @@ async function renderView(
 					avatarUrl: "https://example.com/visitor-1.png",
 					attributionChannel: "paid_social",
 					city: "Bangkok",
+					contactId: "contact-1",
 					countryCode: "TH",
+					email: "alpha@example.com",
 					id: "visitor-1",
 					lastSeen: "2026-03-30T08:30:00.000Z",
 					latitude: 13.7563,
@@ -296,7 +343,9 @@ async function renderView(
 					avatarUrl: null,
 					attributionChannel: null,
 					city: "Chiang Mai",
+					contactId: null,
 					countryCode: "TH",
+					email: null,
 					id: "visitor-2",
 					lastSeen: "2026-03-30T08:15:00.000Z",
 					latitude: null,
@@ -307,6 +356,7 @@ async function renderView(
 			]}
 			onClose={() => {}}
 			onRangeChange={() => {}}
+			onVisitorPrefetch={() => {}}
 			onVisitorSelect={() => {}}
 			rangeDays={7}
 			{...props}
@@ -321,9 +371,13 @@ async function renderOverlay() {
 }
 
 describe("LiveVisitorsOverlayView", () => {
-	it("renders the live visitor list, derives globe markers from coordinate-bearing visitors, and opens detail on row click", async () => {
+	it("renders the live visitor list, prefetches on hover and focus, derives globe markers from coordinate-bearing visitors, and opens detail on row click", async () => {
 		const selectedVisitorIds: string[] = [];
+		const prefetchedVisitorIds: string[] = [];
 		const html = await renderView({
+			onVisitorPrefetch: (visitorId) => {
+				prefetchedVisitorIds.push(visitorId);
+			},
 			onVisitorSelect: (visitorId) => {
 				selectedVisitorIds.push(visitorId);
 			},
@@ -352,8 +406,11 @@ describe("LiveVisitorsOverlayView", () => {
 			"All currently connected visitors with known coordinates."
 		);
 
-		rowButtonHandlers[0]?.();
+		rowButtonMouseEnterHandlers[0]?.();
+		rowButtonFocusHandlers[0]?.();
+		rowButtonClickHandlers[0]?.();
 
+		expect(prefetchedVisitorIds).toEqual(["visitor-1", "visitor-1"]);
 		expect(selectedVisitorIds).toEqual(["visitor-1"]);
 		expect(avatarProps[0]).toMatchObject({
 			fallbackName: "Alpha Visitor",
@@ -380,16 +437,18 @@ describe("LiveVisitorsOverlayView", () => {
 });
 
 describe("LiveVisitorsOverlay", () => {
-	it("generates fallback visitor names for blank live names and passes the conversation-style avatar inputs", async () => {
+	it("generates fallback visitor names for blank live names, prefetches on row hover/focus, and passes the conversation-style avatar inputs", async () => {
 		const { generateVisitorName } = await import("@/lib/visitors");
 
 		resetState();
 		liveVisitorsOverlayState.isOpen = true;
-		onlineNowQueryState.data = [
+		liveVisitorsQueryState.data = [
 			{
 				attribution_channel: null,
 				city: null,
+				contactId: null,
 				country_code: null,
+				email: null,
 				entity_id: "visitor-blank",
 				entity_type: "visitor",
 				image: "",
@@ -414,8 +473,48 @@ describe("LiveVisitorsOverlay", () => {
 			url: null,
 		});
 
-		rowButtonHandlers[0]?.();
+		rowButtonMouseEnterHandlers[0]?.();
+		rowButtonFocusHandlers[0]?.();
+		rowButtonClickHandlers[0]?.();
 
+		expect(prefetchDetailCalls).toEqual([
+			{ id: "visitor-blank", type: "visitor" },
+			{ id: "visitor-blank", type: "visitor" },
+		]);
 		expect(openVisitorDetailCalls).toEqual(["visitor-blank"]);
+	});
+
+	it("renders identified live contacts immediately while keeping visitor-mode detail opening", async () => {
+		resetState();
+		liveVisitorsOverlayState.isOpen = true;
+		liveVisitorsQueryState.data = [
+			{
+				attribution_channel: "referral",
+				city: "Bangkok",
+				contactId: "contact-9",
+				country_code: "TH",
+				email: "identified@example.com",
+				entity_id: "visitor-identified",
+				entity_type: "visitor",
+				image: "https://example.com/identified.png",
+				last_seen: "2026-03-31T08:30:00.000Z",
+				latitude: 13.7563,
+				longitude: 100.5018,
+				name: "Identified Contact",
+				page_path: "/pricing",
+			},
+		];
+
+		const html = await renderOverlay();
+
+		expect(html).toContain(">Identified Contact<");
+		expect(avatarProps[0]).toMatchObject({
+			fallbackName: "Identified Contact",
+			url: "https://example.com/identified.png",
+		});
+
+		rowButtonClickHandlers[0]?.();
+
+		expect(openVisitorDetailCalls).toEqual(["visitor-identified"]);
 	});
 });

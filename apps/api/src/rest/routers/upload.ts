@@ -9,6 +9,7 @@ import {
 } from "@plasma/types/api/upload";
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import { protectedPublicApiKeyMiddleware } from "../middleware";
+import { errorJsonResponse, runtimeDualAuth } from "../openapi";
 import type { RestContext } from "../types";
 
 export const uploadRouter = new OpenAPIHono<RestContext>();
@@ -42,23 +43,11 @@ uploadRouter.openapi(
 					},
 				},
 			},
-			400: {
-				description: "Invalid request",
-				content: {
-					"application/json": {
-						schema: z.object({ error: z.string() }),
-					},
-				},
-			},
+			400: errorJsonResponse("Invalid request"),
+			401: errorJsonResponse("Unauthorized - Invalid or missing API key"),
+			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-			{
-				"Private API Key": [],
-			},
-		],
+		...runtimeDualAuth(),
 	},
 	async (c) => {
 		const { body, organization, website } = await safelyExtractRequestData(
@@ -111,6 +100,9 @@ uploadRouter.openapi(
 			expiresInSeconds: body.expiresInSeconds,
 		});
 
-		return c.json(validateResponse(result, generateUploadUrlResponseSchema));
+		return c.json(
+			validateResponse(result, generateUploadUrlResponseSchema),
+			200
+		);
 	}
 );

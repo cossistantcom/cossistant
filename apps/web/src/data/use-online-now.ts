@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { queryTinybirdPipe, useTinybirdToken } from "@/lib/tinybird";
 
-const ONLINE_NOW_REFRESH_INTERVAL_MS = 120_000;
+export const ONLINE_NOW_REFRESH_INTERVAL_MS = 120_000;
 
 export const ONLINE_NOW_QUERY_KEY_PREFIX = ["tinybird", "online-now"] as const;
 

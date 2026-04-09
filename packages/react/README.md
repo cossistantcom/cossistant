@@ -18,9 +18,9 @@ yarn add @plasma/react
 
 ## CSS Imports
 
-The SDK provides two CSS entrypoints to fit your setup:
+The widget does not inject styles automatically. Import one CSS entrypoint at your app root:
 
-### Option 1: Tailwind v4 Source
+### Option 1: Plain CSS
 
 If you're using Tailwind CSS v4, import the source file to enable full theme customization:
 
@@ -37,6 +37,14 @@ import "@plasma/react/styles.css";
 ```
 
 This file contains all the compiled styles and works in any React application without requiring Tailwind CSS.
+
+### Option 2: Tailwind v4 Source
+
+Only use this entrypoint if your app already runs Tailwind CSS v4 and you want the widget styles compiled through your Tailwind pipeline:
+
+```tsx
+import "@cossistant/react/support.css";
+```
 
 > **Note:** Tailwind v3 is not supported. Use the plain CSS import if you're on Tailwind v3.
 
@@ -60,6 +68,27 @@ The SDK auto-detects your public key from environment variables: `VITE_COSSISTAN
 1. Wrap the subtree that should access support data with `SupportProvider` (A Cossistant account is mandatory)
 2. Drop the `Support` component anywhere inside that provider to mount the floating widget.
 3. Optionally pass `defaultOpen`, `quickOptions`, `defaultMessages`, or locale overrides straight into `Support` for instant personalization.
+
+### Render the widget inline
+
+Use `mode="responsive"` when you want the widget to live inside your app layout instead of opening from a floating trigger.
+
+```tsx
+import { Support, SupportProvider } from "@cossistant/react";
+import "@cossistant/react/styles.css";
+
+export function App() {
+  return (
+    <SupportProvider>
+      <div style={{ height: 640, width: "100%" }}>
+        <Support mode="responsive" />
+      </div>
+    </SupportProvider>
+  );
+}
+```
+
+In responsive mode, the widget always renders and fills its parent container. The parent is responsible for height, width, and any outer shell styling.
 
 ### Identify visitors and seed defaults
 

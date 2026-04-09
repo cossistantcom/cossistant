@@ -10,6 +10,7 @@
     "check": "npx ultracite@latest check",
     "fix": "bunx ultracite fix",
     "check:ai-pipeline-hard-cut": "bash scripts/checks/ai-pipeline-hard-cut.sh",
+    "check:browser-embed-size": "bun scripts/checks/browser-embed-size.ts",
     "check-types": "bun run check:ai-pipeline-hard-cut && turbo run check-types",
     "changeset": "changeset",
     "changeset:version": "changeset version",
@@ -28,6 +29,7 @@
     "@types/react-dom": "^19.2.3",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
+    "postal-mime": "^2.4.4",
     "prettier": "^3.8.1",
     "tsdown": "^0.16.8",
     "tsx": "4.20.5",
@@ -36,7 +38,7 @@
     "ultracite": "5.6.4"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20.9.0"
   },
   "packageManager": "bun@1.2.22",
   "workspaces": [
@@ -46,6 +48,7 @@
     "tinybird"
   ],
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.975.0",
     "@polar-sh/better-auth": "^1.8.1",
     "@polar-sh/hono": "^0.5.3",
     "@polar-sh/nextjs": "^0.9.3",
@@ -59,7 +62,7 @@
     ]
   },
   "overrides": {
-    "@ai-sdk/provider": "3.0.4",
+    "@ai-sdk/provider": "3.0.8",
     "@polar-sh/sdk": "^0.44.0"
   }
 }

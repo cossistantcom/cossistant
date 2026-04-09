@@ -1,5 +1,6 @@
 "use client";
 
+import { clearLocalStorageDraftValue } from "@cossistant/react";
 import type {
 	ApproveKnowledgeClarificationDraftResponse,
 	KnowledgeClarificationDraftFaq,
@@ -13,7 +14,13 @@ import { useTRPC } from "@/lib/trpc/client";
 import {
 	shouldPreferKnowledgeClarificationRequestState,
 	stepFromKnowledgeClarificationRequest,
+	stepFromKnowledgeClarificationStreamResponse,
 } from "./helpers";
+import {
+	buildKnowledgeClarificationAnswerDraftPersistenceId,
+	shouldClearKnowledgeClarificationAnswerDraft,
+} from "./question-flow";
+import { useKnowledgeClarificationStreamAction } from "./use-clarification-stream";
 import { useKnowledgeClarificationQueryInvalidation } from "./use-query-invalidation";
 
 type UseKnowledgeClarificationFlowOptions = {
@@ -52,32 +59,69 @@ export function useKnowledgeClarificationFlow({
 		setStep(initialStep);
 		setRequestFallback(initialRequest ?? initialStep?.request ?? null);
 	}, [initialRequest, initialStep]);
+	const clarificationStream = useKnowledgeClarificationStreamAction<
+		"answer" | "retry"
+	>({
+		onError: async (error) => {
+			await invalidateQueries({
+				requestId: requestFallback?.id ?? initialRequest?.id ?? null,
+				conversationId:
+					requestFallback?.conversationId ?? initialRequest?.conversationId,
+			});
+			toast.error(
+				error.message ||
+					"The AI hit a temporary issue. You can retry from here."
+			);
+		},
+		onFinish: async (result) => {
+			const currentQuestion = step?.kind === "question" ? step.question : null;
+			const currentStepIndex =
+				requestFallback?.stepIndex ?? initialRequest?.stepIndex ?? 0;
 
-	const answerMutation = useMutation(
-		trpc.knowledgeClarification.answer.mutationOptions({
-			retry: false,
-			onSuccess: async (result) => {
-				setStep(result.step);
-				setRequestFallback(result.step.request);
-				await invalidateQueries({
-					request: result.step.request,
-				});
-			},
-			onError: async (_error, variables) => {
-				await invalidateQueries({
-					requestId: variables.requestId,
-					conversationId:
-						requestFallback?.conversationId ?? initialRequest?.conversationId,
-				});
-				toast.error("The AI hit a temporary issue. You can retry from here.");
-			},
-		})
+			if (
+				requestFallback?.id &&
+				shouldClearKnowledgeClarificationAnswerDraft({
+					currentQuestion,
+					currentStepIndex,
+					result,
+				})
+			) {
+				clearLocalStorageDraftValue(
+					buildKnowledgeClarificationAnswerDraftPersistenceId({
+						websiteSlug,
+						requestId: requestFallback.id,
+						stepIndex: currentStepIndex,
+					})
+				);
+			}
+
+			setStep(stepFromKnowledgeClarificationRequest(result.request));
+			setRequestFallback(result.request);
+			await invalidateQueries({
+				request: result.request,
+			});
+		},
+	});
+	const streamPreviewStep = useMemo(
+		() =>
+			stepFromKnowledgeClarificationStreamResponse({
+				request: requestFallback,
+				response: clarificationStream.object,
+			}),
+		[clarificationStream.object, requestFallback]
 	);
 
 	const deferMutation = useMutation(
 		trpc.knowledgeClarification.defer.mutationOptions({
 			retry: false,
 			onSuccess: async (request) => {
+				clearLocalStorageDraftValue(
+					buildKnowledgeClarificationAnswerDraftPersistenceId({
+						websiteSlug,
+						requestId: request.id,
+						stepIndex: request.stepIndex,
+					})
+				);
 				await invalidateQueries({ request });
 				await onDeferred?.(request);
 			},
@@ -91,32 +135,18 @@ export function useKnowledgeClarificationFlow({
 		trpc.knowledgeClarification.dismiss.mutationOptions({
 			retry: false,
 			onSuccess: async (request) => {
+				clearLocalStorageDraftValue(
+					buildKnowledgeClarificationAnswerDraftPersistenceId({
+						websiteSlug,
+						requestId: request.id,
+						stepIndex: request.stepIndex,
+					})
+				);
 				await invalidateQueries({ request });
 				await onDismissed?.(request);
 			},
 			onError: (error) => {
 				toast.error(error.message || "Failed to remove clarification");
-			},
-		})
-	);
-
-	const retryMutation = useMutation(
-		trpc.knowledgeClarification.retry.mutationOptions({
-			retry: false,
-			onSuccess: async (result) => {
-				setStep(result.step);
-				setRequestFallback(result.step.request);
-				await invalidateQueries({
-					request: result.step.request,
-				});
-			},
-			onError: async (_error, variables) => {
-				await invalidateQueries({
-					requestId: variables.requestId,
-					conversationId:
-						requestFallback?.conversationId ?? initialRequest?.conversationId,
-				});
-				toast.error("The AI hit a temporary issue. You can retry from here.");
 			},
 		})
 	);
@@ -143,18 +173,21 @@ export function useKnowledgeClarificationFlow({
 	);
 	const shouldPreferRequestState = useMemo(
 		() =>
+			!streamPreviewStep &&
 			shouldPreferKnowledgeClarificationRequestState({
 				request: requestFallback,
 				step,
 			}),
-		[requestFallback, step]
+		[requestFallback, step, streamPreviewStep]
 	);
-	const currentStep = shouldPreferRequestState
-		? requestStep
-		: (step ?? requestStep);
-	const currentRequest = shouldPreferRequestState
-		? requestFallback
-		: (currentStep?.request ?? requestFallback);
+	const currentStep =
+		streamPreviewStep ??
+		(shouldPreferRequestState ? requestStep : (step ?? requestStep));
+	const currentRequest =
+		streamPreviewStep?.request ??
+		(shouldPreferRequestState
+			? requestFallback
+			: (currentStep?.request ?? requestFallback));
 	const fallbackStep = currentRequest
 		? stepFromKnowledgeClarificationRequest(currentRequest)
 		: null;
@@ -163,23 +196,32 @@ export function useKnowledgeClarificationFlow({
 		currentRequest,
 		currentStep,
 		fallbackStep,
-		answerMutation,
+		answerMutation: {
+			isPending: clarificationStream.isPendingAction("answer"),
+		},
 		deferMutation,
 		dismissMutation,
-		retryMutation,
+		retryMutation: {
+			isPending: clarificationStream.isPendingAction("retry"),
+		},
 		approveMutation,
 		submitAnswer: async (
 			requestId: string,
+			expectedStepIndex: number,
 			payload: {
 				selectedAnswer?: string;
 				freeAnswer?: string;
 			}
 		) =>
-			answerMutation.mutate({
-				websiteSlug,
-				requestId,
-				...payload,
-			}),
+			(() => {
+				clarificationStream.submitAction("answer", {
+					action: "answer",
+					websiteSlug,
+					requestId,
+					expectedStepIndex,
+					...payload,
+				});
+			})(),
 		deferRequest: (requestId: string) =>
 			deferMutation.mutate({
 				websiteSlug,
@@ -191,10 +233,13 @@ export function useKnowledgeClarificationFlow({
 				requestId,
 			}),
 		retryRequest: (requestId: string) =>
-			retryMutation.mutate({
-				websiteSlug,
-				requestId,
-			}),
+			(() => {
+				clarificationStream.submitAction("retry", {
+					action: "retry",
+					websiteSlug,
+					requestId,
+				});
+			})(),
 		approveDraft: (requestId: string, draft: KnowledgeClarificationDraftFaq) =>
 			approveMutation.mutate({
 				websiteSlug,

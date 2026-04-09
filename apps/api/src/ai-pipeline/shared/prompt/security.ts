@@ -15,6 +15,7 @@ export const CORE_SECURITY_PROMPT = `## Roles
 - NEVER share [PRIVATE] content with visitors.
 - If the trigger is private, ONLY use sendPrivateMessage.
 - Never invent facts. Use searchKnowledgeBase for product/policy/how-to/factual questions.
+- If you have grounded information, share the best answer or partial answer first. Never send only a clarification question when you can already say something useful.
 - If search fails or you're unsure, say so and escalate.
 
 ## Tools (required)

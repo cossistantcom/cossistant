@@ -6,6 +6,7 @@ import { useCallback } from "react";
 import {
 	removeProposalRequestFromCache,
 	setProposalResponseInCache,
+	syncConversationClarificationRequestInCache,
 	syncProposalRequestInCache,
 } from "@/data/knowledge-clarification-cache";
 import { useTRPC } from "@/lib/trpc/client";
@@ -59,6 +60,14 @@ export function useKnowledgeClarificationQueryInvalidation(
 					proposalQueryKey,
 					request ?? null
 				);
+			}
+
+			if (request || resolvedConversationId) {
+				syncConversationClarificationRequestInCache(queryClient, {
+					websiteSlug,
+					request: request ?? null,
+					conversationId: resolvedConversationId,
+				});
 			}
 
 			const invalidations: Promise<unknown>[] = [

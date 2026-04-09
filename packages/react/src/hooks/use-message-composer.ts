@@ -60,6 +60,12 @@ export type UseMessageComposerOptions = {
 	>;
 
 	/**
+	 * Optional local draft storage key.
+	 * When provided, message text is restored after reloads/crashes until submit succeeds.
+	 */
+	draftPersistenceId?: string | null;
+
+	/**
 	 * Optional WebSocket send function for real-time typing events.
 	 * When provided, typing indicators are sent via WebSocket for better performance.
 	 */
@@ -184,6 +190,7 @@ export function useMessageComposer(
 		onConversationInitiated,
 		onError,
 		fileOptions,
+		draftPersistenceId = null,
 		realtimeSend,
 		isRealtimeConnected = false,
 	} = options;
@@ -202,6 +209,7 @@ export function useMessageComposer(
 	});
 
 	const multimodalInput = useMultimodalInput({
+		draftPersistenceId,
 		onSubmit: async ({ message: messageText, files }) => {
 			// Stop typing indicator
 			stopTyping();

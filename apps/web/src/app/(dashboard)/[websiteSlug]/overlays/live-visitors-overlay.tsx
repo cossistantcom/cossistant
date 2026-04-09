@@ -18,13 +18,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { useWebsite } from "@/contexts/website";
 import {
-	isVisitorOnlineEntity,
-	type OnlineEntity,
-	useOnlineNow,
-} from "@/data/use-online-now";
+	type LiveVisitorEntity,
+	useLiveVisitorsData,
+} from "@/data/use-live-visitors-data";
+import { isVisitorOnlineEntity } from "@/data/use-online-now";
+import { usePrefetchContactVisitorDetail } from "@/data/use-prefetch-contact-visitor-detail";
 import { useContactVisitorDetailState } from "@/hooks/use-contact-visitor-detail-state";
 import { useLiveVisitorsOverlayState } from "@/hooks/use-live-visitors-overlay-state";
-import { formatLastSeenAt } from "@/lib/date";
 import { getVisitorNameWithFallback } from "@/lib/visitors";
 import {
 	DashboardOverlayCenteredState,
@@ -35,7 +35,9 @@ type LiveVisitorEntry = {
 	avatarUrl: string | null;
 	attributionChannel: string | null;
 	city: string | null;
+	contactId: string | null;
 	countryCode: string | null;
+	email: string | null;
 	id: string;
 	lastSeen: string;
 	latitude: number | null;
@@ -56,6 +58,7 @@ type LiveVisitorsOverlayViewProps = {
 	livePresence: InboxAnalyticsLivePresence;
 	liveVisitors: readonly LiveVisitorEntry[];
 	onRangeChange: (rangeDays: InboxAnalyticsRangeDays) => void;
+	onVisitorPrefetch: (visitorId: string) => void;
 	onVisitorSelect: (visitorId: string) => void;
 	rangeDays: InboxAnalyticsRangeDays;
 };
@@ -69,40 +72,23 @@ function getNonEmptyString(value: string | null | undefined): string | null {
 	return trimmed.length > 0 ? trimmed : null;
 }
 
-function formatLiveChannelLabel(channel: string | null | undefined) {
-	const normalized = getNonEmptyString(channel);
-
-	if (!normalized) {
-		return null;
-	}
-
-	return normalized
-		.replace(/[_-]+/g, " ")
-		.replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
 function formatLiveLocationLabel(visitor: LiveVisitorEntry) {
 	return [visitor.city, visitor.countryCode].filter(Boolean).join(", ") || null;
 }
 
-function formatLiveLastSeenLabel(timestamp: string) {
-	const parsed = new Date(timestamp);
-
-	if (Number.isNaN(parsed.getTime())) {
-		return "Active recently";
-	}
-
-	return formatLastSeenAt(parsed);
-}
-
-function mapOnlineEntityToLiveVisitor(entity: OnlineEntity): LiveVisitorEntry {
+function mapLiveVisitorEntityToEntry(
+	entity: LiveVisitorEntity
+): LiveVisitorEntry {
 	const providedName = getNonEmptyString(entity.name);
+	const providedEmail = getNonEmptyString(entity.email);
 	const name = getVisitorNameWithFallback({
-		contact: providedName
-			? {
-					name: providedName,
-				}
-			: null,
+		contact:
+			providedName || providedEmail
+				? {
+						name: providedName,
+						email: providedEmail,
+					}
+				: null,
 		id: entity.entity_id,
 	});
 
@@ -110,7 +96,9 @@ function mapOnlineEntityToLiveVisitor(entity: OnlineEntity): LiveVisitorEntry {
 		avatarUrl: getNonEmptyString(entity.image),
 		attributionChannel: getNonEmptyString(entity.attribution_channel),
 		city: getNonEmptyString(entity.city),
+		contactId: entity.contactId,
 		countryCode: getNonEmptyString(entity.country_code),
+		email: providedEmail,
 		id: entity.entity_id,
 		lastSeen: entity.last_seen,
 		latitude: entity.latitude,
@@ -169,51 +157,52 @@ function buildGlobeVisitors(
 
 function LiveVisitorsList({
 	liveVisitors,
+	onVisitorPrefetch,
 	onVisitorSelect,
 }: {
 	liveVisitors: readonly LiveVisitorEntry[];
+	onVisitorPrefetch: (visitorId: string) => void;
 	onVisitorSelect: (visitorId: string) => void;
 }) {
 	return (
-		<div className="flex flex-col gap-2" data-slot="live-visitors-list">
-			{liveVisitors.map((visitor) => {
-				const meta = [
-					formatLiveLocationLabel(visitor),
-					formatLiveChannelLabel(visitor.attributionChannel),
-				].filter(Boolean);
-
-				return (
-					<Button
-						className="group/conversation-item relative h-auto w-full min-w-0 justify-start gap-3 rounded px-2 py-2 text-left text-sm"
-						key={visitor.id}
-						onClick={() => {
-							onVisitorSelect(visitor.id);
-						}}
-						size="icon-small"
-						type="button"
-						variant="ghost"
-					>
-						<div className="flex min-w-0 flex-1 items-center gap-3">
-							<Avatar
-								className="size-8 max-h-8 max-w-8"
-								fallbackName={visitor.name}
-								lastOnlineAt={visitor.lastSeen}
-								status="online"
-								tooltipContent={null}
-								url={visitor.avatarUrl}
-							/>
-							<div className="flex min-w-0 flex-1 items-center justify-between gap-3">
-								<div className="min-w-0 flex-1">
-									<p className="truncate capitalize">{visitor.name}</p>
-									<p className="mt-1 truncate text-primary/70 text-sm">
-										{visitor.pagePath ?? "Unknown page"}
-									</p>
-								</div>
+		<div className="mt-6 flex flex-col gap-2" data-slot="live-visitors-list">
+			{liveVisitors.map((visitor) => (
+				<Button
+					className="group/conversation-item relative h-auto w-full min-w-0 justify-start gap-3 rounded px-2 py-0.5 text-left text-sm"
+					key={visitor.id}
+					onClick={() => {
+						onVisitorSelect(visitor.id);
+					}}
+					onFocus={() => {
+						onVisitorPrefetch(visitor.id);
+					}}
+					onMouseEnter={() => {
+						onVisitorPrefetch(visitor.id);
+					}}
+					size="icon-small"
+					type="button"
+					variant="ghost"
+				>
+					<div className="flex min-w-0 flex-1 items-center gap-3">
+						<Avatar
+							className="size-8 max-h-8 max-w-8"
+							fallbackName={visitor.name}
+							lastOnlineAt={visitor.lastSeen}
+							status="online"
+							tooltipContent={null}
+							url={visitor.avatarUrl}
+						/>
+						<div className="flex min-w-0 flex-1 items-center justify-between gap-3">
+							<div className="min-w-0 flex-1">
+								<p className="truncate capitalize">{visitor.name}</p>
+								<p className="mt-1 truncate text-primary/70 text-xs">
+									{visitor.pagePath ?? "Unknown page"}
+								</p>
 							</div>
 						</div>
-					</Button>
-				);
-			})}
+					</div>
+				</Button>
+			))}
 		</div>
 	);
 }
@@ -228,6 +217,7 @@ export function LiveVisitorsOverlayView({
 	livePresence,
 	liveVisitors,
 	onRangeChange,
+	onVisitorPrefetch,
 	onVisitorSelect,
 	rangeDays,
 }: LiveVisitorsOverlayViewProps) {
@@ -327,6 +317,7 @@ export function LiveVisitorsOverlayView({
 										>
 											<LiveVisitorsList
 												liveVisitors={liveVisitors}
+												onVisitorPrefetch={onVisitorPrefetch}
 												onVisitorSelect={onVisitorSelect}
 											/>
 										</ScrollArea>
@@ -360,8 +351,11 @@ export function LiveVisitorsOverlay() {
 		enabled: isOpen,
 		websiteSlug: website.slug,
 	});
-	const liveVisitorsQuery = useOnlineNow({
+	const liveVisitorsQuery = useLiveVisitorsData({
 		enabled: isOpen,
+		websiteSlug: website.slug,
+	});
+	const { prefetchDetail } = usePrefetchContactVisitorDetail({
 		websiteSlug: website.slug,
 	});
 	const { openVisitorDetail } = useContactVisitorDetailState();
@@ -370,7 +364,7 @@ export function LiveVisitorsOverlay() {
 		() =>
 			(liveVisitorsQuery.data ?? [])
 				.filter((entity) => isVisitorOnlineEntity(entity))
-				.map((entity) => mapOnlineEntityToLiveVisitor(entity))
+				.map((entity) => mapLiveVisitorEntityToEntry(entity))
 				.sort(sortLiveVisitorsByLastSeen),
 		[liveVisitorsQuery.data]
 	);
@@ -408,6 +402,12 @@ export function LiveVisitorsOverlay() {
 				void closeLiveVisitorsOverlay();
 			}}
 			onRangeChange={analytics.setRangeDays}
+			onVisitorPrefetch={(visitorId) => {
+				void prefetchDetail({
+					type: "visitor",
+					id: visitorId,
+				});
+			}}
 			onVisitorSelect={(visitorId) => {
 				void openVisitorDetail(visitorId);
 			}}

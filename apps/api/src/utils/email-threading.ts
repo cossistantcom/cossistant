@@ -1,4 +1,8 @@
 import { env } from "@api/env";
+import {
+	getActiveInboundEmailDomain,
+	getInboundEmailDomain,
+} from "@api/mail/config";
 
 /**
  * Email threading utilities for maintaining conversation continuity
@@ -41,12 +45,13 @@ export function generateInboundReplyAddress(params: {
 }): string {
 	const envPrefix = env.NODE_ENV === "production" ? "" : "test-";
 	const localPart = `${envPrefix}conv-${params.conversationId}`;
-	return `${localPart}@${INBOUND_EMAIL_DOMAIN}`;
+	return `${localPart}@${getActiveInboundEmailDomain()}`;
 }
 
 export type ParsedInboundReplyAddress = {
 	conversationId: string;
 	environment: "production" | "test";
+	provider: "resend" | "ses";
 };
 
 /**
@@ -64,7 +69,15 @@ export function parseInboundReplyAddress(
 		return null;
 	}
 
-	if (domainPart.toLowerCase() !== INBOUND_EMAIL_DOMAIN) {
+	const normalizedDomain = domainPart.toLowerCase();
+	const provider =
+		normalizedDomain === getInboundEmailDomain("ses").toLowerCase()
+			? "ses"
+			: normalizedDomain === getInboundEmailDomain("resend").toLowerCase()
+				? "resend"
+				: null;
+
+	if (!provider) {
 		return null;
 	}
 
@@ -87,6 +100,7 @@ export function parseInboundReplyAddress(
 		// Make sure ULID are uppercase, resend can send them lowercase
 		conversationId: conversationId.toUpperCase(),
 		environment: hasTestPrefix ? "test" : "production",
+		provider,
 	};
 }
 

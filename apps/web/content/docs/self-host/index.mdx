@@ -1,0 +1,92 @@
+---
+title: Overview
+description: Understand the storage and email responsibilities a self-hosted Cossistant deployment needs, and choose the setup path that fits your stack.
+---
+
+If you are self-hosting Cossistant, there are two infrastructure responsibilities you want to settle early: storage and email.
+
+Cossistant expects:
+
+- object storage for uploads and public file reads
+- transactional email infrastructure that can send mail, receive replies, and report lifecycle events
+
+We recommend an AWS-first path for the official self-host setup because the repo already ships Terraform modules for it, but the docs in this section are organized around roles rather than vendors:
+
+- [Storage](/docs/self-host/storage) covers uploads, public file reads, and the AWS S3 setup path
+- [Email Setup](/docs/self-host/email-setup) covers transactional email, inbound replies, and how to choose between Resend and SES
+
+## Why the AWS-first path is recommended
+
+The repo already ships Terraform modules for both services:
+
+- `infra/aws/s3-public-setup`
+- `infra/aws/ses-email-setup`
+
+That matters because the self-host path is concrete instead of theoretical. You are not starting from scratch with generic storage or email plumbing. You are following infrastructure that already matches what the app expects at runtime.
+
+<Callout type="info">
+  Cossistant supports S3-compatible storage settings at runtime through
+  `S3_ENDPOINT` and `S3_FORCE_PATH_STYLE`, and it supports both `resend` and
+  `ses` as transactional email transports. The bundled Terraform setup paths in
+  this repo are AWS-first for storage and for the SES option.
+</Callout>
+
+## Storage responsibility
+
+Cossistant needs object storage where the API can generate presigned upload URLs and where uploaded files can be read back through stable public URLs.
+
+In practice that means:
+
+- the API signs uploads
+- the browser uploads directly to object storage
+- the app stores and renders the resulting public URLs
+- uploaded files can be grouped by organization, website, and entity
+
+Use the [Storage guide](/docs/self-host/storage) to set that up.
+
+## Email responsibility
+
+For email, Cossistant needs more than simple outbound delivery. The app also depends on reply routing and lifecycle events.
+
+In practice that means:
+
+- React Email renders the email content inside the app
+- outbound sending is selected by `EMAIL_TRANSPORT_PROVIDER`
+- reply-to addresses point to an inbound domain controlled by Cossistant
+- inbound replies eventually come back into the API as normalized webhook payloads
+- bounce, complaint, and failure events feed suppression and delivery monitoring
+
+The good news is that you can choose your transport:
+
+- `resend` is supported and remains the default
+- `ses` is supported and is the AWS-native path for self-hosting
+
+Use the [Email Setup guide](/docs/self-host/email-setup) to choose a provider and configure the full inbound and outbound path.
+
+## How the pieces fit together
+
+At a high level, a self-hosted deployment looks like this:
+
+1. A browser requests a presigned upload URL from the API.
+2. The API signs a `PUT` to S3 and returns the upload URL plus the public URL.
+3. The browser uploads the file directly to S3 instead of streaming it through the API.
+4. Cossistant sends email using React Email templates and the provider selected by `EMAIL_TRANSPORT_PROVIDER`.
+5. New reply-to addresses point to the inbound domain for the active email provider.
+6. Resend or SES delivers inbound replies and lifecycle events back into the API using the provider-specific bridge path configured in the app.
+7. The API turns those events into timeline messages, notification triggers, and bounce or complaint records.
+
+## Recommended setup order
+
+For a clean first deployment:
+
+1. Set up [Storage](/docs/self-host/storage) first and verify uploads.
+2. Read [Email Setup](/docs/self-host/email-setup) and decide whether you want Resend or SES for transactional mail.
+3. Configure the chosen provider and verify outbound email plus inbound reply handling.
+4. If you are rolling out SES gradually, keep the default `EMAIL_TRANSPORT_PROVIDER=resend` until the SES path is healthy, then flip to `ses`.
+
+If you are doing a greenfield self-host deployment and do not plan to use Resend at all, you can move directly to SES once DNS, identities, and webhooks are confirmed working in your environment.
+
+## Guides
+
+- [Storage](/docs/self-host/storage)
+- [Email Setup](/docs/self-host/email-setup)

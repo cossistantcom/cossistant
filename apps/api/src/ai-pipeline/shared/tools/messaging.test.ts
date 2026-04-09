@@ -177,6 +177,11 @@ describe("sendMessage tool contract", () => {
 		expect(fourth.error).toContain("at most 3 times");
 		expect(ctx.runtimeState.publicMessagesSent).toBe(3);
 		expect(ctx.runtimeState.publicSendSequence).toBe(3);
+		expect(ctx.runtimeState.publicReplyTexts).toEqual([
+			"First bubble",
+			"Second bubble",
+			"Third bubble",
+		]);
 		expect(sendPublicMessageMock).toHaveBeenCalledTimes(3);
 	});
 

@@ -1,6 +1,7 @@
 import type { TypingEntry } from "@plasma/core";
 import { useCallback, useMemo } from "react";
 import { useSupport } from "../provider";
+import { typingStoreSingleton } from "../realtime/typing-store";
 import { useStoreSelector } from "./private/store/use-store-selector";
 
 export type ConversationTypingParticipant = TypingEntry;
@@ -39,16 +40,15 @@ export function useConversationTyping(
 	options: UseConversationTypingOptions = {}
 ): ConversationTypingParticipant[] {
 	const { client } = useSupport();
+	const typingStore = client?.typingStore ?? typingStoreSingleton;
 
 	const conversationTyping = useStoreSelector(
-		client?.typingStore ?? null,
+		typingStore,
 		useCallback(
-			(
-				state: {
-					conversations: Record<string, Record<string, TypingEntry>>;
-				} | null
-			) =>
-				conversationId ? (state?.conversations[conversationId] ?? null) : null,
+			(state: {
+				conversations: Record<string, Record<string, TypingEntry>>;
+			}) =>
+				conversationId ? (state.conversations[conversationId] ?? null) : null,
 			[conversationId]
 		)
 	);

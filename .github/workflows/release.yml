@@ -19,6 +19,13 @@ jobs:
   release:
     if: github.repository_owner == 'cossistantcom'
     runs-on: ubuntu-latest
+    env:
+      AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+      CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+      S3_BUCKET_NAME: ${{ vars.S3_BUCKET_NAME }}
+      S3_CDN_BASE_URL: ${{ vars.S3_CDN_BASE_URL }}
+      S3_REGION: ${{ vars.S3_REGION }}
+      WIDGET_CDN_PREFIX: widget
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -57,6 +64,98 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+
+      # Temporarily disabled while we pause widget JS/CDN release automation.
+      # - name: Resolve published browser package
+      #   if: steps.changesets.outputs.published == 'true'
+      #   id: browser_package
+      #   uses: actions/github-script@v7
+      #   env:
+      #     PACKAGES: ${{ steps.changesets.outputs.publishedPackages }}
+      #   with:
+      #     script: |
+      #       const packages = JSON.parse(process.env.PACKAGES ?? "[]");
+      #       const browser = packages.find((pkg) => pkg.name === "@cossistant/browser");
+      #       core.setOutput("published", browser ? "true" : "false");
+      #       core.setOutput("version", browser?.version ?? "");
+      #
+      #       if (browser) {
+      #         core.info(`Published @cossistant/browser@${browser.version}`);
+      #       } else {
+      #         core.notice("Browser package was not published in this release run.");
+      #       }
+      #
+      # - name: Validate widget CDN configuration
+      #   if: steps.browser_package.outputs.published == 'true'
+      #   shell: bash
+      #   run: |
+      #     required_vars=(
+      #       AWS_ROLE_ARN
+      #       CLOUDFRONT_DISTRIBUTION_ID
+      #       S3_BUCKET_NAME
+      #       S3_CDN_BASE_URL
+      #       S3_REGION
+      #     )
+      #
+      #     for name in "${required_vars[@]}"; do
+      #       if [ -z "${!name}" ]; then
+      #         echo "::error::Missing required workflow variable: ${name}"
+      #         exit 1
+      #       fi
+      #     done
+      #
+      # - name: Configure AWS credentials
+      #   if: steps.browser_package.outputs.published == 'true'
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     aws-region: ${{ env.S3_REGION }}
+      #     role-to-assume: ${{ env.AWS_ROLE_ARN }}
+      #
+      # - name: Build browser CDN assets
+      #   if: steps.browser_package.outputs.published == 'true'
+      #   run: bun run --filter @cossistant/browser build:embed
+      #
+      # - name: Upload browser CDN assets
+      #   if: steps.browser_package.outputs.published == 'true'
+      #   shell: bash
+      #   env:
+      #     BROWSER_VERSION: ${{ steps.browser_package.outputs.version }}
+      #   run: |
+      #     version_prefix="s3://${S3_BUCKET_NAME}/${WIDGET_CDN_PREFIX}/${BROWSER_VERSION}"
+      #     latest_prefix="s3://${S3_BUCKET_NAME}/${WIDGET_CDN_PREFIX}/latest"
+      #
+      #     for file in loader.js widget.js widget.css; do
+      #       local_path="packages/browser/dist/embed/${file}"
+      #
+      #       if [[ "${file}" == *.css ]]; then
+      #         content_type="text/css; charset=utf-8"
+      #       else
+      #         content_type="text/javascript; charset=utf-8"
+      #       fi
+      #
+      #       aws s3 cp "${local_path}" "${version_prefix}/${file}" \
+      #         --cache-control "public, max-age=31536000, immutable" \
+      #         --content-type "${content_type}"
+      #
+      #       aws s3 cp "${local_path}" "${latest_prefix}/${file}" \
+      #         --cache-control "public, max-age=300, must-revalidate" \
+      #         --content-type "${content_type}"
+      #     done
+      #
+      #     cdn_base_url="${S3_CDN_BASE_URL%/}"
+      #     {
+      #       echo "## Browser Widget CDN"
+      #       echo ""
+      #       echo "- Versioned loader: ${cdn_base_url}/${WIDGET_CDN_PREFIX}/${BROWSER_VERSION}/loader.js"
+      #       echo "- Latest loader: ${cdn_base_url}/${WIDGET_CDN_PREFIX}/latest/loader.js"
+      #     } >> "${GITHUB_STEP_SUMMARY}"
+      #
+      # - name: Invalidate latest widget assets
+      #   if: steps.browser_package.outputs.published == 'true'
+      #   run: |
+      #     aws cloudfront create-invalidation \
+      #       --distribution-id "${CLOUDFRONT_DISTRIBUTION_ID}" \
+      #       --paths "/${WIDGET_CDN_PREFIX}/latest/*"
 
       - name: Create GitHub releases
         if: steps.changesets.outputs.published == 'true'

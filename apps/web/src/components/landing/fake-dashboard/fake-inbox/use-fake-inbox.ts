@@ -4,13 +4,15 @@ import { useAnimationScheduler } from "@/hooks/use-animation-scheduler";
 import {
 	ANTHONY_RIERA_ID,
 	type FakeConversationHandledPayload,
-	fakeConversations,
+	type FakeDashboardScenarioId,
+	getFakeDashboardConversations,
 } from "../data";
 
 type UseFakeInboxProps = {
 	isPlaying: boolean;
 	onComplete?: () => void;
 	onShowMouseCursor?: () => void;
+	scenario?: FakeDashboardScenarioId;
 };
 
 const SHOW_INBOX_CURSOR_AT_MS = 2000;
@@ -44,9 +46,11 @@ export function useFakeInbox({
 	isPlaying,
 	onComplete,
 	onShowMouseCursor,
+	scenario = "landing_escalation",
 }: UseFakeInboxProps) {
-	const [conversations, setConversations] =
-		useState<ConversationHeader[]>(fakeConversations);
+	const [conversations, setConversations] = useState<ConversationHeader[]>(() =>
+		getFakeDashboardConversations(scenario)
+	);
 	const hasScheduledRef = useRef(false);
 	const scheduleRef = useRef<
 		((timeMs: number, callback: () => void) => () => void) | null
@@ -69,11 +73,17 @@ export function useFakeInbox({
 	}, [schedule]);
 
 	const resetDemoData = useCallback(() => {
-		setConversations(fakeConversations);
+		setConversations(getFakeDashboardConversations(scenario));
 		resetScheduler();
 		hasScheduledRef.current = false;
 		retryCountRef.current = 0;
-	}, [resetScheduler]);
+	}, [resetScheduler, scenario]);
+
+	useEffect(() => {
+		setConversations(getFakeDashboardConversations(scenario));
+		hasScheduledRef.current = false;
+		retryCountRef.current = 0;
+	}, [scenario]);
 
 	const markConversationHandledByHuman = useCallback(
 		(payload: FakeConversationHandledPayload) => {

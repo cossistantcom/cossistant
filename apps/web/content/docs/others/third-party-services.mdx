@@ -7,6 +7,14 @@ description: Security, compliance, and third-party infrastructure used by Cossis
 
 Cossistant leverages best-in-class third-party services to deliver a secure, reliable, and performant customer support platform. We are committed to achieving SOC 2 Type II certification as soon as possible and have carefully selected service providers that maintain the highest security and compliance standards.
 
+<Callout type="info">
+  This page describes the managed Cossistant Cloud stack. If you are running
+  Cossistant on your own infrastructure, use the
+  [Self-Host overview](/docs/self-host) for the storage and email setup paths,
+  including the AWS-first infrastructure route and the choice between Resend
+  and SES for email transport.
+</Callout>
+
 ## Infrastructure & Hosting
 
 - **[Vercel](https://vercel.com)** - Hosts our Next.js web application and provides edge infrastructure for optimal performance worldwide.
@@ -31,7 +39,6 @@ Cossistant leverages best-in-class third-party services to deliver a secure, rel
 
 ## Monitoring & Analytics
 
-- **[Vercel Analytics](https://vercel.com/analytics)** - Privacy-friendly web analytics and performance monitoring.
 - **[OpenStatus](https://www.openstatus.dev/)** - Uptime monitoring and status page infrastructure.
 - **[Tinybird](https://www.tinybird.co/)** - Real-time analytics platform for inbox metrics, visitor tracking, and geolocation data (SOC 2 Type II certified).
 
@@ -45,4 +52,3 @@ All third-party services we use are carefully vetted for:
 - High availability and disaster recovery capabilities
 
 We regularly review our vendor landscape to ensure we maintain the highest standards of security and privacy for our customers.
-

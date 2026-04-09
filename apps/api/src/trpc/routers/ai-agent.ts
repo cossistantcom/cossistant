@@ -105,6 +105,7 @@ function getTrainingCooldownMs(
 function toAiAgentResponse(agent: {
 	id: string;
 	name: string;
+	image: string | null;
 	description: string | null;
 	basePrompt: string;
 	model: string;
@@ -121,6 +122,7 @@ function toAiAgentResponse(agent: {
 	return {
 		id: agent.id,
 		name: agent.name,
+		image: agent.image,
 		description: agent.description,
 		basePrompt: agent.basePrompt,
 		model: agent.model,
@@ -570,6 +572,7 @@ export const aiAgentRouter = createTRPCRouter({
 
 			const agent = await createAiAgent(db, {
 				name: input.name,
+				image: input.image,
 				description: input.description,
 				basePrompt: input.basePrompt,
 				model: input.model,
@@ -610,6 +613,7 @@ export const aiAgentRouter = createTRPCRouter({
 			const agent = await updateAiAgent(db, {
 				aiAgentId: input.aiAgentId,
 				name: input.name,
+				image: input.image,
 				description: input.description,
 				basePrompt: input.basePrompt,
 				model: input.model,

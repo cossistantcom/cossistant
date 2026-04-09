@@ -1,6 +1,7 @@
 import type { Database } from "@api/db";
 import { getAiAgentById } from "@api/db/queries/ai-agent";
 import type { ConversationSelect } from "@api/db/schema/conversation";
+import type { KnowledgeSelect } from "@api/db/schema/knowledge";
 import type { KnowledgeClarificationContextSnapshot } from "@api/lib/knowledge-clarification-context";
 import {
 	emitConversationClarificationUpdate,
@@ -16,6 +17,7 @@ type RequestKnowledgeClarificationParams = {
 	aiAgentId: string;
 	topicSummary: string;
 	contextSnapshot?: KnowledgeClarificationContextSnapshot | null;
+	targetKnowledge?: KnowledgeSelect | null;
 };
 
 export async function requestKnowledgeClarification(
@@ -42,6 +44,7 @@ export async function requestKnowledgeClarification(
 		topicSummary: params.topicSummary,
 		actor: { aiAgentId: params.aiAgentId },
 		contextSnapshot: params.contextSnapshot ?? null,
+		targetKnowledge: params.targetKnowledge ?? null,
 		creationMode: "automation",
 	});
 

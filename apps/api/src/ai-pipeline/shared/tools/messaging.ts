@@ -2,6 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import { addInternalNote } from "../actions/internal-note";
 import { sendMessage as sendPublicMessage } from "../actions/send-message";
+import { normalizePublicReplyText } from "../reply-contract";
 import type {
 	PipelineToolContext,
 	PipelineToolResult,
@@ -104,6 +105,10 @@ async function executePublicMessageSend(params: {
 	) {
 		ctx.runtimeState.sentPublicMessageIds.add(result.messageId);
 		ctx.runtimeState.publicMessagesSent += 1;
+		ctx.runtimeState.publicReplyTexts ??= [];
+		ctx.runtimeState.publicReplyTexts.push(
+			normalizePublicReplyText(trimmedMessage)
+		);
 	}
 
 	return {

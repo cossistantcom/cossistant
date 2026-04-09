@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { apiTimestampSchema } from "./common";
 
 const idSchema = z.string().min(1).max(128);
 
@@ -174,7 +175,7 @@ export const generateUploadUrlResponseSchema = z
 			description: "Name of the S3 bucket that will receive the upload.",
 			example: "plasma-uploads",
 		}),
-		expiresAt: z.string().openapi({
+		expiresAt: apiTimestampSchema.openapi({
 			description: "ISO timestamp indicating when the signed URL will expire.",
 			example: "2024-01-01T12:00:00.000Z",
 		}),

@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { apiTimestampSchema } from "./common";
 
 // Feedback schema for responses
 export const feedbackSchema = z
@@ -39,10 +40,10 @@ export const feedbackSchema = z
 			description: "Source of the feedback (e.g., 'widget', 'api', 'email')",
 			default: "widget",
 		}),
-		createdAt: z.string().openapi({
+		createdAt: apiTimestampSchema.openapi({
 			description: "When the feedback was submitted",
 		}),
-		updatedAt: z.string().openapi({
+		updatedAt: apiTimestampSchema.openapi({
 			description: "When the feedback was last updated",
 		}),
 	})

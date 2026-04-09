@@ -1,0 +1,64 @@
+{
+  "name": "@cossistant/browser",
+  "type": "module",
+  "version": "0.1.2",
+  "private": false,
+  "author": "Cossistant team",
+  "description": "Browser runtime and CDN embed for the Cossistant support widget.",
+  "keywords": [
+    "browser",
+    "embed",
+    "support-widget",
+    "chat-widget",
+    "customer-support",
+    "typescript"
+  ],
+  "bugs": {
+    "url": "https://github.com/cossistantcom/cossistant/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cossistantcom/cossistant.git",
+    "directory": "packages/browser"
+  },
+  "license": "MIT",
+  "homepage": "https://cossistant.com",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@cossistant/core": "workspace:*",
+    "@cossistant/react": "workspace:*",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@cossistant/typescript-config": "workspace:*",
+    "@tailwindcss/cli": "^4.2.2",
+    "preact": "^10.27.2"
+  },
+  "publishConfig": {
+    "access": "public",
+    "directory": "dist"
+  },
+  "scripts": {
+    "build": "bun run build:lib && bun run build:embed && bun run prepare-package",
+    "build:lib": "tsdown",
+    "build:embed": "bun run build:embed:js && bun run build:embed:css",
+    "build:embed:js": "tsdown --config tsdown.embed.config.ts && mv dist/embed/loader.iife.js dist/embed/loader.js && mv dist/embed/widget.iife.js dist/embed/widget.js",
+    "build:embed:css": "mkdir -p dist/embed && bunx @tailwindcss/cli -i src/embed/widget.css -o dist/embed/widget.css --content '../react/src/**/*.{js,ts,jsx,tsx}' --minify",
+    "prepare-package": "bun ../../scripts/prepare-package.ts",
+    "pub:release": "bun run build && npm publish --access public",
+    "pub:beta": "bun run build && npm publish --access public --tag beta --no-git-checks",
+    "pub:next": "bun run build && npm publish --access public --tag next --no-git-checks",
+    "lint": "biome check .",
+    "check-types": "tsc --noEmit --project tsconfig.json"
+  }
+}

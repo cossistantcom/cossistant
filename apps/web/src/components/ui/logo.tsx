@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 
 type Props = {
 	className?: string;
+	eyeFill?: string;
 };
 
 export function Logo({ className }: Props) {
@@ -37,7 +38,7 @@ export function LogoText({ className }: Props) {
 	);
 }
 
-export function LogoTextSVG({ className }: Props) {
+export function LogoTextSVG({ className, eyeFill = "transparent" }: Props) {
 	return (
 		<svg
 			className={className}
@@ -58,11 +59,11 @@ export function LogoTextSVG({ className }: Props) {
 			/>
 			<path
 				d="M95.6992 124.672L95.7955 138.043H108.954L108.836 130.956C108.836 125.777 110.07 124.799 115.556 124.799H127.599C133.086 124.799 133.903 125.777 133.903 131.364V138.043H147.195V124.669C147.195 122.757 146.451 120.92 145.12 119.547L139.06 113.295C137.674 111.865 135.767 111.057 133.775 111.057H108.992C106.983 111.057 105.062 111.878 103.674 113.33L97.7406 119.532C96.4177 120.914 95.6854 122.758 95.6992 124.672Z"
-				fill="transparent"
+				fill={eyeFill}
 			/>
 			<path
 				d="M29.4619 124.672L29.5581 138.043H42.7162L42.5985 130.956C42.5985 125.777 43.8328 124.799 49.3191 124.799H61.362C66.8483 124.799 67.6657 125.777 67.6657 131.364V138.043H80.9576V124.669C80.9576 122.757 80.2134 120.92 78.8827 119.547L72.8228 113.295C71.4366 111.865 69.5299 111.057 67.5381 111.057H42.7545C40.746 111.057 38.8248 111.878 37.4364 113.33L31.5033 119.532C30.1804 120.914 29.4481 122.758 29.4619 124.672Z"
-				fill="transparent"
+				fill={eyeFill}
 			/>
 		</svg>
 	);

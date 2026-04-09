@@ -14,7 +14,7 @@
     "./timezones": "./src/timezones.ts"
   },
   "dependencies": {
-    "next": "15.5.9"
+    "next": "16.2.3"
   },
   "devDependencies": {
     "@plasma/typescript-config": "workspace:*",

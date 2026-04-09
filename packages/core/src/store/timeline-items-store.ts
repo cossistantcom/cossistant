@@ -215,13 +215,30 @@ function finalizeTimelineItem(
 	return applyTimelineItem(withoutOptimistic, item);
 }
 
+function isTimelineItemPart(
+	part: unknown
+): part is TimelineItem["parts"][number] {
+	return (
+		typeof part === "object" &&
+		part !== null &&
+		"type" in part &&
+		typeof part.type === "string"
+	);
+}
+
+function normalizeTimelineItemParts(parts: unknown): TimelineItem["parts"] {
+	if (!Array.isArray(parts)) {
+		return [];
+	}
+
+	return parts.filter(isTimelineItemPart);
+}
+
 // Normalize timeline item created event
 function normalizeRealtimeTimelineItem(
 	event: TimelineItemCreatedEvent | TimelineItemUpdatedEvent
 ): TimelineItem {
 	const raw = event.payload.item;
-
-	const parsedParts = timelineItemPartsSchema.parse(raw.parts);
 
 	return {
 		id: raw.id,
@@ -230,7 +247,7 @@ function normalizeRealtimeTimelineItem(
 		visibility: raw.visibility,
 		type: raw.type,
 		text: raw.text ?? null,
-		parts: parsedParts,
+		parts: normalizeTimelineItemParts(raw.parts),
 		tool: raw.tool ?? null,
 		userId: raw.userId,
 		visitorId: raw.visitorId,

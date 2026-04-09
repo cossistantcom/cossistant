@@ -198,4 +198,44 @@ describe("website route GET /", () => {
 		expect(response.status).toBe(200);
 		expect(payload.lastOnlineAt).toBeNull();
 	});
+
+	it("returns AI agent profile images in availableAIAgents", async () => {
+		const { db, findManyMock, website } = createWebsiteContext();
+		findManyMock.mockResolvedValue([
+			{
+				id: "ai-1",
+				name: "Support AI",
+				image: "https://cdn.example.com/ai-agent.png",
+			},
+		]);
+		safelyExtractRequestDataMock.mockResolvedValue({
+			db,
+			website,
+			apiKey: { isTest: false },
+			visitorIdHeader: "visitor-1",
+		});
+
+		const { websiteRouter } = await websiteRouterModulePromise;
+		const response = await websiteRouter.request(
+			new Request("http://localhost/", {
+				method: "GET",
+			})
+		);
+		const payload = (await response.json()) as {
+			availableAIAgents: Array<{
+				id: string;
+				name: string;
+				image: string | null;
+			}>;
+		};
+
+		expect(response.status).toBe(200);
+		expect(payload.availableAIAgents).toEqual([
+			{
+				id: "ai-1",
+				name: "Support AI",
+				image: "https://cdn.example.com/ai-agent.png",
+			},
+		]);
+	});
 });

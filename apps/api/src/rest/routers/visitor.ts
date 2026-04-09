@@ -39,6 +39,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Context } from "hono";
 import { z } from "zod";
 import { protectedPublicApiKeyMiddleware } from "../middleware";
+import { errorJsonResponse, runtimeDualAuth } from "../openapi";
 import type { RestContext } from "../types";
 
 export const visitorRouter = new OpenAPIHono<RestContext>();
@@ -443,23 +444,6 @@ visitorRouter.openapi(
 		summary: "Track live visitor activity",
 		description:
 			"Records live visitor activity for realtime dashboards. This endpoint is the canonical ingestion path for live visitor presence and page activity.",
-		inputSchema: [
-			{
-				name: "id",
-				in: "path",
-				required: true,
-				description: "The visitor ID",
-				schema: {
-					type: "string",
-				},
-			},
-			{
-				name: "body",
-				in: "body",
-				required: true,
-				schema: visitorActivityRequestSchema,
-			},
-		],
 		request: {
 			body: {
 				content: {
@@ -478,40 +462,25 @@ visitorRouter.openapi(
 					},
 				},
 			},
-			400: {
-				description: "Invalid request data",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			404: {
-				description: "Visitor not found",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			500: {
-				description: "Internal server error",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
+			400: errorJsonResponse("Invalid request data"),
+			401: errorJsonResponse("Unauthorized - Invalid or missing API key"),
+			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
+			404: errorJsonResponse("Visitor not found"),
+			500: errorJsonResponse("Internal server error"),
 		},
+		...runtimeDualAuth({
+			parameters: [
+				{
+					name: "id",
+					in: "path",
+					required: true,
+					description: "The visitor ID",
+					schema: {
+						type: "string",
+					},
+				},
+			],
+		}),
 	},
 	async (c) => {
 		try {
@@ -622,17 +591,6 @@ visitorRouter.openapi(
 		summary: "Update existing visitor information",
 		description:
 			"Updates an existing visitor's browser, device, and location data. The visitor must already exist in the system.",
-		inputSchema: [
-			{
-				name: "id",
-				in: "path",
-				required: true,
-				description: "The visitor ID to update",
-				schema: {
-					type: "string",
-				},
-			},
-		],
 		request: {
 			body: {
 				content: {
@@ -651,56 +609,25 @@ visitorRouter.openapi(
 				},
 				description: "Visitor information successfully created or updated",
 			},
-			400: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Invalid request data",
-			},
-			401: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Unauthorized - Invalid API key",
-			},
-			404: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Visitor not found",
-			},
-			500: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Internal server error",
-			},
+			400: errorJsonResponse("Invalid request data"),
+			401: errorJsonResponse("Unauthorized - Invalid API key"),
+			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
+			404: errorJsonResponse("Visitor not found"),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-		],
+		...runtimeDualAuth({
+			parameters: [
+				{
+					name: "id",
+					in: "path",
+					required: true,
+					description: "The visitor ID to update",
+					schema: {
+						type: "string",
+					},
+				},
+			],
+		}),
 	},
 	async (c) => {
 		try {
@@ -865,17 +792,6 @@ visitorRouter.openapi(
 		summary: "Update contact metadata for a visitor",
 		description:
 			"Merges the provided metadata into the contact profile associated with the visitor. The visitor must be identified first (linked to a contact) via the /contacts/identify endpoint.",
-		inputSchema: [
-			{
-				name: "id",
-				in: "path",
-				required: true,
-				description: "The visitor ID",
-				schema: {
-					type: "string",
-				},
-			},
-		],
 		request: {
 			body: {
 				content: {
@@ -894,56 +810,25 @@ visitorRouter.openapi(
 					},
 				},
 			},
-			400: {
-				description: "Invalid request data or visitor not identified",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			401: {
-				description: "Unauthorized - Invalid API key",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			404: {
-				description: "Visitor not found",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			500: {
-				description: "Internal server error",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
+			400: errorJsonResponse("Invalid request data or visitor not identified"),
+			401: errorJsonResponse("Unauthorized - Invalid API key"),
+			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
+			404: errorJsonResponse("Visitor not found"),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-		],
+		...runtimeDualAuth({
+			parameters: [
+				{
+					name: "id",
+					in: "path",
+					required: true,
+					description: "The visitor ID",
+					schema: {
+						type: "string",
+					},
+				},
+			],
+		}),
 	},
 	async (c) => {
 		try {
@@ -1024,17 +909,6 @@ visitorRouter.openapi(
 		path: "/:id",
 		summary: "Get visitor information",
 		description: "Retrieves visitor information by visitor ID",
-		inputSchema: [
-			{
-				name: "id",
-				in: "path",
-				required: true,
-				description: "The visitor ID",
-				schema: {
-					type: "string",
-				},
-			},
-		],
 		responses: {
 			200: {
 				content: {
@@ -1044,45 +918,24 @@ visitorRouter.openapi(
 				},
 				description: "Visitor information retrieved successfully",
 			},
-			404: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Visitor not found",
-			},
-			401: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Unauthorized - Invalid API key",
-			},
-			500: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Internal server error",
-			},
+			401: errorJsonResponse("Unauthorized - Invalid API key"),
+			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
+			404: errorJsonResponse("Visitor not found"),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-		],
+		...runtimeDualAuth({
+			parameters: [
+				{
+					name: "id",
+					in: "path",
+					required: true,
+					description: "The visitor ID",
+					schema: {
+						type: "string",
+					},
+				},
+			],
+		}),
 	},
 	async (c) => {
 		try {

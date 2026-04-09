@@ -51,6 +51,32 @@ function getProposalAppearance(
 	};
 }
 
+function getProposalRightMeta(
+	proposal: KnowledgeClarificationRequest,
+	appearance: ProposalAppearance
+) {
+	const targetFaqLabel =
+		proposal.targetKnowledgeSummary?.question ??
+		proposal.targetKnowledgeSummary?.sourceTitle ??
+		null;
+
+	return (
+		<div className="flex flex-wrap items-center justify-end gap-2">
+			{proposal.targetKnowledgeId ? (
+				<Badge variant="secondary">
+					{targetFaqLabel ? `Updating: ${targetFaqLabel}` : "Updating FAQ"}
+				</Badge>
+			) : null}
+			{proposal.linkedConversationCount > 1 ? (
+				<Badge variant="secondary">
+					{proposal.linkedConversationCount} conversations
+				</Badge>
+			) : null}
+			<Badge variant={appearance.statusVariant}>{appearance.statusLabel}</Badge>
+		</div>
+	);
+}
+
 export function KnowledgeClarificationProposalsSection({
 	websiteSlug,
 	proposals,
@@ -146,11 +172,7 @@ export function KnowledgeClarificationProposalsSection({
 							key={proposal.id}
 							onHoverPrefetch={() => prefetchProposal(proposal.id, href)}
 							primary={getProposalPrimaryLabel(proposal)}
-							rightMeta={
-								<Badge variant={appearance.statusVariant}>
-									{appearance.statusLabel}
-								</Badge>
-							}
+							rightMeta={getProposalRightMeta(proposal, appearance)}
 						/>
 					);
 				})}

@@ -12,6 +12,7 @@ import {
 	getWebsiteBySlugWithAccess,
 	permanentlyDeleteWebsite,
 	updateWebsite,
+	WebsiteSlugConflictError,
 } from "@api/db/queries/website";
 import {
 	conversation,
@@ -38,7 +39,7 @@ import {
 import { invalidateApiKeyCacheForWebsite } from "@api/utils/cache/api-key-cache";
 import { generateULID } from "@api/utils/db/ids";
 import { normalizeDomain } from "@api/utils/domain";
-import { domainToSlug } from "@api/utils/domain-slug";
+import { generateUniqueWebsiteSlug } from "@api/utils/domain-slug";
 import {
 	APIKeyType,
 	checkWebsiteDomainRequestSchema,
@@ -96,6 +97,18 @@ const toWebsiteApiKey = (
 	lastUsedAt: key.lastUsedAt ?? null,
 	revokedAt: key.revokedAt ?? null,
 });
+
+const WEBSITE_CREATE_ERROR_MESSAGE = "Failed to create website";
+
+function logWebsiteCreateError(params: {
+	error: unknown;
+	organizationId: string;
+	userId: string;
+	domain: string;
+	slug?: string;
+}) {
+	console.error("[website.create] Failed to create website", params);
+}
 
 export const websiteRouter = createTRPCRouter({
 	getBySlug: protectedProcedure
@@ -270,38 +283,66 @@ export const websiteRouter = createTRPCRouter({
 			const userEmailDomain = user.email.split("@")[1]?.toLowerCase();
 			const isDomainOwnershipVerified = userEmailDomain === normalizedDomain;
 
-			// Generate a unique slug by always adding a random suffix
-			const slug = domainToSlug(normalizedDomain);
+			const { createdWebsite, apiKeys } = await (async () => {
+				let slug: string | undefined;
 
-			const createdWebsite = await createWebsite(db, {
-				organizationId: input.organizationId,
-				data: {
-					name: input.name,
-					installationTarget: input.installationTarget,
-					domain: normalizedDomain,
-					isDomainOwnershipVerified,
-					whitelistedDomains: [
-						`https://${normalizedDomain}`,
-						"http://localhost:3000",
-					],
-					slug,
-				},
-			});
+				try {
+					slug = await generateUniqueWebsiteSlug(db, normalizedDomain);
 
-			const [apiKeys] = await Promise.all([
-				createDefaultWebsiteKeys(db, {
-					websiteId: createdWebsite.id,
-					websiteName: input.name,
-					organizationId: input.organizationId,
-					createdBy: user.id,
-				}),
-				createDefaultWebsiteViews(db, {
-					websiteId: createdWebsite.id,
-					websiteName: input.name,
-					organizationId: input.organizationId,
-					createdBy: user.id,
-				}),
-			]);
+					const websiteRecord = await createWebsite(db, {
+						organizationId: input.organizationId,
+						data: {
+							name: input.name,
+							installationTarget: input.installationTarget,
+							domain: normalizedDomain,
+							isDomainOwnershipVerified,
+							whitelistedDomains: [
+								`https://${normalizedDomain}`,
+								"http://localhost:3000",
+							],
+							slug,
+						},
+					});
+
+					const [defaultApiKeys] = await Promise.all([
+						createDefaultWebsiteKeys(db, {
+							websiteId: websiteRecord.id,
+							websiteName: input.name,
+							organizationId: input.organizationId,
+							createdBy: user.id,
+						}),
+						createDefaultWebsiteViews(db, {
+							websiteId: websiteRecord.id,
+							websiteName: input.name,
+							organizationId: input.organizationId,
+							createdBy: user.id,
+						}),
+					]);
+
+					return { createdWebsite: websiteRecord, apiKeys: defaultApiKeys };
+				} catch (error) {
+					if (error instanceof WebsiteSlugConflictError) {
+						throw new TRPCError({
+							code: "BAD_REQUEST",
+							message:
+								"A conflicting website slug already exists. Please try again.",
+						});
+					}
+
+					logWebsiteCreateError({
+						error,
+						organizationId: input.organizationId,
+						userId: user.id,
+						domain: normalizedDomain,
+						slug,
+					});
+
+					throw new TRPCError({
+						code: "INTERNAL_SERVER_ERROR",
+						message: WEBSITE_CREATE_ERROR_MESSAGE,
+					});
+				}
+			})();
 
 			try {
 				const freeProvisionResult = await ensureFreeSubscriptionForWebsite({

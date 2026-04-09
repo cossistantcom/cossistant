@@ -159,4 +159,103 @@ describe("createRequestKnowledgeClarificationTool", () => {
 		);
 		expect(buildConversationTranscriptMock).toHaveBeenCalledTimes(1);
 	});
+
+	it("blocks private clarification until a strong KB answer has been shared publicly", async () => {
+		const { createRequestKnowledgeClarificationTool } = await modulePromise;
+		const ctx = createContext();
+		ctx.runtimeState.toolExecutions = [
+			{
+				toolName: "searchKnowledgeBase",
+				state: "result",
+				input: {
+					query: "pricing",
+				},
+				output: {
+					success: true,
+					data: {
+						articles: [
+							{
+								content: "The Pro plan is $29/month.",
+								title: "Pricing",
+								sourceUrl: "https://example.com/pricing",
+								similarity: 0.91,
+							},
+						],
+						query: "pricing",
+						questionContext: "How much does it cost?",
+						totalFound: 1,
+						maxSimilarity: 0.91,
+						retrievalQuality: "strong",
+						clarificationSignal: "none",
+					},
+				},
+			},
+		];
+		const tool = createRequestKnowledgeClarificationTool(ctx);
+
+		const result = await tool.execute?.(
+			{
+				topicSummary: "Clarify pricing edge cases",
+			},
+			{} as never
+		);
+
+		expect(result).toEqual({
+			success: false,
+			error:
+				"Send the visitor a grounded answer before opening a private knowledge clarification.",
+		});
+		expect(requestKnowledgeClarificationMock).not.toHaveBeenCalled();
+		expect(buildConversationTranscriptMock).not.toHaveBeenCalled();
+	});
+
+	it("allows clarification after a grounded public reply already exists", async () => {
+		const { createRequestKnowledgeClarificationTool } = await modulePromise;
+		const ctx = createContext();
+		ctx.runtimeState.toolExecutions = [
+			{
+				toolName: "searchKnowledgeBase",
+				state: "result",
+				input: {
+					query: "pricing",
+				},
+				output: {
+					success: true,
+					data: {
+						articles: [
+							{
+								content: "The Pro plan is $29/month.",
+								title: "Pricing",
+								sourceUrl: "https://example.com/pricing",
+								similarity: 0.91,
+							},
+						],
+						query: "pricing",
+						questionContext: "How much does it cost?",
+						totalFound: 1,
+						maxSimilarity: 0.91,
+						retrievalQuality: "strong",
+						clarificationSignal: "none",
+					},
+				},
+			},
+		];
+		ctx.runtimeState.publicReplyTexts = [
+			"The Pro plan starts at $29/month. What team size are you pricing out?",
+		];
+		const tool = createRequestKnowledgeClarificationTool(ctx);
+
+		const result = await tool.execute?.(
+			{
+				topicSummary: "Clarify pricing edge cases",
+			},
+			{} as never
+		);
+
+		expect(result).toMatchObject({
+			success: true,
+			changed: true,
+		});
+		expect(requestKnowledgeClarificationMock).toHaveBeenCalledTimes(1);
+	});
 });

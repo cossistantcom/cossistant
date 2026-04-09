@@ -2,6 +2,7 @@ import "./support.css";
 
 import type { DefaultMessage } from "@plasma/types";
 import * as React from "react";
+import { useSupportController } from "../controller-context";
 import * as Primitive from "../primitives";
 import { useSupport } from "../provider";
 import { SupportRealtimeProvider } from "../realtime";
@@ -21,15 +22,16 @@ import {
 	SupportEventsProvider,
 } from "./context/events";
 import { type SupportHandle, SupportHandleProvider } from "./context/handle";
+import { SupportModeProvider } from "./context/mode";
 import { FooterSlot, HeaderSlot } from "./context/slots";
 import { type CustomPage, Page, Router } from "./router";
-import { initializeSupportStore } from "./store/support-store";
 import type { SupportLocale, SupportTextContentOverrides } from "./text";
 import { SupportTextProvider } from "./text";
 import type {
 	Align,
 	CollisionPadding,
 	Side,
+	SupportMode,
 	TriggerRenderProps,
 } from "./types";
 
@@ -42,6 +44,14 @@ export type SupportProps<Locale extends string = SupportLocale> = {
 	 * Additional CSS classes for the root wrapper.
 	 */
 	className?: string;
+
+	/**
+	 * Layout mode for the support widget.
+	 * When set to `responsive`, the widget always renders inline and
+	 * `open`, `onOpenChange`, and `defaultOpen` are ignored for visibility.
+	 * @default "floating"
+	 */
+	mode?: SupportMode;
 
 	/**
 	 * Which side of the trigger to place the content.
@@ -274,10 +284,17 @@ function parseChildren(children: React.ReactNode): ParsedChildren {
  * <Support>
  *   <Support.Page name="FAQ" component={FAQPage} />
  * </Support>
+ *
+ * @example
+ * // Responsive embed mode
+ * <div className="h-[640px]">
+ *   <Support mode="responsive" />
+ * </div>
  */
 function SupportComponentInner<Locale extends string = SupportLocale>(
 	{
 		className,
+		mode = "floating",
 		side = "top",
 		align = "end",
 		sideOffset = 16,
@@ -303,14 +320,19 @@ function SupportComponentInner<Locale extends string = SupportLocale>(
 	ref: React.Ref<SupportHandle>
 ): React.ReactElement | null {
 	const { website, configurationError } = useSupport();
+	const controller = useSupportController();
 	const isVisitorBlocked = website?.visitor?.isBlocked ?? false;
 
 	// Initialize store for uncontrolled mode (when open prop is not provided)
 	React.useEffect(() => {
-		if (open === undefined && defaultOpen !== undefined) {
-			initializeSupportStore({ defaultOpen });
+		if (
+			mode === "floating" &&
+			open === undefined &&
+			defaultOpen !== undefined
+		) {
+			controller.updateSupportConfig({ isOpen: defaultOpen });
 		}
-	}, [open, defaultOpen]);
+	}, [controller, defaultOpen, mode, open]);
 
 	// If visitor is blocked, don't render anything
 	if (website && isVisitorBlocked) {
@@ -321,9 +343,11 @@ function SupportComponentInner<Locale extends string = SupportLocale>(
 	const parsed = parseChildren(children);
 
 	// Determine which components to render
-	const triggerElement = parsed.trigger ?? (
-		<DefaultTrigger className={classNames.trigger} />
-	);
+	const triggerElement =
+		parsed.trigger ??
+		(mode === "floating" ? (
+			<DefaultTrigger className={classNames.trigger} />
+		) : null);
 
 	// Show configuration error inside the widget content when API key is missing
 	// This allows the user to see the widget is installed correctly and get setup instructions
@@ -347,16 +371,18 @@ function SupportComponentInner<Locale extends string = SupportLocale>(
 	// When there's a configuration error, render a minimal version without realtime/events
 	if (configurationError) {
 		return (
-			<ControlledStateProvider onOpenChange={onOpenChange} open={open}>
-				<SupportHandleProvider forwardedRef={ref}>
-					<ThemeWrapper theme={theme}>
-						<Root className={className}>
-							{triggerElement}
-							{contentElement}
-						</Root>
-					</ThemeWrapper>
-				</SupportHandleProvider>
-			</ControlledStateProvider>
+			<SupportModeProvider mode={mode}>
+				<ControlledStateProvider onOpenChange={onOpenChange} open={open}>
+					<SupportHandleProvider forwardedRef={ref}>
+						<ThemeWrapper theme={theme}>
+							<Root className={className}>
+								{triggerElement}
+								{contentElement}
+							</Root>
+						</ThemeWrapper>
+					</SupportHandleProvider>
+				</ControlledStateProvider>
+			</SupportModeProvider>
 		);
 	}
 
@@ -366,32 +392,34 @@ function SupportComponentInner<Locale extends string = SupportLocale>(
 	}
 
 	return (
-		<ControlledStateProvider onOpenChange={onOpenChange} open={open}>
-			<SupportEventsProvider
-				onConversationEnd={onConversationEnd}
-				onConversationStart={onConversationStart}
-				onError={onError}
-				onMessageReceived={onMessageReceived}
-				onMessageSent={onMessageSent}
-			>
-				<SupportHandleProvider forwardedRef={ref}>
-					<ThemeWrapper theme={theme}>
-						<SupportRealtimeProvider>
-							<SupportTextProvider content={content} locale={locale}>
-								<Root className={className}>
-									{triggerElement}
-									{contentElement}
-								</Root>
-							</SupportTextProvider>
-						</SupportRealtimeProvider>
-						<SupportConfig
-							defaultMessages={defaultMessages}
-							quickOptions={quickOptions}
-						/>
-					</ThemeWrapper>
-				</SupportHandleProvider>
-			</SupportEventsProvider>
-		</ControlledStateProvider>
+		<SupportModeProvider mode={mode}>
+			<ControlledStateProvider onOpenChange={onOpenChange} open={open}>
+				<SupportEventsProvider
+					onConversationEnd={onConversationEnd}
+					onConversationStart={onConversationStart}
+					onError={onError}
+					onMessageReceived={onMessageReceived}
+					onMessageSent={onMessageSent}
+				>
+					<SupportHandleProvider forwardedRef={ref}>
+						<ThemeWrapper theme={theme}>
+							<SupportRealtimeProvider>
+								<SupportTextProvider content={content} locale={locale}>
+									<Root className={className}>
+										{triggerElement}
+										{contentElement}
+									</Root>
+								</SupportTextProvider>
+							</SupportRealtimeProvider>
+							<SupportConfig
+								defaultMessages={defaultMessages}
+								quickOptions={quickOptions}
+							/>
+						</ThemeWrapper>
+					</SupportHandleProvider>
+				</SupportEventsProvider>
+			</ControlledStateProvider>
+		</SupportModeProvider>
 	);
 }
 
@@ -591,6 +619,13 @@ const SupportPage = Page;
 
 export type SupportRootProps = {
 	/**
+	 * Layout mode for the support widget.
+	 * When set to `responsive`, the widget always renders inline and
+	 * `open`, `onOpenChange`, and `defaultOpen` are ignored for visibility.
+	 * @default "floating"
+	 */
+	mode?: SupportMode;
+	/**
 	 * Controlled open state.
 	 * When provided, the widget operates in controlled mode.
 	 */
@@ -665,10 +700,18 @@ export type SupportRootProps = {
  * <Support.Root ref={supportRef}>
  *   ...
  * </Support.Root>
+ *
+ * @example
+ * <div className="h-[640px]">
+ *   <Support.Root mode="responsive">
+ *     <Support.Content />
+ *   </Support.Root>
+ * </div>
  */
 const SupportRoot = React.forwardRef<SupportHandle, SupportRootProps>(
 	(
 		{
+			mode = "floating",
 			open,
 			onOpenChange,
 			defaultOpen,
@@ -684,14 +727,19 @@ const SupportRoot = React.forwardRef<SupportHandle, SupportRootProps>(
 		ref
 	) => {
 		const { website, configurationError } = useSupport();
+		const controller = useSupportController();
 		const isVisitorBlocked = website?.visitor?.isBlocked ?? false;
 
 		// Initialize store for uncontrolled mode
 		React.useEffect(() => {
-			if (open === undefined && defaultOpen !== undefined) {
-				initializeSupportStore({ defaultOpen });
+			if (
+				mode === "floating" &&
+				open === undefined &&
+				defaultOpen !== undefined
+			) {
+				controller.updateSupportConfig({ isOpen: defaultOpen });
 			}
-		}, [open, defaultOpen]);
+		}, [controller, defaultOpen, mode, open]);
 
 		// If visitor is blocked, don't render anything
 		if (website && isVisitorBlocked) {
@@ -702,13 +750,15 @@ const SupportRoot = React.forwardRef<SupportHandle, SupportRootProps>(
 		// The children (Trigger + Content) will still render, but Content should show the error
 		if (configurationError) {
 			return (
-				<ControlledStateProvider onOpenChange={onOpenChange} open={open}>
-					<SupportHandleProvider forwardedRef={ref}>
-						<ThemeWrapper theme={theme}>
-							<Root className={className}>{children}</Root>
-						</ThemeWrapper>
-					</SupportHandleProvider>
-				</ControlledStateProvider>
+				<SupportModeProvider mode={mode}>
+					<ControlledStateProvider onOpenChange={onOpenChange} open={open}>
+						<SupportHandleProvider forwardedRef={ref}>
+							<ThemeWrapper theme={theme}>
+								<Root className={className}>{children}</Root>
+							</ThemeWrapper>
+						</SupportHandleProvider>
+					</ControlledStateProvider>
+				</SupportModeProvider>
 			);
 		}
 
@@ -718,23 +768,25 @@ const SupportRoot = React.forwardRef<SupportHandle, SupportRootProps>(
 		}
 
 		return (
-			<ControlledStateProvider onOpenChange={onOpenChange} open={open}>
-				<SupportEventsProvider
-					onConversationEnd={onConversationEnd}
-					onConversationStart={onConversationStart}
-					onError={onError}
-					onMessageReceived={onMessageReceived}
-					onMessageSent={onMessageSent}
-				>
-					<SupportHandleProvider forwardedRef={ref}>
-						<ThemeWrapper theme={theme}>
-							<SupportRealtimeProvider>
-								<Root className={className}>{children}</Root>
-							</SupportRealtimeProvider>
-						</ThemeWrapper>
-					</SupportHandleProvider>
-				</SupportEventsProvider>
-			</ControlledStateProvider>
+			<SupportModeProvider mode={mode}>
+				<ControlledStateProvider onOpenChange={onOpenChange} open={open}>
+					<SupportEventsProvider
+						onConversationEnd={onConversationEnd}
+						onConversationStart={onConversationStart}
+						onError={onError}
+						onMessageReceived={onMessageReceived}
+						onMessageSent={onMessageSent}
+					>
+						<SupportHandleProvider forwardedRef={ref}>
+							<ThemeWrapper theme={theme}>
+								<SupportRealtimeProvider>
+									<Root className={className}>{children}</Root>
+								</SupportRealtimeProvider>
+							</ThemeWrapper>
+						</SupportHandleProvider>
+					</SupportEventsProvider>
+				</ControlledStateProvider>
+			</SupportModeProvider>
 		);
 	}
 );
@@ -776,6 +828,7 @@ export type {
 	ContentProps,
 	RootProps,
 	Side,
+	SupportMode,
 	TriggerRenderProps,
 } from "./types";
 

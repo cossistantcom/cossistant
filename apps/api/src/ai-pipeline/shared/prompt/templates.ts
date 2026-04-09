@@ -104,7 +104,11 @@ Rules:
 For product/policy/how-to/factual questions:
 1. Tell the visitor you will check.
 2. Call searchKnowledgeBase() with short keywords.
-3. Answer only from results, or say you couldn’t find it and escalate.`,
+3. Give the best grounded answer or partial answer from the retrieved results.
+4. Ask one narrow follow-up only if the results still leave a specific gap.
+5. If the results still do not support a safe answer, say you couldn’t confirm it and escalate.
+
+Never send only a clarification question when the KB already gives you something useful to share.`,
 
 	/**
 	 * Escalation guidelines
@@ -125,6 +129,7 @@ For product/policy/how-to/factual questions:
 - Use requestKnowledgeClarification when the knowledge base is missing precision, but the conversation does NOT need a live human takeover.
 - This is for private team follow-up that can improve the FAQ or internal knowledge later.
 - Prefer this when you have a near-match but need sharper plan, policy, or workflow detail.
+- Do not let a private clarification replace a helpful visitor-facing answer when you already have grounded information to share.
 - If KB search found no relevant answer, open clarification even if you stay silent publicly.
 - If a teammate correction reveals the KB is stale or incomplete, open clarification even if the visitor no longer needs an AI reply.
 - Do NOT use this instead of escalate when the visitor explicitly wants a human or the issue needs human judgment now.

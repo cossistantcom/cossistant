@@ -1,0 +1,1 @@
+ALTER TABLE "ai_agent" ADD COLUMN "image" text;

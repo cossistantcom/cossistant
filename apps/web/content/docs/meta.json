@@ -1,4 +1,11 @@
 {
   "root": true,
-  "pages": ["(root)", "quickstart", "support-component", "concepts", "others"]
+  "pages": [
+    "(root)",
+    "quickstart",
+    "support-component",
+    "concepts",
+    "others",
+    "self-host"
+  ]
 }

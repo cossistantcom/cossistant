@@ -1,0 +1,10 @@
+aws_region             = "us-east-1"
+environment            = "dev"
+resource_prefix        = "cossistant-email"
+sender_domain          = "example.com"
+inbound_domain         = "ses-inbound.example.com"
+inbound_bucket_name    = "cossistant-dev-ses-inbound-example"
+api_webhook_base_url   = "https://api.example.com"
+ses_webhook_secret     = "replace-me"
+route53_zone_id        = ""
+create_route53_records = false

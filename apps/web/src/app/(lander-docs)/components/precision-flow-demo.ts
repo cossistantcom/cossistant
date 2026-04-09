@@ -3,6 +3,13 @@ import type {
 	KnowledgeClarificationQuestionInputMode,
 } from "@plasma/types";
 import {
+	DEMO_DELETE_ACCOUNT_FAQ_ANSWER,
+	DEMO_DELETE_ACCOUNT_FAQ_TITLE,
+	DEMO_DELETE_ACCOUNT_QUESTION,
+	DEMO_DELETE_ACCOUNT_SEARCH_QUERY,
+	DEMO_DELETE_ACCOUNT_SEARCH_TEXT,
+} from "@/components/demo/demo-copy";
+import {
 	fakeAIAgent,
 	MARC_VISITOR_ID,
 } from "@/components/landing/fake-dashboard/data";
@@ -137,7 +144,7 @@ const PRECISION_FLOW_PHASE_TIMESTAMPS_MS: Partial<
 	),
 };
 
-export const PRECISION_FLOW_TYPED_QUESTION = "How do I delete my account?";
+export const PRECISION_FLOW_TYPED_QUESTION = DEMO_DELETE_ACCOUNT_QUESTION;
 export const PRECISION_FLOW_TOPIC_SUMMARY =
 	"Answer this once. Cossistant will use it next time.";
 export const PRECISION_FLOW_ANALYZING_MESSAGE =
@@ -147,10 +154,9 @@ export const PRECISION_FLOW_QUESTION_ONE_ANSWER =
 export const PRECISION_FLOW_QUESTION_TWO_ANSWER =
 	"Self-serve in Settings -> Account";
 export const PRECISION_FLOW_FAQ_DRAFT: KnowledgeClarificationDraftFaq = {
-	title: "Delete your account",
+	title: DEMO_DELETE_ACCOUNT_FAQ_TITLE,
 	question: PRECISION_FLOW_TYPED_QUESTION,
-	answer:
-		"Go to Settings -> Account -> Delete my account. We send a confirmation email, and the account stays recoverable for 30 days.",
+	answer: DEMO_DELETE_ACCOUNT_FAQ_ANSWER,
 	categories: ["Account"],
 	relatedQuestions: [
 		"Can I recover my account after deleting it?",
@@ -249,18 +255,18 @@ const TIMELINE_ITEMS = {
 	}),
 	gap_search_loading: createToolTimelineItem({
 		id: PRECISION_FLOW_SEARCH_TOOL_ID,
-		text: 'Searching for "delete account"...',
+		text: DEMO_DELETE_ACCOUNT_SEARCH_TEXT,
 		input: {
-			query: "delete account",
+			query: DEMO_DELETE_ACCOUNT_SEARCH_QUERY,
 		},
 		state: "partial",
 		createdAt: PRECISION_FLOW_SEARCH_TOOL_CREATED_AT,
 	}),
 	gap_search_result: createToolTimelineItem({
 		id: PRECISION_FLOW_SEARCH_TOOL_ID,
-		text: 'Searching for "delete account"...',
+		text: DEMO_DELETE_ACCOUNT_SEARCH_TEXT,
 		input: {
-			query: "delete account",
+			query: DEMO_DELETE_ACCOUNT_SEARCH_QUERY,
 		},
 		state: "result",
 		output: {

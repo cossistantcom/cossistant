@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { apiTimestampSchema, nullableApiTimestampSchema } from "./common";
 
 /**
  * Contact metadata are stored as key value pairs
@@ -241,11 +242,11 @@ export const contactResponseSchema = z.object({
 		description: "The user ID if the contact is linked to a registered user.",
 		example: "01JG000000000000000000000",
 	}),
-	createdAt: z.string().openapi({
+	createdAt: apiTimestampSchema.openapi({
 		description: "When the contact was first created.",
 		example: "2021-01-01T00:00:00.000Z",
 	}),
-	updatedAt: z.string().openapi({
+	updatedAt: apiTimestampSchema.openapi({
 		description: "When the contact record was last updated.",
 		example: "2021-01-01T00:00:00.000Z",
 	}),
@@ -253,6 +254,137 @@ export const contactResponseSchema = z.object({
 
 export type Contact = z.infer<typeof contactResponseSchema>;
 export type ContactResponse = Contact;
+
+export const contactListSortBySchema = z.enum([
+	"name",
+	"email",
+	"createdAt",
+	"updatedAt",
+	"visitorCount",
+	"lastSeenAt",
+]);
+
+export const contactListSortOrderSchema = z.enum(["asc", "desc"]);
+
+export const contactRestListVisitorStatusSchema = z.enum([
+	"all",
+	"withVisitors",
+	"withoutVisitors",
+]);
+
+export const listContactsRequestSchema = z
+	.object({
+		page: z.coerce.number().int().min(1).default(1).openapi({
+			description: "Page number for pagination.",
+			default: 1,
+		}),
+		limit: z.coerce.number().int().min(1).max(100).default(20).openapi({
+			description: "Maximum number of contacts to return.",
+			default: 20,
+		}),
+		search: z.string().optional().openapi({
+			description:
+				"Optional case-insensitive search against contact name/email.",
+			example: "alice",
+		}),
+		sortBy: contactListSortBySchema.optional().openapi({
+			description: "Field used to sort the result set.",
+			example: "updatedAt",
+		}),
+		sortOrder: contactListSortOrderSchema.optional().openapi({
+			description: "Sort direction.",
+			example: "desc",
+		}),
+		visitorStatus: contactRestListVisitorStatusSchema
+			.optional()
+			.default("all")
+			.openapi({
+				description:
+					"Optional filter based on whether a contact has linked visitors.",
+				example: "all",
+				default: "all",
+			}),
+	})
+	.openapi({
+		description: "Query parameters for listing contacts.",
+	});
+
+export type ListContactsRequest = z.infer<typeof listContactsRequestSchema>;
+
+export const contactRestListItemSchema = z
+	.object({
+		id: z.ulid().openapi({
+			description: "The contact's unique identifier.",
+			example: "01JG000000000000000000000",
+		}),
+		name: z.string().nullable().openapi({
+			description: "The contact's name.",
+			example: "Alice Doe",
+		}),
+		email: z.string().email().nullable().openapi({
+			description: "The contact's email address.",
+			example: "alice@example.com",
+		}),
+		image: z.string().url().nullable().openapi({
+			description: "The contact's avatar URL.",
+			example: "https://example.com/avatar.png",
+		}),
+		createdAt: apiTimestampSchema.openapi({
+			description: "When the contact was created.",
+			example: "2026-04-07T10:00:00.000Z",
+		}),
+		updatedAt: apiTimestampSchema.openapi({
+			description: "When the contact was last updated.",
+			example: "2026-04-07T10:00:00.000Z",
+		}),
+		visitorCount: z.number().int().min(0).openapi({
+			description: "How many visitors are linked to this contact.",
+			example: 3,
+		}),
+		lastSeenAt: nullableApiTimestampSchema.openapi({
+			description: "The latest last-seen timestamp across linked visitors.",
+			example: "2026-04-07T10:00:00.000Z",
+		}),
+		contactOrganizationId: z.string().nullable().openapi({
+			description: "The linked contact organization identifier, if any.",
+			example: "01JG000000000000000000000",
+		}),
+		contactOrganizationName: z.string().nullable().openapi({
+			description: "The linked contact organization name, if any.",
+			example: "Acme Corp",
+		}),
+	})
+	.openapi({
+		description: "Summary row returned when listing contacts.",
+	});
+
+export type RestContactListItem = z.infer<typeof contactRestListItemSchema>;
+
+export const listContactsRestResponseSchema = z
+	.object({
+		items: z.array(contactRestListItemSchema).openapi({
+			description: "Paginated contact results.",
+		}),
+		page: z.number().int().min(1).openapi({
+			description: "Current page number.",
+			example: 1,
+		}),
+		pageSize: z.number().int().min(1).openapi({
+			description: "Number of items returned per page.",
+			example: 20,
+		}),
+		totalCount: z.number().int().min(0).openapi({
+			description: "Total number of matching contacts.",
+			example: 120,
+		}),
+	})
+	.openapi({
+		description: "Paginated list of contacts for a website.",
+	});
+
+export type ListContactsRestResponse = z.infer<
+	typeof listContactsRestResponseSchema
+>;
 
 /**
  * Identify contact response schema
@@ -395,11 +527,11 @@ export const contactOrganizationResponseSchema = z.object({
 			"The organization's unique identifier that the organization belongs to.",
 		example: "01JG000000000000000000000",
 	}),
-	createdAt: z.string().openapi({
+	createdAt: apiTimestampSchema.openapi({
 		description: "When the organization was first created.",
 		example: "2021-01-01T00:00:00.000Z",
 	}),
-	updatedAt: z.string().openapi({
+	updatedAt: apiTimestampSchema.openapi({
 		description: "When the organization record was last updated.",
 		example: "2021-01-01T00:00:00.000Z",
 	}),

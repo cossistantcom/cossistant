@@ -34,6 +34,7 @@ import {
 	useContactsTableControls,
 } from "@/contexts/contacts-table-controls";
 import { useVisitorPresence } from "@/contexts/visitor-presence";
+import { usePrefetchContactVisitorDetail } from "@/data/use-prefetch-contact-visitor-detail";
 import { formatFullDateTime, formatLastSeenAt } from "@/lib/date";
 import { useTRPC } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
@@ -100,6 +101,7 @@ export function ContactsPageContent({ websiteSlug }: ContactsPageContentProps) {
 	const handleCloseDetailPage = useCallback(() => {
 		closeDetailPage();
 	}, [closeDetailPage]);
+	const { prefetchDetail } = usePrefetchContactVisitorDetail({ websiteSlug });
 
 	const { focusedIndex, handleMouseEnter } = useContactsKeyboardNavigation({
 		contacts,
@@ -121,6 +123,17 @@ export function ContactsPageContent({ websiteSlug }: ContactsPageContentProps) {
 	const handleSortingChange: OnChangeFn<SortingState> = (updater) => {
 		setSorting(updater);
 	};
+
+	const handleRowPrefetch = useCallback(
+		(contactId: string, index: number) => {
+			handleMouseEnter(index);
+			void prefetchDetail({
+				type: "contact",
+				id: contactId,
+			});
+		},
+		[handleMouseEnter, prefetchDetail]
+	);
 
 	const handlePageChange = (nextPage: number) => {
 		const cappedPage = Math.min(
@@ -150,8 +163,8 @@ export function ContactsPageContent({ websiteSlug }: ContactsPageContentProps) {
 					data={contacts}
 					focusedIndex={focusedIndex}
 					isLoading={listQuery.isLoading}
-					onMouseEnter={handleMouseEnter}
 					onRowClick={handleSelectContact}
+					onRowPrefetch={handleRowPrefetch}
 					onSortingChange={handleSortingChange}
 					selectedContactId={selectedContactId}
 					sorting={sorting}
@@ -195,20 +208,20 @@ type ContactsTableProps = {
 	sorting: SortingState;
 	onSortingChange: OnChangeFn<SortingState>;
 	onRowClick: (contactId: string) => void;
-	onMouseEnter: (index: number) => void;
+	onRowPrefetch: (contactId: string, index: number) => void;
 	focusedIndex: number;
 	selectedContactId: string | null;
 };
 
 const LOADING_ROW_COUNT = 5;
 
-function ContactsTable({
+export function ContactsTable({
 	data,
 	isLoading,
 	sorting,
 	onSortingChange,
 	onRowClick,
-	onMouseEnter,
+	onRowPrefetch,
 	focusedIndex,
 	selectedContactId,
 }: ContactsTableProps) {
@@ -487,13 +500,14 @@ function ContactsTable({
 									)}
 									key={row.id}
 									onClick={() => onRowClick(row.original.id)}
+									onFocus={() => onRowPrefetch(row.original.id, index)}
 									onKeyDown={(event) => {
 										if (event.key === "Enter" || event.key === " ") {
 											event.preventDefault();
 											onRowClick(row.original.id);
 										}
 									}}
-									onMouseEnter={() => onMouseEnter(index)}
+									onMouseEnter={() => onRowPrefetch(row.original.id, index)}
 									tabIndex={isFocused ? 0 : -1}
 								>
 									{cells.map((cell, cellIndex) => {

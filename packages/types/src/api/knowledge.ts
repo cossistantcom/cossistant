@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { apiTimestampSchema, nullableApiTimestampSchema } from "./common";
 
 export const knowledgeTypeSchema = z.enum(["url", "faq", "article"]).openapi({
 	description: "Knowledge entry type",
@@ -176,15 +177,15 @@ const knowledgeAuditFieldsSchema = z.object({
 		description: "Knowledge entry identifier",
 		example: "01JG00000000000000000000A",
 	}),
-	createdAt: z.string().openapi({
+	createdAt: apiTimestampSchema.openapi({
 		description: "Creation timestamp",
 		example: "2024-06-10T12:00:00.000Z",
 	}),
-	updatedAt: z.string().openapi({
+	updatedAt: apiTimestampSchema.openapi({
 		description: "Last update timestamp",
 		example: "2024-06-11T08:00:00.000Z",
 	}),
-	deletedAt: z.string().nullable().openapi({
+	deletedAt: nullableApiTimestampSchema.openapi({
 		description: "Soft delete timestamp",
 		example: null,
 	}),
@@ -273,15 +274,15 @@ export const knowledgeResponseSchema = z
 			description: "Size of this entry in bytes",
 			example: 4096,
 		}),
-		createdAt: z.string().openapi({
+		createdAt: apiTimestampSchema.openapi({
 			description: "Creation timestamp",
 			example: "2024-06-10T12:00:00.000Z",
 		}),
-		updatedAt: z.string().openapi({
+		updatedAt: apiTimestampSchema.openapi({
 			description: "Last update timestamp",
 			example: "2024-06-11T08:00:00.000Z",
 		}),
-		deletedAt: z.string().nullable().openapi({
+		deletedAt: nullableApiTimestampSchema.openapi({
 			description: "Soft delete timestamp",
 			example: null,
 		}),

@@ -1,28 +1,15 @@
 import "server-only";
 
 import { groupLinkSourcesByDomain } from "@/data/link-source-cache";
-import { ensureWebsiteAccess } from "@/lib/auth/website-access";
 import { getQueryClient, prefetch, trpc } from "@/lib/trpc/server";
+import { requireCompletedAgent } from "../../../_lib/prefetch";
 
 async function fetchTrainingAiAgent(websiteSlug: string) {
-	const queryClient = getQueryClient();
-
-	return await queryClient.fetchQuery(
-		trpc.aiAgent.get.queryOptions({
-			websiteSlug,
-		})
-	);
+	return await requireCompletedAgent(websiteSlug);
 }
 
 export async function prefetchTrainingShell(websiteSlug: string) {
-	await ensureWebsiteAccess(websiteSlug);
-
 	const aiAgentPromise = fetchTrainingAiAgent(websiteSlug);
-	const planInfoPromise = prefetch(
-		trpc.plan.getPlanInfo.queryOptions({
-			websiteSlug,
-		})
-	);
 	const readinessPromise = prefetch(
 		trpc.aiAgent.getTrainingReadiness.queryOptions({
 			websiteSlug,
@@ -31,30 +18,24 @@ export async function prefetchTrainingShell(websiteSlug: string) {
 	const aiAgent = await aiAgentPromise;
 
 	const shellPrefetches: Promise<unknown>[] = [
-		planInfoPromise,
 		readinessPromise,
 		prefetch(
 			trpc.linkSource.getTrainingStats.queryOptions({
 				websiteSlug,
-				aiAgentId: aiAgent?.id ?? null,
+				aiAgentId: aiAgent.id,
+			})
+		),
+		prefetch(
+			trpc.aiAgent.getTrainingStatus.queryOptions({
+				websiteSlug,
 			})
 		),
 	];
 
-	if (aiAgent?.id) {
-		shellPrefetches.push(
-			prefetch(
-				trpc.aiAgent.getTrainingStatus.queryOptions({
-					websiteSlug,
-				})
-			)
-		);
-	}
-
 	await Promise.all(shellPrefetches);
 
 	return {
-		aiAgentId: aiAgent?.id ?? null,
+		aiAgentId: aiAgent.id,
 	};
 }
 
@@ -66,7 +47,7 @@ export async function prefetchFaqListPageData(websiteSlug: string) {
 			trpc.knowledge.list.queryOptions({
 				websiteSlug,
 				type: "faq",
-				aiAgentId: aiAgent?.id ?? null,
+				aiAgentId: aiAgent.id,
 				limit: 100,
 			})
 		),
@@ -113,7 +94,7 @@ export async function prefetchFileListPageData(websiteSlug: string) {
 		trpc.knowledge.list.queryOptions({
 			websiteSlug,
 			type: "article",
-			aiAgentId: aiAgent?.id ?? null,
+			aiAgentId: aiAgent.id,
 			limit: 100,
 		})
 	);
@@ -141,7 +122,7 @@ export async function prefetchWebListPageData(websiteSlug: string) {
 	const linkSourceList = await queryClient.fetchQuery(
 		trpc.linkSource.list.queryOptions({
 			websiteSlug,
-			aiAgentId: aiAgent?.id ?? null,
+			aiAgentId: aiAgent.id,
 			limit: 100,
 		})
 	);

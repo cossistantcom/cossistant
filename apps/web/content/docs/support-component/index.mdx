@@ -149,7 +149,7 @@ export default async function DashboardLayout({
 <auto-type-table
   path="packages/react/src/support/index.tsx"
   name="SupportPropsReference"
-  type="Pick<SupportProps, 'className' | 'side' | 'align' | 'sideOffset' | 'avoidCollisions' | 'collisionPadding' | 'classNames' | 'theme' | 'open' | 'onOpenChange' | 'defaultOpen' | 'quickOptions' | 'defaultMessages' | 'locale' | 'content' | 'customPages' | 'children'>"
+  type="Pick<SupportProps, 'className' | 'mode' | 'side' | 'align' | 'sideOffset' | 'avoidCollisions' | 'collisionPadding' | 'classNames' | 'theme' | 'open' | 'onOpenChange' | 'defaultOpen' | 'quickOptions' | 'defaultMessages' | 'locale' | 'content' | 'customPages' | 'children'>"
 />
 
 ### Usage Examples
@@ -171,6 +171,16 @@ With positioning:
 ```tsx
 <Support side="bottom" align="end" sideOffset={8} />
 ```
+
+Responsive embed mode:
+
+```tsx
+<div className="h-[640px] rounded-xl border">
+  <Support mode="responsive" />
+</div>
+```
+
+In responsive mode, the widget always renders and fills the container. The parent element must provide height.
 
 With custom page:
 

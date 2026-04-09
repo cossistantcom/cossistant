@@ -66,6 +66,29 @@ The widget automatically repositions itself to stay within the viewport. When th
 <Support collisionPadding={{ top: 8, bottom: 32, left: 8, right: 8 }} />
 ```
 
+## Responsive Mode
+
+Use `mode="responsive"` when the widget should live inside your app layout instead of opening from a floating trigger.
+
+```tsx
+<div className="h-[640px] overflow-hidden rounded-xl border border-border">
+  <Support mode="responsive" />
+</div>
+```
+
+Responsive mode changes the widget behavior:
+
+- The widget is always rendered
+- It fills the full width and height of its parent container
+- The default floating trigger is not rendered
+- `open`, `defaultOpen`, and `onOpenChange` are not needed for visibility
+
+### Container requirements
+
+- The parent container must provide an explicit height
+- The parent container owns outer border, radius, shadow, and layout
+- Use `classNames.content` or `<Support.Content />` when you want to add inner widget styling
+
 ## Level 3: Custom Trigger
 
 Replace the default trigger with `<Support.Trigger>`:
@@ -245,6 +268,7 @@ type ContentProps = {
 ```tsx
 type SupportProps = {
   className?: string;
+  mode?: "floating" | "responsive";
   side?: "top" | "bottom" | "left" | "right";
   align?: "start" | "center" | "end";
   sideOffset?: number;

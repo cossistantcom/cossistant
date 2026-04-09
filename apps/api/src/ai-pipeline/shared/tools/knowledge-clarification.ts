@@ -3,7 +3,12 @@ import type { KnowledgeClarificationStatus } from "@plasma/types";
 import { tool } from "ai";
 import { z } from "zod";
 import { requestKnowledgeClarification as requestKnowledgeClarificationAction } from "../actions/request-knowledge-clarification";
+import {
+	getBestSearchSignal,
+	getSearchKnowledgeSignalsFromToolExecutions,
+} from "../knowledge-gap/search-signals";
 import { buildToolDrivenClarificationContext } from "../knowledge-gap/tool-clarification-context";
+import { hasUsefulPublicReply } from "../reply-contract";
 import type {
 	PipelineToolContext,
 	PipelineToolResult,
@@ -40,6 +45,33 @@ export function createRequestKnowledgeClarificationTool(
 			}>
 		> => {
 			try {
+				const bestSearchSignal = getBestSearchSignal(
+					getSearchKnowledgeSignalsFromToolExecutions(
+						ctx.runtimeState.toolExecutions
+					)
+				);
+				const hasUsefulVisitorReply = hasUsefulPublicReply(
+					ctx.runtimeState.publicReplyTexts ?? []
+				);
+
+				if (
+					ctx.mode === "respond_to_visitor" &&
+					bestSearchSignal?.retrievalQuality === "strong" &&
+					!hasUsefulVisitorReply
+				) {
+					const message =
+						"Send the visitor a grounded answer before opening a private knowledge clarification.";
+					setToolError(ctx, {
+						toolName: "requestKnowledgeClarification",
+						error: message,
+						fatal: false,
+					});
+					return {
+						success: false,
+						error: message,
+					};
+				}
+
 				const { contextSnapshot } = await buildToolDrivenClarificationContext({
 					ctx,
 					searchEvidence:

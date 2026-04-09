@@ -2,12 +2,14 @@ import { describe, expect, it } from "bun:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
+	buildKnowledgeClarificationAnswerDraftPersistenceId,
 	changeKnowledgeClarificationFreeAnswer,
 	getKnowledgeClarificationSubmitPayload,
 	isKnowledgeClarificationOtherSelected,
 	type KnowledgeClarificationAnswerDraftState,
 	KnowledgeClarificationQuestionContent,
 	selectKnowledgeClarificationAnswer,
+	shouldClearKnowledgeClarificationAnswerDraft,
 } from "./question-flow";
 
 const EMPTY_ANSWER_DRAFT_STATE: KnowledgeClarificationAnswerDraftState = {
@@ -68,6 +70,44 @@ describe("knowledge clarification answer draft", () => {
 		expect(getKnowledgeClarificationSubmitPayload(state)).toEqual({
 			freeAnswer: "It depends on the plan",
 		});
+	});
+
+	it("builds a stable persistence id from website, request, and step", () => {
+		expect(
+			buildKnowledgeClarificationAnswerDraftPersistenceId({
+				websiteSlug: "acme",
+				requestId: "req_1",
+				stepIndex: 2,
+			})
+		).toBe("clarification-answer:acme:req_1:2");
+	});
+
+	it("keeps the draft when the server recovers into analyzing for the same step", () => {
+		expect(
+			shouldClearKnowledgeClarificationAnswerDraft({
+				currentQuestion: "Does billing change immediately?",
+				currentStepIndex: 2,
+				result: {
+					currentQuestion: "Does billing change immediately?",
+					status: "analyzing",
+					stepIndex: 2,
+				},
+			})
+		).toBe(false);
+	});
+
+	it("clears the draft once the clarification advances to the next question", () => {
+		expect(
+			shouldClearKnowledgeClarificationAnswerDraft({
+				currentQuestion: "Does billing change immediately?",
+				currentStepIndex: 2,
+				result: {
+					currentQuestion: "Which plan is affected?",
+					status: "awaiting_answer",
+					stepIndex: 3,
+				},
+			})
+		).toBe(true);
 	});
 });
 

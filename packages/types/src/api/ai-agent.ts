@@ -7,6 +7,7 @@ import {
 	AI_AGENT_TOOL_GROUPS,
 	AI_AGENT_TOOL_IDS,
 } from "./ai-agent-capabilities";
+import { apiTimestampSchema, nullableApiTimestampSchema } from "./common";
 
 /**
  * Model selection options are API-canonical and returned by `plan.getPlanInfo.aiModels`.
@@ -108,8 +109,8 @@ export const aiAgentPromptDocumentResponseSchema = z.object({
 	priority: z.number().int(),
 	createdByUserId: z.ulid().nullable(),
 	updatedByUserId: z.ulid().nullable(),
-	createdAt: z.string(),
-	updatedAt: z.string(),
+	createdAt: apiTimestampSchema,
+	updatedAt: apiTimestampSchema,
 });
 
 /**
@@ -123,6 +124,10 @@ export const aiAgentResponseSchema = z.object({
 	name: z.string().openapi({
 		description: "The AI agent's display name.",
 		example: "Support Assistant",
+	}),
+	image: z.string().nullable().openapi({
+		description: "The AI agent's profile image URL.",
+		example: "https://cdn.example.com/agent-avatar.png",
 	}),
 	description: z.string().nullable().openapi({
 		description: "A brief description of the AI agent's purpose.",
@@ -148,7 +153,7 @@ export const aiAgentResponseSchema = z.object({
 		description: "Whether the AI agent is currently active.",
 		example: true,
 	}),
-	lastUsedAt: z.string().nullable().openapi({
+	lastUsedAt: nullableApiTimestampSchema.openapi({
 		description: "When the AI agent was last used.",
 		example: "2024-01-01T00:00:00.000Z",
 	}),
@@ -163,15 +168,15 @@ export const aiAgentResponseSchema = z.object({
 			description: "The goals/intents for this AI agent.",
 			example: ["support", "product_qa"],
 		}),
-	createdAt: z.string().openapi({
+	createdAt: apiTimestampSchema.openapi({
 		description: "When the AI agent was created.",
 		example: "2024-01-01T00:00:00.000Z",
 	}),
-	updatedAt: z.string().openapi({
+	updatedAt: apiTimestampSchema.openapi({
 		description: "When the AI agent was last updated.",
 		example: "2024-01-01T00:00:00.000Z",
 	}),
-	onboardingCompletedAt: z.string().nullable().openapi({
+	onboardingCompletedAt: nullableApiTimestampSchema.openapi({
 		description:
 			"When onboarding was completed. Null if still in onboarding flow.",
 		example: "2024-01-01T00:00:00.000Z",
@@ -195,6 +200,11 @@ export const createAiAgentRequestSchema = z
 				description: "The AI agent's display name.",
 				example: "Support Assistant",
 			}),
+		image: z.string().url().nullable().optional().openapi({
+			description:
+				"The AI agent's profile image URL. Set to null to use the default Cossistant logo.",
+			example: "https://cdn.example.com/agent-avatar.png",
+		}),
 		description: z
 			.string()
 			.max(500, { message: "Description must be 500 characters or fewer." })
@@ -268,6 +278,11 @@ export const updateAiAgentRequestSchema = z
 				description: "The AI agent's display name.",
 				example: "Support Assistant",
 			}),
+		image: z.string().url().nullable().optional().openapi({
+			description:
+				"The AI agent's profile image URL. Set to null to use the default Cossistant logo.",
+			example: "https://cdn.example.com/agent-avatar.png",
+		}),
 		description: z
 			.string()
 			.max(500, { message: "Description must be 500 characters or fewer." })
@@ -319,7 +334,7 @@ export const updateAiAgentRequestSchema = z
 				description: "The goals/intents for this AI agent.",
 				example: ["support", "product_qa"],
 			}),
-		onboardingCompletedAt: z.string().nullable().optional().openapi({
+		onboardingCompletedAt: nullableApiTimestampSchema.optional().openapi({
 			description:
 				"Mark onboarding as complete by setting this timestamp. Set to current ISO timestamp to complete onboarding.",
 			example: "2024-01-01T00:00:00.000Z",

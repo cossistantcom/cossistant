@@ -32,6 +32,7 @@ export type PublicMessageToolName = "sendMessage";
 export type ToolRuntimeState = {
 	finalAction: CapturedFinalAction | null;
 	publicMessagesSent: number;
+	publicReplyTexts?: string[];
 	/** Total tool attempts (includes failed/throwing calls). */
 	toolCallCounts: Record<string, number>;
 	/** Successful tool calls that changed durable conversation state. */

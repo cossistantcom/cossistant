@@ -7,6 +7,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { VisitorAttributionGroup } from "@/components/ui/visitor-attribution-group";
+import { useWebsite } from "@/contexts/website";
+import { usePrefetchContactVisitorDetail } from "@/data/use-prefetch-contact-visitor-detail";
 import { useContactVisitorDetailState } from "@/hooks/use-contact-visitor-detail-state";
 import { SidebarContainer } from "../container";
 import { ResizableSidebar } from "../resizable-sidebar";
@@ -29,7 +31,11 @@ export function VisitorSidebar({
 	conversationId,
 	visitorId,
 }: VisitorSidebarProps) {
+	const website = useWebsite();
 	const { openVisitorDetail } = useContactVisitorDetailState();
+	const { prefetchDetail } = usePrefetchContactVisitorDetail({
+		websiteSlug: website.slug,
+	});
 	const visitorData = useVisitorData({ visitor });
 	const { unblockVisitor, pendingAction, runAction } =
 		useConversationActionRunner({
@@ -49,6 +55,19 @@ export function VisitorSidebar({
 			void openVisitorDetail(visitorId ?? visitor?.id ?? "");
 		}
 	}, [openVisitorDetail, visitor?.id, visitorId]);
+
+	const handlePrefetchDetail = useCallback(() => {
+		const nextVisitorId = visitorId ?? visitor?.id;
+
+		if (!nextVisitorId) {
+			return;
+		}
+
+		void prefetchDetail({
+			type: "visitor",
+			id: nextVisitorId,
+		});
+	}, [prefetchDetail, visitor?.id, visitorId]);
 
 	if (isLoading || !visitor || !visitorData) {
 		return <VisitorSidebarPlaceholder />;
@@ -82,6 +101,7 @@ export function VisitorSidebar({
 					fullName={fullName}
 					lastSeenAt={presence?.lastSeenAt ?? visitor.lastSeenAt}
 					onOpenDetail={handleOpenDetail}
+					onOpenDetailPrefetch={handlePrefetchDetail}
 					status={presence?.status}
 				/>
 				<ScrollArea

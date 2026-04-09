@@ -18,6 +18,11 @@ import {
 	protectedPrivateApiKeyMiddleware,
 	protectedPublicApiKeyMiddleware,
 } from "../middleware";
+import {
+	errorJsonResponse,
+	privateControlAuth,
+	runtimeDualAuth,
+} from "../openapi";
 import type { RestContext } from "../types";
 import { persistFeedbackSubmission } from "./feedback-shared";
 
@@ -86,68 +91,14 @@ feedbackCreateRouter.openapi(
 					},
 				},
 			},
-			400: {
-				description: "Invalid request data",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			401: {
-				description: "Unauthorized - Invalid or missing API key",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			403: {
-				description: "Forbidden - API key required",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			404: {
-				description: "Conversation not found",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			500: {
-				description: "Internal server error",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
+			400: errorJsonResponse("Invalid request data"),
+			401: errorJsonResponse("Unauthorized - Invalid or missing API key"),
+			403: errorJsonResponse("Forbidden - API key required"),
+			404: errorJsonResponse("Conversation not found"),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-		],
 		tags: ["Feedback"],
+		...runtimeDualAuth({ includeVisitorIdHeader: true }),
 	},
 	async (c) => {
 		try {
@@ -283,46 +234,14 @@ feedbackReadRouter.openapi(
 					},
 				},
 			},
-			401: {
-				description: "Unauthorized - Invalid or missing private API key",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			403: {
-				description: "Forbidden - Private API key required",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			500: {
-				description: "Internal server error",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			403: errorJsonResponse("Forbidden - Private API key required"),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Private API Key": [],
-			},
-		],
 		tags: ["Feedback"],
+		...privateControlAuth(),
 	},
 	async (c) => {
 		try {
@@ -382,17 +301,6 @@ feedbackReadRouter.openapi(
 		path: "/:id",
 		summary: "Get feedback by ID",
 		description: "Retrieves a single feedback entry by ID",
-		inputSchema: [
-			{
-				name: "id",
-				in: "path",
-				required: true,
-				description: "The feedback ID",
-				schema: {
-					type: "string",
-				},
-			},
-		],
 		responses: {
 			200: {
 				description: "Feedback retrieved successfully",
@@ -402,57 +310,27 @@ feedbackReadRouter.openapi(
 					},
 				},
 			},
-			401: {
-				description: "Unauthorized - Invalid or missing private API key",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			403: {
-				description: "Forbidden - Private API key required",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			404: {
-				description: "Feedback not found",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
-			500: {
-				description: "Internal server error",
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-			},
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			403: errorJsonResponse("Forbidden - Private API key required"),
+			404: errorJsonResponse("Feedback not found"),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Private API Key": [],
-			},
-		],
 		tags: ["Feedback"],
+		...privateControlAuth({
+			parameters: [
+				{
+					name: "id",
+					in: "path",
+					required: true,
+					description: "The feedback ID",
+					schema: {
+						type: "string",
+					},
+				},
+			],
+		}),
 	},
 	async (c) => {
 		try {

@@ -368,7 +368,7 @@ export async function listConversationsHeaders(
 	params: {
 		organizationId: string;
 		websiteId: string;
-		userId: string;
+		userId?: string | null;
 		limit?: number;
 		cursor?: string | null;
 		orderBy?: "createdAt" | "updatedAt";
@@ -589,7 +589,7 @@ export async function listConversationsHeaders(
 		});
 		seenDataMap.set(seen.conversationId, collection);
 
-		if (seen.userId === params.userId) {
+		if (params.userId && seen.userId === params.userId) {
 			const currentLastSeen = userLastSeenMap.get(seen.conversationId);
 			const candidate = seen.lastSeenAt ?? null;
 			if (!currentLastSeen) {

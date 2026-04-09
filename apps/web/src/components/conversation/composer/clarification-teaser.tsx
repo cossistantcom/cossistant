@@ -6,12 +6,14 @@ import type React from "react";
 import { toast } from "sonner";
 import { useKnowledgeClarificationQueryInvalidation } from "@/components/knowledge-clarification/use-query-invalidation";
 import { Button } from "@/components/ui/button";
+import { clearConversationClarificationInCache } from "@/data/knowledge-clarification-cache";
 import { useTRPC } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 import Icon from "../../ui/icons";
 
 export type ClarificationPromptProps = {
 	websiteSlug: string;
+	conversationId: string;
 	summary: ConversationClarificationSummary;
 	onClarify: () => void;
 	className?: string;
@@ -86,20 +88,32 @@ export function ClarificationPromptCard({
 
 export function ClarificationPrompt({
 	websiteSlug,
+	conversationId,
 	summary,
 	onClarify,
 	className,
 }: ClarificationPromptProps) {
 	const trpc = useTRPC();
+	const queryClient = useQueryClient();
 	const invalidateClarificationQueries =
 		useKnowledgeClarificationQueryInvalidation(websiteSlug);
 	const deferMutation = useMutation(
 		trpc.knowledgeClarification.defer.mutationOptions({
 			retry: false,
+			onMutate: async () => {
+				clearConversationClarificationInCache(queryClient, {
+					websiteSlug,
+					conversationId,
+				});
+			},
 			onSuccess: async (request) => {
 				await invalidateClarificationQueries({ request });
 			},
-			onError: (error) => {
+			onError: async (error) => {
+				await invalidateClarificationQueries({
+					requestId: summary.requestId,
+					conversationId,
+				});
 				toast.error(error.message || "Failed to save clarification for later");
 			},
 		})
@@ -107,14 +121,60 @@ export function ClarificationPrompt({
 	const dismissMutation = useMutation(
 		trpc.knowledgeClarification.dismiss.mutationOptions({
 			retry: false,
+			onMutate: async () => {
+				clearConversationClarificationInCache(queryClient, {
+					websiteSlug,
+					conversationId,
+				});
+			},
 			onSuccess: async (request) => {
 				await invalidateClarificationQueries({ request });
 			},
-			onError: (error) => {
+			onError: async (error) => {
+				await invalidateClarificationQueries({
+					requestId: summary.requestId,
+					conversationId,
+				});
 				toast.error(error.message || "Failed to remove clarification");
 			},
 		})
 	);
+
+	if (summary.engagementMode === "linked") {
+		const joinedConversationLabel =
+			summary.linkedConversationCount > 1
+				? `${summary.linkedConversationCount} conversations joined this shared clarification.`
+				: "This conversation joined a shared clarification.";
+		const linkedDescription =
+			summary.status === "draft_ready"
+				? `${joinedConversationLabel} Review the proposal instead of answering here.`
+				: `${joinedConversationLabel} Another conversation owns the active question flow.`;
+
+		return (
+			<div className={cn("px-2 pt-2 pb-2", className)}>
+				<div className="flex w-full flex-col gap-1">
+					<div className="font-medium text-sm">Shared clarification</div>
+					<p className="max-w-[90%] text-balance text-muted-foreground text-sm">
+						{summary.topicSummary}
+					</p>
+					<p className="max-w-[90%] text-balance text-muted-foreground text-sm">
+						{linkedDescription}
+					</p>
+				</div>
+
+				<div className="mt-6 flex justify-end">
+					<Button asChild size="xs" type="button">
+						<Link
+							href={`/${websiteSlug}/agent/training/faq/proposals/${summary.requestId}`}
+							prefetch={false}
+						>
+							View proposal
+						</Link>
+					</Button>
+				</div>
+			</div>
+		);
+	}
 	const isPending = deferMutation.isPending || dismissMutation.isPending;
 
 	return (

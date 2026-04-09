@@ -111,6 +111,7 @@ export function createToolRuntimeState(): ToolRuntimeState {
 	return {
 		finalAction: null,
 		publicMessagesSent: 0,
+		publicReplyTexts: [],
 		toolCallCounts: {},
 		mutationToolCallCounts: {},
 		successfulToolCallCounts: {},

@@ -56,6 +56,11 @@ type PrecisionFlowPlaybackProviderProps = {
 	autoplay: boolean;
 	className?: string;
 	children: React.ReactNode;
+	externalPlayback?: {
+		isPlaying: boolean;
+		playToken: number;
+		resetToken: number;
+	};
 };
 
 type PrecisionFlowPlaybackContextValue = {
@@ -540,13 +545,17 @@ function PrecisionFlowRightPanel({
 function usePrecisionFlowPlayback({
 	initialPhase,
 	autoplay,
+	externalPlayback,
 }: {
 	initialPhase: PrecisionFlowPhase;
 	autoplay: boolean;
+	externalPlayback?: PrecisionFlowPlaybackProviderProps["externalPlayback"];
 }) {
+	const isExternallyControlled = externalPlayback !== undefined;
+	const shouldAutoplay = autoplay && !isExternallyControlled;
 	const [phase, setPhase] = useState<PrecisionFlowPhase>(initialPhase);
-	const [isPlaying, setIsPlaying] = useState(autoplay);
-	const [hasStarted, setHasStarted] = useState(!autoplay);
+	const [isPlaying, setIsPlaying] = useState(shouldAutoplay);
+	const [hasStarted, setHasStarted] = useState(!shouldAutoplay);
 	const [playbackCycle, setPlaybackCycle] = useState(0);
 	const [playbackStartPhase, setPlaybackStartPhase] =
 		useState<PrecisionFlowPhase>(initialPhase);
@@ -634,7 +643,7 @@ function usePrecisionFlowPlayback({
 	}, []);
 
 	useEffect(() => {
-		if (!autoplay || isManuallyPaused) {
+		if (!autoplay || isManuallyPaused || isExternallyControlled) {
 			return;
 		}
 
@@ -663,9 +672,60 @@ function usePrecisionFlowPlayback({
 		autoplay,
 		hasStarted,
 		initialPhase,
+		isExternallyControlled,
 		isManuallyPaused,
 		isPlaying,
 		isVisible,
+	]);
+
+	useEffect(() => {
+		if (!externalPlayback) {
+			return;
+		}
+
+		resetScheduler();
+		setPhase(initialPhase);
+		setPlaybackStartPhase(initialPhase);
+		setHasStarted(false);
+		setIsPlaying(false);
+		setIsManuallyPaused(false);
+		setReplayCountdownSeconds(null);
+		wasVisibilityPausedRef.current = false;
+	}, [externalPlayback?.resetToken, initialPhase, resetScheduler]);
+
+	useEffect(() => {
+		if (!externalPlayback || externalPlayback.isPlaying) {
+			return;
+		}
+
+		setIsPlaying(false);
+		setIsManuallyPaused(hasStarted);
+		setReplayCountdownSeconds(null);
+	}, [externalPlayback?.isPlaying, hasStarted]);
+
+	useEffect(() => {
+		if (!externalPlayback?.isPlaying) {
+			return;
+		}
+
+		if (!hasStarted) {
+			setHasStarted(true);
+			setIsPlaying(true);
+			setIsManuallyPaused(false);
+			setReplayCountdownSeconds(null);
+			schedulePlaybackFromPhase(phase);
+			return;
+		}
+
+		setIsPlaying(true);
+		setIsManuallyPaused(false);
+		setReplayCountdownSeconds(null);
+	}, [
+		externalPlayback?.isPlaying,
+		externalPlayback?.playToken,
+		hasStarted,
+		phase,
+		schedulePlaybackFromPhase,
 	]);
 
 	useEffect(() => {
@@ -687,7 +747,14 @@ function usePrecisionFlowPlayback({
 	]);
 
 	useEffect(() => {
-		if (!(autoplay && phase === "faq_created" && !isManuallyPaused)) {
+		if (
+			!(
+				autoplay &&
+				!isExternallyControlled &&
+				phase === "faq_created" &&
+				!isManuallyPaused
+			)
+		) {
 			setReplayCountdownSeconds(null);
 			return;
 		}
@@ -695,11 +762,11 @@ function usePrecisionFlowPlayback({
 		setReplayCountdownSeconds(
 			(currentValue) => currentValue ?? PRECISION_FLOW_AUTOREPLAY_SECONDS
 		);
-	}, [autoplay, isManuallyPaused, phase]);
+	}, [autoplay, isExternallyControlled, isManuallyPaused, phase]);
 
 	useEffect(() => {
 		if (
-			!(autoplay && isVisible) ||
+			!(autoplay && !isExternallyControlled && isVisible) ||
 			isManuallyPaused ||
 			phase !== "faq_created" ||
 			replayCountdownSeconds === null
@@ -723,6 +790,7 @@ function usePrecisionFlowPlayback({
 		};
 	}, [
 		autoplay,
+		isExternallyControlled,
 		isManuallyPaused,
 		isVisible,
 		phase,
@@ -750,10 +818,12 @@ export function PrecisionFlowPlaybackProvider({
 	autoplay,
 	className,
 	children,
+	externalPlayback,
 }: PrecisionFlowPlaybackProviderProps) {
 	const playback = usePrecisionFlowPlayback({
 		initialPhase,
 		autoplay,
+		externalPlayback,
 	});
 	const [composerVisibility, setComposerVisibility] =
 		useState<MessageVisibility>("public");

@@ -7,12 +7,17 @@ import {
 } from "@plasma/types";
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { ModelSelect } from "@/components/agents/model-select";
 import { copyToClipboardWithMeta } from "@/components/copy-button";
+import {
+	AvatarInput,
+	type AvatarInputValue,
+	uploadToPresignedUrl,
+} from "@/components/ui/avatar-input";
 import { BaseSubmitButton } from "@/components/ui/base-submit-button";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,11 +31,35 @@ import {
 } from "@/components/ui/form";
 import Icon from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { SettingsRowFooter } from "@/components/ui/layout/settings-layout";
 import { PromptInputWithMentions } from "@/components/ui/prompt-input-with-mentions";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { TooltipOnHover } from "@/components/ui/tooltip";
 import { useTRPC } from "@/lib/trpc/client";
+import { buildUniqueUploadIdentity } from "@/lib/uploads/avatar-upload-key";
+
+const AGENT_IMAGE_ACCEPT =
+	"image/png,image/jpeg,image/webp,image/avif,image/gif,image/svg+xml";
+
+const imageModeSchema = z.enum(["default", "custom"]);
+
+const imageValueSchema = z
+	.union([
+		z.string().min(1),
+		z
+			.object({
+				previewUrl: z.string().min(1),
+				url: z.string().optional(),
+				mimeType: z.string(),
+				name: z.string().optional(),
+				size: z.number().optional(),
+				file: z.instanceof(File).optional(),
+			})
+			.passthrough(),
+	])
+	.nullable();
 
 const aiAgentFormSchema = z.object({
 	name: z
@@ -38,6 +67,8 @@ const aiAgentFormSchema = z.object({
 		.trim()
 		.min(1, { message: "Enter the agent name." })
 		.max(100, { message: "Name must be 100 characters or fewer." }),
+	imageMode: imageModeSchema,
+	image: imageValueSchema,
 	description: z
 		.string()
 		.max(500, { message: "Description must be 500 characters or fewer." })
@@ -65,18 +96,82 @@ const aiAgentFormSchema = z.object({
 type AIAgentFormValues = z.infer<typeof aiAgentFormSchema>;
 
 type AIAgentFormProps = {
+	organizationId: string;
+	websiteId: string;
 	websiteName: string;
 	websiteSlug: string;
 	initialData: AiAgentResponse | null;
 };
 
+function createStoredImageValue(
+	imageUrl: string | null | undefined
+): AvatarInputValue | null {
+	if (!imageUrl) {
+		return null;
+	}
+
+	return {
+		previewUrl: imageUrl,
+		url: imageUrl,
+		mimeType: "image/jpeg",
+	};
+}
+
+function normalizeImageUrl(url: string | null | undefined): string | null {
+	if (!url) {
+		return null;
+	}
+
+	try {
+		const parsedUrl = new URL(url);
+		parsedUrl.search = "";
+		return parsedUrl.toString();
+	} catch {
+		return url;
+	}
+}
+
+function resolveImageUrl(
+	value: AvatarInputValue | string | null | undefined
+): string | null {
+	if (!value) {
+		return null;
+	}
+
+	if (typeof value === "string") {
+		return value;
+	}
+
+	return value.url ?? value.previewUrl ?? null;
+}
+
+function buildInitialFormValues(
+	initialData: AiAgentResponse | null,
+	websiteName: string
+): AIAgentFormValues {
+	return {
+		name: initialData?.name ?? `${websiteName} AI`,
+		imageMode: initialData?.image ? "custom" : "default",
+		image: createStoredImageValue(initialData?.image ?? null),
+		description: initialData?.description ?? "",
+		basePrompt: initialData?.basePrompt ?? DEFAULT_AGENT_BASE_PROMPT,
+		model: initialData?.model ?? "",
+		temperature: initialData?.temperature ?? 0.7,
+		maxOutputTokens: initialData?.maxOutputTokens ?? 1024,
+	};
+}
+
 export function AIAgentForm({
+	organizationId,
+	websiteId,
 	websiteSlug,
 	initialData,
 	websiteName,
 }: AIAgentFormProps) {
 	const trpc = useTRPC();
 	const queryClient = useQueryClient();
+	const [isUploadingImage, setIsUploadingImage] = useState(false);
+	const imageProgressToastAtRef = useRef(0);
 	const toolMentionOptions = useMemo(
 		() =>
 			(AI_AGENT_TOOL_CATALOG ?? []).map((tool) => ({
@@ -94,6 +189,10 @@ export function AIAgentForm({
 
 	// Copy agent ID state
 	const [hasCopied, setHasCopied] = useState(false);
+	const initialFormValues = useMemo(
+		() => buildInitialFormValues(initialData, websiteName),
+		[initialData, websiteName]
+	);
 
 	const handleCopyAgentId = async () => {
 		if (!initialData?.id) {
@@ -115,15 +214,15 @@ export function AIAgentForm({
 	const form = useForm<AIAgentFormValues>({
 		resolver: standardSchemaResolver(aiAgentFormSchema),
 		mode: "onChange",
-		defaultValues: {
-			name: initialData?.name ?? `${websiteName} AI`,
-			description: initialData?.description ?? "",
-			basePrompt: initialData?.basePrompt ?? DEFAULT_AGENT_BASE_PROMPT,
-			model: initialData?.model ?? "",
-			temperature: initialData?.temperature ?? 0.7,
-			maxOutputTokens: initialData?.maxOutputTokens ?? 1024,
-		},
+		defaultValues: initialFormValues,
 	});
+	const { mutateAsync: createSignedUrl } = useMutation(
+		trpc.upload.createSignedUrl.mutationOptions()
+	);
+	const imageUploadToastId = useMemo(
+		() => `ai-agent-image-upload-${initialData?.id ?? websiteId}`,
+		[initialData?.id, websiteId]
+	);
 
 	useEffect(() => {
 		if (initialData) {
@@ -154,6 +253,79 @@ export function AIAgentForm({
 		planInfo?.aiModels.items,
 	]);
 
+	const handleImageUpload = useCallback(
+		async (file: File): Promise<Partial<AvatarInputValue>> => {
+			try {
+				toast.loading("Uploading profile picture…", {
+					id: imageUploadToastId,
+				});
+				imageProgressToastAtRef.current = Date.now();
+				const uploadIdentity = buildUniqueUploadIdentity(file);
+
+				const uploadDetails = await createSignedUrl({
+					contentType: file.type,
+					fileName: uploadIdentity.fileName,
+					fileExtension: uploadIdentity.fileExtension,
+					websiteId,
+					path: "ai-agents/avatars",
+					scope: {
+						type: "user",
+						userId: initialData?.id ?? websiteId,
+						organizationId,
+						websiteId,
+					},
+					useCdn: true,
+				});
+
+				await uploadToPresignedUrl({
+					file,
+					url: uploadDetails.uploadUrl,
+					headers: { "Content-Type": file.type },
+					onProgress: (progress) => {
+						const now = Date.now();
+						if (progress >= 1 || now - imageProgressToastAtRef.current >= 150) {
+							imageProgressToastAtRef.current = now;
+							const percentage = Math.round(progress * 100);
+							toast.loading(`Uploading profile picture… ${percentage}%`, {
+								id: imageUploadToastId,
+							});
+						}
+					},
+				});
+
+				toast.success("Profile picture uploaded. Click Save to apply.", {
+					id: imageUploadToastId,
+				});
+
+				return {
+					url: uploadDetails.publicUrl,
+					mimeType: file.type,
+					name: file.name,
+					size: file.size,
+				};
+			} catch (error) {
+				const uploadError =
+					error instanceof Error
+						? error
+						: new Error("Failed to upload profile picture. Please try again.");
+
+				toast.error(uploadError.message, {
+					id: imageUploadToastId,
+				});
+				(uploadError as Error & { handledByToast?: boolean }).handledByToast =
+					true;
+				throw uploadError;
+			}
+		},
+		[
+			createSignedUrl,
+			imageUploadToastId,
+			initialData?.id,
+			organizationId,
+			websiteId,
+		]
+	);
+
 	const { mutateAsync: createAgent, isPending: isCreating } = useMutation(
 		trpc.aiAgent.create.mutationOptions({
 			onSuccess: async () => {
@@ -174,14 +346,8 @@ export function AIAgentForm({
 				await queryClient.invalidateQueries({
 					queryKey: trpc.aiAgent.get.queryKey({ websiteSlug }),
 				});
-				form.reset({
-					name: updatedAgent.name ?? `${websiteName} AI`,
-					description: updatedAgent.description ?? "",
-					basePrompt: updatedAgent.basePrompt,
-					model: updatedAgent.model,
-					temperature: updatedAgent.temperature ?? 0.7,
-					maxOutputTokens: updatedAgent.maxOutputTokens ?? 1024,
-				});
+				form.reset(buildInitialFormValues(updatedAgent, websiteName));
+				setIsUploadingImage(false);
 				toast.success("AI agent updated successfully.");
 			},
 			onError: (error) => {
@@ -208,13 +374,54 @@ export function AIAgentForm({
 		);
 
 	const isPending = isCreating || isUpdating;
+	const isSubmitting = isPending || isUploadingImage;
+	const imageModeValue = form.watch("imageMode");
+	const imageValue = form.watch("image");
+	const nameValue = form.watch("name");
+	const descriptionValue = form.watch("description");
+	const basePromptValue = form.watch("basePrompt");
+	const modelValue = form.watch("model");
+	const temperatureValue = form.watch("temperature");
+	const maxOutputTokensValue = form.watch("maxOutputTokens");
+
+	const effectiveImageUrl = useMemo(
+		() => (imageModeValue === "custom" ? resolveImageUrl(imageValue) : null),
+		[imageModeValue, imageValue]
+	);
 
 	const onSubmit = async (values: AIAgentFormValues) => {
+		let imageUrl: string | null = null;
+
+		if (values.imageMode === "custom") {
+			const customImageUrl = resolveImageUrl(values.image);
+
+			if (!customImageUrl) {
+				toast.error(
+					"Upload a custom profile picture or switch back to the Cossistant logo."
+				);
+				return;
+			}
+
+			if (
+				typeof values.image === "object" &&
+				values.image &&
+				!values.image.url
+			) {
+				toast.error(
+					"Please wait for the profile picture upload to finish before saving."
+				);
+				return;
+			}
+
+			imageUrl = normalizeImageUrl(customImageUrl);
+		}
+
 		if (isEditing && initialData) {
 			await updateAgent({
 				websiteSlug,
 				aiAgentId: initialData.id,
 				name: values.name,
+				image: imageUrl,
 				description: values.description ?? null,
 				basePrompt: values.basePrompt,
 				model: values.model,
@@ -225,6 +432,7 @@ export function AIAgentForm({
 			await createAgent({
 				websiteSlug,
 				name: values.name,
+				image: imageUrl,
 				description: values.description,
 				basePrompt: values.basePrompt,
 				model: values.model,
@@ -246,7 +454,34 @@ export function AIAgentForm({
 		});
 	};
 
-	const hasChanges = form.formState.isDirty;
+	const hasChanges = useMemo(() => {
+		if (!(isEditing && initialData)) {
+			return form.formState.isDirty;
+		}
+
+		return (
+			nameValue !== initialFormValues.name ||
+			descriptionValue !== initialFormValues.description ||
+			basePromptValue !== initialFormValues.basePrompt ||
+			modelValue !== initialFormValues.model ||
+			temperatureValue !== initialFormValues.temperature ||
+			maxOutputTokensValue !== initialFormValues.maxOutputTokens ||
+			normalizeImageUrl(effectiveImageUrl) !==
+				normalizeImageUrl(initialData.image ?? null)
+		);
+	}, [
+		basePromptValue,
+		descriptionValue,
+		effectiveImageUrl,
+		form.formState.isDirty,
+		initialData,
+		initialFormValues,
+		isEditing,
+		maxOutputTokensValue,
+		modelValue,
+		nameValue,
+		temperatureValue,
+	]);
 
 	return (
 		<Form {...form}>
@@ -312,7 +547,7 @@ export function AIAgentForm({
 									<Input
 										placeholder={`${websiteName} AI`}
 										{...field}
-										disabled={isPending}
+										disabled={isSubmitting}
 									/>
 								</FormControl>
 								<FormDescription>
@@ -325,6 +560,115 @@ export function AIAgentForm({
 
 					<FormField
 						control={form.control}
+						name="imageMode"
+						render={({ field }) => (
+							<FormItem className="flex flex-col gap-3">
+								<FormLabel>Profile Picture</FormLabel>
+								<FormControl>
+									<RadioGroup
+										className="space-y-3"
+										disabled={isSubmitting}
+										onValueChange={field.onChange}
+										value={field.value}
+									>
+										<div className="flex items-start space-x-3">
+											<RadioGroupItem
+												className="mt-1"
+												id="agent-image-mode-default"
+												value="default"
+											/>
+											<div className="space-y-0.5">
+												<Label
+													className="cursor-pointer font-normal"
+													htmlFor="agent-image-mode-default"
+												>
+													Use Cossistant logo
+												</Label>
+												<p className="text-muted-foreground text-sm">
+													Show the default Cossistant profile picture.
+												</p>
+											</div>
+										</div>
+
+										<div className="flex items-start space-x-3">
+											<RadioGroupItem
+												className="mt-1"
+												id="agent-image-mode-custom"
+												value="custom"
+											/>
+											<div className="space-y-0.5">
+												<Label
+													className="cursor-pointer font-normal"
+													htmlFor="agent-image-mode-custom"
+												>
+													Upload custom image
+												</Label>
+												<p className="text-muted-foreground text-sm">
+													Use your own avatar or brand mark for the AI agent.
+												</p>
+											</div>
+										</div>
+									</RadioGroup>
+								</FormControl>
+								<FormDescription>
+									Choose which profile picture visitors and teammates will see
+									for this AI agent.
+								</FormDescription>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+
+					{imageModeValue === "custom" && (
+						<FormField
+							control={form.control}
+							name="image"
+							render={({ field }) => (
+								<FormItem className="flex flex-col gap-2">
+									<FormControl>
+										<AvatarInput
+											accept={AGENT_IMAGE_ACCEPT}
+											allowSvgUploads
+											disabled={isSubmitting}
+											name={field.name}
+											onBlur={field.onBlur}
+											onChange={(value) => {
+												field.onChange(value);
+												void form.trigger("image");
+											}}
+											onError={(error) => {
+												if (
+													!(
+														error as Error & {
+															handledByToast?: boolean;
+														}
+													)?.handledByToast
+												) {
+													toast.error(error.message);
+												}
+												setIsUploadingImage(false);
+											}}
+											onUpload={handleImageUpload}
+											onUploadComplete={() => setIsUploadingImage(false)}
+											onUploadStart={() => setIsUploadingImage(true)}
+											placeholder="Upload a square image at least 256×256px. SVG uploads are allowed."
+											ref={field.ref}
+											uploadLabel="Upload image"
+											value={field.value}
+										/>
+									</FormControl>
+									<FormDescription>
+										We&apos;ll use this image everywhere the AI agent appears in
+										the dashboard and support widget.
+									</FormDescription>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+					)}
+
+					<FormField
+						control={form.control}
 						name="description"
 						render={({ field }) => (
 							<FormItem>
@@ -333,7 +677,7 @@ export function AIAgentForm({
 									<Input
 										placeholder="Helps users with common support questions"
 										{...field}
-										disabled={isPending}
+										disabled={isSubmitting}
 									/>
 								</FormControl>
 								<FormDescription>
@@ -351,7 +695,7 @@ export function AIAgentForm({
 							<FormItem>
 								<ModelSelect
 									description="The AI model to use for generating responses."
-									disabled={isPending}
+									disabled={isSubmitting}
 									label="Model"
 									onChange={field.onChange}
 									planInfo={planInfo}
@@ -370,7 +714,7 @@ export function AIAgentForm({
 							<FormItem>
 								<PromptInputWithMentions
 									description="The system prompt that defines how your AI agent behaves."
-									disabled={isPending}
+									disabled={isSubmitting}
 									error={fieldState.error?.message}
 									label="Base Prompt"
 									maxLength={10_000}
@@ -393,7 +737,7 @@ export function AIAgentForm({
 									<FormLabel>Temperature</FormLabel>
 									<FormControl>
 										<Input
-											disabled={isPending}
+											disabled={isSubmitting}
 											max={2}
 											min={0}
 											placeholder="0.7"
@@ -426,7 +770,7 @@ export function AIAgentForm({
 									<FormLabel>Max Tokens</FormLabel>
 									<FormControl>
 										<Input
-											disabled={isPending}
+											disabled={isSubmitting}
 											max={16_000}
 											min={100}
 											placeholder="1024"
@@ -469,8 +813,12 @@ export function AIAgentForm({
 					<div className="flex flex-1 items-center justify-end gap-2">
 						<BaseSubmitButton
 							className="w-auto"
-							disabled={isEditing ? !hasChanges : false}
-							isSubmitting={isPending}
+							disabled={
+								isEditing
+									? !(hasChanges && form.formState.isValid) || isSubmitting
+									: isSubmitting || !form.formState.isValid
+							}
+							isSubmitting={isSubmitting}
 						>
 							{isEditing ? "Save changes" : "Create agent"}
 						</BaseSubmitButton>

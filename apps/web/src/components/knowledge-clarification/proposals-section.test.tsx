@@ -87,9 +87,12 @@ function createProposal(
 		source: "faq",
 		status: "deferred",
 		topicSummary: "Clarify how refunds work for annual plans",
+		engagementMode: "owner",
+		linkedConversationCount: 1,
 		stepIndex: 1,
 		maxSteps: 3,
 		targetKnowledgeId: null,
+		targetKnowledgeSummary: null,
 		currentQuestion: "Do annual plans get a prorated refund?",
 		currentSuggestedAnswers: ["Yes", "No", "Only within 30 days"],
 		currentQuestionInputMode: "suggested_answers",
@@ -147,6 +150,29 @@ describe("KnowledgeClarificationProposalsSection", () => {
 		expect(html).not.toContain(">AI Suggestion<");
 		expect(html).not.toContain("From conversation");
 		expect(html).not.toContain("Can annual plans get a refund?");
+	});
+
+	it("shows linked conversation count and target FAQ metadata when present", () => {
+		const html = renderToStaticMarkup(
+			<KnowledgeClarificationProposalsSection
+				proposals={[
+					createProposal({
+						id: "01JQJ2V0A00000000000000012",
+						targetKnowledgeId: "01JQJ2V0A00000000000000020",
+						targetKnowledgeSummary: {
+							id: "01JQJ2V0A00000000000000020",
+							question: "Can annual plans get a refund?",
+							sourceTitle: "Can annual plans get a refund?",
+						},
+						linkedConversationCount: 4,
+					}),
+				]}
+				websiteSlug="acme"
+			/>
+		);
+
+		expect(html).toContain("Updating: Can annual plans get a refund?");
+		expect(html).toContain("4 conversations");
 	});
 
 	it("renders distinct labels for retry-required and deferred proposals", () => {

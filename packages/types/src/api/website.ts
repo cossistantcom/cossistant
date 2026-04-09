@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { APIKeyType, WebsiteInstallationTarget, WebsiteStatus } from "../enums";
+import { apiTimestampSchema, nullableApiTimestampSchema } from "./common";
 import { publicVisitorResponseSchema } from "./visitor";
 
 /**
@@ -71,15 +72,15 @@ export const websiteApiKeySchema = z
 			description: "Whether the API key is active.",
 			example: true,
 		}),
-		createdAt: z.string().openapi({
+		createdAt: apiTimestampSchema.openapi({
 			description: "Timestamp indicating when the API key was created.",
 			example: "2024-01-01T00:00:00.000Z",
 		}),
-		lastUsedAt: z.string().nullable().openapi({
+		lastUsedAt: nullableApiTimestampSchema.openapi({
 			description: "Timestamp indicating when the API key was last used.",
 			example: "2024-01-10T12:00:00.000Z",
 		}),
-		revokedAt: z.string().nullable().openapi({
+		revokedAt: nullableApiTimestampSchema.openapi({
 			description:
 				"Timestamp indicating when the API key was revoked, if applicable.",
 			example: null,
@@ -353,7 +354,7 @@ export const availableHumanAgentSchema = z.object({
 		example: "https://plasma-pandora.com/avatar.png",
 	}),
 	/** Timestamp used to determine whether the agent is online. */
-	lastSeenAt: z.string().nullable().openapi({
+	lastSeenAt: nullableApiTimestampSchema.openapi({
 		description:
 			"The agent's last online timestamp, used to determine if the agent is online. If the agent is offline, this will be null or more than 5 minutes ago.",
 		example: "2021-01-01T00:00:00.000Z",
@@ -418,7 +419,7 @@ export const publicWebsiteResponseSchema = z.object({
 		example: "active",
 	}),
 	/** When support was last online for this website. */
-	lastOnlineAt: z.string().nullable().openapi({
+	lastOnlineAt: nullableApiTimestampSchema.openapi({
 		description: "The website's support last online date.",
 		example: "2021-01-01T00:00:00.000Z",
 	}),

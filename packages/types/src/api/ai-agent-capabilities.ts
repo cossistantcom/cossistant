@@ -101,6 +101,8 @@ const AI_AGENT_TOOL_CATALOG_RAW: readonly RawToolCatalogEntry[] = [
 ## Result Use
 
 - Prioritize high-similarity results that directly answer the request.
+- Give the best grounded answer or partial answer before asking any follow-up.
+- If you still need clarification, ask only one narrow question after sharing what you already know.
 - Use title/source metadata when it clarifies confidence.`,
 		},
 	},

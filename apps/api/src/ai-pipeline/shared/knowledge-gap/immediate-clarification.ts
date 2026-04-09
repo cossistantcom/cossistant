@@ -23,6 +23,7 @@ import { buildToolDrivenClarificationContext } from "./tool-clarification-contex
 type SearchKnowledgeResultData = {
 	articles: Array<{
 		content: string;
+		knowledgeId: string | null;
 		similarity: number;
 		title: string | null;
 		sourceUrl: string | null;
@@ -66,6 +67,7 @@ function toSearchEvidence(
 			retrievalQuality: searchResult.retrievalQuality,
 			clarificationSignal: searchResult.clarificationSignal,
 			articles: searchResult.articles.map((article) => ({
+				knowledgeId: article.knowledgeId,
 				title: article.title,
 				sourceUrl: article.sourceUrl,
 				sourceType: article.sourceType,

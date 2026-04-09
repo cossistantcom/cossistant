@@ -14,7 +14,11 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
 	children,
 }) => {
 	if (theme === "dark") {
-		return <div data-color-scheme="dark">{children}</div>;
+		return (
+			<div className="dark" data-color-scheme="dark">
+				{children}
+			</div>
+		);
 	}
 
 	// Light or undefined - render children directly to inherit theme from parent

@@ -1,0 +1,42 @@
+{
+  "extends": "../typescript-config/base.json",
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "es2022",
+    "jsx": "react-jsx",
+    "lib": ["es2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "noEmit": false,
+    "declaration": true,
+    "declarationDir": "./dist",
+    "emitDeclarationOnly": true,
+    "baseUrl": "./",
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "@cossistant/browser": ["./src"],
+      "@cossistant/browser/*": ["./src/*"],
+      "@cossistant/core": ["../core/src"],
+      "@cossistant/core/*": ["../core/src/*"],
+      "@cossistant/react": ["../react/src"],
+      "@cossistant/react/*": ["../react/src/*"],
+      "@cossistant/types": ["../types/src"],
+      "@cossistant/types/*": ["../types/src/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "types": ["react", "react-dom"],
+  "exclude": [
+    "**/.*/",
+    "**/build",
+    "**/build-tests",
+    "**/node_modules",
+    "docs/export",
+    "dist",
+    "*.config.*",
+    "**/*.test.ts",
+    "**/*.test.tsx"
+  ]
+}

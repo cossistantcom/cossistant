@@ -3,7 +3,9 @@ import {
 	type ApiKeyWithWebsiteAndOrganization,
 	getApiKeyByKey,
 } from "@api/db/queries/api-keys";
+import { env } from "@api/env";
 import {
+	hashApiKey,
 	isValidPublicApiKeyFormat,
 	isValidSecretApiKeyFormat,
 } from "@api/utils/api-keys";
@@ -313,7 +315,9 @@ export async function authenticateWithPrivateKey(
 		throw new AuthValidationError(401, "Invalid private API key format");
 	}
 
-	return await getApiKeyFromRedis(privateKey, db);
+	// Private keys are HMAC-hashed before storage, so hash before lookup
+	const hashedKey = hashApiKey(privateKey, env.API_KEY_SECRET);
+	return await getApiKeyFromRedis(hashedKey, db);
 }
 
 /**

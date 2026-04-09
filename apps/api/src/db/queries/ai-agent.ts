@@ -87,6 +87,7 @@ export async function createAiAgent(
 	db: Database,
 	params: {
 		name: string;
+		image?: string | null;
 		description?: string | null;
 		basePrompt: string;
 		model: string;
@@ -103,6 +104,7 @@ export async function createAiAgent(
 	const newAgent: AiAgentInsert = {
 		id: ulid(),
 		name: params.name,
+		image: params.image ?? null,
 		description: params.description ?? null,
 		basePrompt: params.basePrompt,
 		model: params.model,
@@ -134,6 +136,7 @@ export async function updateAiAgent(
 	params: {
 		aiAgentId: string;
 		name: string;
+		image?: string | null;
 		description?: string | null;
 		basePrompt: string;
 		model: string;
@@ -148,6 +151,7 @@ export async function updateAiAgent(
 	// Build the update object, only including onboardingCompletedAt if explicitly provided
 	const updateData: Record<string, unknown> = {
 		name: params.name,
+		image: params.image ?? null,
 		description: params.description ?? null,
 		basePrompt: params.basePrompt,
 		model: params.model,

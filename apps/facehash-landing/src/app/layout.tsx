@@ -1,4 +1,3 @@
-import { Analytics } from "@vercel/analytics/next";
 import { GeistPixelSquare } from "geist/font/pixel";
 import type { Metadata } from "next";
 import "./globals.css";
@@ -155,7 +154,6 @@ export default function RootLayout({
 			lang="en"
 			suppressHydrationWarning
 		>
-			<Analytics />
 			<head>
 				<script
 					// biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD structured data requires dangerouslySetInnerHTML

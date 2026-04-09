@@ -1,4 +1,3 @@
-import { Analytics } from "@vercel/analytics/next";
 import { Geist, Geist_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import Script from "next/script";
@@ -65,7 +64,6 @@ export default function RootLayout({
 				/>
 				<Providers>{children}</Providers>
 				<Toaster />
-				<Analytics />
 			</body>
 		</html>
 	);

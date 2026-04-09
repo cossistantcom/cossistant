@@ -51,10 +51,6 @@ export function WebPageDetail({ knowledgeId }: WebPageDetailProps) {
 	const router = useRouter();
 	const trpc = useTRPC();
 	const queryClient = useQueryClient();
-	const [sourceTitle, setSourceTitle] = useState("");
-	const [markdown, setMarkdown] = useState("");
-	const [initialDraft, setInitialDraft] =
-		useState<NormalizedWebDraft>(EMPTY_WEB_DRAFT);
 
 	const listHref = `/${website.slug}/agent/training/web`;
 
@@ -63,6 +59,26 @@ export function WebPageDetail({ knowledgeId }: WebPageDetailProps) {
 			websiteSlug: website.slug,
 			id: knowledgeId,
 		})
+	);
+	const initialDraftFromKnowledge = useMemo(() => {
+		if (!knowledge || knowledge.type !== "url") {
+			return EMPTY_WEB_DRAFT;
+		}
+
+		const payload = knowledge.payload as UrlKnowledgePayload;
+		return normalizeWebDraft({
+			sourceTitle: knowledge.sourceTitle ?? "",
+			markdown: payload.markdown,
+		});
+	}, [knowledge]);
+	const [sourceTitle, setSourceTitle] = useState(
+		() => initialDraftFromKnowledge.sourceTitle
+	);
+	const [markdown, setMarkdown] = useState(
+		() => initialDraftFromKnowledge.markdown
+	);
+	const [initialDraft, setInitialDraft] = useState<NormalizedWebDraft>(
+		() => initialDraftFromKnowledge
 	);
 
 	const saveMutation = useMutation(
@@ -202,15 +218,10 @@ export function WebPageDetail({ knowledgeId }: WebPageDetailProps) {
 			return;
 		}
 
-		const payload = knowledge.payload as UrlKnowledgePayload;
-		const nextDraft = normalizeWebDraft({
-			sourceTitle: knowledge.sourceTitle ?? "",
-			markdown: payload.markdown,
-		});
-		setSourceTitle(knowledge.sourceTitle ?? "");
-		setMarkdown(payload.markdown);
-		setInitialDraft(nextDraft);
-	}, [knowledge]);
+		setSourceTitle(initialDraftFromKnowledge.sourceTitle);
+		setMarkdown(initialDraftFromKnowledge.markdown);
+		setInitialDraft(initialDraftFromKnowledge);
+	}, [initialDraftFromKnowledge, knowledge]);
 
 	const headerTitle = useMemo(() => {
 		if (sourceTitle.trim()) {

@@ -22,6 +22,10 @@ mock.module("../actions/send-message", () => ({
 	sendMessage: sendPublicMessageMock,
 }));
 
+mock.module("../actions/update-status", () => ({
+	updateStatus: mock(async () => {}),
+}));
+
 const modulePromise = import("./finish");
 
 function isAsyncIterable<T>(value: unknown): value is AsyncIterable<T> {
@@ -143,6 +147,9 @@ describe("createEscalateTool", () => {
 		expect(ctx.runtimeState.publicMessagesSent).toBe(1);
 		expect(ctx.runtimeState.publicSendSequence).toBe(1);
 		expect(ctx.runtimeState.sentPublicMessageIds.has("msg-1")).toBe(true);
+		expect(ctx.runtimeState.publicReplyTexts).toEqual([
+			"I've asked a team member to join the conversation. They'll be with you shortly.",
+		]);
 		expect(ctx.runtimeState.finalAction?.action).toBe("escalate");
 	});
 

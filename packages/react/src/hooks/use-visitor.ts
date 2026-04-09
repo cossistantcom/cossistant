@@ -4,6 +4,7 @@ import type {
 	VisitorResponse,
 } from "@plasma/types";
 import { useCallback } from "react";
+import { useSupportController } from "../controller-context";
 import { useSupport } from "../provider";
 
 export type IdentifyParams = {
@@ -82,7 +83,8 @@ function safeError(message: string, error: unknown): void {
  * has been identified. If not, you must call identify() first.
  */
 export function useVisitor(): UseVisitorReturn {
-	const { website, client } = useSupport();
+	const controller = useSupportController();
+	const { website } = useSupport();
 	const visitor = website?.visitor || null;
 	const visitorId = visitor?.id ?? null;
 
@@ -90,7 +92,7 @@ export function useVisitor(): UseVisitorReturn {
 		(metadata: VisitorMetadata) => Promise<VisitorResponse | null>
 	>(
 		async (metadata) => {
-			if (!(visitorId && client)) {
+			if (!visitorId) {
 				safeWarn(
 					"No visitor is associated with this session; metadata update skipped"
 				);
@@ -98,13 +100,13 @@ export function useVisitor(): UseVisitorReturn {
 			}
 
 			try {
-				return await client.updateVisitorMetadata(metadata);
+				return await controller.updateVisitorMetadata(metadata);
 			} catch (error) {
 				safeError("Failed to update visitor metadata", error);
 				return null;
 			}
 		},
-		[client, visitorId]
+		[controller, visitorId]
 	);
 
 	const identify = useCallback<
@@ -113,7 +115,7 @@ export function useVisitor(): UseVisitorReturn {
 		) => Promise<{ contactId: string; visitorId: string } | null>
 	>(
 		async (params) => {
-			if (!(visitorId && client)) {
+			if (!visitorId) {
 				safeWarn(
 					"No visitor is associated with this session; identify skipped"
 				);
@@ -121,7 +123,11 @@ export function useVisitor(): UseVisitorReturn {
 			}
 
 			try {
-				const result = await client.identify(params);
+				const result = await controller.identify(params);
+
+				if (!result) {
+					return null;
+				}
 
 				return {
 					contactId: result.contact.id,
@@ -132,7 +138,7 @@ export function useVisitor(): UseVisitorReturn {
 				return null;
 			}
 		},
-		[client, visitorId]
+		[controller, visitorId]
 	);
 
 	return {

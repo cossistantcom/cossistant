@@ -6,6 +6,8 @@
 */
 @source "./components";
 @source "./pages";
+@source "../primitives";
+@source "../feedback/components";
 
 @layer base {
 	.cossistant {

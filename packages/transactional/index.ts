@@ -3,7 +3,7 @@
  * Centralized email and transactional communication package
  *
  * This package provides:
- * - Email sending via Resend
+ * - Email sending via provider-neutral transports
  * - Email templates using React Email
  * - Audience management
  * - Subscribe/unsubscribe functionality
@@ -16,4 +16,9 @@ export * from "./emails/index";
 // Resend utilities (client, types, constants, audience management)
 export * from "./resend-utils/index";
 // Main email sending functions
-export { sendBatchEmail, sendEmail } from "./send-via-resend";
+export {
+	sendBatchEmail,
+	sendBatchEmailViaResend,
+	sendEmail,
+	sendEmailViaResend,
+} from "./send";

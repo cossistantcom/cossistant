@@ -37,6 +37,7 @@ export type TextEffectProps = {
 	style?: React.CSSProperties;
 	showCaret?: boolean;
 	caretClassName?: string;
+	revealedCount?: number;
 };
 
 const defaultStaggerTimes: Record<PerType, number> = {
@@ -161,32 +162,18 @@ const AnimationComponent: React.FC<{
 
 AnimationComponent.displayName = "AnimationComponent";
 
-const TypingAnimationComponent: React.FC<{
+const StaticTypingSegmentComponent: React.FC<{
 	segment: string;
 	per: "line" | "word" | "char";
-	duration: number;
 	segmentWrapperClassName?: string;
-}> = React.memo(({ segment, per, duration, segmentWrapperClassName }) => {
+}> = React.memo(({ segment, per, segmentWrapperClassName }) => {
 	const content =
 		per === "line" ? (
-			<motion.span
-				animate={{ opacity: 1, y: 0 }}
-				className="block"
-				initial={{ opacity: 0, y: 4 }}
-				transition={{ duration, ease: "easeOut" }}
-			>
-				{segment}
-			</motion.span>
+			<span className="block">{segment}</span>
 		) : (
-			<motion.span
-				animate={{ opacity: 1, y: 0 }}
-				aria-hidden="true"
-				className="inline-block whitespace-pre"
-				initial={{ opacity: 0, y: 2 }}
-				transition={{ duration, ease: "easeOut" }}
-			>
+			<span aria-hidden="true" className="inline-block whitespace-pre">
 				{segment}
-			</motion.span>
+			</span>
 		);
 
 	if (!segmentWrapperClassName) {
@@ -202,7 +189,7 @@ const TypingAnimationComponent: React.FC<{
 	);
 });
 
-TypingAnimationComponent.displayName = "TypingAnimationComponent";
+StaticTypingSegmentComponent.displayName = "StaticTypingSegmentComponent";
 
 const splitText = (text: string, per: PerType) => {
 	if (per === "line") {
@@ -223,21 +210,6 @@ export const getTextEffectVisibleText = (
 	segments: string[],
 	revealedCount: number
 ) => segments.slice(0, Math.max(revealedCount, 0)).join("");
-
-const resolveTransitionDurationSeconds = (
-	baseDuration: number,
-	transition?: Transition
-) => {
-	if (
-		transition &&
-		"duration" in transition &&
-		typeof transition.duration === "number"
-	) {
-		return transition.duration;
-	}
-
-	return baseDuration;
-};
 
 const hasTransition = (
 	variant?: Variant
@@ -301,6 +273,7 @@ export function TextEffect({
 	style,
 	showCaret = false,
 	caretClassName,
+	revealedCount: controlledRevealedCount,
 }: TextEffectProps) {
 	const fullText = useMemo(
 		() => (Array.isArray(children) ? children.join("") : children),
@@ -312,8 +285,18 @@ export function TextEffect({
 		() => getTextEffectTypingSegments(fullText, per),
 		[fullText, per]
 	);
-	const [revealedCount, setRevealedCount] = useState(() =>
-		showCaret ? 0 : typingSegments.length
+	const isControlledReveal =
+		showCaret && typeof controlledRevealedCount === "number";
+	const resolvedControlledRevealedCount = controlledRevealedCount ?? 0;
+	const [internalRevealedCount, setInternalRevealedCount] = useState(() =>
+		isControlledReveal
+			? Math.max(
+					0,
+					Math.min(resolvedControlledRevealedCount, typingSegments.length)
+				)
+			: showCaret
+				? 0
+				: typingSegments.length
 	);
 	const onAnimationCompleteRef = useRef(onAnimationComplete);
 	const onAnimationStartRef = useRef(onAnimationStart);
@@ -333,10 +316,6 @@ export function TextEffect({
 	const stagger = defaultStaggerTimes[per] / speedReveal;
 
 	const baseDuration = 0.3 / speedSegment;
-	const typingSegmentDuration = resolveTransitionDurationSeconds(
-		baseDuration,
-		segmentTransition
-	);
 
 	const customStagger = hasTransition(variants?.container?.visible ?? {})
 		? (variants?.container?.visible as TargetAndTransition).transition
@@ -368,18 +347,28 @@ export function TextEffect({
 	};
 
 	useEffect(() => {
+		if (isControlledReveal) {
+			setInternalRevealedCount(
+				Math.max(
+					0,
+					Math.min(resolvedControlledRevealedCount, typingSegments.length)
+				)
+			);
+			return;
+		}
+
 		if (!showCaret) {
-			setRevealedCount(typingSegments.length);
+			setInternalRevealedCount(typingSegments.length);
 			return;
 		}
 
 		if (!trigger) {
-			setRevealedCount(0);
+			setInternalRevealedCount(0);
 			return;
 		}
 
 		onAnimationStartRef.current?.();
-		setRevealedCount(0);
+		setInternalRevealedCount(0);
 
 		if (typingSegments.length === 0) {
 			onAnimationCompleteRef.current?.();
@@ -389,21 +378,16 @@ export function TextEffect({
 		const timeouts: ReturnType<typeof setTimeout>[] = [];
 		const stepDelayMs = Math.max(stagger * 1000, 1);
 		const startDelayMs = Math.max(delay * 1000, 0);
-		const completionDelayMs = Math.max(typingSegmentDuration * 1000, 0);
 
 		timeouts.push(
 			setTimeout(() => {
 				for (let index = 0; index < typingSegments.length; index += 1) {
 					timeouts.push(
 						setTimeout(() => {
-							setRevealedCount(index + 1);
+							setInternalRevealedCount(index + 1);
 
 							if (index === typingSegments.length - 1) {
-								timeouts.push(
-									setTimeout(() => {
-										onAnimationCompleteRef.current?.();
-									}, completionDelayMs)
-								);
+								onAnimationCompleteRef.current?.();
 							}
 						}, index * stepDelayMs)
 					);
@@ -418,15 +402,16 @@ export function TextEffect({
 		};
 	}, [
 		delay,
+		isControlledReveal,
+		resolvedControlledRevealedCount,
 		showCaret,
 		stagger,
 		trigger,
-		typingSegmentDuration,
 		typingSegments,
 	]);
 
 	if (showCaret) {
-		const visibleSegments = typingSegments.slice(0, revealedCount);
+		const visibleSegments = typingSegments.slice(0, internalRevealedCount);
 
 		return (
 			<AnimatePresence mode="popLayout">
@@ -440,8 +425,7 @@ export function TextEffect({
 							data-text-effect-visible="true"
 						>
 							{visibleSegments.map((segment, index) => (
-								<TypingAnimationComponent
-									duration={typingSegmentDuration}
+								<StaticTypingSegmentComponent
 									key={`${per}-typing-${index}-${segment}`}
 									per={per}
 									segment={segment}

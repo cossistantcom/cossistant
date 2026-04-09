@@ -10,6 +10,14 @@ import type React from "react";
 export type Side = "top" | "bottom" | "left" | "right";
 
 /**
+ * Layout mode for the support widget.
+ *
+ * - `floating` renders the default trigger + floating window experience.
+ * - `responsive` renders the widget inline and fills its parent container.
+ */
+export type SupportMode = "floating" | "responsive";
+
+/**
  * Alignment along the side axis.
  */
 export type Align = "start" | "center" | "end";

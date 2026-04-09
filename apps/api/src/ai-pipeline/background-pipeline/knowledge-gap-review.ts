@@ -1,4 +1,5 @@
 import { getConversationTimelineItems } from "@api/db/queries/conversation";
+import { getKnowledgeById } from "@api/db/queries/knowledge";
 import { getActiveKnowledgeClarificationForConversation } from "@api/db/queries/knowledge-clarification";
 import { createModel, generateText, Output } from "@api/lib/ai";
 import { resolveModelForExecution } from "@api/lib/ai-credits/config";
@@ -18,9 +19,10 @@ import { getBehaviorSettings } from "../shared/settings";
 import type { BackgroundPipelineInput } from "./index";
 
 const BACKGROUND_KNOWLEDGE_GAP_REVIEW_OUTPUT_SCHEMA = z.object({
-	action: z.enum(["create", "skip"]),
+	action: z.enum(["create_new", "deepen_existing", "skip"]),
 	reason: z.string().min(1).max(240),
 	topicSummary: z.string().min(1).max(300).nullable(),
+	knowledgeId: z.string().nullable(),
 });
 
 function normalizeText(value: string): string {
@@ -65,6 +67,26 @@ function formatSearchSignals(signals: SearchKnowledgeSignal[]): string {
 				`retrievalQuality=${signal.retrievalQuality}`,
 				`clarificationSignal=${signal.clarificationSignal}`,
 			].join(" | ")
+		)
+		.join("\n");
+}
+
+function formatFaqCandidates(
+	items: Array<{
+		knowledgeId: string;
+		title: string | null;
+		similarity: number | null;
+		snippet: string | null;
+	}>
+): string {
+	if (items.length === 0) {
+		return "- none";
+	}
+
+	return items
+		.map(
+			(item, index) =>
+				`${index + 1}. knowledgeId=${item.knowledgeId} | title=${item.title ?? "none"} | similarity=${item.similarity ?? "unknown"} | snippet=${item.snippet ?? "none"}`
 		)
 		.join("\n");
 }
@@ -221,6 +243,25 @@ export async function runBackgroundKnowledgeGapReview(params: {
 		.slice(-12)
 		.map(formatTranscriptEntry)
 		.join("\n");
+	const faqCandidates = [
+		...new Map(
+			latestWorkflowEvidence
+				.flatMap((evidence) => evidence.articles)
+				.filter(
+					(article) =>
+						article.sourceType === "faq" && article.knowledgeId !== null
+				)
+				.map((article) => [
+					article.knowledgeId,
+					{
+						knowledgeId: article.knowledgeId as string,
+						title: article.title,
+						similarity: article.similarity,
+						snippet: article.snippet,
+					},
+				])
+		).values(),
+	].slice(0, 3);
 	const triggerText = normalizeText(
 		params.intake.triggerMessage?.content ?? ""
 	);
@@ -244,6 +285,7 @@ If you choose create:
 			`Trigger visibility: ${params.intake.triggerMessage?.visibility ?? "none"}`,
 			`Trigger text: ${triggerText || "none"}`,
 			`Latest KB search workflow:\n${formatSearchSignals(latestWorkflowSignals)}`,
+			`FAQ candidates to deepen:\n${formatFaqCandidates(faqCandidates)}`,
 			`Recent transcript:\n${transcript || "- none"}`,
 		].join("\n\n"),
 		temperature: 0,
@@ -251,7 +293,7 @@ If you choose create:
 	});
 
 	const reviewOutput = review.output;
-	if (!(reviewOutput && reviewOutput.action === "create")) {
+	if (!(reviewOutput && reviewOutput.action !== "skip")) {
 		return {
 			status: "skipped",
 			reason: "review_skipped",
@@ -305,6 +347,13 @@ If you choose create:
 	});
 	const topicSummary =
 		reviewOutput.topicSummary?.trim() || fallbackTopicSummary;
+	const targetKnowledge =
+		reviewOutput.action === "deepen_existing" && reviewOutput.knowledgeId
+			? await getKnowledgeById(params.db, {
+					id: reviewOutput.knowledgeId,
+					websiteId: params.intake.conversation.websiteId,
+				})
+			: null;
 	const clarificationResult = await requestKnowledgeClarificationAction({
 		db: params.db,
 		conversation: params.intake.conversation as never,
@@ -313,6 +362,7 @@ If you choose create:
 		aiAgentId: params.intake.aiAgent.id,
 		topicSummary,
 		contextSnapshot,
+		targetKnowledge,
 	});
 
 	return {

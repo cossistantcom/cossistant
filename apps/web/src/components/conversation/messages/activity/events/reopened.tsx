@@ -4,7 +4,13 @@ import type { EventActivityProps } from "../types";
 
 function resolveEventIcon(event: EventActivityProps["event"]): ActivityIcon {
 	if (event.actorType === "ai") {
-		return { type: "logo" };
+		return event.actorImage
+			? {
+					type: "avatar",
+					name: event.actorName,
+					image: event.actorImage,
+				}
+			: { type: "logo" };
 	}
 	return {
 		type: "avatar",

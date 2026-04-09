@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { apiTimestampSchema } from "./common";
 import {
 	faqKnowledgePayloadSchema,
 	knowledgeResponseSchema,
@@ -73,6 +74,24 @@ export const knowledgeClarificationQuestionScopeSchema = z
 		example: "broad_discovery",
 	});
 
+export const knowledgeClarificationEngagementModeSchema = z
+	.enum(["owner", "linked"])
+	.openapi({
+		description:
+			"Whether the current conversation owns the clarification flow or is only linked to it.",
+		example: "owner",
+	});
+
+export const knowledgeClarificationTargetKnowledgeSummarySchema = z
+	.object({
+		id: z.ulid(),
+		question: z.string().nullable(),
+		sourceTitle: z.string().nullable(),
+	})
+	.openapi({
+		description: "Summary of the FAQ currently targeted by this clarification.",
+	});
+
 export const knowledgeClarificationPlannedQuestionSchema = z
 	.object({
 		id: z.string().min(1).max(80),
@@ -130,17 +149,24 @@ export const conversationClarificationProgressSchema = z.object({
 	detail: z.string().nullable(),
 	attempt: z.number().int().min(1).nullable(),
 	toolName: z.string().nullable(),
-	startedAt: z.string(),
+	startedAt: apiTimestampSchema,
 });
 
 export const conversationClarificationSummarySchema = z.object({
 	requestId: z.ulid(),
 	status: activeConversationKnowledgeClarificationStatusSchema,
 	topicSummary: z.string(),
+	engagementMode: knowledgeClarificationEngagementModeSchema,
+	linkedConversationCount: z.number().int().min(0),
 	question: z.string().nullable(),
+	currentSuggestedAnswers:
+		knowledgeClarificationSuggestedAnswersSchema.nullable(),
+	currentQuestionInputMode:
+		knowledgeClarificationQuestionInputModeSchema.nullable(),
+	currentQuestionScope: knowledgeClarificationQuestionScopeSchema.nullable(),
 	stepIndex: z.number().int().min(0),
 	maxSteps: z.number().int().min(1),
-	updatedAt: z.string(),
+	updatedAt: apiTimestampSchema,
 	progress: conversationClarificationProgressSchema.nullable(),
 });
 
@@ -153,9 +179,13 @@ export const knowledgeClarificationRequestSchema = z.object({
 	source: knowledgeClarificationSourceSchema,
 	status: knowledgeClarificationStatusSchema,
 	topicSummary: z.string(),
+	engagementMode: knowledgeClarificationEngagementModeSchema,
+	linkedConversationCount: z.number().int().min(0),
 	stepIndex: z.number().int().min(0),
 	maxSteps: z.number().int().min(1),
 	targetKnowledgeId: z.ulid().nullable(),
+	targetKnowledgeSummary:
+		knowledgeClarificationTargetKnowledgeSummarySchema.nullable(),
 	questionPlan: knowledgeClarificationQuestionPlanSchema.nullable().optional(),
 	currentQuestion: z.string().nullable(),
 	currentSuggestedAnswers:
@@ -165,8 +195,8 @@ export const knowledgeClarificationRequestSchema = z.object({
 	currentQuestionScope: knowledgeClarificationQuestionScopeSchema.nullable(),
 	draftFaqPayload: knowledgeClarificationDraftFaqSchema.nullable(),
 	lastError: z.string().nullable(),
-	createdAt: z.string(),
-	updatedAt: z.string(),
+	createdAt: apiTimestampSchema,
+	updatedAt: apiTimestampSchema,
 });
 
 export const knowledgeClarificationTurnSchema = z.object({
@@ -177,8 +207,8 @@ export const knowledgeClarificationTurnSchema = z.object({
 	suggestedAnswers: knowledgeClarificationSuggestedAnswersSchema.nullable(),
 	selectedAnswer: z.string().nullable(),
 	freeAnswer: z.string().nullable(),
-	createdAt: z.string(),
-	updatedAt: z.string(),
+	createdAt: apiTimestampSchema,
+	updatedAt: apiTimestampSchema,
 });
 
 export const knowledgeClarificationQuestionStepSchema = z.object({
@@ -228,6 +258,7 @@ export const answerKnowledgeClarificationRequestSchema = z
 	.object({
 		websiteSlug: z.string(),
 		requestId: z.ulid(),
+		expectedStepIndex: z.number().int().positive(),
 		selectedAnswer: z.string().min(1).optional(),
 		freeAnswer: z.string().min(1).optional(),
 	})
@@ -249,6 +280,51 @@ export const updateKnowledgeClarificationStatusRequestSchema = z.object({
 export const skipKnowledgeClarificationRequestSchema = z.object({
 	websiteSlug: z.string(),
 	requestId: z.ulid(),
+	expectedStepIndex: z.number().int().positive(),
+});
+
+export const knowledgeClarificationStreamStepRequestSchema =
+	z.discriminatedUnion("action", [
+		startConversationKnowledgeClarificationRequestSchema.extend({
+			action: z.literal("start_conversation"),
+		}),
+		startFaqKnowledgeClarificationRequestSchema.extend({
+			action: z.literal("start_faq"),
+		}),
+		answerKnowledgeClarificationRequestSchema.extend({
+			action: z.literal("answer"),
+		}),
+		skipKnowledgeClarificationRequestSchema.extend({
+			action: z.literal("skip"),
+		}),
+		updateKnowledgeClarificationStatusRequestSchema.extend({
+			action: z.literal("retry"),
+		}),
+	]);
+
+export const knowledgeClarificationStreamStepDecisionSchema = z.object({
+	kind: z.enum(["question", "draft_ready", "retry_required"]),
+	topicSummary: z.string(),
+	questionPlan: knowledgeClarificationQuestionPlanSchema.nullable(),
+	question: z.string().nullable(),
+	suggestedAnswers: knowledgeClarificationSuggestedAnswersSchema.nullable(),
+	inputMode: knowledgeClarificationQuestionInputModeSchema.nullable(),
+	questionScope: knowledgeClarificationQuestionScopeSchema.nullable(),
+	draftFaqPayload: knowledgeClarificationDraftFaqSchema.nullable(),
+	lastError: z.string().nullable(),
+});
+
+export const knowledgeClarificationStreamStepResponseSchema = z.object({
+	requestId: z.ulid(),
+	decision: knowledgeClarificationStreamStepDecisionSchema,
+	status: z.union([
+		z.literal("analyzing"),
+		z.literal("awaiting_answer"),
+		z.literal("retry_required"),
+		z.literal("draft_ready"),
+	]),
+	updatedAt: apiTimestampSchema,
+	request: knowledgeClarificationRequestSchema,
 });
 
 export const listKnowledgeClarificationProposalsRequestSchema = z.object({
@@ -277,10 +353,6 @@ export const approveKnowledgeClarificationDraftRequestSchema = z.object({
 export const approveKnowledgeClarificationDraftResponseSchema = z.object({
 	request: knowledgeClarificationRequestSchema,
 	knowledge: knowledgeResponseSchema,
-});
-
-export const knowledgeClarificationStepEnvelopeSchema = z.object({
-	step: knowledgeClarificationStepResponseSchema,
 });
 
 export const getActiveKnowledgeClarificationResponseSchema = z.object({
@@ -331,6 +403,15 @@ export type KnowledgeClarificationTurn = z.infer<
 >;
 export type KnowledgeClarificationStepResponse = z.infer<
 	typeof knowledgeClarificationStepResponseSchema
+>;
+export type KnowledgeClarificationStreamStepDecision = z.infer<
+	typeof knowledgeClarificationStreamStepDecisionSchema
+>;
+export type KnowledgeClarificationStreamStepRequest = z.infer<
+	typeof knowledgeClarificationStreamStepRequestSchema
+>;
+export type KnowledgeClarificationStreamStepResponse = z.infer<
+	typeof knowledgeClarificationStreamStepResponseSchema
 >;
 export type StartConversationKnowledgeClarificationRequest = z.infer<
 	typeof startConversationKnowledgeClarificationRequestSchema

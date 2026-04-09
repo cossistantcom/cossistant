@@ -9,13 +9,6 @@ const getKnowledgeClarificationRequestByIdMock = mock(
 const updateKnowledgeClarificationRequestMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
 );
-const getLatestKnowledgeClarificationForConversationBySourceTriggerMessageIdMock =
-	mock((async () => null) as (...args: unknown[]) => Promise<unknown>);
-const getLatestKnowledgeClarificationForConversationByTopicFingerprintMock =
-	mock((async () => null) as (...args: unknown[]) => Promise<unknown>);
-const createKnowledgeClarificationTurnMock = mock(
-	(async () => null) as (...args: unknown[]) => Promise<unknown>
-);
 const createKnowledgeMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
 );
@@ -29,20 +22,6 @@ const getTotalKnowledgeSizeBytesMock = mock(
 	(async () => 0) as (...args: unknown[]) => Promise<number>
 );
 const updateKnowledgeMock = mock(
-	(async () => null) as (...args: unknown[]) => Promise<unknown>
-);
-const emitConversationClarificationUpdateMock = mock((async () => {}) as (
-	...args: unknown[]
-) => Promise<void>);
-const createKnowledgeClarificationAuditEntryMock = mock((async () => {}) as (
-	...args: unknown[]
-) => Promise<void>);
-const loadKnowledgeClarificationRuntimeMock = mock((async () => ({
-	aiAgent: { id: "01JQJ2V0A00000000000000003" },
-	conversation: { id: "conv_1", visitorId: "visitor_1" },
-	targetKnowledge: null,
-})) as (...args: unknown[]) => Promise<unknown>);
-const runKnowledgeClarificationStepMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
 );
 
@@ -71,12 +50,7 @@ mock.module("@api/db/queries/knowledge-clarification", () => ({
 		"deferred",
 		"draft_ready",
 	],
-	createKnowledgeClarificationTurn: createKnowledgeClarificationTurnMock,
 	getActiveKnowledgeClarificationForConversation: mock(async () => null),
-	getLatestKnowledgeClarificationForConversationBySourceTriggerMessageId:
-		getLatestKnowledgeClarificationForConversationBySourceTriggerMessageIdMock,
-	getLatestKnowledgeClarificationForConversationByTopicFingerprint:
-		getLatestKnowledgeClarificationForConversationByTopicFingerprintMock,
 	getKnowledgeClarificationRequestById:
 		getKnowledgeClarificationRequestByIdMock,
 	listActiveKnowledgeClarificationSummariesForConversations: mock(
@@ -96,18 +70,12 @@ mock.module("@api/db/queries/knowledge", () => ({
 }));
 
 mock.module("@api/services/knowledge-clarification", () => ({
-	createKnowledgeClarificationAuditEntry:
-		createKnowledgeClarificationAuditEntryMock,
-	emitConversationClarificationUpdate: emitConversationClarificationUpdateMock,
-	loadKnowledgeClarificationRuntime: loadKnowledgeClarificationRuntimeMock,
-	runKnowledgeClarificationStep: runKnowledgeClarificationStepMock,
+	createKnowledgeClarificationAuditEntry: mock(async () => {}),
+	emitConversationClarificationUpdate: mock(async () => {}),
+	loadKnowledgeClarificationRuntime: mock(async () => ({
+		conversation: null,
+	})),
 	serializeKnowledgeClarificationRequest: mock((value: unknown) => value),
-	startConversationKnowledgeClarification: mock(async () => {
-		throw new Error("unused");
-	}),
-	startFaqKnowledgeClarification: mock(async () => {
-		throw new Error("unused");
-	}),
 }));
 
 const modulePromise = Promise.all([
@@ -123,9 +91,7 @@ function createWebsite() {
 	} as never;
 }
 
-function createRequest(
-	overrides: Record<string, unknown> = {}
-): Record<string, unknown> {
+function createRequest(overrides: Record<string, unknown> = {}) {
 	return {
 		id: "01JQJ2V0A00000000000000010",
 		organizationId: "01JQJ2V0A00000000000000001",
@@ -150,20 +116,6 @@ function createRequest(
 	};
 }
 
-function createRetryStep() {
-	return {
-		kind: "retry_required" as const,
-		request: createRequest({
-			status: "retry_required",
-			currentQuestion: null,
-			currentSuggestedAnswers: null,
-			currentQuestionInputMode: null,
-			currentQuestionScope: null,
-			lastError: "No output generated.",
-		}),
-	};
-}
-
 async function createCaller() {
 	const [{ createCallerFactory }, { knowledgeClarificationRouter }] =
 		await modulePromise;
@@ -180,175 +132,27 @@ async function createCaller() {
 	});
 }
 
-describe("knowledgeClarification router retry handling", () => {
+describe("knowledgeClarification router", () => {
 	beforeEach(() => {
 		getWebsiteBySlugWithAccessMock.mockReset();
 		getKnowledgeClarificationRequestByIdMock.mockReset();
 		updateKnowledgeClarificationRequestMock.mockReset();
-		getLatestKnowledgeClarificationForConversationBySourceTriggerMessageIdMock.mockReset();
-		getLatestKnowledgeClarificationForConversationByTopicFingerprintMock.mockReset();
-		createKnowledgeClarificationTurnMock.mockReset();
 		createKnowledgeMock.mockReset();
 		getKnowledgeByIdMock.mockReset();
 		getKnowledgeCountByTypeMock.mockReset();
 		getTotalKnowledgeSizeBytesMock.mockReset();
 		updateKnowledgeMock.mockReset();
-		emitConversationClarificationUpdateMock.mockReset();
-		createKnowledgeClarificationAuditEntryMock.mockReset();
-		loadKnowledgeClarificationRuntimeMock.mockReset();
-		runKnowledgeClarificationStepMock.mockReset();
 
 		getWebsiteBySlugWithAccessMock.mockResolvedValue(createWebsite());
 		getKnowledgeClarificationRequestByIdMock.mockResolvedValue(createRequest());
-		getLatestKnowledgeClarificationForConversationBySourceTriggerMessageIdMock.mockResolvedValue(
-			null
-		);
-		getLatestKnowledgeClarificationForConversationByTopicFingerprintMock.mockResolvedValue(
-			null
-		);
-		updateKnowledgeClarificationRequestMock.mockResolvedValue(
+		updateKnowledgeClarificationRequestMock.mockImplementation((async (
+			_db: unknown,
+			input: { updates: Record<string, unknown> }
+		) =>
 			createRequest({
-				status: "analyzing",
-				lastError: null,
-			})
-		);
-		loadKnowledgeClarificationRuntimeMock.mockResolvedValue({
-			aiAgent: { id: "01JQJ2V0A00000000000000003" },
-			conversation: {
-				id: "conv_1",
-				websiteId: "01JQJ2V0A00000000000000002",
-				organizationId: "01JQJ2V0A00000000000000001",
-				visitorId: "visitor_1",
-			},
-			targetKnowledge: null,
-		});
-		runKnowledgeClarificationStepMock.mockResolvedValue(createRetryStep());
-	});
-
-	it("returns retry_required from answer without throwing a TRPC error", async () => {
-		const caller = await createCaller();
-
-		const result = await caller.answer({
-			websiteSlug: "acme",
-			requestId: "01JQJ2V0A00000000000000010",
-			selectedAnswer: "At the next billing cycle",
-		});
-
-		expect(result.step.kind).toBe("retry_required");
-		expect(createKnowledgeClarificationTurnMock).toHaveBeenCalledWith(
-			{} as never,
-			expect.objectContaining({
-				role: "human_answer",
-				selectedAnswer: "At the next billing cycle",
-			})
-		);
-		expect(runKnowledgeClarificationStepMock).toHaveBeenCalledWith(
-			expect.objectContaining({
-				progressReporter: expect.any(Function),
-			})
-		);
-		expect(emitConversationClarificationUpdateMock).toHaveBeenLastCalledWith(
-			expect.objectContaining({
-				request: expect.objectContaining({
-					status: "retry_required",
-				}),
-			})
-		);
-	});
-
-	it("returns retry_required from skip without throwing a TRPC error", async () => {
-		const caller = await createCaller();
-
-		const result = await caller.skip({
-			websiteSlug: "acme",
-			requestId: "01JQJ2V0A00000000000000010",
-		});
-
-		expect(result.step.kind).toBe("retry_required");
-		expect(createKnowledgeClarificationTurnMock).toHaveBeenCalledWith(
-			{} as never,
-			expect.objectContaining({
-				role: "human_skip",
-			})
-		);
-		expect(runKnowledgeClarificationStepMock).toHaveBeenCalledWith(
-			expect.objectContaining({
-				progressReporter: expect.any(Function),
-			})
-		);
-	});
-
-	it("returns retry_required from retry without throwing a TRPC error", async () => {
-		getKnowledgeClarificationRequestByIdMock.mockResolvedValueOnce(
-			createRequest({
-				status: "retry_required",
-				currentQuestion: null,
-				currentSuggestedAnswers: null,
-				currentQuestionInputMode: null,
-				currentQuestionScope: null,
-				lastError: "No output generated.",
-			})
-		);
-		const caller = await createCaller();
-
-		const result = await caller.retry({
-			websiteSlug: "acme",
-			requestId: "01JQJ2V0A00000000000000010",
-		});
-
-		expect(result.step.kind).toBe("retry_required");
-		expect(createKnowledgeClarificationTurnMock).not.toHaveBeenCalled();
-		expect(runKnowledgeClarificationStepMock).toHaveBeenCalledTimes(1);
-		expect(runKnowledgeClarificationStepMock).toHaveBeenCalledWith(
-			expect.objectContaining({
-				progressReporter: expect.any(Function),
-			})
-		);
-	});
-
-	it("rejects retrying a clarification that is not retry-required", async () => {
-		const caller = await createCaller();
-
-		await expect(
-			caller.retry({
-				websiteSlug: "acme",
-				requestId: "01JQJ2V0A00000000000000010",
-			})
-		).rejects.toMatchObject({
-			code: "BAD_REQUEST",
-			message: "This clarification request cannot be retried",
-		});
-	});
-
-	it("rejects answering a draft-ready clarification", async () => {
-		getKnowledgeClarificationRequestByIdMock.mockResolvedValueOnce(
-			createRequest({
-				status: "draft_ready",
-				currentQuestion: null,
-				currentSuggestedAnswers: null,
-				currentQuestionInputMode: null,
-				currentQuestionScope: null,
-				draftFaqPayload: {
-					title: "Billing timing",
-					question: "When does billing change take effect?",
-					answer: "At the next billing cycle.",
-					categories: ["Billing"],
-					relatedQuestions: [],
-				},
-			})
-		);
-		const caller = await createCaller();
-
-		await expect(
-			caller.answer({
-				websiteSlug: "acme",
-				requestId: "01JQJ2V0A00000000000000010",
-				selectedAnswer: "At the next billing cycle",
-			})
-		).rejects.toMatchObject({
-			code: "BAD_REQUEST",
-			message: "This clarification request is not waiting for an answer",
-		});
+				status: input.updates.status ?? "awaiting_answer",
+				draftFaqPayload: input.updates.draftFaqPayload ?? null,
+			})) as (...args: unknown[]) => Promise<unknown>);
 	});
 
 	it("rejects approving a clarification that is not draft-ready", async () => {

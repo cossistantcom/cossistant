@@ -16,6 +16,38 @@ const BASE_RECONNECT_DELAY_MS = 500;
  * No reconnect should be attempted.
  */
 const PERMANENT_CLOSE_CODES = new Set([1008, 1011]);
+const REALTIME_EVENT_TYPES = new Set<AnyRealtimeEvent["type"]>([
+	"userConnected",
+	"userDisconnected",
+	"visitorConnected",
+	"visitorDisconnected",
+	"visitorPresenceUpdate",
+	"userPresenceUpdate",
+	"conversationSeen",
+	"conversationTyping",
+	"timelineItemCreated",
+	"conversationCreated",
+	"visitorIdentified",
+	"conversationEventCreated",
+	"conversationUpdated",
+	"aiAgentProcessingStarted",
+	"aiAgentDecisionMade",
+	"aiAgentProcessingProgress",
+	"aiAgentProcessingCompleted",
+	"timelineItemUpdated",
+	"timelineItemPartUpdated",
+	"crawlStarted",
+	"crawlProgress",
+	"crawlCompleted",
+	"crawlFailed",
+	"linkSourceUpdated",
+	"crawlPagesDiscovered",
+	"crawlPageCompleted",
+	"trainingStarted",
+	"trainingProgress",
+	"trainingCompleted",
+	"trainingFailed",
+]);
 
 /** Custom close code for heartbeat timeout. */
 const HEARTBEAT_TIMEOUT_CODE = 4000;
@@ -88,6 +120,21 @@ type ParsedMessage =
 	| { type: "event"; event: AnyRealtimeEvent }
 	| { type: "invalid" };
 
+function isRealtimeEventType(type: unknown): type is AnyRealtimeEvent["type"] {
+	return (
+		typeof type === "string" &&
+		REALTIME_EVENT_TYPES.has(type as AnyRealtimeEvent["type"])
+	);
+}
+
+function isRealtimePayload(
+	payload: unknown
+): payload is Record<string, unknown> {
+	return (
+		Boolean(payload) && typeof payload === "object" && !Array.isArray(payload)
+	);
+}
+
 function decodeMessageData(data: unknown): MessageDecodeResult {
 	if (typeof data === "string") {
 		return { type: "raw-text", data };
@@ -159,7 +206,7 @@ function parseWebSocketMessage(rawText: string): ParsedMessage {
 		return { type: "error", message };
 	}
 
-	if (messageType && isValidEventType(messageType)) {
+	if (messageType && isRealtimeEventType(messageType)) {
 		try {
 			const event = constructRealtimeEvent(parsed);
 			if (!event) {
@@ -181,18 +228,15 @@ function constructRealtimeEvent(parsed: unknown): AnyRealtimeEvent | null {
 	}
 
 	const type = (parsed as { type: unknown }).type;
-	if (!isValidEventType(type)) {
+	if (!isRealtimeEventType(type)) {
 		return null;
 	}
 
 	const eventType = type;
 	const payloadSource = (parsed as { payload?: unknown }).payload;
 
-	let payload: unknown;
-	try {
-		payload = validateRealtimeEvent(eventType, payloadSource);
-	} catch (error) {
-		console.error("[Realtime] Received invalid event payload", error);
+	if (!isRealtimePayload(payloadSource)) {
+		console.error("[Realtime] Received invalid event payload", parsed);
 		return null;
 	}
 
@@ -217,11 +261,13 @@ function constructRealtimeEvent(parsed: unknown): AnyRealtimeEvent | null {
 
 	return {
 		type: eventType,
-		payload,
+		// Realtime payloads are server-authored, so we keep client-side validation
+		// lightweight for the browser bundle and trust the backend contract here.
+		payload: payloadSource,
 		organizationId,
 		websiteId,
 		visitorId,
-	} as AnyRealtimeEvent;
+	} as unknown as AnyRealtimeEvent;
 }
 
 // ---------------------------------------------------------------------------

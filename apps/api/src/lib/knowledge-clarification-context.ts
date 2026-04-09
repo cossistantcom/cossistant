@@ -21,6 +21,7 @@ export type KnowledgeClarificationSearchSignal =
 	| "background_review";
 
 export type KnowledgeClarificationSearchArticleEvidence = {
+	knowledgeId: string | null;
 	title: string | null;
 	sourceUrl: string | null;
 	sourceType: string | null;
@@ -151,6 +152,7 @@ function parseSearchEvidenceArticles(
 	return articles.slice(0, MAX_SEARCH_ARTICLES).map((article) => {
 		if (!isRecord(article)) {
 			return {
+				knowledgeId: null,
 				title: null,
 				sourceUrl: null,
 				sourceType: null,
@@ -162,6 +164,7 @@ function parseSearchEvidenceArticles(
 		const content = getStringField(article, "content");
 
 		return {
+			knowledgeId: getStringField(article, "knowledgeId"),
 			title: getStringField(article, "title"),
 			sourceUrl: getStringField(article, "sourceUrl"),
 			sourceType: getStringField(article, "sourceType"),

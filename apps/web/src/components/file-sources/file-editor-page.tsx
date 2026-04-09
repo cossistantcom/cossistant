@@ -54,11 +54,6 @@ export function FileEditorPage({ knowledgeId }: FileEditorPageProps) {
 	const router = useRouter();
 	const trpc = useTRPC();
 	const [activeTab, setActiveTab] = useState<"manual" | "upload">("manual");
-	const [title, setTitle] = useState("");
-	const [summary, setSummary] = useState("");
-	const [markdown, setMarkdown] = useState("");
-	const [initialDraft, setInitialDraft] =
-		useState<NormalizedFileDraft>(EMPTY_FILE_DRAFT);
 	const pageState = useTrainingPageState({
 		highlightedFeatureKey: "ai-agent-training-files",
 	});
@@ -72,6 +67,28 @@ export function FileEditorPage({ knowledgeId }: FileEditorPageProps) {
 		}),
 		enabled: Boolean(knowledgeId),
 	});
+	const initialDraftFromKnowledge = useMemo(() => {
+		if (!knowledge || knowledge.type !== "article") {
+			return EMPTY_FILE_DRAFT;
+		}
+
+		const payload = knowledge.payload as ArticleKnowledgePayload;
+		return normalizeFileDraft({
+			title: payload.title,
+			summary: payload.summary ?? "",
+			markdown: payload.markdown,
+		});
+	}, [knowledge]);
+	const [title, setTitle] = useState(() => initialDraftFromKnowledge.title);
+	const [summary, setSummary] = useState(
+		() => initialDraftFromKnowledge.summary
+	);
+	const [markdown, setMarkdown] = useState(
+		() => initialDraftFromKnowledge.markdown
+	);
+	const [initialDraft, setInitialDraft] = useState<NormalizedFileDraft>(
+		() => initialDraftFromKnowledge
+	);
 
 	const {
 		handleCreate,
@@ -95,17 +112,11 @@ export function FileEditorPage({ knowledgeId }: FileEditorPageProps) {
 			return;
 		}
 
-		const payload = knowledge.payload as ArticleKnowledgePayload;
-		const nextDraft = normalizeFileDraft({
-			title: payload.title,
-			summary: payload.summary ?? "",
-			markdown: payload.markdown,
-		});
-		setTitle(payload.title);
-		setSummary(payload.summary ?? "");
-		setMarkdown(payload.markdown);
-		setInitialDraft(nextDraft);
-	}, [knowledge]);
+		setTitle(initialDraftFromKnowledge.title);
+		setSummary(initialDraftFromKnowledge.summary);
+		setMarkdown(initialDraftFromKnowledge.markdown);
+		setInitialDraft(initialDraftFromKnowledge);
+	}, [initialDraftFromKnowledge, knowledge]);
 
 	const isAtFileLimit =
 		pageState.stats?.planLimitFiles !== null &&

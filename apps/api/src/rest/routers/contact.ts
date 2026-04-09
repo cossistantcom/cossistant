@@ -8,6 +8,7 @@ import {
 	findContactOrganizationForWebsite,
 	identifyContact,
 	linkVisitorToContact,
+	listContacts,
 	mergeContactMetadata,
 	updateContact,
 	updateContactOrganization,
@@ -25,17 +26,22 @@ import {
 } from "@api/utils/format-visitor";
 import {
 	safelyExtractRequestData,
+	safelyExtractRequestQuery,
 	validateResponse,
 } from "@api/utils/validate";
 import {
 	type ContactOrganizationResponse,
 	contactOrganizationResponseSchema,
 	contactResponseSchema,
+	contactRestListItemSchema,
 	createContactOrganizationRequestSchema,
 	createContactRequestSchema,
 	type IdentifyContactResponse,
 	identifyContactRequestSchema,
 	identifyContactResponseSchema,
+	listContactsRequestSchema,
+	listContactsRestResponseSchema,
+	type RestContactListItem,
 	updateContactMetadataRequestSchema,
 	updateContactOrganizationRequestSchema,
 	updateContactRequestSchema,
@@ -44,10 +50,27 @@ import { OpenAPIHono, z } from "@hono/zod-openapi";
 import { protectedPublicApiKeyMiddleware } from "../middleware";
 import type { RestContext } from "../types";
 
-export const contactRouter = new OpenAPIHono<RestContext>();
+const contactRuntimeRouter = new OpenAPIHono<RestContext>();
+const contactControlRouter = new OpenAPIHono<RestContext>();
 
-// Apply middleware to all routes in this router
-contactRouter.use("/*", ...protectedPublicApiKeyMiddleware);
+contactRuntimeRouter.use("/*", ...protectedPublicApiKeyMiddleware);
+contactControlRouter.use("/*", ...protectedPrivateApiKeyMiddleware);
+
+const contactIdPathParameter = {
+	name: "id",
+	in: "path",
+	required: true,
+	description: "The contact ID",
+	schema: { type: "string" },
+} as const;
+
+const contactOrganizationIdPathParameter = {
+	name: "id",
+	in: "path",
+	required: true,
+	description: "The contact organization ID",
+	schema: { type: "string" },
+} as const;
 
 function formatContactOrganizationResponse(
 	record: ContactOrganizationRecord
@@ -67,6 +90,10 @@ function formatContactOrganizationResponse(
 	};
 }
 
+function formatContactListItem(item: RestContactListItem): RestContactListItem {
+	return contactRestListItemSchema.parse(item);
+}
+
 export function normalizeIdentifyContactIdentifiers(params: {
 	externalId?: string;
 	email?: string;
@@ -80,8 +107,7 @@ export function normalizeIdentifyContactIdentifiers(params: {
 	};
 }
 
-// POST /contacts/identify - Identify a visitor and create/update their contact
-contactRouter.openapi(
+contactRuntimeRouter.openapi(
 	{
 		method: "post",
 		path: "/identify",
@@ -106,56 +132,12 @@ contactRouter.openapi(
 				},
 				description: "Contact identified successfully",
 			},
-			400: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Invalid request data",
-			},
-			401: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Unauthorized - Invalid API key",
-			},
-			404: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Visitor not found",
-			},
-			500: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Internal server error",
-			},
+			400: errorJsonResponse("Invalid request data"),
+			401: errorJsonResponse("Unauthorized - Invalid API key"),
+			404: errorJsonResponse("Visitor not found"),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-		],
+		...runtimeDualAuth({ includeVisitorIdHeader: true }),
 	},
 	async (c) => {
 		try {
@@ -164,14 +146,7 @@ contactRouter.openapi(
 				identifyContactRequestSchema
 			);
 
-			if (!website?.id) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
-			}
-
-			if (!website.organizationId) {
+			if (!(website?.id && website.organizationId)) {
 				return c.json(
 					{ error: "UNAUTHORIZED", message: "Invalid API key" },
 					401
@@ -193,7 +168,6 @@ contactRouter.openapi(
 				);
 			}
 
-			// Verify visitor exists
 			const visitor = await findVisitorForWebsite(db, {
 				visitorId: body.visitorId,
 				websiteId: website.id,
@@ -206,7 +180,6 @@ contactRouter.openapi(
 				);
 			}
 
-			// Create or update contact
 			const contact = await identifyContact(db, {
 				websiteId: website.id,
 				organizationId: website.organizationId,
@@ -218,7 +191,6 @@ contactRouter.openapi(
 				contactOrganizationId: body.contactOrganizationId,
 			});
 
-			// Link visitor to contact
 			await linkVisitorToContact(db, {
 				visitorId: body.visitorId,
 				contactId: contact.id,
@@ -267,8 +239,85 @@ contactRouter.openapi(
 	}
 );
 
-// POST /contacts - Create a new contact
-contactRouter.openapi(
+contactControlRouter.openapi(
+	{
+		method: "get",
+		path: "/",
+		summary: "List contacts",
+		description:
+			"Returns a paginated list of contacts for the authenticated website.",
+		request: {
+			query: listContactsRequestSchema,
+		},
+		responses: {
+			200: {
+				content: {
+					"application/json": {
+						schema: listContactsRestResponseSchema,
+					},
+				},
+				description: "Contact list retrieved successfully",
+			},
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			403: errorJsonResponse("Forbidden - Private API key required"),
+			500: errorJsonResponse("Internal server error"),
+		},
+		...privateControlAuth(),
+	},
+	async (c) => {
+		try {
+			const extracted = await safelyExtractRequestQuery(
+				c,
+				listContactsRequestSchema
+			);
+			const privateContext = requirePrivateControlContext(c, extracted);
+
+			if (privateContext instanceof Response) {
+				return privateContext;
+			}
+
+			const result = await listContacts(extracted.db, {
+				websiteId: privateContext.website.id,
+				organizationId: privateContext.organization.id,
+				page: extracted.query.page,
+				limit: extracted.query.limit,
+				search: extracted.query.search,
+				sortBy: extracted.query.sortBy,
+				sortOrder: extracted.query.sortOrder,
+				visitorStatus:
+					extracted.query.visitorStatus === "all"
+						? undefined
+						: extracted.query.visitorStatus,
+			});
+
+			return c.json(
+				validateResponse(
+					{
+						...result,
+						items: result.items.map((item) =>
+							formatContactListItem(item as RestContactListItem)
+						),
+					},
+					listContactsRestResponseSchema
+				),
+				200
+			);
+		} catch (error) {
+			console.error("Error listing contacts:", error);
+			return c.json(
+				{
+					error: "INTERNAL_SERVER_ERROR",
+					message: "Failed to list contacts",
+				},
+				500
+			);
+		}
+	}
+);
+
+contactControlRouter.openapi(
 	{
 		method: "post",
 		path: "/",
@@ -301,81 +350,41 @@ contactRouter.openapi(
 				},
 				description: "Contact created successfully",
 			},
-			400: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Invalid request data",
-			},
-			401: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Unauthorized - Invalid API key",
-			},
-			500: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Internal server error",
-			},
+			400: errorJsonResponse("Invalid request data"),
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			403: errorJsonResponse("Forbidden - Private API key required"),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-		],
+		...privateControlAuth(),
 	},
 	async (c) => {
 		try {
-			const { db, website, body } = await safelyExtractRequestData(
+			const extracted = await safelyExtractRequestData(
 				c,
 				createContactRequestSchema
 			);
+			const privateContext = requirePrivateControlContext(c, extracted);
 
-			if (!website?.id) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
-			}
-
-			if (!website.organizationId) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
+			if (privateContext instanceof Response) {
+				return privateContext;
 			}
 
 			const { externalId } = normalizeIdentifyContactIdentifiers({
-				externalId: body.externalId,
+				externalId: extracted.body.externalId,
 			});
 
 			if (externalId) {
-				const upsertResult = await upsertContactByExternalId(db, {
-					websiteId: website.id,
-					organizationId: website.organizationId,
+				const upsertResult = await upsertContactByExternalId(extracted.db, {
+					websiteId: privateContext.website.id,
+					organizationId: privateContext.organization.id,
 					externalId,
-					email: body.email,
-					name: body.name,
-					image: body.image,
-					metadata: body.metadata,
-					contactOrganizationId: body.contactOrganizationId,
+					email: extracted.body.email,
+					name: extracted.body.name,
+					image: extracted.body.image,
+					metadata: extracted.body.metadata,
+					contactOrganizationId: extracted.body.contactOrganizationId,
 				});
 
 				const response = formatContactResponse(upsertResult.contact);
@@ -387,18 +396,22 @@ contactRouter.openapi(
 				);
 			}
 
-			const newContact = await createContact(db, {
-				websiteId: website.id,
-				organizationId: website.organizationId,
+			const newContact = await createContact(extracted.db, {
+				websiteId: privateContext.website.id,
+				organizationId: privateContext.organization.id,
 				data: {
-					...body,
+					...extracted.body,
 					externalId,
 				},
 			});
 
-			const response = formatContactResponse(newContact);
-
-			return c.json(validateResponse(response, contactResponseSchema), 201);
+			return c.json(
+				validateResponse(
+					formatContactResponse(newContact),
+					contactResponseSchema
+				),
+				201
+			);
 		} catch (error) {
 			console.error("Error creating contact:", error);
 			return c.json(
@@ -412,24 +425,12 @@ contactRouter.openapi(
 	}
 );
 
-// GET /contacts/:id - Get contact by ID
-contactRouter.openapi(
+contactControlRouter.openapi(
 	{
 		method: "get",
 		path: "/:id",
 		summary: "Get a contact",
-		description: "Retrieves a contact by ID",
-		inputSchema: [
-			{
-				name: "id",
-				in: "path",
-				required: true,
-				description: "The contact ID",
-				schema: {
-					type: "string",
-				},
-			},
-		],
+		description: "Retrieves a contact by ID.",
 		responses: {
 			200: {
 				content: {
@@ -439,50 +440,24 @@ contactRouter.openapi(
 				},
 				description: "Contact retrieved successfully",
 			},
-			401: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Unauthorized - Invalid API key",
-			},
-			404: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Contact not found",
-			},
-			500: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Internal server error",
-			},
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			403: errorJsonResponse("Forbidden - Private API key required"),
+			404: errorJsonResponse("Contact not found"),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-		],
+		...privateControlAuth({ parameters: [contactIdPathParameter] }),
 	},
 	async (c) => {
 		try {
-			const { db, website } = await safelyExtractRequestData(c);
+			const extracted = await safelyExtractRequestData(c);
+			const privateContext = requirePrivateControlContext(c, extracted);
 			const contactId = c.req.param("id");
+
+			if (privateContext instanceof Response) {
+				return privateContext;
+			}
 
 			if (!contactId) {
 				return c.json(
@@ -491,16 +466,9 @@ contactRouter.openapi(
 				);
 			}
 
-			if (!website?.id) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
-			}
-
-			const contact = await findContactForWebsite(db, {
+			const contact = await findContactForWebsite(extracted.db, {
 				contactId,
-				websiteId: website.id,
+				websiteId: privateContext.website.id,
 			});
 
 			if (!contact) {
@@ -510,9 +478,10 @@ contactRouter.openapi(
 				);
 			}
 
-			const response = formatContactResponse(contact);
-
-			return c.json(validateResponse(response, contactResponseSchema), 200);
+			return c.json(
+				validateResponse(formatContactResponse(contact), contactResponseSchema),
+				200
+			);
 		} catch (error) {
 			console.error("Error fetching contact:", error);
 			return c.json(
@@ -526,24 +495,12 @@ contactRouter.openapi(
 	}
 );
 
-// PATCH /contacts/:id - Update contact
-contactRouter.openapi(
+contactControlRouter.openapi(
 	{
 		method: "patch",
 		path: "/:id",
 		summary: "Update a contact",
-		description: "Updates an existing contact",
-		inputSchema: [
-			{
-				name: "id",
-				in: "path",
-				required: true,
-				description: "The contact ID",
-				schema: {
-					type: "string",
-				},
-			},
-		],
+		description: "Updates an existing contact.",
 		request: {
 			body: {
 				content: {
@@ -562,64 +519,28 @@ contactRouter.openapi(
 				},
 				description: "Contact updated successfully",
 			},
-			400: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Invalid request data",
-			},
-			401: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Unauthorized - Invalid API key",
-			},
-			404: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Contact not found",
-			},
-			500: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Internal server error",
-			},
+			400: errorJsonResponse("Invalid request data"),
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			403: errorJsonResponse("Forbidden - Private API key required"),
+			404: errorJsonResponse("Contact not found"),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-		],
+		...privateControlAuth({ parameters: [contactIdPathParameter] }),
 	},
 	async (c) => {
 		try {
-			const { db, website, body } = await safelyExtractRequestData(
+			const extracted = await safelyExtractRequestData(
 				c,
 				updateContactRequestSchema
 			);
+			const privateContext = requirePrivateControlContext(c, extracted);
 			const contactId = c.req.param("id");
+
+			if (privateContext instanceof Response) {
+				return privateContext;
+			}
 
 			if (!contactId) {
 				return c.json(
@@ -628,17 +549,10 @@ contactRouter.openapi(
 				);
 			}
 
-			if (!website?.id) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
-			}
-
-			const updatedContact = await updateContact(db, {
+			const updatedContact = await updateContact(extracted.db, {
 				contactId,
-				websiteId: website.id,
-				data: body,
+				websiteId: privateContext.website.id,
+				data: extracted.body,
 			});
 
 			if (!updatedContact) {
@@ -648,9 +562,13 @@ contactRouter.openapi(
 				);
 			}
 
-			const response = formatContactResponse(updatedContact);
-
-			return c.json(validateResponse(response, contactResponseSchema), 200);
+			return c.json(
+				validateResponse(
+					formatContactResponse(updatedContact),
+					contactResponseSchema
+				),
+				200
+			);
 		} catch (error) {
 			console.error("Error updating contact:", error);
 			return c.json(
@@ -664,24 +582,12 @@ contactRouter.openapi(
 	}
 );
 
-// PATCH /contacts/:id/metadata - Update contact metadata
-contactRouter.openapi(
+contactControlRouter.openapi(
 	{
 		method: "patch",
 		path: "/:id/metadata",
 		summary: "Update contact metadata",
-		description: "Merges the provided metadata into the contact profile",
-		inputSchema: [
-			{
-				name: "id",
-				in: "path",
-				required: true,
-				description: "The contact ID",
-				schema: {
-					type: "string",
-				},
-			},
-		],
+		description: "Merges the provided metadata into the contact profile.",
 		request: {
 			body: {
 				content: {
@@ -700,64 +606,28 @@ contactRouter.openapi(
 				},
 				description: "Contact metadata updated successfully",
 			},
-			400: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Invalid request data",
-			},
-			401: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Unauthorized - Invalid API key",
-			},
-			404: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Contact not found",
-			},
-			500: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Internal server error",
-			},
+			400: errorJsonResponse("Invalid request data"),
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			403: errorJsonResponse("Forbidden - Private API key required"),
+			404: errorJsonResponse("Contact not found"),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-		],
+		...privateControlAuth({ parameters: [contactIdPathParameter] }),
 	},
 	async (c) => {
 		try {
-			const { db, website, body } = await safelyExtractRequestData(
+			const extracted = await safelyExtractRequestData(
 				c,
 				updateContactMetadataRequestSchema
 			);
+			const privateContext = requirePrivateControlContext(c, extracted);
 			const contactId = c.req.param("id");
+
+			if (privateContext instanceof Response) {
+				return privateContext;
+			}
 
 			if (!contactId) {
 				return c.json(
@@ -766,17 +636,10 @@ contactRouter.openapi(
 				);
 			}
 
-			if (!website?.id) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
-			}
-
-			const updatedContact = await mergeContactMetadata(db, {
+			const updatedContact = await mergeContactMetadata(extracted.db, {
 				contactId,
-				websiteId: website.id,
-				metadata: body.metadata,
+				websiteId: privateContext.website.id,
+				metadata: extracted.body.metadata,
 			});
 
 			if (!updatedContact) {
@@ -786,9 +649,13 @@ contactRouter.openapi(
 				);
 			}
 
-			const response = formatContactResponse(updatedContact);
-
-			return c.json(validateResponse(response, contactResponseSchema), 200);
+			return c.json(
+				validateResponse(
+					formatContactResponse(updatedContact),
+					contactResponseSchema
+				),
+				200
+			);
 		} catch (error) {
 			console.error("Error updating contact metadata:", error);
 			return c.json(
@@ -802,72 +669,34 @@ contactRouter.openapi(
 	}
 );
 
-// DELETE /contacts/:id - Delete contact
-contactRouter.openapi(
+contactControlRouter.openapi(
 	{
 		method: "delete",
 		path: "/:id",
 		summary: "Delete a contact",
-		description: "Soft deletes a contact",
-		inputSchema: [
-			{
-				name: "id",
-				in: "path",
-				required: true,
-				description: "The contact ID",
-				schema: {
-					type: "string",
-				},
-			},
-		],
+		description: "Soft deletes a contact.",
 		responses: {
 			204: {
 				description: "Contact deleted successfully",
 			},
-			401: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Unauthorized - Invalid API key",
-			},
-			404: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Contact not found",
-			},
-			500: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Internal server error",
-			},
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			403: errorJsonResponse("Forbidden - Private API key required"),
+			404: errorJsonResponse("Contact not found"),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-		],
+		...privateControlAuth({ parameters: [contactIdPathParameter] }),
 	},
 	async (c) => {
 		try {
-			const { db, website } = await safelyExtractRequestData(c);
+			const extracted = await safelyExtractRequestData(c);
+			const privateContext = requirePrivateControlContext(c, extracted);
 			const contactId = c.req.param("id");
+
+			if (privateContext instanceof Response) {
+				return privateContext;
+			}
 
 			if (!contactId) {
 				return c.json(
@@ -876,16 +705,9 @@ contactRouter.openapi(
 				);
 			}
 
-			if (!website?.id) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
-			}
-
-			const deleted = await deleteContact(db, {
+			const deleted = await deleteContact(extracted.db, {
 				contactId,
-				websiteId: website.id,
+				websiteId: privateContext.website.id,
 			});
 
 			if (!deleted) {
@@ -909,15 +731,12 @@ contactRouter.openapi(
 	}
 );
 
-// Contact Organisation endpoints
-
-// POST /contacts/organizations - Create a new contact organization
-contactRouter.openapi(
+contactControlRouter.openapi(
 	{
 		method: "post",
 		path: "/organizations",
 		summary: "Create a contact organization",
-		description: "Creates a new contact organization for the website",
+		description: "Creates a new contact organization for the website.",
 		request: {
 			body: {
 				content: {
@@ -936,79 +755,38 @@ contactRouter.openapi(
 				},
 				description: "Contact organization created successfully",
 			},
-			400: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Invalid request data",
-			},
-			401: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Unauthorized - Invalid API key",
-			},
-			500: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Internal server error",
-			},
+			400: errorJsonResponse("Invalid request data"),
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			403: errorJsonResponse("Forbidden - Private API key required"),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-		],
+		...privateControlAuth(),
 	},
 	async (c) => {
 		try {
-			const { db, website, body } = await safelyExtractRequestData(
+			const extracted = await safelyExtractRequestData(
 				c,
 				createContactOrganizationRequestSchema
 			);
+			const privateContext = requirePrivateControlContext(c, extracted);
 
-			if (!website?.id) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
+			if (privateContext instanceof Response) {
+				return privateContext;
 			}
 
-			if (!website.organizationId) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
-			}
-
-			const newContactOrganization = await createContactOrganization(db, {
-				websiteId: website.id,
-				organizationId: website.organizationId,
-				data: body,
+			const created = await createContactOrganization(extracted.db, {
+				websiteId: privateContext.website.id,
+				organizationId: privateContext.organization.id,
+				data: extracted.body,
 			});
 
-			const response = formatContactOrganizationResponse(
-				newContactOrganization
-			);
-
 			return c.json(
-				validateResponse(response, contactOrganizationResponseSchema),
+				validateResponse(
+					formatContactOrganizationResponse(created),
+					contactOrganizationResponseSchema
+				),
 				201
 			);
 		} catch (error) {
@@ -1024,24 +802,12 @@ contactRouter.openapi(
 	}
 );
 
-// GET /contacts/organizations/:id - Get contact organization by ID
-contactRouter.openapi(
+contactControlRouter.openapi(
 	{
 		method: "get",
 		path: "/organizations/:id",
 		summary: "Get a contact organization",
-		description: "Retrieves a contact organization by ID",
-		inputSchema: [
-			{
-				name: "id",
-				in: "path",
-				required: true,
-				description: "The contact organization ID",
-				schema: {
-					type: "string",
-				},
-			},
-		],
+		description: "Retrieves a contact organization by ID.",
 		responses: {
 			200: {
 				content: {
@@ -1051,81 +817,58 @@ contactRouter.openapi(
 				},
 				description: "Contact organization retrieved successfully",
 			},
-			401: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Unauthorized - Invalid API key",
-			},
-			404: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Contact organization not found",
-			},
-			500: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Internal server error",
-			},
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			403: errorJsonResponse("Forbidden - Private API key required"),
+			404: errorJsonResponse("Contact organization not found"),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-		],
+		...privateControlAuth({ parameters: [contactOrganizationIdPathParameter] }),
 	},
 	async (c) => {
 		try {
-			const { db, website } = await safelyExtractRequestData(c);
+			const extracted = await safelyExtractRequestData(c);
+			const privateContext = requirePrivateControlContext(c, extracted);
 			const contactOrganizationId = c.req.param("id");
+
+			if (privateContext instanceof Response) {
+				return privateContext;
+			}
 
 			if (!contactOrganizationId) {
 				return c.json(
-					{ error: "NOT_FOUND", message: "Contact organization not found" },
+					{
+						error: "NOT_FOUND",
+						message: "Contact organization not found",
+					},
 					404
 				);
 			}
 
-			if (!website?.id) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
-			}
+			const organization = await findContactOrganizationForWebsite(
+				extracted.db,
+				{
+					contactOrganizationId,
+					websiteId: privateContext.website.id,
+				}
+			);
 
-			const contactOrganization = await findContactOrganizationForWebsite(db, {
-				contactOrganizationId,
-				websiteId: website.id,
-			});
-
-			if (!contactOrganization) {
+			if (!organization) {
 				return c.json(
-					{ error: "NOT_FOUND", message: "Contact organization not found" },
+					{
+						error: "NOT_FOUND",
+						message: "Contact organization not found",
+					},
 					404
 				);
 			}
-
-			const response = formatContactOrganizationResponse(contactOrganization);
 
 			return c.json(
-				validateResponse(response, contactOrganizationResponseSchema),
+				validateResponse(
+					formatContactOrganizationResponse(organization),
+					contactOrganizationResponseSchema
+				),
 				200
 			);
 		} catch (error) {
@@ -1141,24 +884,12 @@ contactRouter.openapi(
 	}
 );
 
-// PATCH /contacts/organizations/:id - Update contact organization
-contactRouter.openapi(
+contactControlRouter.openapi(
 	{
 		method: "patch",
 		path: "/organizations/:id",
 		summary: "Update a contact organization",
-		description: "Updates an existing contact organization",
-		inputSchema: [
-			{
-				name: "id",
-				in: "path",
-				required: true,
-				description: "The contact organization ID",
-				schema: {
-					type: "string",
-				},
-			},
-		],
+		description: "Updates an existing contact organization.",
 		request: {
 			body: {
 				content: {
@@ -1177,98 +908,60 @@ contactRouter.openapi(
 				},
 				description: "Contact organization updated successfully",
 			},
-			400: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Invalid request data",
-			},
-			401: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Unauthorized - Invalid API key",
-			},
-			404: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Contact organization not found",
-			},
-			500: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Internal server error",
-			},
+			400: errorJsonResponse("Invalid request data"),
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			403: errorJsonResponse("Forbidden - Private API key required"),
+			404: errorJsonResponse("Contact organization not found"),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-		],
+		...privateControlAuth({ parameters: [contactOrganizationIdPathParameter] }),
 	},
 	async (c) => {
 		try {
-			const { db, website, body } = await safelyExtractRequestData(
+			const extracted = await safelyExtractRequestData(
 				c,
 				updateContactOrganizationRequestSchema
 			);
+			const privateContext = requirePrivateControlContext(c, extracted);
 			const contactOrganizationId = c.req.param("id");
+
+			if (privateContext instanceof Response) {
+				return privateContext;
+			}
 
 			if (!contactOrganizationId) {
 				return c.json(
-					{ error: "NOT_FOUND", message: "Contact organization not found" },
+					{
+						error: "NOT_FOUND",
+						message: "Contact organization not found",
+					},
 					404
 				);
 			}
 
-			if (!website?.id) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
-			}
-
-			const updatedContactOrganization = await updateContactOrganization(db, {
+			const updated = await updateContactOrganization(extracted.db, {
 				contactOrganizationId,
-				websiteId: website.id,
-				data: body,
+				websiteId: privateContext.website.id,
+				data: extracted.body,
 			});
 
-			if (!updatedContactOrganization) {
+			if (!updated) {
 				return c.json(
-					{ error: "NOT_FOUND", message: "Contact organization not found" },
+					{
+						error: "NOT_FOUND",
+						message: "Contact organization not found",
+					},
 					404
 				);
 			}
 
-			const response = formatContactOrganizationResponse(
-				updatedContactOrganization
-			);
-
 			return c.json(
-				validateResponse(response, contactOrganizationResponseSchema),
+				validateResponse(
+					formatContactOrganizationResponse(updated),
+					contactOrganizationResponseSchema
+				),
 				200
 			);
 		} catch (error) {
@@ -1284,95 +977,56 @@ contactRouter.openapi(
 	}
 );
 
-// DELETE /contacts/organizations/:id - Delete contact organization
-contactRouter.openapi(
+contactControlRouter.openapi(
 	{
 		method: "delete",
 		path: "/organizations/:id",
 		summary: "Delete a contact organization",
-		description: "Soft deletes a contact organization",
-		inputSchema: [
-			{
-				name: "id",
-				in: "path",
-				required: true,
-				description: "The contact organization ID",
-				schema: {
-					type: "string",
-				},
-			},
-		],
+		description: "Soft deletes a contact organization.",
 		responses: {
 			204: {
 				description: "Contact organization deleted successfully",
 			},
-			401: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Unauthorized - Invalid API key",
-			},
-			404: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Contact organization not found",
-			},
-			500: {
-				content: {
-					"application/json": {
-						schema: z.object({
-							error: z.string(),
-							message: z.string(),
-						}),
-					},
-				},
-				description: "Internal server error",
-			},
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			403: errorJsonResponse("Forbidden - Private API key required"),
+			404: errorJsonResponse("Contact organization not found"),
+			500: errorJsonResponse("Internal server error"),
 		},
-		security: [
-			{
-				"Public API Key": [],
-			},
-		],
+		...privateControlAuth({ parameters: [contactOrganizationIdPathParameter] }),
 	},
 	async (c) => {
 		try {
-			const { db, website } = await safelyExtractRequestData(c);
+			const extracted = await safelyExtractRequestData(c);
+			const privateContext = requirePrivateControlContext(c, extracted);
 			const contactOrganizationId = c.req.param("id");
+
+			if (privateContext instanceof Response) {
+				return privateContext;
+			}
 
 			if (!contactOrganizationId) {
 				return c.json(
-					{ error: "NOT_FOUND", message: "Contact organization not found" },
+					{
+						error: "NOT_FOUND",
+						message: "Contact organization not found",
+					},
 					404
 				);
 			}
 
-			if (!website?.id) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
-			}
-
-			const deleted = await deleteContactOrganization(db, {
+			const deleted = await deleteContactOrganization(extracted.db, {
 				contactOrganizationId,
-				websiteId: website.id,
+				websiteId: privateContext.website.id,
 			});
 
 			if (!deleted) {
 				return c.json(
-					{ error: "NOT_FOUND", message: "Contact organization not found" },
+					{
+						error: "NOT_FOUND",
+						message: "Contact organization not found",
+					},
 					404
 				);
 			}
@@ -1390,3 +1044,7 @@ contactRouter.openapi(
 		}
 	}
 );
+
+export const contactRouter = new OpenAPIHono<RestContext>()
+	.route("/", contactControlRouter)
+	.route("/", contactRuntimeRouter);

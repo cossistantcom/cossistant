@@ -1,3 +1,4 @@
+import type { Database } from "@api/db";
 import {
 	member,
 	organization,
@@ -6,19 +7,40 @@ import {
 	user,
 	website,
 } from "@api/db/schema";
+import { resolveAiCreditsView } from "@api/lib/ai-credits/plan-view";
+import {
+	getAiCreditMeterState,
+	grantAiCreditUsage,
+} from "@api/lib/ai-credits/polar-meter";
 import { auth } from "@api/lib/auth";
+import { isPolarEnabled } from "@api/lib/billing-mode";
+import { getPlanForWebsite } from "@api/lib/plans/access";
+import { getCustomerByOrganizationId } from "@api/lib/plans/polar";
+import polarClient from "@api/lib/polar";
+import { WebsiteStatus } from "@cossistant/types";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 import { adminProcedure, createTRPCRouter, protectedProcedure } from "../init";
 
 const ADMIN_USER_LIMIT = 40;
+const ADMIN_WEBSITE_LIMIT = 40;
 const DEFAULT_BAN_REASON = "Banned from the Cossistant admin panel";
 const WEBSITE_WIDE_ROLES = ["owner", "admin"];
 
 const userIdInput = z.object({
 	userId: z.string().min(1),
 });
+
+const grantAmountInput = z
+	.number()
+	.finite()
+	.positive()
+	.max(1_000_000)
+	.transform((value) => Math.round(value * 1000) / 1000)
+	.refine((value) => value > 0, {
+		message: "Amount must be greater than 0",
+	});
 
 function toIsoString(value: Date | string | null | undefined): string | null {
 	if (!value) {
@@ -44,6 +66,36 @@ function serializeAdminUser(row: typeof user.$inferSelect) {
 	};
 }
 
+function serializeAdminWebsite(row: {
+	id: string;
+	name: string;
+	slug: string;
+	domain: string;
+	logoUrl: string | null;
+	status: WebsiteStatus;
+	organizationId: string;
+	organizationName: string;
+	organizationSlug: string;
+	teamId: string;
+	createdAt: string;
+	updatedAt: string;
+}) {
+	return {
+		id: row.id,
+		name: row.name,
+		slug: row.slug,
+		domain: row.domain,
+		logoUrl: row.logoUrl,
+		status: row.status,
+		organizationId: row.organizationId,
+		organizationName: row.organizationName,
+		organizationSlug: row.organizationSlug,
+		teamId: row.teamId,
+		createdAt: row.createdAt,
+		updatedAt: row.updatedAt,
+	};
+}
+
 function hasWebsiteWideRole(role: string | null | undefined): boolean {
 	if (!role) {
 		return false;
@@ -55,6 +107,17 @@ function hasWebsiteWideRole(role: string | null | undefined): boolean {
 		.filter(Boolean);
 
 	return normalizedRoles.some((item) => WEBSITE_WIDE_ROLES.includes(item));
+}
+
+function hasOwnerRole(role: string | null | undefined): boolean {
+	if (!role) {
+		return false;
+	}
+
+	return role
+		.split(",")
+		.map((item) => item.trim().toLowerCase())
+		.includes("owner");
 }
 
 function getSetCookieValues(headers: Headers): string[] {
@@ -81,6 +144,56 @@ function appendAuthCookies(
 	for (const cookie of getSetCookieValues(headers)) {
 		appendResponseHeader("Set-Cookie", cookie);
 	}
+}
+
+async function ensurePolarCustomerForOrganization(params: {
+	db: Pick<Database, "select">;
+	organizationId: string;
+	organizationName: string;
+}) {
+	const existingCustomer = await getCustomerByOrganizationId(
+		params.organizationId
+	);
+	if (existingCustomer) {
+		return {
+			customerId: existingCustomer.id,
+			created: false,
+		};
+	}
+
+	const members = await params.db
+		.select({
+			email: user.email,
+			name: user.name,
+			role: member.role,
+			createdAt: member.createdAt,
+		})
+		.from(member)
+		.innerJoin(user, eq(member.userId, user.id))
+		.where(eq(member.organizationId, params.organizationId))
+		.orderBy(asc(member.createdAt));
+
+	const customerContact =
+		members.find((row) => hasOwnerRole(row.role)) ?? members[0] ?? null;
+
+	if (!customerContact?.email) {
+		throw new TRPCError({
+			code: "BAD_REQUEST",
+			message:
+				"No organization member email is available for Polar customer creation",
+		});
+	}
+
+	const customer = await polarClient.customers.create({
+		email: customerContact.email,
+		externalId: params.organizationId,
+		name: params.organizationName || customerContact.name,
+	});
+
+	return {
+		customerId: customer.id,
+		created: true,
+	};
 }
 
 export const adminRouter = createTRPCRouter({
@@ -113,9 +226,74 @@ export const adminRouter = createTRPCRouter({
 			};
 		}),
 
+	listWebsites: adminProcedure
+		.input(
+			z
+				.object({
+					search: z.string().max(200).optional(),
+				})
+				.optional()
+		)
+		.query(async ({ ctx: { db }, input }) => {
+			const search = input?.search?.trim();
+			const likeTerm = search ? `%${search}%` : null;
+
+			const rows = await db
+				.select({
+					id: website.id,
+					name: website.name,
+					slug: website.slug,
+					domain: website.domain,
+					logoUrl: website.logoUrl,
+					status: website.status,
+					organizationId: website.organizationId,
+					organizationName: organization.name,
+					organizationSlug: organization.slug,
+					teamId: website.teamId,
+					createdAt: website.createdAt,
+					updatedAt: website.updatedAt,
+				})
+				.from(website)
+				.innerJoin(organization, eq(website.organizationId, organization.id))
+				.where(
+					and(
+						eq(website.status, WebsiteStatus.ACTIVE),
+						isNull(website.deletedAt),
+						likeTerm
+							? or(
+									ilike(website.name, likeTerm),
+									ilike(website.slug, likeTerm),
+									ilike(website.domain, likeTerm),
+									ilike(organization.name, likeTerm)
+								)
+							: undefined
+					)
+				)
+				.orderBy(desc(website.createdAt))
+				.limit(ADMIN_WEBSITE_LIMIT);
+
+			return {
+				websites: rows.map(serializeAdminWebsite),
+				limit: ADMIN_WEBSITE_LIMIT,
+			};
+		}),
+
 	getUserWebsites: adminProcedure
 		.input(userIdInput)
 		.query(async ({ ctx: { db }, input }) => {
+			const [selectedUser] = await db
+				.select()
+				.from(user)
+				.where(eq(user.id, input.userId))
+				.limit(1);
+
+			if (!selectedUser) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "User not found",
+				});
+			}
+
 			const [organizationMemberships, teamMemberships] = await Promise.all([
 				db
 					.select({
@@ -171,7 +349,10 @@ export const adminRouter = createTRPCRouter({
 			}
 
 			if (organizationIds.size === 0) {
-				return { organizations: [] };
+				return {
+					user: serializeAdminUser(selectedUser),
+					organizations: [],
+				};
 			}
 
 			const missingOrganizationIds = [...organizationIds].filter(
@@ -255,10 +436,133 @@ export const adminRouter = createTRPCRouter({
 			}
 
 			return {
+				user: serializeAdminUser(selectedUser),
 				organizations: [...organizationById.values()].map((org) => ({
 					...org,
 					websites: websitesByOrganizationId.get(org.id) ?? [],
 				})),
+			};
+		}),
+
+	getWebsiteAiUsage: adminProcedure
+		.input(
+			z.object({
+				websiteId: z.string().min(1),
+			})
+		)
+		.query(async ({ ctx, input }) => {
+			const [site] = await ctx.db
+				.select()
+				.from(website)
+				.where(
+					and(
+						eq(website.id, input.websiteId),
+						eq(website.status, WebsiteStatus.ACTIVE),
+						isNull(website.deletedAt)
+					)
+				)
+				.limit(1);
+
+			if (!site) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Website not found",
+				});
+			}
+
+			const [planInfo, aiCreditMeterState] = await Promise.all([
+				getPlanForWebsite(site),
+				getAiCreditMeterState(site.organizationId),
+			]);
+
+			const includedAiCredits =
+				typeof planInfo.features["ai-credit"] === "number"
+					? planInfo.features["ai-credit"]
+					: null;
+
+			return {
+				website: {
+					id: site.id,
+					name: site.name,
+					slug: site.slug,
+					organizationId: site.organizationId,
+				},
+				plan: {
+					name: planInfo.planName,
+					displayName: planInfo.displayName,
+					includedAiCredits,
+				},
+				billing: planInfo.billing,
+				aiCredits: resolveAiCreditsView({
+					planInfo,
+					meterState: aiCreditMeterState,
+				}),
+			};
+		}),
+
+	grantWebsiteAiUsage: adminProcedure
+		.input(
+			z.object({
+				websiteId: z.string().min(1),
+				amount: grantAmountInput,
+			})
+		)
+		.mutation(async ({ ctx, input }) => {
+			if (!isPolarEnabled()) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Polar billing is disabled for this deployment",
+				});
+			}
+
+			const [site] = await ctx.db
+				.select({
+					id: website.id,
+					name: website.name,
+					slug: website.slug,
+					organizationId: website.organizationId,
+					organizationName: organization.name,
+				})
+				.from(website)
+				.innerJoin(organization, eq(website.organizationId, organization.id))
+				.where(and(eq(website.id, input.websiteId), isNull(website.deletedAt)))
+				.limit(1);
+
+			if (!site) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Website not found",
+				});
+			}
+
+			const customer = await ensurePolarCustomerForOrganization({
+				db: ctx.db,
+				organizationId: site.organizationId,
+				organizationName: site.organizationName,
+			});
+
+			const result = await grantAiCreditUsage({
+				organizationId: site.organizationId,
+				websiteId: site.id,
+				amount: input.amount,
+				adminUserId: ctx.user.id,
+			});
+
+			if (result.status !== "ingested") {
+				throw new TRPCError({
+					code: "INTERNAL_SERVER_ERROR",
+					message: "Failed to grant AI usage",
+				});
+			}
+
+			return {
+				success: true,
+				amount: input.amount,
+				websiteId: site.id,
+				websiteSlug: site.slug,
+				organizationId: site.organizationId,
+				customerId: customer.customerId,
+				customerCreated: customer.created,
 			};
 		}),
 

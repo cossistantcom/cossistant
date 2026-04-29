@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import { getAiCreditMeterState, ingestAiCreditUsage } from "./polar-meter";
+import {
+	getAiCreditMeterState,
+	grantAiCreditUsage,
+	ingestAiCreditUsage,
+} from "./polar-meter";
 
 class FakeRedis {
 	store = new Map<string, string>();
@@ -230,6 +234,60 @@ describe("ai credit Polar meter gateway", () => {
 		const updatedCache = updatedCacheRaw ? JSON.parse(updatedCacheRaw) : null;
 		expect(updatedCache?.balance).toBe(7.5);
 		expect(updatedCache?.consumedUnits).toBe(12.5);
+	});
+
+	it("ingests negative credits and optimistically updates cached balance after admin grant", async () => {
+		await redis.set(
+			"ai-credit:meter:org-1",
+			buildCachedMeterState({
+				organizationId: "org-1",
+				lastSyncedAt: new Date(nowMs - 5000).toISOString(),
+				balance: 10,
+			})
+		);
+
+		const grantResult = await grantAiCreditUsage(
+			{
+				organizationId: "org-1",
+				websiteId: "site-1",
+				amount: 7.5,
+				adminUserId: "admin-1",
+			},
+			{
+				deps: {
+					redis,
+					polar,
+					now: () => nowMs,
+					meterId: "meter-ai-1",
+					eventName: "ai_usage",
+					cacheTtlSeconds: 15,
+					staleTtlSeconds: 300,
+				},
+			}
+		);
+
+		expect(grantResult.status).toBe("ingested");
+		expect(polar.events.ingest).toHaveBeenCalledWith({
+			events: [
+				{
+					name: "ai_usage",
+					externalCustomerId: "org-1",
+					metadata: {
+						credits: -7.5,
+						websiteId: "site-1",
+						organizationId: "org-1",
+						adminUserId: "admin-1",
+						kind: "admin_grant",
+					},
+				},
+			],
+		});
+
+		const updatedCacheRaw = await redis.get("ai-credit:meter:org-1");
+		const updatedCache = updatedCacheRaw ? JSON.parse(updatedCacheRaw) : null;
+		expect(updatedCache?.balance).toBe(17.5);
+		expect(updatedCache?.creditedUnits).toBe(42.5);
+		expect(updatedCache?.consumedUnits).toBe(10);
 	});
 
 	it("skips ingest while backoff cooldown is active", async () => {

@@ -2,19 +2,19 @@
 
 import type { RouterOutputs } from "@cossistant/api/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import {
 	Ban,
+	Gift,
 	KeyRound,
 	MoreHorizontal,
 	RotateCcw,
-	Shield,
 	UserRound,
-	X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { parseAsString, useQueryState } from "nuqs";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -42,10 +42,16 @@ import { authClient } from "@/lib/auth/client";
 import { formatFullDateTime, formatLastSeenAt } from "@/lib/date";
 import { useTRPC } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
+import {
+	formatAiCreditAmount,
+	getAiCreditUsageView,
+} from "../settings/plan/ai-credit-usage";
+import { NumericConfirmationSheet } from "./numeric-confirmation-sheet";
 import { useAdminUsersControls } from "./use-admin-users-controls";
 
 type AdminUser = RouterOutputs["admin"]["listUsers"]["users"][number];
-type UserWebsites = RouterOutputs["admin"]["getUserWebsites"]["organizations"];
+type AdminWebsite = RouterOutputs["admin"]["listWebsites"]["websites"][number];
+type AdminWebsiteAiUsage = RouterOutputs["admin"]["getWebsiteAiUsage"];
 
 const TABLE_SKELETON_ROWS = [0, 1, 2, 3, 4] as const;
 const TABLE_SKELETON_COLUMNS = [0, 1, 2, 3, 4, 5, 6] as const;
@@ -56,27 +62,62 @@ type AdminPageContentProps = {
 
 export function AdminPageContent({ websiteSlug }: AdminPageContentProps) {
 	const trpc = useTRPC();
-	const { debouncedSearchTerm } = useAdminUsersControls();
-	const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+	const queryClient = useQueryClient();
+	const { adminView, debouncedSearchTerm } = useAdminUsersControls();
+	const [adminUserId, setAdminUserId] = useQueryState(
+		"adminUserId",
+		parseAsString
+	);
+	const [grantTarget, setGrantTarget] = useState<AdminWebsite | null>(null);
 
 	const listQuery = useQuery({
 		...trpc.admin.listUsers.queryOptions({
 			search: debouncedSearchTerm || undefined,
 		}),
+		enabled: adminView === "users",
 	});
-
-	const users = listQuery.data?.users ?? [];
-	const selectedUser = useMemo(
-		() => users.find((user) => user.id === selectedUserId) ?? null,
-		[users, selectedUserId]
-	);
 
 	const websitesQuery = useQuery({
-		...trpc.admin.getUserWebsites.queryOptions({
-			userId: selectedUserId ?? "",
+		...trpc.admin.listWebsites.queryOptions({
+			search: debouncedSearchTerm || undefined,
 		}),
-		enabled: selectedUserId !== null,
+		enabled: adminView === "websites",
 	});
+
+	const grantMutation = useMutation(
+		trpc.admin.grantWebsiteAiUsage.mutationOptions({
+			onSuccess: async () => {
+				const target = grantTarget;
+				await Promise.all([
+					queryClient.invalidateQueries({
+						queryKey: trpc.admin.listWebsites.queryKey(),
+					}),
+					target
+						? queryClient.invalidateQueries({
+								queryKey: trpc.plan.getPlanInfo.queryKey({
+									websiteSlug: target.slug,
+								}),
+							})
+						: Promise.resolve(),
+					target
+						? queryClient.invalidateQueries({
+								queryKey: trpc.admin.getWebsiteAiUsage.queryKey({
+									websiteId: target.id,
+								}),
+							})
+						: Promise.resolve(),
+				]);
+				toast.success("AI usage granted");
+				setGrantTarget(null);
+			},
+			onError: (error) =>
+				toast.error(error.message || "Failed to grant AI usage"),
+		})
+	);
+
+	const users = listQuery.data?.users ?? [];
+	const websites = websitesQuery.data?.websites ?? [];
+	const visibleCount = adminView === "users" ? users.length : websites.length;
 
 	return (
 		<Page className="relative flex flex-col gap-6">
@@ -84,33 +125,57 @@ export function AdminPageContent({ websiteSlug }: AdminPageContentProps) {
 				<PageHeaderTitle>Admin</PageHeaderTitle>
 			</PageHeader>
 
-			<div className="grid min-h-0 flex-1 grid-cols-1 pt-14 lg:grid-cols-[minmax(0,1fr)_360px]">
+			<div className="min-h-0 flex-1 pt-14">
 				<ScrollArea
 					className="min-h-0 px-4 pb-20"
 					maskHeight="150px"
 					orientation="both"
 					scrollMask
 				>
-					<AdminUsersTable
-						data={users}
-						isLoading={listQuery.isLoading}
-						onSelectUser={setSelectedUserId}
-						selectedUserId={selectedUserId}
-						websiteSlug={websiteSlug}
-					/>
+					{adminView === "users" ? (
+						<AdminUsersTable
+							data={users}
+							isLoading={listQuery.isLoading}
+							onSelectUser={(userId) => {
+								void setAdminUserId(userId);
+							}}
+							selectedUserId={adminUserId ?? null}
+							websiteSlug={websiteSlug}
+						/>
+					) : (
+						<AdminWebsitesTable
+							data={websites}
+							isLoading={websitesQuery.isLoading}
+							onGrantAiUsage={setGrantTarget}
+						/>
+					)}
 				</ScrollArea>
-				<AdminUserDetailPanel
-					isLoading={websitesQuery.isLoading}
-					onClose={() => setSelectedUserId(null)}
-					organizations={websitesQuery.data?.organizations ?? []}
-					selectedUser={selectedUser}
-				/>
 			</div>
+			<AdminGrantAiUsageSheet
+				isPending={grantMutation.isPending}
+				onConfirm={(amount) => {
+					if (!grantTarget) {
+						return;
+					}
+
+					grantMutation.mutate({
+						websiteId: grantTarget.id,
+						amount,
+					});
+				}}
+				onOpenChange={(open) => {
+					if (!open) {
+						setGrantTarget(null);
+					}
+				}}
+				open={grantTarget !== null}
+				website={grantTarget}
+			/>
 			<div className="absolute right-0 bottom-0 left-0 flex h-14 w-full items-center px-4">
 				<p className="text-muted-foreground text-sm">
-					{users.length === 0
-						? "No users to display"
-						: `Showing ${users.length} users`}
+					{visibleCount === 0
+						? `No ${adminView} to display`
+						: `Showing ${visibleCount} ${adminView}`}
 				</p>
 			</div>
 		</Page>
@@ -301,6 +366,294 @@ function AdminUsersHeader() {
 	);
 }
 
+type AdminWebsitesTableProps = {
+	data: AdminWebsite[];
+	isLoading: boolean;
+	onGrantAiUsage: (website: AdminWebsite) => void;
+};
+
+export function AdminWebsitesTable({
+	data,
+	isLoading,
+	onGrantAiUsage,
+}: AdminWebsitesTableProps) {
+	if (isLoading) {
+		return (
+			<Table className="min-w-[980px]">
+				<TableHeader>
+					<AdminWebsitesHeader />
+				</TableHeader>
+				<TableBody>
+					{TABLE_SKELETON_ROWS.map((row) => (
+						<TableRow className="border-transparent border-b-0" key={row}>
+							{TABLE_SKELETON_COLUMNS.map((column) => (
+								<TableCell key={column}>
+									<div className="h-4 w-full max-w-[160px] animate-pulse rounded bg-background-300" />
+								</TableCell>
+							))}
+						</TableRow>
+					))}
+				</TableBody>
+			</Table>
+		);
+	}
+
+	if (data.length === 0) {
+		return (
+			<div className="flex flex-col items-center justify-center gap-3 px-10 py-16 text-center">
+				<div className="space-y-1">
+					<h3 className="font-semibold text-base">No websites found</h3>
+					<p className="text-muted-foreground text-sm">
+						Try searching by another site, slug, domain, or organization.
+					</p>
+				</div>
+			</div>
+		);
+	}
+
+	return (
+		<Table className="min-w-[980px]">
+			<TableHeader className="border-transparent border-b-0">
+				<AdminWebsitesHeader />
+			</TableHeader>
+			<TableBody>
+				{data.map((site) => (
+					<TableRow
+						className="border-transparent border-b-0 transition-colors"
+						key={site.id}
+					>
+						<TableCell className="rounded-l-lg py-2">
+							<Link
+								className="flex min-w-0 items-center gap-3 hover:text-primary"
+								href={`/${site.slug}`}
+							>
+								<WebsiteImage
+									className="size-8"
+									logoUrl={site.logoUrl}
+									name={site.name}
+								/>
+								<span className="min-w-0">
+									<span className="block truncate font-medium text-sm">
+										{site.name}
+									</span>
+									<span className="block truncate text-muted-foreground text-xs">
+										/{site.slug}
+									</span>
+								</span>
+							</Link>
+						</TableCell>
+						<TableCell className="py-2">
+							<span className="max-w-[220px] truncate text-sm">
+								{site.domain}
+							</span>
+						</TableCell>
+						<TableCell className="py-2">
+							<span className="max-w-[220px] truncate text-sm">
+								{site.organizationName}
+							</span>
+						</TableCell>
+						<TableCell className="py-2">
+							<Badge className="w-fit" variant="secondary">
+								{site.status}
+							</Badge>
+						</TableCell>
+						<TableCell className="py-2">
+							<TooltipOnHover
+								content={formatFullDateTime(new Date(site.createdAt))}
+								delay={300}
+							>
+								<span className="cursor-default text-muted-foreground text-sm">
+									{format(new Date(site.createdAt), "MMM d, yyyy")}
+								</span>
+							</TooltipOnHover>
+						</TableCell>
+						<TableCell className="rounded-r-lg py-2 text-right">
+							<AdminWebsiteActions
+								onGrantAiUsage={() => onGrantAiUsage(site)}
+							/>
+						</TableCell>
+					</TableRow>
+				))}
+			</TableBody>
+		</Table>
+	);
+}
+
+function AdminWebsitesHeader() {
+	return (
+		<TableRow className="border-transparent border-b-0">
+			<TableHead className="w-[280px]">Website</TableHead>
+			<TableHead className="w-[230px]">Domain</TableHead>
+			<TableHead className="w-[230px]">Organization</TableHead>
+			<TableHead className="w-[110px]">Status</TableHead>
+			<TableHead className="w-[150px]">Created</TableHead>
+			<TableHead className="w-[70px] text-right">Actions</TableHead>
+		</TableRow>
+	);
+}
+
+function AdminWebsiteActions({
+	onGrantAiUsage,
+}: {
+	onGrantAiUsage: () => void;
+}) {
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button size="icon-small" variant="ghost">
+					<MoreHorizontal className="size-4" />
+					<span className="sr-only">Open website actions</span>
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="end">
+				<DropdownMenuItem onClick={onGrantAiUsage}>
+					<Gift className="size-4" />
+					Grant AI usage
+				</DropdownMenuItem>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+}
+
+export function AdminGrantAiUsageSheet({
+	website,
+	open,
+	isPending,
+	onOpenChange,
+	onConfirm,
+}: {
+	website: AdminWebsite | null;
+	open: boolean;
+	isPending: boolean;
+	onOpenChange: (open: boolean) => void;
+	onConfirm: (amount: number) => void;
+}) {
+	const trpc = useTRPC();
+	const usageQuery = useQuery({
+		...trpc.admin.getWebsiteAiUsage.queryOptions({
+			websiteId: website?.id ?? "",
+		}),
+		enabled: open && Boolean(website?.id),
+	});
+
+	return (
+		<NumericConfirmationSheet
+			confirmLabel="Grant usage"
+			description="Grant AI credits by removing already-started usage from this website's organization meter."
+			inputLabel="Credits to grant"
+			inputSuffix="credits"
+			isPending={isPending}
+			onConfirm={onConfirm}
+			onOpenChange={onOpenChange}
+			open={open}
+			targetDescription={
+				website ? `${website.domain} - ${website.organizationName}` : undefined
+			}
+			targetLabel={website?.name ?? "Website"}
+			title="Grant AI usage"
+		>
+			<AdminAiUsageSummary
+				data={usageQuery.data ?? null}
+				isError={usageQuery.isError}
+				isLoading={usageQuery.isLoading && open}
+			/>
+		</NumericConfirmationSheet>
+	);
+}
+
+function AdminAiUsageSummary({
+	data,
+	isError,
+	isLoading,
+}: {
+	data: AdminWebsiteAiUsage | null;
+	isError: boolean;
+	isLoading: boolean;
+}) {
+	if (isLoading) {
+		return (
+			<div className="rounded border bg-background-50 px-3 py-3">
+				<div className="h-4 w-32 animate-pulse rounded bg-background-300" />
+				<div className="mt-3 h-2 w-full animate-pulse rounded bg-background-300" />
+				<div className="mt-2 h-3 w-24 animate-pulse rounded bg-background-300" />
+			</div>
+		);
+	}
+
+	if (isError) {
+		return (
+			<div className="rounded border border-destructive/30 bg-destructive/5 px-3 py-3">
+				<p className="font-medium text-destructive text-sm">
+					Could not load current AI usage
+				</p>
+				<p className="mt-1 text-muted-foreground text-xs">
+					The grant action is still available, but the live meter snapshot is
+					unavailable.
+				</p>
+			</div>
+		);
+	}
+
+	if (!data) {
+		return null;
+	}
+
+	const usageView = getAiCreditUsageView(data.aiCredits);
+	const includedCreditsLabel =
+		typeof data.plan.includedAiCredits === "number"
+			? `${formatAiCreditAmount(data.plan.includedAiCredits)} included`
+			: "Included credits unavailable";
+	const usagePercentage =
+		usageView?.kind === "metered" && usageView.limit && usageView.limit > 0
+			? Math.min(100, Math.max(0, (usageView.current / usageView.limit) * 100))
+			: null;
+
+	return (
+		<div className="rounded border bg-background-50 px-3 py-3">
+			<div className="flex items-start justify-between gap-3">
+				<div className="min-w-0">
+					<p className="font-medium text-sm">Current AI usage</p>
+					<p className="mt-1 truncate text-muted-foreground text-xs">
+						{data.plan.displayName} plan
+					</p>
+				</div>
+				<Badge className="shrink-0" variant="secondary">
+					{includedCreditsLabel}
+				</Badge>
+			</div>
+
+			{usageView ? (
+				<div className="mt-3 space-y-2">
+					<div className="flex items-center justify-between gap-3 text-sm">
+						<span>{usageView.usageLabel}</span>
+						{usageView.remainingLabel ? (
+							<span className="shrink-0 text-muted-foreground">
+								{usageView.remainingLabel}
+							</span>
+						) : null}
+					</div>
+					{usagePercentage !== null ? (
+						<div className="h-2 overflow-hidden rounded-full bg-background-300">
+							<div
+								className="h-full rounded-full bg-primary transition-[width]"
+								style={{ width: `${usagePercentage}%` }}
+							/>
+						</div>
+					) : null}
+				</div>
+			) : (
+				<p className="mt-3 text-muted-foreground text-sm">
+					Live meter data is unavailable. Plan includes{" "}
+					{typeof data.plan.includedAiCredits === "number"
+						? `${formatAiCreditAmount(data.plan.includedAiCredits)} AI credits`
+						: "AI credits that could not be resolved"}
+					.
+				</p>
+			)}
+		</div>
+	);
+}
+
 type AdminUserActionsProps = {
 	user: AdminUser;
 	websiteSlug: string;
@@ -429,123 +782,6 @@ function AdminUserActions({ user, websiteSlug }: AdminUserActionsProps) {
 				</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>
-	);
-}
-
-type AdminUserDetailPanelProps = {
-	selectedUser: AdminUser | null;
-	organizations: UserWebsites;
-	isLoading: boolean;
-	onClose: () => void;
-};
-
-export function AdminUserDetailPanel({
-	selectedUser,
-	organizations,
-	isLoading,
-	onClose,
-}: AdminUserDetailPanelProps) {
-	if (!selectedUser) {
-		return (
-			<aside className="hidden min-h-0 border-l bg-background-50 p-5 lg:block">
-				<div className="flex h-full items-center justify-center text-center text-muted-foreground text-sm">
-					Select a user to view their websites.
-				</div>
-			</aside>
-		);
-	}
-
-	return (
-		<aside className="min-h-0 border-l bg-background-50">
-			<div className="flex h-14 items-center justify-between border-b px-4">
-				<div className="flex min-w-0 items-center gap-2">
-					<Shield className="size-4 shrink-0 text-muted-foreground" />
-					<h2 className="truncate font-medium text-sm">{selectedUser.email}</h2>
-				</div>
-				<Button onClick={onClose} size="icon-small" variant="ghost">
-					<X className="size-4" />
-					<span className="sr-only">Close user detail</span>
-				</Button>
-			</div>
-			<ScrollArea className="h-[calc(100%-3.5rem)] px-4 py-4" scrollMask>
-				<div className="mb-5 flex items-center gap-3">
-					<Avatar
-						className="size-10"
-						fallbackName={selectedUser.name ?? selectedUser.email}
-						lastOnlineAt={selectedUser.lastSeenAt}
-						url={selectedUser.image}
-					/>
-					<div className="min-w-0">
-						<p className="truncate font-medium text-sm">
-							{selectedUser.name ?? "Unnamed user"}
-						</p>
-						<p className="truncate text-muted-foreground text-xs">
-							Joined{" "}
-							{formatDistanceToNow(new Date(selectedUser.createdAt), {
-								addSuffix: true,
-							})}
-						</p>
-					</div>
-				</div>
-
-				{isLoading ? (
-					<div className="space-y-3">
-						{Array.from({ length: 3 }, (_, index) => (
-							<div
-								className="h-12 animate-pulse rounded bg-background-200"
-								key={index}
-							/>
-						))}
-					</div>
-				) : organizations.length === 0 ? (
-					<p className="text-muted-foreground text-sm">
-						This user does not have access to any active websites.
-					</p>
-				) : (
-					<div className="space-y-5">
-						{organizations.map((org) => (
-							<section key={org.id}>
-								<div className="mb-2 flex items-center justify-between gap-2">
-									<h3 className="truncate font-medium text-sm">{org.name}</h3>
-									<Badge className="shrink-0" variant="secondary">
-										{org.role ?? "team"}
-									</Badge>
-								</div>
-								<div className="space-y-1">
-									{org.websites.length === 0 ? (
-										<p className="text-muted-foreground text-xs">
-											No active websites.
-										</p>
-									) : (
-										org.websites.map((site) => (
-											<Link
-												className="flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-colors hover:bg-background-200"
-												href={`/${site.slug}`}
-												key={site.id}
-											>
-												<WebsiteImage
-													className="size-8"
-													logoUrl={site.logoUrl}
-													name={site.name}
-												/>
-												<span className="min-w-0 flex-1">
-													<span className="block truncate font-medium">
-														{site.name}
-													</span>
-													<span className="block truncate text-muted-foreground text-xs">
-														{site.domain}
-													</span>
-												</span>
-											</Link>
-										))
-									)}
-								</div>
-							</section>
-						))}
-					</div>
-				)}
-			</ScrollArea>
-		</aside>
 	);
 }
 

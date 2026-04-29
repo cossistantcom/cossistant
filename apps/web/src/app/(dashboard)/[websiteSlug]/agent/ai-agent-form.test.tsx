@@ -8,6 +8,20 @@ type RootHandle = {
 	unmount(): void;
 };
 
+type MockAvatarValue = {
+	previewUrl: string;
+	url?: string;
+	mimeType: string;
+	name?: string;
+	size?: number;
+};
+
+type MockAvatarInputProps = {
+	onChange?: (value: MockAvatarValue | null) => void;
+	onUploadComplete?: (value: MockAvatarValue) => void;
+	value?: MockAvatarValue | string | null;
+};
+
 let planInfo: {
 	plan: {
 		name: "free" | "hobby" | "pro" | "self_hosted";
@@ -66,7 +80,37 @@ mock.module("@/components/plan/upgrade-modal", () => ({
 }));
 
 mock.module("@/components/ui/avatar-input", () => ({
-	AvatarInput: () => <div data-slot="mock-avatar-input" />,
+	AvatarInput: ({
+		onChange,
+		onUploadComplete,
+		value,
+	}: MockAvatarInputProps) => {
+		const nextValue: MockAvatarValue = {
+			previewUrl: "https://cdn.example.com/agent-upload.png",
+			url: "https://cdn.example.com/agent-upload.png",
+			mimeType: "image/png",
+			name: "agent-upload.png",
+			size: 1024,
+		};
+
+		return (
+			<div
+				data-has-value={value ? "true" : "false"}
+				data-slot="mock-avatar-input"
+			>
+				<button
+					data-testid="mock-avatar-upload"
+					onClick={() => {
+						onChange?.(nextValue);
+						onUploadComplete?.(nextValue);
+					}}
+					type="button"
+				>
+					Mock upload
+				</button>
+			</div>
+		);
+	},
 	uploadToPresignedUrl: mock(async () => {}),
 }));
 
@@ -114,10 +158,30 @@ mock.module("@/components/ui/prompt-input-with-mentions", () => ({
 mock.module("@/components/ui/radio-group", () => ({
 	RadioGroup: ({
 		children,
+		onValueChange,
+		value,
 	}: React.HTMLAttributes<HTMLDivElement> & {
 		onValueChange?: (value: string) => void;
 		value?: string;
-	}) => <div data-slot="mock-radio-group">{children}</div>,
+	}) => (
+		<div data-slot="mock-radio-group" data-value={value}>
+			<button
+				data-testid="image-mode-default"
+				onClick={() => onValueChange?.("default")}
+				type="button"
+			>
+				Default image mode
+			</button>
+			<button
+				data-testid="image-mode-custom"
+				onClick={() => onValueChange?.("custom")}
+				type="button"
+			>
+				Custom image mode
+			</button>
+			{children}
+		</div>
+	),
 	RadioGroupItem: (props: React.InputHTMLAttributes<HTMLInputElement>) => (
 		<input {...props} type="radio" />
 	),
@@ -187,28 +251,67 @@ function createAgent(
 }
 
 async function renderForm(params: { initialData: AiAgentResponse | null }) {
-	const [{ default: ReactRuntime }, { createRoot }, { AIAgentForm }] =
+	const [{ default: ReactRuntime, act }, { createRoot }, { AIAgentForm }] =
 		await modulePromise;
 	const container = document.createElement("div");
 	document.body.appendChild(container);
 	const root = createRoot(container) as RootHandle;
 
-	root.render(
-		ReactRuntime.createElement(AIAgentForm, {
-			organizationId: "org-1",
-			websiteId: "site-1",
-			websiteName: "Acme",
-			websiteSlug: "acme",
-			initialData: params.initialData,
-		})
-	);
+	await act(async () => {
+		root.render(
+			ReactRuntime.createElement(AIAgentForm, {
+				organizationId: "org-1",
+				websiteId: "site-1",
+				websiteName: "Acme",
+				websiteSlug: "acme",
+				initialData: params.initialData,
+			})
+		);
+	});
 
 	await new Promise((resolve) => setTimeout(resolve, 0));
 
 	return {
 		container,
-		unmount: () => root.unmount(),
+		unmount: () => {
+			act(() => {
+				root.unmount();
+			});
+		},
 	};
+}
+
+function getButtonByText(text: string): HTMLButtonElement {
+	const button = Array.from(document.getElementsByTagName("button")).find(
+		(item) => item.textContent?.includes(text)
+	);
+
+	if (!button) {
+		throw new Error(`Button not found: ${text}`);
+	}
+
+	return button as HTMLButtonElement;
+}
+
+function getButtonByTestId(testId: string): HTMLButtonElement {
+	const button = Array.from(document.getElementsByTagName("button")).find(
+		(item) => item.getAttribute("data-testid") === testId
+	);
+
+	if (!button) {
+		throw new Error(`Button not found: ${testId}`);
+	}
+
+	return button as HTMLButtonElement;
+}
+
+async function clickButton(button: HTMLButtonElement) {
+	const { act } = await import("react");
+
+	await act(async () => {
+		button.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+	});
+	await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 describe("AIAgentForm custom avatar plan gate", () => {
@@ -222,6 +325,11 @@ describe("AIAgentForm custom avatar plan gate", () => {
 		globalThis.File = window.File as unknown as typeof globalThis.File;
 		globalThis.HTMLElement =
 			window.HTMLElement as unknown as typeof globalThis.HTMLElement;
+		Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
+			configurable: true,
+			value: true,
+			writable: true,
+		});
 		globalThis.getComputedStyle =
 			window.getComputedStyle as unknown as typeof globalThis.getComputedStyle;
 	});
@@ -259,6 +367,39 @@ describe("AIAgentForm custom avatar plan gate", () => {
 			"Custom AI agent avatars are a Pro feature."
 		);
 		expect(document.body.innerHTML).toContain('data-slot="mock-avatar-input"');
+		view.unmount();
+	});
+
+	it("enables saving after uploading a custom avatar for an agent without an image", async () => {
+		planInfo = createPlanInfo("pro", true);
+
+		const view = await renderForm({
+			initialData: createAgent({ image: null }),
+		});
+
+		expect(getButtonByText("Save changes").disabled).toBe(true);
+
+		await clickButton(getButtonByTestId("image-mode-custom"));
+		await clickButton(getButtonByTestId("mock-avatar-upload"));
+
+		expect(getButtonByText("Save changes").disabled).toBe(false);
+		view.unmount();
+	});
+
+	it("enables saving after replacing an existing custom avatar", async () => {
+		planInfo = createPlanInfo("pro", true);
+
+		const view = await renderForm({
+			initialData: createAgent({
+				image: "https://cdn.example.com/original-agent.png",
+			}),
+		});
+
+		expect(getButtonByText("Save changes").disabled).toBe(true);
+
+		await clickButton(getButtonByTestId("mock-avatar-upload"));
+
+		expect(getButtonByText("Save changes").disabled).toBe(false);
 		view.unmount();
 	});
 });

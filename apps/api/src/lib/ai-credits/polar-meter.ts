@@ -48,6 +48,13 @@ export type IngestAiCreditUsageInput = {
 	totalToolCount: number;
 };
 
+export type GrantAiCreditUsageInput = {
+	organizationId: string;
+	websiteId: string;
+	amount: number;
+	adminUserId: string;
+};
+
 export type IngestAiCreditUsageStatus =
 	| "ingested"
 	| "failed"
@@ -55,8 +62,17 @@ export type IngestAiCreditUsageStatus =
 	| "skipped_zero"
 	| "skipped_disabled";
 
+export type GrantAiCreditUsageStatus =
+	| "ingested"
+	| "failed"
+	| "skipped_disabled";
+
 export type IngestAiCreditUsageResult = {
 	status: IngestAiCreditUsageStatus;
+};
+
+export type GrantAiCreditUsageResult = {
+	status: GrantAiCreditUsageStatus;
 };
 
 type EventMetadataValue = string | number | boolean;
@@ -296,6 +312,28 @@ function optimisticConsumeCredits(params: {
 		...params.entry,
 		balance: nextBalance,
 		consumedUnits: nextConsumed,
+		lastSyncedAt: toTimestamp(params.nowMs),
+	};
+}
+
+function optimisticGrantCredits(params: {
+	entry: CachedMeterEntry;
+	amount: number;
+	nowMs: number;
+}): CachedMeterEntry {
+	const nextBalance =
+		typeof params.entry.balance === "number"
+			? params.entry.balance + params.amount
+			: null;
+	const nextCredited =
+		typeof params.entry.creditedUnits === "number"
+			? params.entry.creditedUnits + params.amount
+			: null;
+
+	return {
+		...params.entry,
+		balance: nextBalance,
+		creditedUnits: nextCredited,
 		lastSyncedAt: toTimestamp(params.nowMs),
 	};
 }
@@ -556,6 +594,73 @@ export async function ingestAiCreditUsage(
 	const updated = optimisticConsumeCredits({
 		entry: cached,
 		credits: input.credits,
+		nowMs: deps.now(),
+	});
+
+	try {
+		await writeCachedEntry({
+			redis: deps.redis,
+			key: cacheKey,
+			entry: updated,
+			staleTtlSeconds: deps.staleTtlSeconds,
+		});
+	} catch {
+		// Cache update is best-effort only.
+	}
+
+	return { status: "ingested" };
+}
+
+export async function grantAiCreditUsage(
+	input: GrantAiCreditUsageInput,
+	options?: GatewayOptions
+): Promise<GrantAiCreditUsageResult> {
+	const deps = resolveDeps(options?.deps);
+
+	if (!deps.billingEnabled) {
+		return { status: "skipped_disabled" };
+	}
+
+	try {
+		await deps.polar.events.ingest({
+			events: [
+				{
+					name: deps.eventName,
+					externalCustomerId: input.organizationId,
+					metadata: {
+						credits: -input.amount,
+						websiteId: input.websiteId,
+						organizationId: input.organizationId,
+						adminUserId: input.adminUserId,
+						kind: "admin_grant",
+					},
+				},
+			],
+		});
+	} catch (error) {
+		console.error(
+			`[ai-credits] Failed to grant usage credits for org=${input.organizationId}:`,
+			error
+		);
+		return { status: "failed" };
+	}
+
+	const cacheKey = buildMeterCacheKey(input.organizationId);
+	let rawCache: string | null = null;
+	try {
+		rawCache = await deps.redis.get(cacheKey);
+	} catch {
+		return { status: "ingested" };
+	}
+	const cached = parseCachedEntry(rawCache);
+
+	if (!cached?.meterBacked) {
+		return { status: "ingested" };
+	}
+
+	const updated = optimisticGrantCredits({
+		entry: cached,
+		amount: input.amount,
 		nowMs: deps.now(),
 	});
 

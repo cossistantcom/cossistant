@@ -20,6 +20,38 @@ const stopImpersonatingMock = mock(async () => ({
 	headers: new Headers({ "set-cookie": "session=admin" }),
 	response: {},
 }));
+const getCustomerByOrganizationIdMock = mock(
+	async (_organizationId: string) =>
+		({ id: "customer-existing" }) as {
+			id: string;
+		} | null
+);
+const polarCustomerCreateMock = mock(async () => ({ id: "customer-created" }));
+const grantAiCreditUsageMock = mock(async () => ({ status: "ingested" }));
+const getAiCreditMeterStateMock = mock(async () => ({
+	balance: 875,
+	consumedUnits: 125,
+	creditedUnits: 1000,
+	lastSyncedAt: "2026-04-02T10:00:00.000Z",
+	meterBacked: true,
+	source: "live",
+}));
+const getPlanForWebsiteMock = mock(async () => ({
+	planName: "pro",
+	displayName: "Pro",
+	price: 49,
+	features: {
+		"ai-credit": 1000,
+	},
+	hardLimitsEnforced: true,
+	hardLimitsUnavailableReason: null,
+	billing: {
+		enabled: true,
+		provider: "polar",
+		canManageSubscription: true,
+	},
+}));
+const isPolarEnabledMock = mock(() => true);
 
 mock.module("@api/lib/auth", () => ({
 	auth: {
@@ -33,6 +65,31 @@ mock.module("@api/lib/auth", () => ({
 	},
 }));
 
+mock.module("@api/lib/ai-credits/polar-meter", () => ({
+	getAiCreditMeterState: getAiCreditMeterStateMock,
+	grantAiCreditUsage: grantAiCreditUsageMock,
+}));
+
+mock.module("@api/lib/billing-mode", () => ({
+	isPolarEnabled: isPolarEnabledMock,
+}));
+
+mock.module("@api/lib/plans/access", () => ({
+	getPlanForWebsite: getPlanForWebsiteMock,
+}));
+
+mock.module("@api/lib/plans/polar", () => ({
+	getCustomerByOrganizationId: getCustomerByOrganizationIdMock,
+}));
+
+mock.module("@api/lib/polar", () => ({
+	default: {
+		customers: {
+			create: polarCustomerCreateMock,
+		},
+	},
+}));
+
 const modulePromise = Promise.all([import("../init"), import("./admin")]);
 
 function createThenableBuilder(result: unknown) {
@@ -42,6 +99,7 @@ function createThenableBuilder(result: unknown) {
 		where: () => builder,
 		orderBy: () => builder,
 		limit: () => Promise.resolve(result),
+		offset: () => Promise.resolve(result),
 		// biome-ignore lint/suspicious/noThenProperty: Drizzle query builders are thenable, and these tests fake that contract.
 		then: (
 			resolve: (value: unknown) => unknown,
@@ -119,6 +177,42 @@ describe("admin router", () => {
 		revokeUserSessionsMock.mockClear();
 		impersonateUserMock.mockClear();
 		stopImpersonatingMock.mockClear();
+		getCustomerByOrganizationIdMock.mockClear();
+		getCustomerByOrganizationIdMock.mockImplementation(
+			async () => ({ id: "customer-existing" }) as { id: string } | null
+		);
+		polarCustomerCreateMock.mockClear();
+		grantAiCreditUsageMock.mockClear();
+		grantAiCreditUsageMock.mockImplementation(async () => ({
+			status: "ingested",
+		}));
+		getAiCreditMeterStateMock.mockClear();
+		getAiCreditMeterStateMock.mockImplementation(async () => ({
+			balance: 875,
+			consumedUnits: 125,
+			creditedUnits: 1000,
+			lastSyncedAt: "2026-04-02T10:00:00.000Z",
+			meterBacked: true,
+			source: "live",
+		}));
+		getPlanForWebsiteMock.mockClear();
+		getPlanForWebsiteMock.mockImplementation(async () => ({
+			planName: "pro",
+			displayName: "Pro",
+			price: 49,
+			features: {
+				"ai-credit": 1000,
+			},
+			hardLimitsEnforced: true,
+			hardLimitsUnavailableReason: null,
+			billing: {
+				enabled: true,
+				provider: "polar",
+				canManageSubscription: true,
+			},
+		}));
+		isPolarEnabledMock.mockClear();
+		isPolarEnabledMock.mockImplementation(() => true);
 	});
 
 	it("rejects non-admin users before admin operations run", async () => {
@@ -140,6 +234,19 @@ describe("admin router", () => {
 		});
 		await expect(
 			caller.impersonateUser({ userId: "user-1" })
+		).rejects.toMatchObject({
+			code: "FORBIDDEN",
+		});
+		await expect(caller.listWebsites({})).rejects.toMatchObject({
+			code: "FORBIDDEN",
+		});
+		await expect(
+			caller.getWebsiteAiUsage({ websiteId: "site-1" })
+		).rejects.toMatchObject({
+			code: "FORBIDDEN",
+		});
+		await expect(
+			caller.grantWebsiteAiUsage({ websiteId: "site-1", amount: 10 })
 		).rejects.toMatchObject({
 			code: "FORBIDDEN",
 		});
@@ -195,6 +302,7 @@ describe("admin router", () => {
 
 	it("groups a user's active websites by organization", async () => {
 		const db = createDb([
+			[createUser()],
 			[
 				{
 					organizationId: "org-1",
@@ -271,6 +379,226 @@ describe("admin router", () => {
 				],
 			},
 		]);
+		expect(result.user.email).toBe("user@example.com");
+	});
+
+	it("returns the latest 40 serialized websites", async () => {
+		const db = createDb([
+			[
+				{
+					id: "site-1",
+					name: "Cossistant",
+					slug: "cossistant",
+					domain: "cossistant.com",
+					logoUrl: null,
+					status: "active",
+					organizationId: "org-1",
+					organizationName: "Cossistant Inc",
+					organizationSlug: "cossistant-inc",
+					teamId: "team-1",
+					createdAt: "2026-04-02T10:00:00.000Z",
+					updatedAt: "2026-04-03T10:00:00.000Z",
+				},
+			],
+		]);
+		const caller = await createCaller({ db });
+
+		const result = await caller.listWebsites({ search: "cossistant" });
+
+		expect(result.limit).toBe(40);
+		expect(result.websites).toEqual([
+			{
+				id: "site-1",
+				name: "Cossistant",
+				slug: "cossistant",
+				domain: "cossistant.com",
+				logoUrl: null,
+				status: "active",
+				organizationId: "org-1",
+				organizationName: "Cossistant Inc",
+				organizationSlug: "cossistant-inc",
+				teamId: "team-1",
+				createdAt: "2026-04-02T10:00:00.000Z",
+				updatedAt: "2026-04-03T10:00:00.000Z",
+			},
+		]);
+	});
+
+	it("returns a website AI usage snapshot for admins", async () => {
+		const site = {
+			id: "site-1",
+			name: "Cossistant",
+			slug: "cossistant",
+			domain: "cossistant.com",
+			logoUrl: null,
+			status: "active",
+			organizationId: "org-1",
+			teamId: "team-1",
+			createdAt: new Date("2026-04-01T10:00:00.000Z"),
+			updatedAt: new Date("2026-04-02T10:00:00.000Z"),
+			deletedAt: null,
+		};
+		const db = createDb([[site]]);
+		const caller = await createCaller({ db });
+
+		const result = await caller.getWebsiteAiUsage({ websiteId: "site-1" });
+
+		expect(result).toEqual({
+			website: {
+				id: "site-1",
+				name: "Cossistant",
+				slug: "cossistant",
+				organizationId: "org-1",
+			},
+			plan: {
+				name: "pro",
+				displayName: "Pro",
+				includedAiCredits: 1000,
+			},
+			billing: {
+				enabled: true,
+				provider: "polar",
+				canManageSubscription: true,
+			},
+			aiCredits: {
+				balance: 875,
+				consumedUnits: 125,
+				creditedUnits: 1000,
+				meterBacked: true,
+				source: "live",
+				lastSyncedAt: "2026-04-02T10:00:00.000Z",
+			},
+		});
+		expect(getPlanForWebsiteMock).toHaveBeenCalledWith(site);
+		expect(getAiCreditMeterStateMock).toHaveBeenCalledWith("org-1");
+	});
+
+	it("grants website AI usage against the organization Polar customer", async () => {
+		const db = createDb([
+			[
+				{
+					id: "site-1",
+					name: "Cossistant",
+					slug: "cossistant",
+					organizationId: "org-1",
+					organizationName: "Cossistant Inc",
+				},
+			],
+		]);
+		const caller = await createCaller({ db });
+
+		const result = await caller.grantWebsiteAiUsage({
+			websiteId: "site-1",
+			amount: 12.3456,
+		});
+
+		expect(result).toEqual({
+			success: true,
+			amount: 12.346,
+			websiteId: "site-1",
+			websiteSlug: "cossistant",
+			organizationId: "org-1",
+			customerId: "customer-existing",
+			customerCreated: false,
+		});
+		expect(getCustomerByOrganizationIdMock).toHaveBeenCalledWith("org-1");
+		expect(polarCustomerCreateMock).not.toHaveBeenCalled();
+		expect(grantAiCreditUsageMock).toHaveBeenCalledWith({
+			organizationId: "org-1",
+			websiteId: "site-1",
+			amount: 12.346,
+			adminUserId: "admin-user",
+		});
+	});
+
+	it("creates a missing Polar customer before granting website AI usage", async () => {
+		getCustomerByOrganizationIdMock.mockImplementation(async () => null);
+		const db = createDb([
+			[
+				{
+					id: "site-1",
+					name: "Cossistant",
+					slug: "cossistant",
+					organizationId: "org-1",
+					organizationName: "Cossistant Inc",
+				},
+			],
+			[
+				{
+					email: "owner@example.com",
+					name: "Owner User",
+					role: "owner",
+					createdAt: new Date("2026-04-01T10:00:00.000Z"),
+				},
+			],
+		]);
+		const caller = await createCaller({ db });
+
+		const result = await caller.grantWebsiteAiUsage({
+			websiteId: "site-1",
+			amount: 10,
+		});
+
+		expect(result.customerCreated).toBe(true);
+		expect(result.customerId).toBe("customer-created");
+		expect(polarCustomerCreateMock).toHaveBeenCalledWith({
+			email: "owner@example.com",
+			externalId: "org-1",
+			name: "Cossistant Inc",
+		});
+		expect(grantAiCreditUsageMock).toHaveBeenCalledTimes(1);
+	});
+
+	it("fails website AI grants safely when billing or data is invalid", async () => {
+		const caller = await createCaller();
+
+		await expect(
+			caller.grantWebsiteAiUsage({ websiteId: "site-1", amount: -1 })
+		).rejects.toMatchObject({
+			code: "BAD_REQUEST",
+		});
+
+		isPolarEnabledMock.mockImplementation(() => false);
+		await expect(
+			caller.grantWebsiteAiUsage({ websiteId: "site-1", amount: 1 })
+		).rejects.toMatchObject({
+			code: "BAD_REQUEST",
+		});
+
+		isPolarEnabledMock.mockImplementation(() => true);
+		const missingWebsiteCaller = await createCaller({ db: createDb([[]]) });
+		await expect(
+			missingWebsiteCaller.grantWebsiteAiUsage({
+				websiteId: "missing-site",
+				amount: 1,
+			})
+		).rejects.toMatchObject({
+			code: "NOT_FOUND",
+		});
+
+		getCustomerByOrganizationIdMock.mockImplementation(async () => null);
+		const missingEmailCaller = await createCaller({
+			db: createDb([
+				[
+					{
+						id: "site-1",
+						name: "Cossistant",
+						slug: "cossistant",
+						organizationId: "org-1",
+						organizationName: "Cossistant Inc",
+					},
+				],
+				[],
+			]),
+		});
+		await expect(
+			missingEmailCaller.grantWebsiteAiUsage({
+				websiteId: "site-1",
+				amount: 1,
+			})
+		).rejects.toMatchObject({
+			code: "BAD_REQUEST",
+		});
 	});
 
 	it("delegates safe admin actions through Better Auth and appends cookies", async () => {

@@ -395,6 +395,28 @@ export function AIAgentForm({
 		() => (imageModeValue === "custom" ? resolveImageUrl(imageValue) : null),
 		[imageModeValue, imageValue]
 	);
+	const handleImageModeChange = useCallback(
+		(value: AIAgentFormValues["imageMode"]) => {
+			form.setValue("imageMode", value, {
+				shouldDirty: true,
+				shouldTouch: true,
+				shouldValidate: true,
+			});
+			void form.trigger();
+		},
+		[form]
+	);
+	const handleImageChange = useCallback(
+		(value: AvatarInputValue | null) => {
+			form.setValue("image", value, {
+				shouldDirty: true,
+				shouldTouch: true,
+				shouldValidate: true,
+			});
+			void form.trigger();
+		},
+		[form]
+	);
 
 	const onSubmit = async (values: AIAgentFormValues) => {
 		let imageUrl: string | null = null;
@@ -576,7 +598,7 @@ export function AIAgentForm({
 										<RadioGroup
 											className="space-y-3"
 											disabled={isSubmitting}
-											onValueChange={field.onChange}
+											onValueChange={handleImageModeChange}
 											value={field.value}
 										>
 											<div className="flex items-start space-x-3">
@@ -640,10 +662,7 @@ export function AIAgentForm({
 												disabled={isSubmitting}
 												name={field.name}
 												onBlur={field.onBlur}
-												onChange={(value) => {
-													field.onChange(value);
-													void form.trigger("image");
-												}}
+												onChange={handleImageChange}
 												onError={(error) => {
 													if (
 														!(

@@ -4,7 +4,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 const actionHandlers: Array<() => void> = [];
 const rowHandlers: Array<() => void> = [];
-const buttonHandlers: Array<() => void> = [];
 const mutationCalls: Array<{ key: string; input: unknown }> = [];
 const invalidateCalls: unknown[] = [];
 const confirmCalls: string[] = [];
@@ -13,6 +12,7 @@ const routerRefreshCalls: string[] = [];
 const authStoreNotifyCalls: string[] = [];
 const toastSuccessCalls: string[] = [];
 const toastErrorCalls: string[] = [];
+const queryDataByKey = new Map<string, unknown>();
 
 mock.module("@tanstack/react-query", () => ({
 	useMutation: (
@@ -30,10 +30,18 @@ mock.module("@tanstack/react-query", () => ({
 			void options.onSuccess?.();
 		},
 	}),
-	useQuery: () => ({
-		data: null,
-		isLoading: false,
-	}),
+	useQuery: (options: { queryKey?: unknown[] } = {}) => {
+		const queryKey = options.queryKey?.[0];
+
+		return {
+			data:
+				typeof queryKey === "string"
+					? (queryDataByKey.get(queryKey) ?? null)
+					: null,
+			isError: false,
+			isLoading: false,
+		};
+	},
 	useQueryClient: () => ({
 		invalidateQueries: async (input: unknown) => {
 			invalidateCalls.push(input);
@@ -91,22 +99,11 @@ mock.module("@/components/ui/button", () => ({
 		children,
 		onClick,
 		...props
-	}: React.ButtonHTMLAttributes<HTMLButtonElement>) => {
-		if (onClick) {
-			buttonHandlers.push(() => {
-				onClick({
-					preventDefault() {},
-					stopPropagation() {},
-				} as never);
-			});
-		}
-
-		return (
-			<button {...props} type={props.type ?? "button"}>
-				{children}
-			</button>
-		);
-	},
+	}: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+		<button onClick={onClick} {...props} type={props.type ?? "button"}>
+			{children}
+		</button>
+	),
 }));
 
 mock.module("@/components/ui/dropdown-menu", () => ({
@@ -198,6 +195,24 @@ mock.module("@/components/ui/website-image", () => ({
 	),
 }));
 
+mock.module("./numeric-confirmation-sheet", () => ({
+	NumericConfirmationSheet: ({
+		children,
+		confirmLabel,
+		targetLabel,
+	}: {
+		children?: React.ReactNode;
+		confirmLabel: string;
+		targetLabel: string;
+	}) => (
+		<section>
+			<p>{targetLabel}</p>
+			{children}
+			<button type="button">{confirmLabel}</button>
+		</section>
+	),
+}));
+
 mock.module("@/lib/auth/client", () => ({
 	authClient: {
 		$store: {
@@ -235,6 +250,21 @@ mock.module("@/lib/trpc/client", () => {
 				impersonateUser: {
 					mutationOptions: mutationOptions("impersonateUser"),
 				},
+				grantWebsiteAiUsage: {
+					mutationOptions: mutationOptions("grantWebsiteAiUsage"),
+				},
+				getWebsiteAiUsage: {
+					queryKey: (input: unknown) => ["admin.getWebsiteAiUsage", input],
+					queryOptions: (input: unknown) => ({
+						queryKey: ["admin.getWebsiteAiUsage", input],
+					}),
+				},
+				listWebsites: {
+					queryKey: () => ["admin.listWebsites"],
+					queryOptions: (input: unknown) => ({
+						queryKey: ["admin.listWebsites", input],
+					}),
+				},
 				listUsers: {
 					queryKey: () => ["admin.listUsers"],
 					queryOptions: (input: unknown) => ({
@@ -248,6 +278,11 @@ mock.module("@/lib/trpc/client", () => {
 					mutationOptions: mutationOptions("unbanUser"),
 				},
 			},
+			plan: {
+				getPlanInfo: {
+					queryKey: (input: unknown) => ["plan.getPlanInfo", input],
+				},
+			},
 		}),
 	};
 });
@@ -259,6 +294,7 @@ mock.module("@/lib/utils", () => ({
 
 mock.module("./use-admin-users-controls", () => ({
 	useAdminUsersControls: () => ({
+		adminView: "users",
 		debouncedSearchTerm: "",
 		searchTerm: "",
 		setSearchTerm: () => {},
@@ -270,7 +306,6 @@ const modulePromise = import("./admin-page-content");
 function resetState() {
 	actionHandlers.length = 0;
 	rowHandlers.length = 0;
-	buttonHandlers.length = 0;
 	mutationCalls.length = 0;
 	invalidateCalls.length = 0;
 	confirmCalls.length = 0;
@@ -279,6 +314,7 @@ function resetState() {
 	authStoreNotifyCalls.length = 0;
 	toastSuccessCalls.length = 0;
 	toastErrorCalls.length = 0;
+	queryDataByKey.clear();
 
 	Object.defineProperty(globalThis, "window", {
 		configurable: true,
@@ -304,6 +340,24 @@ function createUser(overrides: Record<string, unknown> = {}) {
 		createdAt: "2026-04-01T10:00:00.000Z",
 		updatedAt: "2026-04-01T10:00:00.000Z",
 		lastSeenAt: "2026-04-02T10:00:00.000Z",
+		...overrides,
+	};
+}
+
+function createWebsite(overrides: Record<string, unknown> = {}) {
+	return {
+		id: "site-1",
+		name: "Cossistant Site",
+		slug: "cossistant-site",
+		domain: "cossistant.com",
+		logoUrl: null,
+		status: "active",
+		organizationId: "org-1",
+		organizationName: "Cossistant Inc",
+		organizationSlug: "cossistant-inc",
+		teamId: "team-1",
+		createdAt: "2026-04-01T10:00:00.000Z",
+		updatedAt: "2026-04-01T10:00:00.000Z",
 		...overrides,
 	};
 }
@@ -354,49 +408,92 @@ describe("admin page content", () => {
 		expect(routerRefreshCalls).toEqual(["refresh"]);
 	});
 
-	it("renders the selected user's active websites in the detail panel", async () => {
+	it("renders website actions for granting AI usage", async () => {
 		resetState();
-		const { AdminUserDetailPanel } = await modulePromise;
-		const closeCalls: string[] = [];
+		const { AdminWebsitesTable } = await modulePromise;
+		const grantTargets: string[] = [];
 
 		const html = renderToStaticMarkup(
-			<AdminUserDetailPanel
+			<AdminWebsitesTable
+				data={[createWebsite() as never]}
 				isLoading={false}
-				onClose={() => {
-					closeCalls.push("close");
+				onGrantAiUsage={(website) => {
+					grantTargets.push(website.id);
 				}}
-				organizations={[
-					{
-						id: "org-1",
-						name: "Acme",
-						slug: "acme",
-						role: "admin",
-						joinedAt: "2026-04-01T10:00:00.000Z",
-						websites: [
-							{
-								id: "site-1",
-								name: "Cossistant Site",
-								slug: "cossistant-site",
-								domain: "cossistant.com",
-								logoUrl: null,
-								accessSource: "organization",
-								createdAt: "2026-04-02T10:00:00.000Z",
-							},
-						],
-					},
-				]}
-				selectedUser={createUser() as never}
 			/>
 		);
 
-		expect(html).toContain("ada@example.com");
-		expect(html).toContain("Acme");
 		expect(html).toContain("Cossistant Site");
 		expect(html).toContain("cossistant.com");
 		expect(html).toContain('href="/cossistant-site"');
+		expect(html).toContain("Grant AI usage");
 
-		buttonHandlers[0]?.();
+		actionHandlers[0]?.();
 
-		expect(closeCalls).toEqual(["close"]);
+		expect(grantTargets).toEqual(["site-1"]);
+	});
+
+	it("shows current AI usage inside the grant sheet", async () => {
+		resetState();
+		queryDataByKey.set("admin.getWebsiteAiUsage", {
+			website: {
+				id: "site-1",
+				name: "Cossistant Site",
+				slug: "cossistant-site",
+				organizationId: "org-1",
+			},
+			plan: {
+				name: "pro",
+				displayName: "Pro",
+				includedAiCredits: 1000,
+			},
+			billing: {
+				enabled: true,
+				provider: "polar",
+				canManageSubscription: true,
+			},
+			aiCredits: {
+				balance: 875,
+				consumedUnits: 125,
+				creditedUnits: 1000,
+				lastSyncedAt: "2026-04-02T10:00:00.000Z",
+				meterBacked: true,
+				source: "live",
+			},
+		});
+		const { AdminGrantAiUsageSheet } = await modulePromise;
+
+		const html = renderToStaticMarkup(
+			<AdminGrantAiUsageSheet
+				isPending={false}
+				onConfirm={() => {}}
+				onOpenChange={() => {}}
+				open
+				website={createWebsite() as never}
+			/>
+		);
+
+		expect(html).toContain("Current AI usage");
+		expect(html).toContain("Pro plan");
+		expect(html).toContain("1,000 included");
+		expect(html).toContain("125 / 1,000 used this cycle");
+		expect(html).toContain("875 left");
+	});
+
+	it("does not render the old empty user detail rail", async () => {
+		resetState();
+		const { AdminUsersTable } = await modulePromise;
+
+		const html = renderToStaticMarkup(
+			<AdminUsersTable
+				data={[createUser() as never]}
+				isLoading={false}
+				onSelectUser={() => {}}
+				selectedUserId={null}
+				websiteSlug="acme"
+			/>
+		);
+
+		expect(html).not.toContain("Select a user to view their websites.");
 	});
 });

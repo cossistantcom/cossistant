@@ -1,6 +1,8 @@
 import type { RouterOutputs } from "@cossistant/api/types";
 
 export type PlanAiCredits = RouterOutputs["plan"]["getPlanInfo"]["aiCredits"];
+type AdminWebsiteAiCredits =
+	RouterOutputs["admin"]["getWebsiteAiUsage"]["aiCredits"];
 
 export type AiCreditUsageView = {
 	kind: "metered" | "unlimited";
@@ -24,7 +26,7 @@ export function formatAiCreditAmount(value: number): string {
 }
 
 export function getAiCreditUsageView(
-	aiCredits: PlanAiCredits | null | undefined
+	aiCredits: AdminWebsiteAiCredits | PlanAiCredits | null | undefined
 ): AiCreditUsageView | null {
 	if (aiCredits?.source === "disabled") {
 		return {

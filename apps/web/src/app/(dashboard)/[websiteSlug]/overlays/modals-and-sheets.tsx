@@ -4,6 +4,7 @@ import { parseAsString, useQueryState } from "nuqs";
 import { KnowledgePreviewModal } from "@/components/modals/knowledge-preview-modal";
 import { useWebsite } from "@/contexts/website";
 import { TeamInviteModalWrapper } from "./modals";
+import { AdminUserWebsitesSheetWrapper } from "./sheets/admin-user-websites-sheet-wrapper";
 
 /**
  * Global overlays orchestrator for the dashboard.
@@ -15,6 +16,10 @@ export function ModalsAndSheets() {
 	const website = useWebsite();
 	const [knowledgeId, setKnowledgeId] = useQueryState(
 		"knowledge",
+		parseAsString
+	);
+	const [adminUserId, setAdminUserId] = useQueryState(
+		"adminUserId",
 		parseAsString
 	);
 
@@ -35,6 +40,15 @@ export function ModalsAndSheets() {
 					}}
 					open
 					websiteSlug={website.slug}
+				/>
+			)}
+
+			{adminUserId && (
+				<AdminUserWebsitesSheetWrapper
+					onClose={() => {
+						void setAdminUserId(null);
+					}}
+					userId={adminUserId}
 				/>
 			)}
 

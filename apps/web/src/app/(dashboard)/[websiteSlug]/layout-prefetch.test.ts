@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { getDashboardPrefetchTasks } from "./layout-prefetch";
 
 const prefetchMock = mock(async () => {});
-const prefetchInfiniteQueryMock = mock(async () => {});
+const fetchInfiniteQueryMock = mock(async () => {});
 const fetchQueryMock = mock(async () => ({ nextCursor: null }));
 
 const trpc = {
@@ -74,8 +74,9 @@ function includesTinybirdTokenPrefetch(): boolean {
 describe("getDashboardPrefetchTasks", () => {
 	beforeEach(() => {
 		prefetchMock.mockClear();
-		prefetchInfiniteQueryMock.mockClear();
+		fetchInfiniteQueryMock.mockClear();
 		fetchQueryMock.mockClear();
+		fetchInfiniteQueryMock.mockImplementation(async () => {});
 	});
 
 	it("includes the Tinybird token prefetch when Tinybird is enabled", async () => {
@@ -84,7 +85,7 @@ describe("getDashboardPrefetchTasks", () => {
 			prefetch: prefetchMock as never,
 			queryClient: {
 				fetchQuery: fetchQueryMock,
-				prefetchInfiniteQuery: prefetchInfiniteQueryMock,
+				fetchInfiniteQuery: fetchInfiniteQueryMock,
 			} as never,
 			tinybirdEnabled: true,
 			trpc: trpc as never,
@@ -102,7 +103,7 @@ describe("getDashboardPrefetchTasks", () => {
 			prefetch: prefetchMock as never,
 			queryClient: {
 				fetchQuery: fetchQueryMock,
-				prefetchInfiniteQuery: prefetchInfiniteQueryMock,
+				fetchInfiniteQuery: fetchInfiniteQueryMock,
 			} as never,
 			tinybirdEnabled: false,
 			trpc: trpc as never,
@@ -112,5 +113,30 @@ describe("getDashboardPrefetchTasks", () => {
 		await Promise.all(tasks);
 
 		expect(includesTinybirdTokenPrefetch()).toBe(false);
+	});
+
+	it("routes conversation header auth failures through the auth redirect handler", async () => {
+		const authError = { data: { code: "UNAUTHORIZED" } };
+		const handleAuthRedirect = mock(() => {});
+		fetchInfiniteQueryMock.mockImplementation(async () => {
+			throw authError;
+		});
+
+		const tasks = getDashboardPrefetchTasks({
+			handleAuthRedirect,
+			prefetch: prefetchMock as never,
+			queryClient: {
+				fetchQuery: fetchQueryMock,
+				fetchInfiniteQuery: fetchInfiniteQueryMock,
+			} as never,
+			tinybirdEnabled: false,
+			trpc: trpc as never,
+			websiteSlug: "acme",
+		});
+
+		await Promise.all(tasks);
+
+		expect(handleAuthRedirect).toHaveBeenCalledTimes(1);
+		expect(handleAuthRedirect).toHaveBeenCalledWith(authError);
 	});
 });

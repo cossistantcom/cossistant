@@ -2,6 +2,7 @@ import { auth, type OrigamiSession, type OrigamiUser } from "@api/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
+import { buildSessionExpiredLoginPath } from "./redirect";
 
 export const getAuth = cache(
 	async (): Promise<{
@@ -23,16 +24,14 @@ export const getAuth = cache(
 );
 
 type EnsurePageAuthProps = {
-	redirectTo: string;
+	redirectTo?: string;
 };
 
-export const ensurePageAuth = async (
-	props: EnsurePageAuthProps = { redirectTo: "/" }
-) => {
+export const ensurePageAuth = async (props: EnsurePageAuthProps = {}) => {
 	const { session, user } = await getAuth();
 
 	if (!(user && session)) {
-		redirect(props.redirectTo);
+		redirect(props.redirectTo ?? buildSessionExpiredLoginPath("/select"));
 	}
 
 	return { session, user };

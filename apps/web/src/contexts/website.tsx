@@ -7,8 +7,12 @@ import { useQuery } from "@tanstack/react-query";
 import type { TRPCClientErrorBase } from "@trpc/client";
 import type { DefaultErrorShape } from "@trpc/server/unstable-core-do-not-import";
 import { useRouter } from "next/navigation";
-import { createContext, useContext, useEffect } from "react";
+import { createContext, useCallback, useContext, useEffect } from "react";
 import { authClient, type Session } from "@/lib/auth/client";
+import {
+	buildSessionExpiredLoginPath,
+	getCurrentSafeCallbackPath,
+} from "@/lib/auth/redirect";
 import { useTRPC } from "@/lib/trpc/client";
 
 type WebsiteContextValue = {
@@ -35,6 +39,9 @@ export function WebsiteProvider({
 }: WebsiteProviderProps) {
 	const trpc = useTRPC();
 	const router = useRouter();
+	const redirectToLogin = useCallback(() => {
+		router.replace(buildSessionExpiredLoginPath(getCurrentSafeCallbackPath()));
+	}, [router]);
 
 	const { data: sessionData, isPending: isLoadingSession } =
 		authClient.useSession();
@@ -85,9 +92,9 @@ export function WebsiteProvider({
 
 	useEffect(() => {
 		if (sessionData === null && !isLoadingSession) {
-			router.replace("/login");
+			redirectToLogin();
 		}
-	}, [router, sessionData, isLoadingSession]);
+	}, [redirectToLogin, sessionData, isLoadingSession]);
 
 	useEffect(() => {
 		const authError =
@@ -98,14 +105,21 @@ export function WebsiteProvider({
 		}
 
 		if (authError.data.code === "UNAUTHORIZED") {
-			router.replace("/login");
+			redirectToLogin();
 			return;
 		}
 
 		if (authError.data.code === "FORBIDDEN") {
 			router.replace("/select");
 		}
-	}, [errorMembers, errorViews, errorWebsite, errorOrgWebsites, router]);
+	}, [
+		errorMembers,
+		errorViews,
+		errorWebsite,
+		errorOrgWebsites,
+		redirectToLogin,
+		router,
+	]);
 
 	if (!sessionData) {
 		return null;

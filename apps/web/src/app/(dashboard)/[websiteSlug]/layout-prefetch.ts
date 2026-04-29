@@ -32,27 +32,29 @@ export function getDashboardPrefetchTasks({
 			trpc.aiAgent.get.queryOptions({ websiteSlug }),
 			handleAuthRedirect
 		),
-		queryClient.prefetchInfiniteQuery({
-			queryKey: [
-				...trpc.conversation.listConversationsHeaders.queryOptions({
-					websiteSlug,
-				}).queryKey,
-				{ type: "infinite" },
-			],
-			queryFn: async ({ pageParam }) => {
-				const response = await queryClient.fetchQuery(
-					trpc.conversation.listConversationsHeaders.queryOptions({
+		queryClient
+			.fetchInfiniteQuery({
+				queryKey: [
+					...trpc.conversation.listConversationsHeaders.queryOptions({
 						websiteSlug,
-						limit: 500,
-						cursor: pageParam ?? null,
-					})
-				);
-				return response;
-			},
-			initialPageParam: null as string | null,
-			getNextPageParam: (lastPage) => lastPage.nextCursor,
-			pages: 1,
-		}),
+					}).queryKey,
+					{ type: "infinite" },
+				],
+				queryFn: async ({ pageParam }) => {
+					const response = await queryClient.fetchQuery(
+						trpc.conversation.listConversationsHeaders.queryOptions({
+							websiteSlug,
+							limit: 500,
+							cursor: pageParam ?? null,
+						})
+					);
+					return response;
+				},
+				initialPageParam: null as string | null,
+				getNextPageParam: (lastPage) => lastPage.nextCursor,
+				pages: 1,
+			})
+			.catch(handleAuthRedirect),
 		...(tinybirdEnabled
 			? [
 					prefetch(

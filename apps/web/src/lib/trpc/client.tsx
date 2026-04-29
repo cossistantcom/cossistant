@@ -8,6 +8,11 @@ import { createTRPCClient, httpBatchLink, loggerLink } from "@trpc/client";
 import { createTRPCContext } from "@trpc/tanstack-react-query";
 import { useState } from "react";
 import superjson from "superjson";
+import { signOut } from "@/lib/auth/client";
+import {
+	buildSessionExpiredLoginPath,
+	getCurrentSafeCallbackPath,
+} from "@/lib/auth/redirect";
 import { getTRPCUrl } from "../url";
 import { makeQueryClient } from "./query-client";
 
@@ -18,6 +23,27 @@ export const TRPCProvider = trpcContext.TRPCProvider;
 export const useTRPC = trpcContext.useTRPC;
 
 let browserQueryClient: QueryClient;
+let sessionExpiredRedirectPromise: Promise<void> | null = null;
+
+function redirectToSessionExpiredLogin() {
+	if (typeof window === "undefined" || window.location.pathname === "/login") {
+		return;
+	}
+
+	sessionExpiredRedirectPromise ??= (async () => {
+		const loginPath = buildSessionExpiredLoginPath(
+			getCurrentSafeCallbackPath()
+		);
+
+		try {
+			await signOut();
+		} catch {
+			// Continue to login even if the expired session cannot be cleared.
+		}
+
+		window.location.replace(loginPath);
+	})();
+}
 
 function getQueryClient() {
 	if (isServer) {
@@ -53,6 +79,12 @@ export function TRPCReactProvider(
 						return fetch(url, {
 							...options,
 							credentials: "include",
+						}).then((response) => {
+							if (response.status === 401) {
+								redirectToSessionExpiredLogin();
+							}
+
+							return response;
 						});
 					},
 				}),

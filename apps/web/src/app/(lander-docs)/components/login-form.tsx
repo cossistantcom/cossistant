@@ -13,6 +13,7 @@ import {
 	buildInviteAwarePath,
 	readInviteAuthState,
 } from "@/lib/auth/invite-state";
+import { getLoginRedirectReasonMessage } from "@/lib/auth/redirect";
 import { cn } from "@/lib/utils";
 
 export const GoogleIcon = ({ className }: { className?: string }) => (
@@ -80,6 +81,7 @@ export function LoginForm() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [successMessage, setSuccessMessage] = useState("");
+	const authNotice = getLoginRedirectReasonMessage(searchParams.get("reason"));
 
 	const callbackPath = inviteState.callbackPath;
 	const callbackURL = getAbsoluteAuthCallbackUrl(callbackPath);
@@ -161,6 +163,9 @@ export function LoginForm() {
 				<p className="text-center text-primary/60 text-sm">
 					Sign in to join {inviteTarget}.
 				</p>
+			) : null}
+			{authNotice ? (
+				<p className="text-center text-destructive text-sm">{authNotice}</p>
 			) : null}
 			{displaySignInPassword ? (
 				<div className="flex w-full max-w-md flex-col items-center justify-center space-y-4">

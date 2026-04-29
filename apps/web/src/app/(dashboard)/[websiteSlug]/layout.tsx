@@ -6,6 +6,7 @@ import { InboxesProvider } from "@/contexts/inboxes";
 import { VisitorPresenceProvider } from "@/contexts/visitor-presence";
 import { WebsiteProvider } from "@/contexts/website";
 import { isTinybirdEnabled } from "@/lib/analytics-flags";
+import { buildSessionExpiredLoginPath } from "@/lib/auth/redirect";
 import { getLatestRelease, getLatestReleaseBody } from "@/lib/latest-release";
 import {
 	getQueryClient,
@@ -48,7 +49,7 @@ export default async function Layout({ children, params }: LayoutProps) {
 		error: Parameters<NonNullable<Parameters<typeof prefetch>[1]>>[0]
 	) => {
 		if (error.data?.code === "UNAUTHORIZED") {
-			redirect("/login");
+			redirect(buildSessionExpiredLoginPath(`/${websiteSlug}/inbox`));
 		}
 
 		if (error.data?.code === "FORBIDDEN") {

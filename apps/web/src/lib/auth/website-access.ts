@@ -1,13 +1,14 @@
 import { db } from "@api/db";
 import { checkUserWebsiteAccess } from "@api/db/queries/website";
 import { notFound, redirect } from "next/navigation";
+import { buildSessionExpiredLoginPath } from "./redirect";
 import { getAuth } from "./server";
 
 export const ensureWebsiteAccess = async (websiteSlug: string) => {
 	const { user } = await getAuth();
 
 	if (!user) {
-		redirect("/login");
+		redirect(buildSessionExpiredLoginPath(`/${websiteSlug}/inbox`));
 	}
 
 	const accessCheck = await checkUserWebsiteAccess(db, {

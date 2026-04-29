@@ -6,6 +6,7 @@ import { getGeoContext } from "@api/utils/geo";
 import { initTRPC } from "@trpc/server";
 import type { Context } from "hono";
 import superjson from "superjson";
+import { withAdminPermission } from "./middleware/admin";
 import { withPermission } from "./middleware/auth";
 import { withPrimaryDbMiddleware } from "./middleware/db";
 import { withRateLimitMiddleware } from "./middleware/rate-limit";
@@ -22,6 +23,7 @@ export type TRPCContext = {
 	db: Database;
 	geo: ReturnType<typeof getGeoContext>;
 	headers: Headers;
+	appendResponseHeader?: (name: string, value: string) => void;
 };
 
 export const createTRPCContext = async (
@@ -39,6 +41,9 @@ export const createTRPCContext = async (
 		geo,
 		db,
 		headers: c.req.raw.headers,
+		appendResponseHeader: (name, value) => {
+			c.header(name, value, { append: true });
+		},
 	};
 };
 
@@ -58,8 +63,20 @@ const withPermissionMiddleware = t.middleware(async (opts) =>
 	})
 );
 
+const withAdminPermissionMiddleware = t.middleware(async (opts) =>
+	withAdminPermission({
+		ctx: opts.ctx,
+		next: opts.next,
+	})
+);
+
 export const protectedProcedure = t.procedure
 	.use(withPermissionMiddleware)
+	.use(withPrimaryDbMiddleware);
+
+export const adminProcedure = t.procedure
+	.use(withPermissionMiddleware)
+	.use(withAdminPermissionMiddleware)
 	.use(withPrimaryDbMiddleware);
 
 export const rateLimitedPublicProcedure = t.procedure

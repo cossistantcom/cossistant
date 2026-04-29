@@ -35,6 +35,7 @@ export {
 export {
 	CossistantClient,
 	CossistantClient as default,
+	type CossistantClientConfiguration,
 	type CossistantClientOptions,
 } from "./client";
 export {
@@ -118,6 +119,16 @@ export {
 	upsertConversationSeen,
 } from "./store/seen-store";
 export {
+	createSupportStateStore,
+	EMPTY_ONBOARDING_STATE,
+	INITIAL_SUPPORT_STATE,
+	normalizeSupportOnboardingState,
+	type SupportState,
+	type SupportStateError,
+	type SupportStateStatus,
+	type SupportStateStore,
+} from "./store/support-state-store";
+export {
 	createSupportStore,
 	type DefaultRoutes,
 	type NavigationState,
@@ -162,6 +173,27 @@ export {
 	type WebsiteStore,
 } from "./store/website-store";
 export {
+	type AnySupportConfig,
+	createSupport,
+	getSupportFeatureFlags,
+	getSupportOnboardingSteps,
+	type OnboardingMetadataForStep,
+	type RegisteredFeatureFlagName,
+	type RegisteredOnboardingMetadata,
+	type RegisteredOnboardingStepId,
+	type RegisteredSupportConfig,
+	type SupportConfigDefinition,
+	type SupportFeatureFlagName,
+	type SupportJsonObject,
+	type SupportJsonPrimitive,
+	type SupportJsonValue,
+	type SupportOnboardingConfig,
+	type SupportOnboardingMetadata,
+	type SupportOnboardingStepDefinition,
+	type SupportOnboardingStepId,
+	type SupportRegister,
+} from "./support-config";
+export {
 	createSupportController,
 	PENDING_SUPPORT_CONVERSATION_ID,
 	type SupportController,
@@ -176,6 +208,12 @@ export {
 	type SupportControllerOptions,
 	type SupportControllerSnapshot,
 } from "./support-controller";
+export {
+	getSupportOnboardingSnapshot,
+	isSupportFeatureFlagEnabled,
+	type SupportOnboardingSnapshot,
+	type SupportOnboardingStepSnapshot,
+} from "./support-runtime";
 export {
 	areLanguagesEquivalent,
 	getPrimaryLanguageTag,

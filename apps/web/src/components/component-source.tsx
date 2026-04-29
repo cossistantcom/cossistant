@@ -20,11 +20,17 @@ export async function ComponentSource({
 	}
 
 	const source = resolveRegistrySourceDescriptor(item);
+	const registrySourcePath =
+		source.type === "file" && source.path.startsWith("src/")
+			? source.path.slice("src/".length)
+			: source.type === "file"
+				? source.path
+				: "";
 	const code =
 		source.type === "inline"
 			? source.code
 			: await fs.readFile(
-					path.join(/* turbopackIgnore: true */ process.cwd(), source.path),
+					path.join(process.cwd(), "src", registrySourcePath),
 					"utf-8"
 				);
 	const highlightedCode = await highlightCode(code, "tsx");

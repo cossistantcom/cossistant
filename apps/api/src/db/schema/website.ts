@@ -1,5 +1,6 @@
 import {
 	type ContactNotificationSettings,
+	type SupportOnboardingState,
 	type VisitorAttribution,
 	type VisitorCurrentPage,
 	WebsiteInstallationTarget,
@@ -111,6 +112,7 @@ export const contactOrganization = pgTable(
 		domain: text("domain"),
 		description: text("description"),
 		metadata: jsonb("metadata"),
+		featureFlags: text("feature_flags"),
 		websiteId: ulidReference("website_id")
 			.notNull()
 			.references(() => website.id, { onDelete: "cascade" }),
@@ -150,6 +152,10 @@ export const contact = pgTable(
 		email: text("email"),
 		image: text("image"),
 		metadata: jsonb("metadata"),
+		featureFlags: text("feature_flags"),
+		onboardingState: jsonb(
+			"onboarding_state"
+		).$type<SupportOnboardingState | null>(),
 		notificationSettings: jsonb(
 			"notification_settings"
 		).$type<ContactNotificationSettings | null>(),
@@ -235,6 +241,10 @@ export const visitor = pgTable(
 		// Tracking Information
 		attribution: jsonb("attribution").$type<VisitorAttribution | null>(),
 		currentPage: jsonb("current_page").$type<VisitorCurrentPage | null>(),
+		featureFlags: text("feature_flags"),
+		onboardingState: jsonb(
+			"onboarding_state"
+		).$type<SupportOnboardingState | null>(),
 		// Reference Fields
 		contactId: ulidNullableReference("contact_id").references(
 			() => contact.id,

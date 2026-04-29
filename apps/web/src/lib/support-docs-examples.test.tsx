@@ -205,6 +205,7 @@ describe("support docs examples", () => {
 			"customization",
 			"theme",
 			"routing",
+			"support-state",
 			"text",
 			"hooks",
 			"events",

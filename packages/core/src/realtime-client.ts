@@ -24,6 +24,7 @@ const REALTIME_EVENT_TYPES = new Set<AnyRealtimeEvent["type"]>([
 	"timelineItemCreated",
 	"conversationCreated",
 	"visitorIdentified",
+	"supportStateUpdated",
 	"conversationEventCreated",
 	"conversationUpdated",
 	"aiAgentProcessingStarted",

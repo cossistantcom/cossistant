@@ -1,17 +1,19 @@
 "use client";
 
 import { Support } from "@cossistant/next/support";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useHotkeys } from "react-hotkeys-hook";
+import { toast } from "sonner";
 import { ChangelogNotification } from "@/components/changelog-notification";
 import { DashboardTriggerContent } from "@/components/support/custom-trigger";
 import { Button } from "@/components/ui/button";
 import { useWebsite } from "@/contexts/website";
 import { useContactVisitorDetailState } from "@/hooks/use-contact-visitor-detail-state";
 import { useLiveVisitorsOverlayState } from "@/hooks/use-live-visitors-overlay-state";
+import { authClient } from "@/lib/auth/client";
 import type { LatestRelease } from "@/lib/latest-release";
 import { useTRPC } from "@/lib/trpc/client";
 import Icon from "../../icons";
@@ -37,6 +39,7 @@ export function NavigationTopbar({
 	const { closeLiveVisitorsOverlay, isOpen: isLiveVisitorsOverlayOpen } =
 		useLiveVisitorsOverlayState();
 	const { isChangelogOpen, setIsChangelogOpen } = useChangelogOverlayState();
+	const { data: sessionData } = authClient.useSession();
 
 	// Data is pre-fetched in the layout, so it will be available immediately
 	const { data: aiAgent } = useQuery(
@@ -44,9 +47,26 @@ export function NavigationTopbar({
 			websiteSlug: website?.slug ?? "",
 		})
 	);
+	const { data: currentUser } = useQuery(trpc.user.me.queryOptions());
+	const stopImpersonatingMutation = useMutation(
+		trpc.admin.stopImpersonating.mutationOptions({
+			onSuccess: () => {
+				authClient.$store.notify("$sessionSignal");
+				toast.success("Stopped impersonating");
+				router.refresh();
+			},
+			onError: (error) =>
+				toast.error(error.message || "Failed to stop impersonating"),
+		})
+	);
 
 	// Check if agent exists and onboarding is complete
 	const hasAgent = !!aiAgent?.onboardingCompletedAt;
+	const isAdmin = currentUser?.role
+		?.split(",")
+		.map((role) => role.trim().toLowerCase())
+		.includes("admin");
+	const isImpersonating = Boolean(sessionData?.session.impersonatedBy);
 
 	const baseInboxPath = `/${website?.slug}/inbox`;
 	const isOnInboxView = pathname.startsWith(baseInboxPath);
@@ -228,6 +248,30 @@ export function NavigationTopbar({
 				)}
 			</div>
 			<div className="flex items-center gap-2">
+				{isImpersonating && (
+					<div className="mr-1 hidden items-center gap-2 rounded border border-cossistant-orange/30 bg-cossistant-orange/10 px-2 py-1 text-cossistant-orange text-xs sm:flex">
+						<span>Impersonating</span>
+						<Button
+							className="h-5 px-1.5 text-[11px]"
+							disabled={stopImpersonatingMutation.isPending}
+							onClick={() => stopImpersonatingMutation.mutate()}
+							size="xs"
+							type="button"
+							variant="ghost"
+						>
+							Stop
+						</Button>
+					</div>
+				)}
+				{isAdmin && (
+					<TopbarItem
+						active={pathname.startsWith(`/${website?.slug}/admin`)}
+						hideLabelOnMobile
+						href={`/${website?.slug}/admin`}
+					>
+						Admin
+					</TopbarItem>
+				)}
 				<TopbarItem
 					active={pathname.startsWith(`/${website?.slug}/agent`)}
 					className="pr-1"

@@ -13,6 +13,7 @@ export * from "./link-source";
 export * from "./notification";
 export * from "./open-source-program";
 export * from "./organization";
+export * from "./support";
 export * from "./timeline-item";
 export * from "./upload";
 export * from "./user";

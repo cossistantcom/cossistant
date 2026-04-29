@@ -8,6 +8,7 @@ export * from "./knowledge-clarification";
 export * from "./link-source";
 export * from "./member-notification-settings";
 export * from "./organization";
+export * from "./support";
 export * from "./user";
 export * from "./view";
 export * from "./visitor";

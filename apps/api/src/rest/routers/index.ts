@@ -6,6 +6,7 @@ import { feedbackRouter } from "./feedback";
 import { knowledgeRouter } from "./knowledge";
 import { messagesRouter } from "./messages";
 import { organizationRouter } from "./organization";
+import { supportRouter } from "./support";
 import { uploadRouter } from "./upload";
 import { visitorRouter } from "./visitor";
 import { websiteRouter } from "./website";
@@ -18,6 +19,7 @@ const routers = new OpenAPIHono()
 	.route("/conversations", conversationRouter)
 	.route("/visitors", visitorRouter)
 	.route("/contacts", contactRouter)
+	.route("/support", supportRouter)
 	.route("/uploads", uploadRouter)
 	.route("/knowledge", knowledgeRouter)
 	.route("/feedback", feedbackRouter);

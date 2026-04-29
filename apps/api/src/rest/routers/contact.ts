@@ -14,11 +14,13 @@ import {
 	updateContactOrganization,
 	upsertContactByExternalId,
 } from "@api/db/queries/contact";
+import { copyVisitorOnboardingToContactIfEmpty } from "@api/db/queries/support";
 import {
 	findVisitorForWebsite,
 	getCompleteVisitorWithContact,
 } from "@api/db/queries/visitor";
 import { realtime } from "@api/realtime/emitter";
+import { emitSupportStateUpdated } from "@api/realtime/support-state";
 import {
 	type CompleteVisitorRecord,
 	formatContactResponse,
@@ -216,6 +218,12 @@ contactRuntimeRouter.openapi(
 				websiteId: website.id,
 			});
 
+			await copyVisitorOnboardingToContactIfEmpty(db, {
+				visitorId: resolvedVisitorId,
+				contactId: contact.id,
+				websiteId: website.id,
+			});
+
 			const visitorRecord = await getCompleteVisitorWithContact(db, {
 				visitorId: resolvedVisitorId,
 			});
@@ -234,6 +242,17 @@ contactRuntimeRouter.openapi(
 				} catch (emitError) {
 					console.error("Failed to emit visitorIdentified event:", emitError);
 				}
+			}
+
+			try {
+				await emitSupportStateUpdated({
+					db,
+					visitorId: resolvedVisitorId,
+					websiteId: website.id,
+					organizationId: website.organizationId,
+				});
+			} catch (emitError) {
+				console.error("Failed to emit supportStateUpdated event:", emitError);
 			}
 
 			const response: IdentifyContactResponse = {

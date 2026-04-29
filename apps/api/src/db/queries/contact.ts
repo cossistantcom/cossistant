@@ -120,6 +120,8 @@ export async function getContactForVisitor(
 			image: contact.image,
 			externalId: contact.externalId,
 			metadata: contact.metadata,
+			featureFlags: contact.featureFlags,
+			onboardingState: contact.onboardingState,
 			organizationId: contact.organizationId,
 			contactOrganizationId: contact.contactOrganizationId,
 			userId: contact.userId,

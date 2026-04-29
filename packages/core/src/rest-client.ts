@@ -19,6 +19,12 @@ import type {
 	SubmitFeedbackResponse,
 } from "@cossistant/types/api/feedback";
 import type {
+	SupportFeatureFlagMutationRequest,
+	SupportFeatureFlagMutationResponse,
+	SupportOnboardingUpdateRequest,
+	SupportStateResponse,
+} from "@cossistant/types/api/support";
+import type {
 	GetConversationTimelineItemsRequest,
 	GetConversationTimelineItemsResponse,
 	SendTimelineItemRequest,
@@ -83,18 +89,30 @@ export class CossistantRestClient {
 	constructor(config: CossistantConfig) {
 		this.config = config;
 
-		this.publicKey = resolvePublicKey(config.publicKey) ?? "";
+		this.publicKey = config.publicKey
+			? (resolvePublicKey(config.publicKey) ?? "")
+			: config.apiKey
+				? ""
+				: (resolvePublicKey() ?? "");
+		const privateKey = config.apiKey?.trim() ?? "";
 
-		if (!this.publicKey) {
+		if (!(this.publicKey || privateKey)) {
 			throw new Error(
-				"Public key is required. Provide it via the publicKey prop, or set the appropriate environment variable: NEXT_PUBLIC_COSSISTANT_API_KEY (Next.js), VITE_COSSISTANT_API_KEY (Vite), or COSSISTANT_API_KEY (other)."
+				"Public or private API key is required. Provide publicKey for browser usage, apiKey for server usage, or set the appropriate environment variable: NEXT_PUBLIC_COSSISTANT_API_KEY (Next.js), VITE_COSSISTANT_API_KEY (Vite), or COSSISTANT_API_KEY (other)."
 			);
 		}
 
 		this.baseHeaders = {
 			"Content-Type": "application/json",
-			"X-Public-Key": this.publicKey,
 		};
+
+		if (this.publicKey) {
+			this.baseHeaders["X-Public-Key"] = this.publicKey;
+		}
+
+		if (privateKey) {
+			this.baseHeaders.Authorization = `Bearer ${privateKey}`;
+		}
 
 		if (config.userId) {
 			this.baseHeaders["X-User-ID"] = config.userId;
@@ -676,6 +694,17 @@ export class CossistantRestClient {
 		if (config.publicKey) {
 			this.publicKey = config.publicKey;
 			this.baseHeaders["X-Public-Key"] = config.publicKey;
+		} else if (config.publicKey === null) {
+			const { "X-Public-Key": _, ...rest } = this.baseHeaders;
+			this.baseHeaders = rest;
+			this.publicKey = "";
+		}
+
+		if (config.apiKey) {
+			this.baseHeaders.Authorization = `Bearer ${config.apiKey}`;
+		} else if (config.apiKey === null) {
+			const { Authorization: _, ...rest } = this.baseHeaders;
+			this.baseHeaders = rest;
 		}
 
 		if (config.userId) {
@@ -693,6 +722,42 @@ export class CossistantRestClient {
 		}
 
 		this.config = { ...this.config, ...config };
+	}
+
+	async getSupportState(): Promise<SupportStateResponse> {
+		const visitorId = this.resolveVisitorId();
+
+		return this.request<SupportStateResponse>("/support/state", {
+			headers: {
+				"X-Visitor-Id": visitorId,
+			},
+		});
+	}
+
+	async updateSupportOnboarding(
+		update: SupportOnboardingUpdateRequest
+	): Promise<SupportStateResponse> {
+		const visitorId = this.resolveVisitorId();
+
+		return this.request<SupportStateResponse>("/support/onboarding", {
+			method: "PATCH",
+			body: JSON.stringify(update),
+			headers: {
+				"X-Visitor-Id": visitorId,
+			},
+		});
+	}
+
+	async mutateSupportFeatureFlags(
+		request: SupportFeatureFlagMutationRequest
+	): Promise<SupportFeatureFlagMutationResponse> {
+		return this.request<SupportFeatureFlagMutationResponse>(
+			"/support/feature-flags",
+			{
+				method: "PATCH",
+				body: JSON.stringify(request),
+			}
+		);
 	}
 
 	destroy(): void {

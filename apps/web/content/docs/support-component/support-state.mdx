@@ -1,0 +1,206 @@
+---
+title: Support State
+description: Configure typed feature flags and onboarding state with support.ts.
+search:
+  kind: guide
+  tags:
+    - support.ts
+    - feature-flags
+    - onboarding
+    - typescript
+  aliases:
+    - support config
+    - useFeatureFlag
+    - useOnboarding
+---
+
+Use `support.ts` when your app needs typed feature flags or onboarding progress
+backed by Cossistant.
+
+The config gives TypeScript the allowed flags, step IDs, and step metadata. The
+API stores the actual visitor or contact state.
+
+## Use this when
+
+- you want `useFeatureFlag("new-message")` to autocomplete valid flags
+- you want onboarding steps typed from one config file
+- you need onboarding metadata between steps
+- you want server-side feature flag management with realtime browser updates
+
+## Smallest working change
+
+Create `support.ts` and register it for inference.
+
+```ts title="support.ts"
+import {
+  createSupport,
+  type SupportOnboardingMetadata,
+} from "@cossistant/core";
+
+export const support = createSupport({
+  featureFlags: ["new-message", "billing-v2"],
+  onboarding: {
+    steps: [
+      { id: "workspace", isFirst: true },
+      { id: "invite-team" },
+      { id: "done", isLast: true },
+    ],
+  },
+});
+
+declare module "@cossistant/core/support-config" {
+  interface SupportRegister {
+    config: typeof support;
+    onboardingMetadata: SupportOnboardingMetadata<
+      typeof support,
+      {
+        workspace: { workspaceName?: string };
+        "invite-team": { invitedEmails?: string[] };
+      }
+    >;
+  }
+}
+```
+
+Pass the config to the provider.
+
+```tsx title="app/providers.tsx"
+"use client";
+
+import { SupportProvider } from "@cossistant/react";
+import { support } from "@/support";
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return <SupportProvider support={support}>{children}</SupportProvider>;
+}
+```
+
+## Feature flags
+
+Use `useFeatureFlag()` in React. The flag name is inferred from `support.ts`.
+
+```tsx title="components/new-message-button.tsx"
+"use client";
+
+import { useFeatureFlag } from "@cossistant/react";
+
+export function NewMessageButton() {
+  const isNewMessageActivated = useFeatureFlag("new-message");
+
+  if (!isNewMessageActivated) {
+    return null;
+  }
+
+  return <button>New message</button>;
+}
+```
+
+Feature flag mutations require a private API key. Do this from your server, not
+the browser.
+
+```ts title="server/feature-flags.ts"
+import { CossistantClient } from "@cossistant/core";
+
+const client = new CossistantClient({
+  apiUrl: "https://api.cossistant.com/v1",
+  wsUrl: "wss://api.cossistant.com/ws",
+  apiKey: process.env.COSSISTANT_PRIVATE_API_KEY,
+});
+
+await client.mutateSupportFeatureFlags({
+  target: { type: "contact", id: contactId },
+  operation: "add",
+  flags: ["new-message"],
+});
+```
+
+The same mutation works over HTTP.
+
+```bash
+curl -X PATCH "https://api.cossistant.com/v1/support/feature-flags" \
+  -H "Authorization: Bearer $COSSISTANT_PRIVATE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "target": { "type": "contact", "id": "contact_123" },
+    "operation": "add",
+    "flags": ["new-message"]
+  }'
+```
+
+Available targets are `visitor`, `contact`, and `contactOrganization`. A flag is
+enabled when any of those levels has it.
+
+## Onboarding
+
+Use `useOnboarding()` to read the current step, complete steps, and store
+metadata for a step.
+
+```tsx title="components/invite-step.tsx"
+"use client";
+
+import { useOnboarding } from "@cossistant/react";
+
+export function InviteStep() {
+  const { currentStepId, setMetadata, completeStep } = useOnboarding();
+
+  if (currentStepId !== "invite-team") {
+    return null;
+  }
+
+  async function submit(invitedEmails: string[]) {
+    await setMetadata("invite-team", { invitedEmails });
+    await completeStep("invite-team");
+  }
+
+  return <InviteForm onSubmit={submit} />;
+}
+```
+
+Each step has `completed` and `metadata`. `setMetadata()` replaces the metadata
+object for that step. Pass `null` to clear it.
+
+## Core usage
+
+Support state also works outside React.
+
+```ts title="support-runtime.ts"
+import { CossistantClient } from "@cossistant/core";
+import { support } from "./support";
+
+const client = new CossistantClient({
+  apiUrl: "https://api.cossistant.com/v1",
+  wsUrl: "wss://api.cossistant.com/ws",
+  publicKey: process.env.NEXT_PUBLIC_COSSISTANT_API_KEY,
+  support,
+});
+
+await client.fetchWebsite();
+await client.fetchSupportState();
+
+const isNewMessageEnabled = client.isFeatureFlagEnabled("new-message");
+
+await client.setOnboardingMetadata("workspace", {
+  workspaceName: "Acme",
+});
+
+if (isNewMessageEnabled) {
+  await client.completeOnboardingStep("workspace");
+}
+```
+
+## Storage model
+
+- Feature flags are stored as comma-separated strings on visitors, contacts, and
+  contact organizations.
+- Onboarding progress is stored as JSONB on the visitor while anonymous.
+- Once identified, contact onboarding state wins.
+- If an anonymous visitor has progress, Cossistant copies it to the contact only
+  when that contact has no onboarding state.
+- Onboarding updates are optimistic. Feature flags and onboarding both update in
+  realtime when Cossistant emits support state changes.
+
+## Next step
+
+1. [Overview](/docs/support-component) for the default widget setup.
+2. [Hooks Reference](/docs/support-component/hooks) for custom React UI.
+3. [Types Reference](/docs/support-component/types) for shared SDK types.

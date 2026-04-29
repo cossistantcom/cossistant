@@ -435,6 +435,13 @@
       "when": 1775972018256,
       "tag": "0061_website_auto_translate_toggle",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1777392258807,
+      "tag": "0062_breezy_miracleman",
+      "breakpoints": true
     }
   ]
 }

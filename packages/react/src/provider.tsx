@@ -5,6 +5,7 @@ import type {
 	CossistantClientOptions,
 } from "@cossistant/core/client";
 import { normalizeLocale } from "@cossistant/core/locale-utils";
+import type { AnySupportConfig } from "@cossistant/core/support-config";
 import {
 	createSupportController,
 	type SupportController,
@@ -29,6 +30,7 @@ export type SupportProviderProps = {
 	apiUrl?: string;
 	wsUrl?: string;
 	publicKey?: string;
+	support?: AnySupportConfig;
 	defaultMessages?: DefaultMessage[];
 	quickOptions?: string[];
 	autoConnect?: boolean;
@@ -179,6 +181,7 @@ function SupportProviderInner({
 	apiUrl,
 	wsUrl,
 	publicKey,
+	support,
 	defaultMessages,
 	quickOptions,
 	autoConnect,
@@ -194,6 +197,7 @@ function SupportProviderInner({
 				apiUrl,
 				wsUrl,
 				publicKey,
+				support,
 				clientOptions: sharedClientOptions,
 				autoConnect,
 				defaultMessages: defaultMessages ?? [],
@@ -204,7 +208,7 @@ function SupportProviderInner({
 				onWsDisconnect,
 				onWsError,
 			}),
-		[apiUrl, publicKey, wsUrl]
+		[apiUrl, publicKey, support, wsUrl]
 	);
 	const controller = externalController ?? ownedController;
 	const ownsController = externalController === undefined;
@@ -219,6 +223,7 @@ function SupportProviderInner({
 			onWsConnect,
 			onWsDisconnect,
 			onWsError,
+			support,
 		});
 	}, [
 		autoConnect,
@@ -230,6 +235,7 @@ function SupportProviderInner({
 		onWsError,
 		quickOptions,
 		size,
+		support,
 	]);
 
 	React.useEffect(() => {
@@ -309,6 +315,7 @@ export function SupportProvider({
 	apiUrl = "https://api.cossistant.com/v1",
 	wsUrl = "wss://api.cossistant.com/ws",
 	publicKey,
+	support,
 	defaultMessages,
 	quickOptions,
 	autoConnect = true,
@@ -331,6 +338,7 @@ export function SupportProvider({
 			publicKey={publicKey}
 			quickOptions={quickOptions}
 			size={size}
+			support={support}
 			wsUrl={wsUrl}
 		>
 			{children}

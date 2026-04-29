@@ -18,6 +18,13 @@ import type {
 	SubmitFeedbackResponse,
 } from "@cossistant/types/api/feedback";
 import type {
+	SupportFeatureFlagMutationRequest,
+	SupportFeatureFlagMutationResponse,
+	SupportOnboardingUpdateRequest,
+	SupportStateResponse,
+} from "@cossistant/types/api/support";
+import { applySupportOnboardingUpdate } from "@cossistant/types/api/support";
+import type {
 	GetConversationTimelineItemsRequest,
 	GetConversationTimelineItemsResponse,
 	SendTimelineItemRequest,
@@ -55,6 +62,11 @@ import {
 	type SeenStore,
 } from "./store/seen-store";
 import {
+	createSupportStateStore,
+	type SupportState,
+	type SupportStateStore,
+} from "./store/support-state-store";
+import {
 	createTimelineItemsStore,
 	type TimelineItemsStore,
 } from "./store/timeline-items-store";
@@ -69,6 +81,13 @@ import {
 	type WebsiteState,
 	type WebsiteStore,
 } from "./store/website-store";
+import type {
+	AnySupportConfig,
+	OnboardingMetadataForStep,
+	RegisteredFeatureFlagName,
+	RegisteredOnboardingStepId,
+} from "./support-config";
+import { isSupportFeatureFlagEnabled } from "./support-runtime";
 import type {
 	CossistantConfig,
 	PublicWebsiteResponse,
@@ -107,25 +126,35 @@ export type CossistantClientOptions = {
 	typingStore?: TypingStore;
 };
 
+export type CossistantClientConfiguration = CossistantConfig & {
+	support?: AnySupportConfig;
+};
+
 export class CossistantClient {
 	private restClient: CossistantRestClient;
-	private config: CossistantConfig;
+	private config: CossistantClientConfiguration;
 	private pendingConversations = new Map<string, PendingConversation>();
 	private websiteRequest: Promise<PublicWebsiteResponse> | null = null;
+	private supportStateRequest: Promise<SupportStateResponse> | null = null;
 	readonly conversationsStore: ConversationsStore;
 	readonly timelineItemsStore: TimelineItemsStore;
 	readonly websiteStore: WebsiteStore;
+	readonly supportStateStore: SupportStateStore;
 	readonly seenStore: SeenStore;
 	readonly processingStore: ProcessingStore;
 	readonly typingStore: TypingStore;
 	readonly realtime: RealtimeClient;
 
-	constructor(config: CossistantConfig, options?: CossistantClientOptions) {
+	constructor(
+		config: CossistantClientConfiguration,
+		options?: CossistantClientOptions
+	) {
 		this.config = config;
 		this.restClient = new CossistantRestClient(config);
 		this.conversationsStore = createConversationsStore();
 		this.timelineItemsStore = createTimelineItemsStore();
 		this.websiteStore = createWebsiteStore();
+		this.supportStateStore = createSupportStateStore();
 		this.seenStore = options?.seenStore ?? createSeenStore();
 		this.processingStore = options?.processingStore ?? createProcessingStore();
 		this.typingStore = options?.typingStore ?? createTypingStore();
@@ -136,13 +165,13 @@ export class CossistantClient {
 	}
 
 	// Configuration updates
-	updateConfiguration(config: Partial<CossistantConfig>): void {
+	updateConfiguration(config: Partial<CossistantClientConfiguration>): void {
 		this.config = { ...this.config, ...config };
 		this.restClient.updateConfiguration(config);
 	}
 
 	// Utility methods
-	getConfiguration(): CossistantConfig {
+	getConfiguration(): CossistantClientConfiguration {
 		return { ...this.config };
 	}
 
@@ -197,6 +226,58 @@ export class CossistantClient {
 		return this.fetchWebsite({ force: true });
 	}
 
+	async fetchSupportState(
+		params: { force?: boolean } = {}
+	): Promise<SupportStateResponse> {
+		const { force = false } = params;
+		const current = this.supportStateStore.getState();
+
+		if (!force) {
+			if (current.status === "success") {
+				return {
+					featureFlags: current.featureFlags,
+					onboarding: current.onboarding,
+				};
+			}
+
+			if (this.supportStateRequest) {
+				return this.supportStateRequest;
+			}
+		}
+
+		this.supportStateStore.setLoading();
+
+		const request = this.restClient
+			.getSupportState()
+			.then((state) => {
+				this.supportStateStore.setSupportState(state);
+				return state;
+			})
+			.catch((error) => {
+				this.supportStateStore.setError(error);
+				throw error;
+			})
+			.finally(() => {
+				if (this.supportStateRequest === request) {
+					this.supportStateRequest = null;
+				}
+			});
+
+		this.supportStateRequest = request;
+		return request;
+	}
+
+	async getSupportState(): Promise<SupportStateResponse> {
+		return this.fetchSupportState({ force: true });
+	}
+
+	isFeatureFlagEnabled(flag: RegisteredFeatureFlagName): boolean {
+		return isSupportFeatureFlagEnabled(
+			this.supportStateStore.getState().featureFlags,
+			flag
+		);
+	}
+
 	setWebsiteContext(websiteId: string, visitorId?: string): void {
 		this.restClient.setWebsiteContext(websiteId, visitorId);
 	}
@@ -226,6 +307,54 @@ export class CossistantClient {
 		metadata: Record<string, unknown>
 	): Promise<VisitorResponse> {
 		return this.restClient.updateContactMetadata(metadata);
+	}
+
+	async updateSupportOnboarding(
+		update: SupportOnboardingUpdateRequest
+	): Promise<SupportStateResponse> {
+		const previous = this.supportStateStore.updateOptimistic((state) => ({
+			...state,
+			onboarding: applySupportOnboardingUpdate(state.onboarding, update),
+		}));
+
+		try {
+			const response = await this.restClient.updateSupportOnboarding(update);
+			this.supportStateStore.setSupportState(response);
+			return response;
+		} catch (error) {
+			this.supportStateStore.setState(() => previous);
+			this.supportStateStore.setError(error);
+			throw error;
+		}
+	}
+
+	completeOnboardingStep<TStepId extends RegisteredOnboardingStepId>(
+		stepId: TStepId
+	): Promise<SupportStateResponse> {
+		return this.updateSupportOnboarding({ stepId, completed: true });
+	}
+
+	uncompleteOnboardingStep<TStepId extends RegisteredOnboardingStepId>(
+		stepId: TStepId
+	): Promise<SupportStateResponse> {
+		return this.updateSupportOnboarding({ stepId, completed: false });
+	}
+
+	setOnboardingMetadata<TStepId extends RegisteredOnboardingStepId>(
+		stepId: TStepId,
+		metadata: OnboardingMetadataForStep<TStepId> | null
+	): Promise<SupportStateResponse> {
+		return this.updateSupportOnboarding({ stepId, metadata });
+	}
+
+	resetOnboarding(): Promise<SupportStateResponse> {
+		return this.updateSupportOnboarding({ reset: true });
+	}
+
+	async mutateSupportFeatureFlags(
+		request: SupportFeatureFlagMutationRequest
+	): Promise<SupportFeatureFlagMutationResponse> {
+		return this.restClient.mutateSupportFeatureFlags(request);
 	}
 
 	// Conversation management
@@ -582,6 +711,8 @@ export class CossistantClient {
 			applyProcessingCompletedEvent(this.processingStore, event);
 		} else if (event.type === "conversationUpdated") {
 			this.handleConversationUpdated(event);
+		} else if (event.type === "supportStateUpdated") {
+			this.supportStateStore.setSupportState(event.payload.state);
 		}
 	}
 
@@ -719,6 +850,10 @@ export type CossistantClientReference = {
 	 */
 	websiteStore: CossistantClient["websiteStore"];
 	/**
+	 * Local store containing feature flags and onboarding state for the session.
+	 */
+	supportStateStore: CossistantClient["supportStateStore"];
+	/**
 	 * Realtime client used for websocket connectivity.
 	 *
 	 * @remarks `RealtimeClient`
@@ -729,6 +864,30 @@ export type CossistantClientReference = {
 	 * Fetch the public website payload used to bootstrap the widget.
 	 */
 	fetchWebsite: CossistantClient["fetchWebsite"];
+	/**
+	 * Fetch support feature flags and onboarding state.
+	 */
+	fetchSupportState: CossistantClient["fetchSupportState"];
+	/**
+	 * Read whether a configured feature flag is enabled.
+	 */
+	isFeatureFlagEnabled: CossistantClient["isFeatureFlagEnabled"];
+	/**
+	 * Complete a configured onboarding step.
+	 */
+	completeOnboardingStep: CossistantClient["completeOnboardingStep"];
+	/**
+	 * Mark a configured onboarding step incomplete.
+	 */
+	uncompleteOnboardingStep: CossistantClient["uncompleteOnboardingStep"];
+	/**
+	 * Replace metadata stored for a configured onboarding step.
+	 */
+	setOnboardingMetadata: CossistantClient["setOnboardingMetadata"];
+	/**
+	 * Reset onboarding progress for the current visitor/contact.
+	 */
+	resetOnboarding: CossistantClient["resetOnboarding"];
 	/**
 	 * Identify the current visitor as a contact.
 	 *

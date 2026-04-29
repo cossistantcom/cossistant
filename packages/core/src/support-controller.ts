@@ -16,6 +16,7 @@ import {
 	type SupportStoreState,
 	type SupportStoreStorage,
 } from "./store/support-store";
+import type { AnySupportConfig } from "./support-config";
 import {
 	CossistantAPIError,
 	type VisitorMetadata,
@@ -121,6 +122,7 @@ export type SupportControllerOptions = {
 	wsUrl?: string;
 	publicKey?: string;
 	clientOptions?: CossistantClientOptions;
+	support?: AnySupportConfig;
 	defaultMessages?: DefaultMessage[];
 	quickOptions?: string[];
 	autoConnect?: boolean;
@@ -364,6 +366,7 @@ export function createSupportController(
 					apiUrl: options.apiUrl ?? DEFAULT_API_URL,
 					wsUrl: options.wsUrl ?? DEFAULT_WS_URL,
 					publicKey,
+					support: options.support,
 				},
 				options.clientOptions
 			);
@@ -404,6 +407,7 @@ export function createSupportController(
 	let started = false;
 	let destroyed = false;
 	let prefetchedVisitorId: string | null = null;
+	let prefetchedSupportStateVisitorId: string | null = null;
 	let lastRealtimeStatus = client?.realtime.getState().status ?? "disconnected";
 	let lastRealtimeError = client?.realtime.getState().error ?? null;
 	const cleanupFns = new Set<() => void>();
@@ -496,6 +500,30 @@ export function createSupportController(
 		});
 	};
 
+	const maybePrefetchSupportState = () => {
+		const current = stateStore.getState();
+		const currentClient = current.client;
+
+		if (!(started && currentClient && current.website && current.visitorId)) {
+			prefetchedSupportStateVisitorId = null;
+			return;
+		}
+
+		if (current.isVisitorBlocked) {
+			prefetchedSupportStateVisitorId = null;
+			return;
+		}
+
+		if (prefetchedSupportStateVisitorId === current.visitorId) {
+			return;
+		}
+
+		prefetchedSupportStateVisitorId = current.visitorId;
+		void currentClient.fetchSupportState().catch(() => {
+			prefetchedSupportStateVisitorId = null;
+		});
+	};
+
 	const applyWebsiteState = () => {
 		const currentClient = stateStore.getState().client;
 		if (!currentClient) {
@@ -545,6 +573,7 @@ export function createSupportController(
 		syncUnreadCount();
 		syncRealtimeConnection();
 		maybePrefetchConversations();
+		maybePrefetchSupportState();
 	};
 
 	const handleRealtimeStateChange = () => {
@@ -693,6 +722,12 @@ export function createSupportController(
 				runtimeOptions.publicKey = nextOptions.publicKey;
 			}
 
+			if (nextOptions.support !== undefined) {
+				stateStore.getState().client?.updateConfiguration({
+					support: nextOptions.support,
+				});
+			}
+
 			if (nextOptions.onWsConnect !== undefined) {
 				runtimeOptions.onWsConnect = nextOptions.onWsConnect;
 			}
@@ -827,6 +862,9 @@ export function createSupportController(
 			try {
 				const result = await currentClient.identify(params);
 				await controller.refresh({ force: true });
+				await currentClient
+					.fetchSupportState({ force: true })
+					.catch(() => null);
 				return result;
 			} catch {
 				return null;
@@ -841,6 +879,9 @@ export function createSupportController(
 			try {
 				const result = await currentClient.updateVisitorMetadata(metadata);
 				await controller.refresh({ force: true });
+				await currentClient
+					.fetchSupportState({ force: true })
+					.catch(() => null);
 				return result;
 			} catch {
 				return null;

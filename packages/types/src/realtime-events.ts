@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { conversationClarificationSummarySchema } from "./api/knowledge-clarification";
+import { supportStateResponseSchema } from "./api/support";
 import {
 	visitorActivityTypeSchema,
 	visitorAttributionSchema,
@@ -103,6 +104,10 @@ export const realtimeSchema = {
 	visitorIdentified: baseRealtimeEvent.extend({
 		visitorId: z.string(),
 		visitor: visitorResponseSchema,
+	}),
+	supportStateUpdated: baseRealtimeEvent.extend({
+		visitorId: z.string(),
+		state: supportStateResponseSchema,
 	}),
 	conversationEventCreated: baseRealtimeEvent.extend({
 		conversationId: z.string(),

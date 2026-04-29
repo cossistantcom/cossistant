@@ -8,13 +8,22 @@ const registeredHotkeys: Array<{
 }> = [];
 const renderedButtonHandlers: Array<() => void> = [];
 const routerPushCalls: string[] = [];
+const routerRefreshCalls: string[] = [];
 const closeDetailCalls: string[] = [];
 const closeLiveVisitorsCalls: string[] = [];
 const setIsChangelogOpenCalls: boolean[] = [];
+const stopImpersonatingCalls: string[] = [];
+const authStoreNotifyCalls: string[] = [];
+const toastSuccessCalls: string[] = [];
+const toastErrorCalls: string[] = [];
 
 let pathname = "/acme/inbox";
 let isChangelogOpen = false;
 let isLiveVisitorsOverlayOpen = false;
+let currentUserRole: string | null = null;
+let sessionData: { session: { impersonatedBy: string | null } } | null = {
+	session: { impersonatedBy: null },
+};
 let activeDetail:
 	| { type: "contact"; contactId: string }
 	| {
@@ -34,6 +43,9 @@ mock.module("next/navigation", () => ({
 	useRouter: () => ({
 		push: (href: string) => {
 			routerPushCalls.push(href);
+		},
+		refresh: () => {
+			routerRefreshCalls.push("refresh");
 		},
 	}),
 }));
@@ -58,11 +70,28 @@ mock.module("motion/react", () => ({
 }));
 
 mock.module("@tanstack/react-query", () => ({
-	useQuery: () => ({
-		data: {
-			onboardingCompletedAt: "2026-03-10T00:00:00.000Z",
+	useMutation: (options: { onSuccess?: () => void } = {}) => ({
+		isPending: false,
+		mutate: () => {
+			stopImpersonatingCalls.push("stop");
+			options.onSuccess?.();
 		},
 	}),
+	useQuery: (options?: { queryKey?: unknown[] }) => {
+		if (options?.queryKey?.[0] === "user.me") {
+			return {
+				data: {
+					role: currentUserRole,
+				},
+			};
+		}
+
+		return {
+			data: {
+				onboardingCompletedAt: "2026-03-10T00:00:00.000Z",
+			},
+		};
+	},
 }));
 
 mock.module("@cossistant/next/support", () => {
@@ -144,6 +173,19 @@ mock.module("@/hooks/use-live-visitors-overlay-state", () => ({
 	}),
 }));
 
+mock.module("@/lib/auth/client", () => ({
+	authClient: {
+		$store: {
+			notify: (signal: string) => {
+				authStoreNotifyCalls.push(signal);
+			},
+		},
+		useSession: () => ({
+			data: sessionData,
+		}),
+	},
+}));
+
 mock.module("./use-changelog-overlay-state", () => ({
 	useChangelogOverlayState: () => ({
 		isChangelogOpen,
@@ -156,6 +198,11 @@ mock.module("./use-changelog-overlay-state", () => ({
 
 mock.module("@/lib/trpc/client", () => ({
 	useTRPC: () => ({
+		admin: {
+			stopImpersonating: {
+				mutationOptions: (options: unknown) => options,
+			},
+		},
 		aiAgent: {
 			get: {
 				queryOptions: () => ({
@@ -163,7 +210,25 @@ mock.module("@/lib/trpc/client", () => ({
 				}),
 			},
 		},
+		user: {
+			me: {
+				queryOptions: () => ({
+					queryKey: ["user.me"],
+				}),
+			},
+		},
 	}),
+}));
+
+mock.module("sonner", () => ({
+	toast: {
+		error: (message: string) => {
+			toastErrorCalls.push(message);
+		},
+		success: (message: string) => {
+			toastSuccessCalls.push(message);
+		},
+	},
 }));
 
 mock.module("../../icons", () => ({
@@ -197,12 +262,19 @@ function resetState() {
 	registeredHotkeys.length = 0;
 	renderedButtonHandlers.length = 0;
 	routerPushCalls.length = 0;
+	routerRefreshCalls.length = 0;
 	closeDetailCalls.length = 0;
 	closeLiveVisitorsCalls.length = 0;
 	setIsChangelogOpenCalls.length = 0;
+	stopImpersonatingCalls.length = 0;
+	authStoreNotifyCalls.length = 0;
+	toastSuccessCalls.length = 0;
+	toastErrorCalls.length = 0;
 	pathname = "/acme/inbox";
 	isChangelogOpen = false;
 	isLiveVisitorsOverlayOpen = false;
+	currentUserRole = null;
+	sessionData = { session: { impersonatedBy: null } };
 	activeDetail = null;
 }
 
@@ -407,5 +479,41 @@ describe("NavigationTopbar", () => {
 		expect(routerPushCalls).toEqual(["/acme/inbox"]);
 		expect(closeDetailCalls).toEqual([]);
 		expect(closeLiveVisitorsCalls).toEqual([]);
+	});
+
+	it("shows the admin link only for global admins", async () => {
+		resetState();
+		currentUserRole = "admin";
+
+		const adminHtml = await renderTopbar({ latestRelease: null });
+
+		expect(adminHtml).toContain('href="/acme/admin"');
+
+		resetState();
+		currentUserRole = "user";
+
+		const userHtml = await renderTopbar({ latestRelease: null });
+
+		expect(userHtml).not.toContain('href="/acme/admin"');
+	});
+
+	it("shows and wires the impersonation stop control", async () => {
+		resetState();
+		sessionData = {
+			session: {
+				impersonatedBy: "admin-user",
+			},
+		};
+
+		const html = await renderTopbar({ latestRelease: null });
+
+		expect(html).toContain("Impersonating");
+
+		renderedButtonHandlers[0]?.();
+
+		expect(stopImpersonatingCalls).toEqual(["stop"]);
+		expect(authStoreNotifyCalls).toEqual(["$sessionSignal"]);
+		expect(toastSuccessCalls).toEqual(["Stopped impersonating"]);
+		expect(routerRefreshCalls).toEqual(["refresh"]);
 	});
 });

@@ -210,6 +210,9 @@ export const Content: React.FC<FeedbackContentProps> = ({
 		<FeedbackWindow asChild>
 			<div
 				className={computedClassName}
+				data-feedback-content="true"
+				data-slot="feedback-content"
+				data-state={isOpen ? "open" : "closed"}
 				ref={setFloatingRef}
 				style={computedStyles}
 			>

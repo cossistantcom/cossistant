@@ -46,6 +46,7 @@ export const FeedbackTriggerPrimitive = React.forwardRef<
 		isOpen,
 		toggle,
 	};
+	const dataState = isOpen ? "open" : "closed";
 
 	const content =
 		typeof children === "function" ? children(renderProps) : children;
@@ -65,7 +66,14 @@ export const FeedbackTriggerPrimitive = React.forwardRef<
 				"aria-expanded": isOpen,
 				onClick: toggle,
 				...props,
+				"data-feedback-trigger": "true",
+				"data-slot": "feedback-trigger",
+				"data-state": dataState,
 				children: content,
+			} as Partial<React.ButtonHTMLAttributes<HTMLButtonElement>> & {
+				"data-feedback-trigger": string;
+				"data-slot": string;
+				"data-state": string;
 			},
 		}
 	);

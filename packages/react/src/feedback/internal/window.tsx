@@ -204,10 +204,15 @@ export const FeedbackWindow = React.forwardRef<HTMLDivElement, WindowProps>(
 				props: {
 					role: "dialog",
 					"aria-modal": "true",
+					"data-feedback-window": "true",
+					"data-state": open ? "open" : "closed",
 					id,
 					tabIndex: -1,
 					...props,
 					children: content,
+				} as Partial<React.HTMLAttributes<HTMLDivElement>> & {
+					"data-feedback-window": string;
+					"data-state": string;
 				},
 				enabled: open,
 			}

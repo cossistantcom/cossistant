@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSubmitFeedback } from "../../hooks/use-submit-feedback";
 import { FeedbackCommentInput } from "../../primitives/feedback-comment-input";
 import { FeedbackRatingSelector } from "../../primitives/feedback-rating-selector";
 import { FeedbackTopicSelect } from "../../primitives/feedback-topic-select";
@@ -47,12 +48,16 @@ export function FeedbackPanel({
 	commentPlaceholder = DEFAULT_COMMENT_PLACEHOLDER,
 	commentRequired = false,
 }: FeedbackPanelProps) {
-	const { website, client, configurationError } = useSupport();
+	const { configurationError } = useSupport();
 	const { close, isOpen } = useFeedbackConfig();
 	const topicRef = React.useRef<HTMLSelectElement>(null);
 	const commentRef = React.useRef<HTMLTextAreaElement>(null);
-	const [isSubmitting, setIsSubmitting] = React.useState(false);
-	const [submitError, setSubmitError] = React.useState<string | null>(null);
+	const {
+		error: submitFeedbackError,
+		isPending: isSubmitting,
+		mutateAsync: submitFeedback,
+		reset: resetSubmitFeedback,
+	} = useSubmitFeedback();
 
 	const availableTopics = React.useMemo(
 		() => normalizeTopics(topics),
@@ -118,11 +123,10 @@ export function FeedbackPanel({
 
 	React.useEffect(() => {
 		if (!isOpen) {
-			setSubmitError(null);
-			setIsSubmitting(false);
+			resetSubmitFeedback();
 			resetForm();
 		}
-	}, [isOpen, resetForm]);
+	}, [isOpen, resetForm, resetSubmitFeedback]);
 
 	const normalizedComment = comment.trim();
 	const normalizedTopic = selectedTopic.trim();
@@ -130,6 +134,37 @@ export function FeedbackPanel({
 	const isRatingMissing = selectedRating == null;
 	const isTopicMissing = topicRequired && normalizedTopic.length === 0;
 	const isCommentMissing = commentRequired && normalizedComment.length === 0;
+	const submitError = submitFeedbackError?.message ?? null;
+
+	const clearSubmitError = React.useCallback(() => {
+		if (submitFeedbackError) {
+			resetSubmitFeedback();
+		}
+	}, [resetSubmitFeedback, submitFeedbackError]);
+
+	const handleTopicChange = React.useCallback(
+		(value: string) => {
+			clearSubmitError();
+			setSelectedTopic(value);
+		},
+		[clearSubmitError]
+	);
+
+	const handleCommentChange = React.useCallback(
+		(value: string) => {
+			clearSubmitError();
+			setComment(value);
+		},
+		[clearSubmitError]
+	);
+
+	const handleRatingSelect = React.useCallback(
+		(value: number) => {
+			clearSubmitError();
+			setSelectedRating(value);
+		},
+		[clearSubmitError]
+	);
 
 	React.useEffect(() => {
 		if (!(isOpen && !hasSubmitted)) {
@@ -146,51 +181,40 @@ export function FeedbackPanel({
 
 	const handleSubmit = React.useCallback(async () => {
 		setHasAttemptedSubmit(true);
-		setSubmitError(null);
+		resetSubmitFeedback();
 
 		if (isRatingMissing || isTopicMissing || isCommentMissing) {
 			return;
 		}
 
-		if (!(client && website?.visitor?.id && selectedRating)) {
-			setSubmitError("Visitor context is unavailable.");
+		if (!selectedRating) {
 			return;
 		}
 
-		setIsSubmitting(true);
-
 		try {
-			await client.submitFeedback({
+			await submitFeedback({
 				rating: selectedRating,
 				comment: normalizedComment || undefined,
 				topic: normalizedTopic || undefined,
 				trigger: trigger?.trim() || undefined,
 				conversationId,
-				visitorId: website.visitor.id,
-				contactId: website.visitor.contact?.id,
 				source: "widget",
 			});
 			setHasSubmitted(true);
-		} catch (error) {
-			const message =
-				error instanceof Error && error.message
-					? error.message
-					: "We could not submit your feedback. Please try again.";
-			setSubmitError(message);
-		} finally {
-			setIsSubmitting(false);
+		} catch {
+			// Error state is owned by useSubmitFeedback.
 		}
 	}, [
-		client,
 		conversationId,
 		isCommentMissing,
 		isRatingMissing,
 		isTopicMissing,
 		normalizedComment,
 		normalizedTopic,
+		resetSubmitFeedback,
 		selectedRating,
+		submitFeedback,
 		trigger,
-		website,
 	]);
 
 	if (configurationError) {
@@ -208,8 +232,15 @@ export function FeedbackPanel({
 				"flex h-full flex-col bg-co-background text-co-foreground",
 				className
 			)}
+			data-feedback-panel="true"
+			data-slot="feedback-panel"
+			data-state={hasSubmitted ? "submitted" : "form"}
 		>
-			<div className="flex items-start justify-between gap-4 border-co-border/70 border-b px-5 py-4">
+			<div
+				className="flex items-start justify-between gap-4 border-co-border/70 border-b px-5 py-4"
+				data-feedback-panel-header="true"
+				data-slot="feedback-panel-header"
+			>
 				<div className="space-y-1">
 					<h2 className="font-semibold text-base">Share feedback</h2>
 					<p className="max-w-[28ch] text-balance text-co-muted-foreground text-sm">
@@ -219,6 +250,8 @@ export function FeedbackPanel({
 				<button
 					aria-label="Close feedback"
 					className="inline-flex h-9 w-9 items-center justify-center rounded-full text-co-muted-foreground transition-colors hover:bg-co-background-100 hover:text-co-foreground"
+					data-feedback-close="true"
+					data-slot="feedback-close"
 					onClick={close}
 					type="button"
 				>
@@ -227,7 +260,11 @@ export function FeedbackPanel({
 			</div>
 
 			{hasSubmitted ? (
-				<div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-8 text-center">
+				<div
+					className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-8 text-center"
+					data-feedback-success="true"
+					data-slot="feedback-success"
+				>
 					<div className="flex h-14 w-14 items-center justify-center rounded-full bg-co-primary/10 text-co-primary">
 						<Icon className="h-6 w-6" name="check" />
 					</div>
@@ -241,7 +278,7 @@ export function FeedbackPanel({
 					<div className="flex gap-3">
 						<CoButton
 							onClick={() => {
-								setSubmitError(null);
+								resetSubmitFeedback();
 								resetForm();
 							}}
 							type="button"
@@ -255,10 +292,14 @@ export function FeedbackPanel({
 					</div>
 				</div>
 			) : (
-				<div className="flex min-h-0 flex-1 flex-col px-5 py-4">
+				<div
+					className="flex min-h-0 flex-1 flex-col px-5 py-4"
+					data-feedback-form="true"
+					data-slot="feedback-form"
+				>
 					<div className="flex min-h-0 flex-1 flex-col gap-4">
 						{availableTopics.length > 0 ? (
-							<div className="space-y-2">
+							<div className="space-y-2" data-slot="feedback-topic-field">
 								<label className="sr-only" htmlFor="cossistant-feedback-topic">
 									Feedback topic
 								</label>
@@ -268,21 +309,24 @@ export function FeedbackPanel({
 									iconClassName="text-co-muted-foreground"
 									id="cossistant-feedback-topic"
 									invalid={hasAttemptedSubmit && isTopicMissing}
-									onValueChange={setSelectedTopic}
+									onValueChange={handleTopicChange}
 									options={availableTopics}
 									placeholder={topicPlaceholder}
 									ref={topicRef}
 									value={selectedTopic}
 								/>
 								{hasAttemptedSubmit && isTopicMissing ? (
-									<p className="text-co-destructive text-xs">
+									<p className="text-co-destructive text-xs" role="alert">
 										Select a topic before sending feedback.
 									</p>
 								) : null}
 							</div>
 						) : null}
 
-						<div className="flex min-h-0 flex-1 flex-col space-y-2">
+						<div
+							className="flex min-h-0 flex-1 flex-col space-y-2"
+							data-slot="feedback-comment-field"
+						>
 							<label className="sr-only" htmlFor="cossistant-feedback-comment">
 								Your feedback
 							</label>
@@ -297,14 +341,14 @@ export function FeedbackPanel({
 								disabled={isSubmitting}
 								id="cossistant-feedback-comment"
 								invalid={hasAttemptedSubmit && isCommentMissing}
-								onValueChange={setComment}
+								onValueChange={handleCommentChange}
 								placeholder={commentPlaceholder}
 								ref={commentRef}
 								rows={7}
 								value={comment}
 							/>
 							{hasAttemptedSubmit && isCommentMissing ? (
-								<p className="text-co-destructive text-xs">
+								<p className="text-co-destructive text-xs" role="alert">
 									Add a message before sending feedback.
 								</p>
 							) : commentRequired ? (
@@ -315,9 +359,13 @@ export function FeedbackPanel({
 						</div>
 					</div>
 
-					<div className="mt-4 border-co-border/70 border-t pt-4">
+					<div
+						className="mt-4 border-co-border/70 border-t pt-4"
+						data-feedback-form-footer="true"
+						data-slot="feedback-form-footer"
+					>
 						<div className="flex items-center justify-between gap-4">
-							<div className="space-y-2">
+							<div className="space-y-2" data-slot="feedback-rating-field">
 								<p className="text-co-muted-foreground text-xs">
 									Rate this experience
 								</p>
@@ -327,7 +375,7 @@ export function FeedbackPanel({
 									hoveredValue={hoveredRating}
 									labelForRating={(rating) => `Rate ${rating} out of 5`}
 									onHoverChange={setHoveredRating}
-									onSelect={setSelectedRating}
+									onSelect={handleRatingSelect}
 									size="md"
 									value={selectedRating}
 								/>
@@ -335,6 +383,9 @@ export function FeedbackPanel({
 
 							<CoButton
 								className="h-14 rounded-[16px] px-6 text-base"
+								data-feedback-submit="true"
+								data-slot="feedback-submit"
+								data-state={isSubmitting ? "submitting" : "idle"}
 								disabled={isSubmitting}
 								onClick={() => {
 									void handleSubmit();
@@ -346,13 +397,19 @@ export function FeedbackPanel({
 						</div>
 
 						{hasAttemptedSubmit && isRatingMissing ? (
-							<p className="mt-2 text-co-destructive text-xs">
+							<p className="mt-2 text-co-destructive text-xs" role="alert">
 								Choose a rating before sending feedback.
 							</p>
 						) : null}
 
 						{submitError ? (
-							<p className="mt-2 text-co-destructive text-xs">{submitError}</p>
+							<p
+								aria-live="polite"
+								className="mt-2 text-co-destructive text-xs"
+								role="alert"
+							>
+								{submitError}
+							</p>
 						) : null}
 					</div>
 				</div>

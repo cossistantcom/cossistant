@@ -110,6 +110,19 @@ mock.module("@cossistant/next/support", () => {
 	return { Support };
 });
 
+mock.module("@cossistant/next/feedback", () => ({
+	useSubmitFeedback: () => ({
+		error: null,
+		isPending: false,
+		mutateAsync: async () => ({
+			feedback: {
+				id: "feedback_123",
+			},
+		}),
+		reset: () => {},
+	}),
+}));
+
 mock.module("@/components/changelog-notification", () => ({
 	ChangelogNotification: ({
 		children,
@@ -479,6 +492,16 @@ describe("NavigationTopbar", () => {
 		expect(routerPushCalls).toEqual(["/acme/inbox"]);
 		expect(closeDetailCalls).toEqual([]);
 		expect(closeLiveVisitorsCalls).toEqual([]);
+	});
+
+	it("renders dashboard feedback next to the custom support control", async () => {
+		resetState();
+
+		const html = await renderTopbar({ latestRelease: null });
+
+		expect(html).toContain("Feedback?");
+		expect(html).toContain("Support");
+		expect(html.indexOf("Feedback?")).toBeLessThan(html.indexOf("Support"));
 	});
 
 	it("shows the admin link only for global admins", async () => {

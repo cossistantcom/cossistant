@@ -329,6 +329,12 @@ export const Feedback = Object.assign(FeedbackComponent, {
 export default Feedback;
 
 export type {
+	SubmitFeedbackVariables,
+	UseSubmitFeedbackOptions,
+	UseSubmitFeedbackResult,
+} from "../hooks/use-submit-feedback";
+export { useSubmitFeedback } from "../hooks/use-submit-feedback";
+export type {
 	Align,
 	CollisionPadding,
 	Side,

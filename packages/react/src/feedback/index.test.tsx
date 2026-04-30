@@ -72,6 +72,13 @@ describe("Feedback widget", () => {
 		);
 
 		expect(html).toContain("Share feedback");
+		expect(html).toContain('data-slot="feedback-root"');
+		expect(html).toContain('data-slot="feedback-trigger"');
+		expect(html).toContain('data-slot="feedback-content"');
+		expect(html).toContain('data-slot="feedback-panel"');
+		expect(html).toContain('data-slot="feedback-submit"');
+		expect(html).toContain('data-feedback-panel="true"');
+		expect(html).toContain('data-feedback-submit="true"');
 		expect(html).toContain('data-feedback-rating-selector="true"');
 		expect(html).toContain('data-feedback-topic-select="true"');
 		expect(html).toContain("Select a topic...");
@@ -122,18 +129,20 @@ describe("Feedback widget", () => {
 		expect(html).toContain("Fragment feedback body");
 	});
 
-	it("forwards topic, trigger, conversation, and visitor context in the widget payload", () => {
+	it("submits through the shared feedback hook", () => {
 		const source = readFileSync(
 			join(import.meta.dir, "components", "panel.tsx"),
 			"utf8"
 		);
 
-		expect(source).toContain("client.submitFeedback({");
+		expect(source).toContain("useSubmitFeedback");
+		expect(source).toContain("clearSubmitError");
+		expect(source).toContain("submitFeedback({");
 		expect(source).toContain("topic: normalizedTopic || undefined");
 		expect(source).toContain("trigger: trigger?.trim() || undefined");
 		expect(source).toContain("conversationId");
-		expect(source).toContain("visitorId: website.visitor.id");
-		expect(source).toContain("contactId: website.visitor.contact?.id");
+		expect(source).toContain('role="alert"');
+		expect(source).not.toContain("client.submitFeedback({");
 		expect(source).not.toContain("useFeedbackComposer");
 	});
 });

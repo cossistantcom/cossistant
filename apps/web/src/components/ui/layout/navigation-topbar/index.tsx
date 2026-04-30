@@ -19,6 +19,7 @@ import { useTRPC } from "@/lib/trpc/client";
 import Icon from "../../icons";
 import { Logo } from "../../logo";
 import { TooltipOnHover } from "../../tooltip";
+import { DashboardFeedbackPopover } from "./dashboard-feedback-popover";
 import { TopbarItem } from "./topbar-item";
 import { useChangelogOverlayState } from "./use-changelog-overlay-state";
 
@@ -300,6 +301,7 @@ export function NavigationTopbar({
 				>
 					Contacts
 				</TopbarItem>
+				<DashboardFeedbackPopover />
 				<Support side="bottom" sideOffset={8}>
 					<Support.Trigger className="group/btn relative flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-primary/80 text-sm transition-colors hover:bg-background-300 hover:text-primary">
 						{(props) => <DashboardTriggerContent {...props} />}

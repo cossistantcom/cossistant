@@ -25,6 +25,7 @@ export * from "./use-realtime-support";
 export * from "./use-scroll-mask";
 export * from "./use-send-message";
 export * from "./use-sound-effect";
+export * from "./use-submit-feedback";
 export * from "./use-typing-sound";
 export * from "./use-visitor";
 export * from "./use-window-visibility-focus";

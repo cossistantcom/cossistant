@@ -15,6 +15,7 @@ export * from "./use-conversation-typing";
 export * from "./use-conversations";
 export * from "./use-create-conversation";
 export * from "./use-feature-flags";
+export * from "./use-feedback-form";
 export * from "./use-file-upload";
 export * from "./use-home-page";
 export * from "./use-local-storage-draft-value";

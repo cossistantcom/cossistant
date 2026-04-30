@@ -111,6 +111,51 @@ mock.module("@cossistant/next/support", () => {
 });
 
 mock.module("@cossistant/next/feedback", () => ({
+	useFeedbackForm: () => ({
+		availableTopics: [],
+		canSubmit: false,
+		comment: "",
+		done: () => {},
+		fields: {
+			comment: {
+				error: null,
+				isMissing: false,
+			},
+			rating: {
+				displayValue: null,
+				error: null,
+				isMissing: false,
+				selectedValue: "",
+			},
+			topic: {
+				error: null,
+				isMissing: false,
+			},
+		},
+		handleCommentChange: () => {},
+		handleOpenChange: () => {},
+		handleRatingHoverChange: () => {},
+		handleRatingSelect: () => {},
+		handleSubmit: async () => {},
+		handleTopicChange: () => {},
+		hasSubmitted: false,
+		hoveredRating: null,
+		isCommentMissing: false,
+		isPending: false,
+		isRatingMissing: false,
+		isTopicMissing: false,
+		open: false,
+		rating: null,
+		sendAnother: () => {},
+		submit: {
+			canAttemptSubmit: true,
+			canSubmit: false,
+			disabled: false,
+			label: "Rating needed",
+		},
+		submitError: null,
+		topic: "",
+	}),
 	useSubmitFeedback: () => ({
 		error: null,
 		isPending: false,

@@ -1,0 +1,54 @@
+---
+title: User feedback
+description: Collect topic, rating, and comment feedback from the same visitor context as your support widget.
+search:
+  kind: component
+  tags:
+    - feedback
+    - widget
+    - useFeedbackForm
+  aliases:
+    - Feedback
+    - useFeedbackForm
+    - user feedback
+---
+
+User feedback uses the same visitor context as `SupportProvider`. The hook fills
+visitor and contact IDs, handles validation, and submits a topic, rating, and
+optional comment.
+
+Use the default `<Feedback />` widget when you want the fastest path. Use
+`useFeedbackForm` when you want your own shadcn UI.
+
+<Alert variant="info" className="mt-6">
+  <Icon name="info" className="size-4" />
+  <AlertTitle>Preview submissions are faked</AlertTitle>
+  <AlertDescription>
+    The previews below intercept submission with a docs-only fake client. In
+    your app, wrap the component in `SupportProvider` with your public key.
+  </AlertDescription>
+</Alert>
+
+## Emoji feedback
+
+Start with a compact popover: topic, comment, rating, and a small send button.
+
+<ComponentPreview
+  name="user-feedback-emoji"
+  sizeClasses="min-h-[220px] md:min-h-[260px]"
+/>
+
+## Star feedback
+
+The same hook can power a five-star rating UI.
+
+<ComponentPreview
+  name="user-feedback-stars"
+  sizeClasses="min-h-[220px] md:min-h-[260px]"
+/>
+
+## Hook exports
+
+`useFeedbackForm` is exported from `@cossistant/react/hooks` and
+`@cossistant/react/feedback`. Next.js apps can use the matching
+`@cossistant/next/hooks` and `@cossistant/next/feedback` exports.

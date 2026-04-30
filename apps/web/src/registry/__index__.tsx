@@ -92,4 +92,26 @@ export const Index: Record<string, RegistryItem> = {
 		path: "src/components/support/demo-responsive-embed/index.tsx",
 		sourcePath: "src/components/support/examples/responsive-embed.tsx",
 	},
+	"user-feedback-emoji": {
+		name: "user-feedback-emoji",
+		component: React.lazy(
+			() => import("@/components/user-feedback/demo-emoji")
+		),
+		demoComponent: React.lazy(
+			() => import("@/components/user-feedback/demo-emoji")
+		),
+		path: "src/components/user-feedback/demo-emoji/index.tsx",
+		sourcePath: "src/components/user-feedback/examples/emoji-feedback.tsx",
+	},
+	"user-feedback-stars": {
+		name: "user-feedback-stars",
+		component: React.lazy(
+			() => import("@/components/user-feedback/demo-stars")
+		),
+		demoComponent: React.lazy(
+			() => import("@/components/user-feedback/demo-stars")
+		),
+		path: "src/components/user-feedback/demo-stars/index.tsx",
+		sourcePath: "src/components/user-feedback/examples/star-feedback.tsx",
+	},
 };

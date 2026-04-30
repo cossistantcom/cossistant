@@ -135,13 +135,13 @@ describe("Feedback widget", () => {
 			"utf8"
 		);
 
-		expect(source).toContain("useSubmitFeedback");
-		expect(source).toContain("clearSubmitError");
-		expect(source).toContain("submitFeedback({");
-		expect(source).toContain("topic: normalizedTopic || undefined");
-		expect(source).toContain("trigger: trigger?.trim() || undefined");
+		expect(source).toContain("useFeedbackForm");
+		expect(source).toContain("feedback.handleSubmit");
+		expect(source).toContain("feedback.handleTopicChange");
+		expect(source).toContain("feedback.handleRatingSelect");
 		expect(source).toContain("conversationId");
 		expect(source).toContain('role="alert"');
+		expect(source).not.toContain("useSubmitFeedback");
 		expect(source).not.toContain("client.submitFeedback({");
 		expect(source).not.toContain("useFeedbackComposer");
 	});

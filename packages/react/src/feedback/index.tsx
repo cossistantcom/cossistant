@@ -329,6 +329,16 @@ export const Feedback = Object.assign(FeedbackComponent, {
 export default Feedback;
 
 export type {
+	FeedbackFormFieldState,
+	FeedbackFormFields,
+	FeedbackFormRatingFieldState,
+	FeedbackFormSubmitEvent,
+	FeedbackFormSubmitState,
+	UseFeedbackFormOptions,
+	UseFeedbackFormResult,
+} from "../hooks/use-feedback-form";
+export { useFeedbackForm } from "../hooks/use-feedback-form";
+export type {
 	SubmitFeedbackVariables,
 	UseSubmitFeedbackOptions,
 	UseSubmitFeedbackResult,

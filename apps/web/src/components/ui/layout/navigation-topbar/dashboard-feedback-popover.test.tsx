@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
-import type { SubmitFeedbackResponse } from "@cossistant/types/api/feedback";
+import { readFile } from "node:fs/promises";
 import { Window } from "happy-dom";
 import React from "react";
 
@@ -24,54 +24,182 @@ const PopoverContext = React.createContext<{
 }>({
 	open: false,
 });
-
-function createFeedbackResponse(): SubmitFeedbackResponse {
-	return {
-		feedback: {
-			id: "feedback_123",
-			organizationId: "org_123",
-			websiteId: "site_123",
-			conversationId: null,
-			visitorId: "visitor_123",
-			contactId: null,
-			rating: 5,
-			topic: "Bug",
-			comment: "It broke",
-			trigger: "dashboard_topbar",
-			source: "widget",
-			createdAt: "2026-04-29T12:00:00.000Z",
-			updatedAt: "2026-04-29T12:00:00.000Z",
-		},
-	};
-}
+const SelectContext = React.createContext<{
+	disabled?: boolean;
+	onValueChange?: (value: string) => void;
+	value: string;
+}>({
+	value: "",
+});
+const ToggleGroupContext = React.createContext<{
+	onValueChange?: (value: string) => void;
+	value: string;
+}>({
+	value: "",
+});
 
 mock.module("@cossistant/next/feedback", () => ({
-	useSubmitFeedback: () => {
+	useFeedbackForm: ({
+		commentRequired = false,
+		topics = [],
+		trigger,
+	}: {
+		commentRequired?: boolean;
+		topics?: string[];
+		trigger?: string;
+	}) => {
+		const [open, setOpen] = React.useState(false);
+		const [rating, setRating] = React.useState<number | null>(null);
+		const [hoveredRating, setHoveredRating] = React.useState<number | null>(
+			null
+		);
+		const [topic, setTopic] = React.useState("");
+		const [comment, setComment] = React.useState("");
+		const [hasSubmitted, setHasSubmitted] = React.useState(false);
+		const [hasAttemptedSubmit, setHasAttemptedSubmit] = React.useState(false);
 		const [error, setError] = React.useState<Error | null>(null);
 		const [isPending, setIsPending] = React.useState(false);
+		const normalizedTopic = topic.trim();
+		const normalizedComment = comment.trim();
+		const rawIsRatingMissing = rating == null;
+		const rawIsTopicMissing = topics.length > 0 && normalizedTopic.length === 0;
+		const rawIsCommentMissing =
+			commentRequired && normalizedComment.length === 0;
+		const isValid = !(
+			rawIsRatingMissing ||
+			rawIsTopicMissing ||
+			rawIsCommentMissing
+		);
+		const canSubmit = isValid && !isPending;
+		const canAttemptSubmit = !isPending && (!hasAttemptedSubmit || isValid);
+		const isRatingMissing = hasAttemptedSubmit && rawIsRatingMissing;
+		const isTopicMissing = hasAttemptedSubmit && rawIsTopicMissing;
+		const isCommentMissing = hasAttemptedSubmit && rawIsCommentMissing;
+		const submitError =
+			error?.message ||
+			(error ? "We could not submit your feedback. Please try again." : null);
+		const fields = {
+			comment: {
+				error: isCommentMissing
+					? "Add a message before sending feedback."
+					: null,
+				isMissing: isCommentMissing,
+			},
+			rating: {
+				displayValue: hoveredRating ?? rating,
+				error: isRatingMissing
+					? "Choose a rating before sending feedback."
+					: null,
+				isMissing: isRatingMissing,
+				selectedValue: rating?.toString() ?? "",
+			},
+			topic: {
+				error: isTopicMissing
+					? "Select a topic before sending feedback."
+					: null,
+				isMissing: isTopicMissing,
+			},
+		};
+		const submit = {
+			canAttemptSubmit,
+			canSubmit,
+			disabled: !canAttemptSubmit,
+			label: isPending
+				? "Sending..."
+				: rawIsRatingMissing
+					? "Rating needed"
+					: "Send",
+		};
+
+		const resetForm = () => {
+			setRating(null);
+			setHoveredRating(null);
+			setTopic("");
+			setComment("");
+			setHasSubmitted(false);
+			setHasAttemptedSubmit(false);
+			setError(null);
+			setIsPending(false);
+		};
+
+		const handleOpenChange = (nextOpen: boolean) => {
+			setOpen(nextOpen);
+
+			if (!nextOpen) {
+				resetForm();
+			}
+		};
+
+		const clearSubmitError = () => {
+			if (error) {
+				setError(null);
+			}
+		};
 
 		return {
+			availableTopics: topics,
+			canSubmit,
+			comment,
+			done: () => handleOpenChange(false),
 			error,
-			isPending,
-			mutateAsync: async (variables: SubmitFeedbackVariables) => {
-				setIsPending(true);
+			fields,
+			handleCommentChange: (value: string) => {
+				clearSubmitError();
+				setComment(value);
+			},
+			handleOpenChange,
+			handleRatingHoverChange: setHoveredRating,
+			handleRatingSelect: (value: number) => {
+				clearSubmitError();
+				setRating(value);
+			},
+			handleSubmit: async (event?: React.FormEvent<HTMLFormElement>) => {
+				event?.preventDefault();
+				setHasAttemptedSubmit(true);
 				setError(null);
-				submittedFeedback.push(variables);
+
+				if (!(isValid && rating)) {
+					return;
+				}
+
+				setIsPending(true);
 				await Promise.resolve();
 				setIsPending(false);
 
 				if (shouldReject) {
-					const nextError = new Error("Feedback service is unavailable.");
-					setError(nextError);
-					throw nextError;
+					setError(new Error("Feedback service is unavailable."));
+					return;
 				}
 
-				return createFeedbackResponse();
+				submittedFeedback.push({
+					rating,
+					topic: normalizedTopic,
+					comment: normalizedComment || undefined,
+					trigger,
+				});
+				setHasSubmitted(true);
 			},
-			reset: () => {
-				setError(null);
-				setIsPending(false);
+			handleTopicChange: (value: string) => {
+				clearSubmitError();
+				setTopic(value);
 			},
+			hasAttemptedSubmit,
+			hasSubmitted,
+			hoveredRating,
+			isCommentMissing,
+			isPending,
+			isRatingMissing,
+			isTopicMissing,
+			normalizedComment,
+			normalizedTopic,
+			open,
+			rating,
+			resetForm,
+			sendAnother: resetForm,
+			setOpen: handleOpenChange,
+			submit,
+			submitError,
+			topic,
 		};
 	},
 }));
@@ -85,6 +213,116 @@ mock.module("@/components/ui/button", () => ({
 			{children}
 		</button>
 	),
+}));
+
+mock.module("@/components/ui/select", () => ({
+	Select: ({
+		children,
+		disabled,
+		onValueChange,
+		value = "",
+	}: {
+		children: React.ReactNode;
+		disabled?: boolean;
+		onValueChange?: (value: string) => void;
+		value?: string;
+	}) => (
+		<SelectContext.Provider value={{ disabled, onValueChange, value }}>
+			<div data-slot="select">{children}</div>
+		</SelectContext.Provider>
+	),
+	SelectContent: ({ children }: { children: React.ReactNode }) => (
+		<div data-slot="select-content">{children}</div>
+	),
+	SelectItem: ({
+		children,
+		value,
+	}: {
+		children: React.ReactNode;
+		value: string;
+	}) => {
+		const context = React.useContext(SelectContext);
+
+		return (
+			<button
+				data-select-value={value}
+				disabled={context.disabled}
+				onClick={() => context.onValueChange?.(value)}
+				type="button"
+			>
+				{children}
+			</button>
+		);
+	},
+	SelectTrigger: ({
+		children,
+		disabled,
+		...props
+	}: React.ButtonHTMLAttributes<HTMLButtonElement>) => {
+		const context = React.useContext(SelectContext);
+
+		return (
+			<button {...props} disabled={disabled || context.disabled} type="button">
+				{children}
+			</button>
+		);
+	},
+	SelectValue: ({ placeholder }: { placeholder?: string }) => {
+		const context = React.useContext(SelectContext);
+
+		return <span>{context.value || placeholder}</span>;
+	},
+}));
+
+mock.module("@/components/ui/textarea", () => ({
+	Textarea: (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
+		<textarea {...props} />
+	),
+}));
+
+mock.module("@/components/ui/toggle-group", () => ({
+	ToggleGroup: ({
+		children,
+		onValueChange,
+		type: _type,
+		value = "",
+		...props
+	}: React.HTMLAttributes<HTMLDivElement> & {
+		onValueChange?: (value: string) => void;
+		type?: "single";
+		value?: string;
+	}) => (
+		<ToggleGroupContext.Provider value={{ onValueChange, value }}>
+			<div {...props}>{children}</div>
+		</ToggleGroupContext.Provider>
+	),
+	ToggleGroupItem: ({
+		children,
+		onMouseEnter,
+		onMouseLeave,
+		value,
+		...props
+	}: React.ButtonHTMLAttributes<HTMLButtonElement> & { value: string }) => {
+		const context = React.useContext(ToggleGroupContext);
+		const active = context.value === value;
+
+		return (
+			<button
+				{...props}
+				data-state={active ? "on" : "off"}
+				onClick={(event) => {
+					props.onClick?.(event);
+					context.onValueChange?.(active ? "" : value);
+				}}
+				onMouseEnter={onMouseEnter}
+				onMouseLeave={onMouseLeave}
+				type="button"
+				value={value}
+			>
+				{children}
+			</button>
+		);
+	},
 }));
 
 mock.module("@/components/ui/popover", () => ({
@@ -230,16 +468,15 @@ function click(element: HTMLElement) {
 }
 
 function changeSelect(value: string) {
-	const select = document.querySelector<HTMLSelectElement>(
-		"#dashboard-feedback-topic"
+	const option = document.querySelector<HTMLButtonElement>(
+		`[data-select-value="${value}"]`
 	);
 
-	if (!select) {
-		throw new Error("Could not find topic select");
+	if (!option) {
+		throw new Error(`Could not find topic option ${value}`);
 	}
 
-	select.value = value;
-	select.dispatchEvent(new window.Event("change", { bubbles: true }));
+	click(option);
 }
 
 function inputComment(value: string) {
@@ -315,6 +552,26 @@ describe("DashboardFeedbackPopover", () => {
 		}
 	});
 
+	it("uses shadcn controls instead of Cossistant feedback primitives", async () => {
+		const source = await readFile(
+			new URL("./dashboard-feedback-popover.tsx", import.meta.url),
+			"utf8"
+		);
+
+		expect(source).not.toContain("@cossistant/next/primitives");
+		expect(source).not.toContain("FeedbackTopicSelect");
+		expect(source).not.toContain("FeedbackCommentInput");
+		expect(source).not.toContain("FeedbackRatingSelector");
+		expect(source).toContain("@/components/ui/select");
+		expect(source).toContain("@/components/ui/textarea");
+		expect(source).toContain("@/components/ui/toggle-group");
+		expect(source).not.toContain("rounded");
+		expect(source).not.toContain("shadow");
+		expect(source).toContain("opacity-45");
+		expect(source).toContain("hover:opacity-75");
+		expect(source).toContain("opacity-100");
+	});
+
 	it("opens from the topbar feedback trigger", async () => {
 		await renderPopover();
 
@@ -328,8 +585,42 @@ describe("DashboardFeedbackPopover", () => {
 			click(getBySlot("dashboard-feedback-trigger"));
 		});
 
-		expect(document.body.textContent).toContain("Share feedback");
+		expect(document.body.textContent).toContain("Select topic");
 		expect(document.body.textContent).toContain("Bug");
+		expect(
+			document.querySelector<HTMLTextAreaElement>(
+				'[aria-label="Your feedback"]'
+			)?.placeholder
+		).toBe("Your feedback");
+		expect(document.body.textContent).not.toContain("Share feedback");
+		expect(document.body.textContent).not.toContain("Topic");
+		expect(document.body.textContent).not.toContain("Comment");
+		expect(getBySlot("dashboard-feedback-submit").textContent).toBe(
+			"Rating needed"
+		);
+	});
+
+	it("updates the submit label once a rating is selected", async () => {
+		await renderPopover();
+
+		const { act } = await import("react");
+		await act(async () => {
+			click(getBySlot("dashboard-feedback-trigger"));
+		});
+
+		const submitButton = getBySlot(
+			"dashboard-feedback-submit"
+		) as HTMLButtonElement;
+
+		expect(submitButton.textContent).toBe("Rating needed");
+		expect(submitButton.disabled).toBe(false);
+
+		await act(async () => {
+			clickRating(4);
+		});
+
+		expect(submitButton.textContent).toBe("Send");
+		expect(submitButton.disabled).toBe(false);
 	});
 
 	it("validates topic and rating before submission", async () => {
@@ -349,6 +640,46 @@ describe("DashboardFeedbackPopover", () => {
 		expect(document.body.textContent).toContain(
 			"Choose a rating before sending feedback."
 		);
+		expect(document.body.textContent).toContain(
+			"Add a message before sending feedback."
+		);
+		const topicTrigger = getBySlot("dashboard-feedback-topic");
+		expect(topicTrigger.getAttribute("aria-invalid")).toBe("true");
+		expect(topicTrigger.className).toContain("border-destructive");
+		const textarea = document.querySelector<HTMLTextAreaElement>(
+			"#dashboard-feedback-comment"
+		);
+		expect(textarea?.getAttribute("aria-invalid")).toBe("true");
+		expect(textarea?.className).toContain("border-destructive");
+		expect(
+			(getBySlot("dashboard-feedback-submit") as HTMLButtonElement).disabled
+		).toBe(true);
+		expect(submittedFeedback).toEqual([]);
+	});
+
+	it("blocks empty comments with input-level validation", async () => {
+		await renderPopover();
+
+		const { act } = await import("react");
+		await act(async () => {
+			click(getBySlot("dashboard-feedback-trigger"));
+		});
+		await act(async () => {
+			changeSelect("Bug");
+			clickRating(5);
+		});
+		await act(async () => {
+			click(getBySlot("dashboard-feedback-submit"));
+		});
+
+		const textarea = document.querySelector<HTMLTextAreaElement>(
+			"#dashboard-feedback-comment"
+		);
+
+		expect(document.body.textContent).toContain(
+			"Add a message before sending feedback."
+		);
+		expect(textarea?.getAttribute("aria-invalid")).toBe("true");
 		expect(submittedFeedback).toEqual([]);
 	});
 
@@ -384,7 +715,7 @@ describe("DashboardFeedbackPopover", () => {
 			click(getButtonByText("Send another"));
 		});
 
-		expect(document.body.textContent).toContain("Share feedback");
+		expect(document.body.textContent).toContain("Select topic");
 		expect(document.body.textContent).not.toContain("Thanks for the feedback");
 	});
 
@@ -397,6 +728,7 @@ describe("DashboardFeedbackPopover", () => {
 		});
 		await act(async () => {
 			changeSelect("Feature request");
+			inputComment("The done action should close the popover.");
 			clickRating(4);
 		});
 		await act(async () => {
@@ -421,6 +753,7 @@ describe("DashboardFeedbackPopover", () => {
 		});
 		await act(async () => {
 			changeSelect("UX");
+			inputComment("The dashboard got stuck.");
 			clickRating(3);
 		});
 		await act(async () => {
@@ -442,6 +775,7 @@ describe("DashboardFeedbackPopover", () => {
 		});
 		await act(async () => {
 			changeSelect("UX");
+			inputComment("The dashboard got stuck.");
 			clickRating(3);
 		});
 		await act(async () => {

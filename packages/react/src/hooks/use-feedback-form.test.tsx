@@ -160,6 +160,20 @@ function FeedbackFormProbe({ options }: { options?: UseFeedbackFormOptions }) {
 				Bug
 			</button>
 			<button
+				data-slot="topic-empty"
+				onClick={() => feedback.handleTopicChange(" ")}
+				type="button"
+			>
+				Empty topic
+			</button>
+			<button
+				data-slot="topic-blur"
+				onClick={feedback.fields.topic.handleBlur}
+				type="button"
+			>
+				Blur topic
+			</button>
+			<button
 				data-slot="topic-other"
 				onClick={() => feedback.handleTopicChange("Other")}
 				type="button"
@@ -174,11 +188,32 @@ function FeedbackFormProbe({ options }: { options?: UseFeedbackFormOptions }) {
 				Comment
 			</button>
 			<button
+				data-slot="comment-empty"
+				onClick={() => feedback.handleCommentChange("   ")}
+				type="button"
+			>
+				Empty comment
+			</button>
+			<button
+				data-slot="comment-blur"
+				onClick={feedback.fields.comment.handleBlur}
+				type="button"
+			>
+				Blur comment
+			</button>
+			<button
 				data-slot="rating"
 				onClick={() => feedback.handleRatingSelect(5)}
 				type="button"
 			>
 				Rating
+			</button>
+			<button
+				data-slot="rating-blur"
+				onClick={feedback.fields.rating.handleBlur}
+				type="button"
+			>
+				Blur rating
 			</button>
 			<button
 				data-slot="hover"
@@ -225,7 +260,9 @@ function FeedbackFormProbe({ options }: { options?: UseFeedbackFormOptions }) {
 				data-attempted={String(feedback.hasAttemptedSubmit)}
 				data-can-submit={String(feedback.canSubmit)}
 				data-comment={feedback.comment}
+				data-comment-dirty={String(feedback.fields.comment.isDirty)}
 				data-comment-error={feedback.fields.comment.error ?? ""}
+				data-comment-touched={String(feedback.fields.comment.isTouched)}
 				data-error={feedback.submitError ?? ""}
 				data-hovered-rating={feedback.hoveredRating ?? ""}
 				data-is-comment-missing={String(feedback.isCommentMissing)}
@@ -233,9 +270,11 @@ function FeedbackFormProbe({ options }: { options?: UseFeedbackFormOptions }) {
 				data-is-topic-missing={String(feedback.isTopicMissing)}
 				data-open={String(feedback.open)}
 				data-rating={feedback.rating ?? ""}
+				data-rating-dirty={String(feedback.fields.rating.isDirty)}
 				data-rating-display-value={feedback.fields.rating.displayValue ?? ""}
 				data-rating-error={feedback.fields.rating.error ?? ""}
 				data-rating-selected-value={feedback.fields.rating.selectedValue}
+				data-rating-touched={String(feedback.fields.rating.isTouched)}
 				data-slot="state"
 				data-submit-can-attempt-submit={String(
 					feedback.submit.canAttemptSubmit
@@ -245,7 +284,9 @@ function FeedbackFormProbe({ options }: { options?: UseFeedbackFormOptions }) {
 				data-submit-label={feedback.submit.label}
 				data-submitted={String(feedback.hasSubmitted)}
 				data-topic={feedback.topic}
+				data-topic-dirty={String(feedback.fields.topic.isDirty)}
 				data-topic-error={feedback.fields.topic.error ?? ""}
+				data-topic-touched={String(feedback.fields.topic.isTouched)}
 				data-topics={feedback.availableTopics.join("|")}
 			/>
 		</form>
@@ -317,8 +358,11 @@ describe("useFeedbackForm", () => {
 		expect(getState().canSubmit).toBe("false");
 		expect(getState().attempted).toBe("false");
 		expect(getState().submitLabel).toBe("Rating needed");
-		expect(getState().submitDisabled).toBe("false");
-		expect(getState().submitCanAttemptSubmit).toBe("true");
+		expect(getState().submitDisabled).toBe("true");
+		expect(getState().submitCanAttemptSubmit).toBe("false");
+		expect(getState().topicError).toBe("");
+		expect(getState().commentError).toBe("");
+		expect(getState().ratingError).toBe("");
 	});
 
 	it("exposes structured rating display and submit state", async () => {
@@ -330,18 +374,31 @@ describe("useFeedbackForm", () => {
 		expect(getState().ratingDisplayValue).toBe("");
 		expect(getState().ratingSelectedValue).toBe("");
 		expect(getState().submitLabel).toBe("Rating needed");
-		expect(getState().submitDisabled).toBe("false");
+		expect(getState().submitDisabled).toBe("true");
+		expect(getState().ratingError).toBe("");
 
 		const { act } = await import("react");
+		await act(async () => {
+			click("rating-blur");
+		});
+
+		expect(getState().ratingTouched).toBe("true");
+		expect(getState().ratingError).toBe(
+			"Choose a rating before sending feedback."
+		);
+
 		await act(async () => {
 			click("rating");
 		});
 
+		expect(getState().ratingDirty).toBe("true");
 		expect(getState().rating).toBe("5");
 		expect(getState().ratingDisplayValue).toBe("5");
 		expect(getState().ratingSelectedValue).toBe("5");
 		expect(getState().submitLabel).toBe("Send");
 		expect(getState().submitCanSubmit).toBe("true");
+		expect(getState().submitDisabled).toBe("false");
+		expect(getState().ratingError).toBe("");
 
 		await act(async () => {
 			click("hover");
@@ -377,15 +434,23 @@ describe("useFeedbackForm", () => {
 		expect(getState().attempted).toBe("true");
 		expect(getState().isRatingMissing).toBe("true");
 		expect(getState().isTopicMissing).toBe("true");
+		expect(getState().ratingError).toBe("");
+		expect(getState().topicError).toBe("");
+		expect(getState().submitDisabled).toBe("true");
+		expect(getState().submitted).toBe("false");
+		expect(submittedPayload).toBeNull();
+
+		await act(async () => {
+			click("rating-blur");
+			click("topic-blur");
+		});
+
 		expect(getState().ratingError).toBe(
 			"Choose a rating before sending feedback."
 		);
 		expect(getState().topicError).toBe(
 			"Select a topic before sending feedback."
 		);
-		expect(getState().submitDisabled).toBe("true");
-		expect(getState().submitted).toBe("false");
-		expect(submittedPayload).toBeNull();
 	});
 
 	it("validates required comments before submitting", async () => {
@@ -420,16 +485,24 @@ describe("useFeedbackForm", () => {
 
 		expect(getState().attempted).toBe("true");
 		expect(getState().isCommentMissing).toBe("true");
+		expect(getState().commentError).toBe("");
+		expect(getState().submitDisabled).toBe("true");
+		expect(submittedPayload).toBeNull();
+
+		await act(async () => {
+			click("comment-empty");
+		});
+
+		expect(getState().commentDirty).toBe("true");
 		expect(getState().commentError).toBe(
 			"Add a message before sending feedback."
 		);
-		expect(getState().submitDisabled).toBe("true");
-		expect(submittedPayload).toBeNull();
 
 		await act(async () => {
 			click("comment");
 		});
 
+		expect(getState().commentDirty).toBe("true");
 		expect(getState().isCommentMissing).toBe("false");
 		expect(getState().commentError).toBe("");
 		expect(getState().submitDisabled).toBe("false");

@@ -121,6 +121,7 @@ const en: SupportLocaleMessages = {
 	"component.navigation.articles": "Articles",
 	"component.navigation.home": "Home",
 	"component.message.timestamp.aiIndicator": "• AI agent",
+	"component.message.feedback.label": "Feedback",
 };
 
 export default en;

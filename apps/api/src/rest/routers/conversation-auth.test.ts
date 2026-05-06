@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import { AuthValidationError } from "@api/lib/auth-validation";
 import { APIKeyType } from "@cossistant/types";
 
@@ -47,6 +47,12 @@ const listConversationsHeadersMock = mock((async () => ({
 	nextCursor: null,
 })) as (...args: unknown[]) => Promise<unknown>);
 const mergeConversationMetadataMock = mock(
+	(async () => null) as (...args: unknown[]) => Promise<unknown>
+);
+const updateConversationPriorityMock = mock(
+	(async () => null) as (...args: unknown[]) => Promise<unknown>
+);
+const updateConversationSentimentMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
 );
 const resolvePrivateApiKeyActorUserMock = mock((async () => ({
@@ -119,6 +125,8 @@ mock.module("@api/db/mutations/conversation", () => ({
 	reopenConversation: mock(async () => null),
 	resolveConversation: mock(async () => null),
 	unarchiveConversation: mock(async () => null),
+	updateConversationPriority: updateConversationPriorityMock,
+	updateConversationSentiment: updateConversationSentimentMock,
 	updateConversationTitle: mock(async () => null),
 }));
 
@@ -235,6 +243,11 @@ function createConversationRecord(
 		status: "open",
 		visitorRating: null,
 		visitorRatingAt: null,
+		priority: "normal",
+		prioritySource: null,
+		sentiment: null,
+		sentimentConfidence: null,
+		sentimentSource: null,
 		deletedAt: null,
 		organizationId: "org-1",
 		...overrides,
@@ -246,6 +259,7 @@ function createInboxItem(overrides: Partial<Record<string, unknown>> = {}) {
 		id: conversationId,
 		status: "open",
 		priority: "normal",
+		prioritySource: null,
 		organizationId: "org-1",
 		visitorId,
 		visitor: {
@@ -263,6 +277,7 @@ function createInboxItem(overrides: Partial<Record<string, unknown>> = {}) {
 		titleSource: null,
 		sentiment: null,
 		sentimentConfidence: null,
+		sentimentSource: null,
 		resolutionTime: null,
 		visitorRating: null,
 		visitorRatingAt: null,
@@ -305,6 +320,8 @@ describe("conversation auth and inbox routes", () => {
 		getConversationSeenDataMock.mockReset();
 		listConversationsHeadersMock.mockReset();
 		mergeConversationMetadataMock.mockReset();
+		updateConversationPriorityMock.mockReset();
+		updateConversationSentimentMock.mockReset();
 		resolvePrivateApiKeyActorUserMock.mockReset();
 
 		validateResponseMock.mockImplementation((value) => value);
@@ -342,6 +359,19 @@ describe("conversation auth and inbox routes", () => {
 			nextCursor: "cursor_2",
 		});
 		mergeConversationMetadataMock.mockResolvedValue(createConversationRecord());
+		updateConversationPriorityMock.mockResolvedValue(
+			createConversationRecord({
+				priority: "high",
+				prioritySource: "user",
+			})
+		);
+		updateConversationSentimentMock.mockResolvedValue(
+			createConversationRecord({
+				sentiment: "negative",
+				sentimentConfidence: null,
+				sentimentSource: "user",
+			})
+		);
 		resolvePrivateApiKeyActorUserMock.mockResolvedValue({
 			userId: "user-1",
 			member: {
@@ -783,6 +813,146 @@ describe("conversation auth and inbox routes", () => {
 		});
 	});
 
+	it("updates conversation priority through the private patch route", async () => {
+		const updatedConversation = createConversationRecord({
+			priority: "high",
+			prioritySource: "user",
+		});
+		safelyExtractRequestDataMock.mockResolvedValue({
+			db: {},
+			apiKey: { keyType: APIKeyType.PRIVATE, linkedUserId: "user-1" },
+			organization: { id: "org-1" },
+			website: {
+				id: "site-1",
+				organizationId: "org-1",
+				teamId: "team-1",
+			},
+			body: {
+				priority: "high",
+			},
+		});
+		updateConversationPriorityMock.mockResolvedValue(updatedConversation);
+
+		const { conversationRouter } = await conversationRouterModulePromise;
+		const response = await conversationRouter.request(
+			new Request("http://localhost/conv-1/priority", {
+				method: "PATCH",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					priority: "high",
+				}),
+			})
+		);
+		const payload = (await response.json()) as {
+			conversation: { priority?: string; prioritySource?: string | null };
+		};
+
+		expect(response.status).toBe(200);
+		expect(updateConversationPriorityMock).toHaveBeenCalledWith(
+			{},
+			{
+				conversation: createConversationRecord(),
+				priority: "high",
+				actorUserId: "user-1",
+			}
+		);
+		expect(payload.conversation.priority).toBe("high");
+		expect(payload.conversation.prioritySource).toBe("user");
+	});
+
+	it("updates conversation sentiment through the private patch route", async () => {
+		const updatedConversation = createConversationRecord({
+			sentiment: null,
+			sentimentConfidence: null,
+			sentimentSource: "user",
+		});
+		safelyExtractRequestDataMock.mockResolvedValue({
+			db: {},
+			apiKey: { keyType: APIKeyType.PRIVATE, linkedUserId: "user-1" },
+			organization: { id: "org-1" },
+			website: {
+				id: "site-1",
+				organizationId: "org-1",
+				teamId: "team-1",
+			},
+			body: {
+				sentiment: null,
+			},
+		});
+		updateConversationSentimentMock.mockResolvedValue(updatedConversation);
+
+		const { conversationRouter } = await conversationRouterModulePromise;
+		const response = await conversationRouter.request(
+			new Request("http://localhost/conv-1/sentiment", {
+				method: "PATCH",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					sentiment: null,
+				}),
+			})
+		);
+		const payload = (await response.json()) as {
+			conversation: {
+				sentiment?: string | null;
+				sentimentConfidence?: number | null;
+				sentimentSource?: string | null;
+			};
+		};
+
+		expect(response.status).toBe(200);
+		expect(updateConversationSentimentMock).toHaveBeenCalledWith(
+			{},
+			{
+				conversation: createConversationRecord(),
+				sentiment: null,
+				actorUserId: "user-1",
+			}
+		);
+		expect(payload.conversation.sentiment).toBeNull();
+		expect(payload.conversation.sentimentConfidence).toBeNull();
+		expect(payload.conversation.sentimentSource).toBe("user");
+	});
+
+	it("requires an acting teammate for private priority updates", async () => {
+		resolvePrivateApiKeyActorUserMock.mockImplementationOnce(async () => {
+			throw new AuthValidationError(400, "Actor user is required");
+		});
+		safelyExtractRequestDataMock.mockResolvedValue({
+			db: {},
+			apiKey: { keyType: APIKeyType.PRIVATE, linkedUserId: null },
+			organization: { id: "org-1" },
+			website: {
+				id: "site-1",
+				organizationId: "org-1",
+				teamId: "team-1",
+			},
+			body: {
+				priority: "urgent",
+			},
+		});
+
+		const { conversationRouter } = await conversationRouterModulePromise;
+		const response = await conversationRouter.request(
+			new Request("http://localhost/conv-1/priority", {
+				method: "PATCH",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					priority: "urgent",
+				}),
+			})
+		);
+
+		expect(response.status).toBe(400);
+		expect(await response.text()).toContain("Actor user is required");
+		expect(updateConversationPriorityMock).toHaveBeenCalledTimes(0);
+	});
+
 	it("rejects public API keys for full export requests", async () => {
 		safelyExtractRequestQueryMock.mockResolvedValue({
 			db: {},
@@ -844,4 +1014,40 @@ describe("conversation auth and inbox routes", () => {
 		expect(response.status).toBe(403);
 		expect(mergeConversationMetadataMock).toHaveBeenCalledTimes(0);
 	});
+
+	it("rejects public API keys for private priority updates", async () => {
+		safelyExtractRequestDataMock.mockResolvedValue({
+			db: {},
+			apiKey: { keyType: APIKeyType.PUBLIC },
+			organization: { id: "org-1" },
+			website: {
+				id: "site-1",
+				organizationId: "org-1",
+				teamId: "team-1",
+			},
+			body: {
+				priority: "low",
+			},
+		});
+
+		const { conversationRouter } = await conversationRouterModulePromise;
+		const response = await conversationRouter.request(
+			new Request("http://localhost/conv-1/priority", {
+				method: "PATCH",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					priority: "low",
+				}),
+			})
+		);
+
+		expect(response.status).toBe(403);
+		expect(updateConversationPriorityMock).toHaveBeenCalledTimes(0);
+	});
+});
+
+afterAll(() => {
+	mock.restore();
 });

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
 
 const dbMock = {} as never;
 
@@ -156,4 +156,8 @@ describe("triggerMessageNotificationWorkflow AI enqueue behavior", () => {
 
 		expect(enqueueAiAgentTriggerMock).not.toHaveBeenCalled();
 	});
+});
+
+afterAll(() => {
+	mock.restore();
 });

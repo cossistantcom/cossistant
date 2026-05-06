@@ -22,7 +22,10 @@ export type FeedbackFormSubmitEvent =
 
 export type FeedbackFormFieldState = {
 	error: string | null;
+	handleBlur: () => void;
+	isDirty: boolean;
 	isMissing: boolean;
+	isTouched: boolean;
 };
 
 export type FeedbackFormRatingFieldState = FeedbackFormFieldState & {
@@ -41,6 +44,16 @@ export type FeedbackFormSubmitState = {
 	canAttemptSubmit: boolean;
 	disabled: boolean;
 	label: "Rating needed" | "Send" | "Sending...";
+};
+
+type FeedbackFormFieldName = keyof FeedbackFormFields;
+
+type FeedbackFormInteractionState = Record<FeedbackFormFieldName, boolean>;
+
+const EMPTY_FIELD_INTERACTION: FeedbackFormInteractionState = {
+	comment: false,
+	rating: false,
+	topic: false,
 };
 
 export type UseFeedbackFormResult = {
@@ -126,6 +139,10 @@ export function useFeedbackForm({
 	const [comment, setComment] = React.useState("");
 	const [hasSubmitted, setHasSubmitted] = React.useState(false);
 	const [hasAttemptedSubmit, setHasAttemptedSubmit] = React.useState(false);
+	const [dirtyFields, setDirtyFields] =
+		React.useState<FeedbackFormInteractionState>(EMPTY_FIELD_INTERACTION);
+	const [touchedFields, setTouchedFields] =
+		React.useState<FeedbackFormInteractionState>(EMPTY_FIELD_INTERACTION);
 	const {
 		error,
 		isPending,
@@ -182,30 +199,64 @@ export function useFeedbackForm({
 		rawIsCommentMissing
 	);
 	const canSubmit = isValid && !isPending;
-	const canAttemptSubmit = !isPending && (!hasAttemptedSubmit || isValid);
+	const canAttemptSubmit = canSubmit;
 	const isRatingMissing = hasAttemptedSubmit && rawIsRatingMissing;
 	const isTopicMissing = hasAttemptedSubmit && rawIsTopicMissing;
 	const isCommentMissing = hasAttemptedSubmit && rawIsCommentMissing;
+	const markFieldDirty = React.useCallback((field: FeedbackFormFieldName) => {
+		setDirtyFields((current) =>
+			current[field] ? current : { ...current, [field]: true }
+		);
+	}, []);
+	const markFieldTouched = React.useCallback((field: FeedbackFormFieldName) => {
+		setTouchedFields((current) =>
+			current[field] ? current : { ...current, [field]: true }
+		);
+	}, []);
+	const handleRatingBlur = React.useCallback(() => {
+		markFieldTouched("rating");
+	}, [markFieldTouched]);
+	const handleTopicBlur = React.useCallback(() => {
+		markFieldTouched("topic");
+	}, [markFieldTouched]);
+	const handleCommentBlur = React.useCallback(() => {
+		markFieldTouched("comment");
+	}, [markFieldTouched]);
+	const shouldShowRatingError =
+		rawIsRatingMissing && (dirtyFields.rating || touchedFields.rating);
+	const shouldShowTopicError =
+		rawIsTopicMissing && (dirtyFields.topic || touchedFields.topic);
+	const shouldShowCommentError =
+		rawIsCommentMissing && (dirtyFields.comment || touchedFields.comment);
 	const fields: FeedbackFormFields = {
 		rating: {
 			displayValue: hoveredRating ?? rating,
 			selectedValue: rating?.toString() ?? "",
-			error: getRatingError(isRatingMissing),
-			isMissing: isRatingMissing,
+			error: getRatingError(shouldShowRatingError),
+			handleBlur: handleRatingBlur,
+			isDirty: dirtyFields.rating,
+			isMissing: shouldShowRatingError,
+			isTouched: touchedFields.rating,
 		},
 		topic: {
-			error: getTopicError(isTopicMissing),
-			isMissing: isTopicMissing,
+			error: getTopicError(shouldShowTopicError),
+			handleBlur: handleTopicBlur,
+			isDirty: dirtyFields.topic,
+			isMissing: shouldShowTopicError,
+			isTouched: touchedFields.topic,
 		},
 		comment: {
-			error: getCommentError(isCommentMissing),
-			isMissing: isCommentMissing,
+			error: getCommentError(shouldShowCommentError),
+			handleBlur: handleCommentBlur,
+			isDirty: dirtyFields.comment,
+			isMissing: shouldShowCommentError,
+			isTouched: touchedFields.comment,
 		},
 	};
 	const submit: FeedbackFormSubmitState = {
 		canSubmit,
 		canAttemptSubmit,
-		disabled: !canAttemptSubmit,
+		disabled: !canSubmit,
 		label: isPending
 			? "Sending..."
 			: rawIsRatingMissing
@@ -220,6 +271,8 @@ export function useFeedbackForm({
 		setComment("");
 		setHasSubmitted(false);
 		setHasAttemptedSubmit(false);
+		setDirtyFields(EMPTY_FIELD_INTERACTION);
+		setTouchedFields(EMPTY_FIELD_INTERACTION);
 		resetSubmitFeedback();
 	}, [resetSubmitFeedback, resolvedDefaultTopic]);
 
@@ -248,9 +301,11 @@ export function useFeedbackForm({
 	const handleRatingSelect = React.useCallback(
 		(nextRating: number) => {
 			clearSubmitError();
+			markFieldDirty("rating");
+			markFieldTouched("rating");
 			setRating(nextRating);
 		},
-		[clearSubmitError]
+		[clearSubmitError, markFieldDirty, markFieldTouched]
 	);
 
 	const handleRatingHoverChange = React.useCallback(
@@ -263,17 +318,20 @@ export function useFeedbackForm({
 	const handleTopicChange = React.useCallback(
 		(nextTopic: string) => {
 			clearSubmitError();
+			markFieldDirty("topic");
+			markFieldTouched("topic");
 			setTopic(nextTopic);
 		},
-		[clearSubmitError]
+		[clearSubmitError, markFieldDirty, markFieldTouched]
 	);
 
 	const handleCommentChange = React.useCallback(
 		(nextComment: string) => {
 			clearSubmitError();
+			markFieldDirty("comment");
 			setComment(nextComment);
 		},
-		[clearSubmitError]
+		[clearSubmitError, markFieldDirty]
 	);
 
 	const handleSubmit = React.useCallback(

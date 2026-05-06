@@ -15,6 +15,8 @@ import {
 	reopenConversation,
 	resolveConversation,
 	unarchiveConversation,
+	updateConversationPriority,
+	updateConversationSentiment,
 	updateConversationTitle,
 } from "@api/db/mutations/conversation";
 import { getVisitor } from "@api/db/queries";
@@ -111,6 +113,8 @@ import {
 	submitConversationRatingRequestSchema,
 	submitConversationRatingResponseSchema,
 	updateConversationMetadataRequestSchema,
+	updateConversationPriorityRestRequestSchema,
+	updateConversationSentimentRestRequestSchema,
 	updateConversationTitleRestRequestSchema,
 } from "@cossistant/types/api/conversation";
 import {
@@ -474,6 +478,11 @@ async function emitPrivateConversationUpdate(
 		titleSource?: ConversationRecord["titleSource"];
 		visitorTitle?: string | null;
 		visitorTitleLanguage?: string | null;
+		priority?: ConversationRecord["priority"];
+		prioritySource?: ConversationRecord["prioritySource"];
+		sentiment?: ConversationRecord["sentiment"];
+		sentimentConfidence?: number | null;
+		sentimentSource?: ConversationRecord["sentimentSource"];
 	}
 ) {
 	await realtime.emit("conversationUpdated", {
@@ -1830,6 +1839,210 @@ conversationRouter.openapi(
 conversationRouter.openapi(
 	{
 		method: "patch",
+		path: "/{conversationId}/priority",
+		summary: "Update a conversation priority",
+		description:
+			"Updates the conversation priority and marks it as human-owned. Requires a private API key and an acting teammate.",
+		operationId: "updateConversationPriority",
+		tags: ["Conversations"],
+		request: {
+			body: {
+				required: true,
+				content: {
+					"application/json": {
+						schema: updateConversationPriorityRestRequestSchema,
+					},
+				},
+			},
+		},
+		responses: {
+			200: {
+				description: "Conversation priority updated successfully",
+				content: {
+					"application/json": {
+						schema: privateConversationMutationResponseSchema,
+					},
+				},
+			},
+			400: errorJsonResponse(
+				"Bad request - Invalid request payload or missing actor for an unlinked private API key"
+			),
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			403: errorJsonResponse(
+				"Forbidden - Private API key required or actor user not allowed for this website"
+			),
+			404: errorJsonResponse("Conversation not found"),
+			500: errorJsonResponse("Internal server error"),
+		},
+		...privateControlAuth({
+			parameters: [conversationIdPathParameter],
+			includeActorUserIdHeader: true,
+		}),
+	},
+	async (c) => {
+		const extracted = await safelyExtractRequestData(
+			c,
+			updateConversationPriorityRestRequestSchema
+		);
+		const privateContext = assertPrivateConversationControlContext(extracted);
+
+		const { conversationId } = getConversationPathParams(c);
+		const conversationRecord = await loadPrivateConversationRecord({
+			db: extracted.db,
+			organizationId: privateContext.organization.id,
+			websiteId: privateContext.website.id,
+			conversationId,
+		});
+
+		if (!conversationRecord) {
+			return restError(c, 404, "NOT_FOUND", "Conversation not found");
+		}
+
+		const actor = await requirePrivateConversationActor({
+			c,
+			db: extracted.db,
+			apiKey: privateContext.apiKey,
+			organizationId: privateContext.organization.id,
+			websiteTeamId: privateContext.website.teamId,
+			required: true,
+		});
+
+		const updatedConversation = await updateConversationPriority(extracted.db, {
+			conversation: conversationRecord,
+			priority: extracted.body.priority,
+			actorUserId: actor.userId,
+		});
+
+		if (!updatedConversation) {
+			return restError(
+				c,
+				500,
+				"INTERNAL_SERVER_ERROR",
+				"Unable to update conversation priority"
+			);
+		}
+
+		await emitPrivateConversationUpdate(updatedConversation, {
+			priority: updatedConversation.priority,
+			prioritySource: updatedConversation.prioritySource,
+		});
+
+		return c.json(
+			createPrivateConversationMutationResponse(updatedConversation),
+			200
+		);
+	}
+);
+
+conversationRouter.openapi(
+	{
+		method: "patch",
+		path: "/{conversationId}/sentiment",
+		summary: "Update a conversation sentiment",
+		description:
+			"Updates the conversation sentiment and marks it as human-owned. Pass null to mark sentiment as unknown. Requires a private API key and an acting teammate.",
+		operationId: "updateConversationSentiment",
+		tags: ["Conversations"],
+		request: {
+			body: {
+				required: true,
+				content: {
+					"application/json": {
+						schema: updateConversationSentimentRestRequestSchema,
+					},
+				},
+			},
+		},
+		responses: {
+			200: {
+				description: "Conversation sentiment updated successfully",
+				content: {
+					"application/json": {
+						schema: privateConversationMutationResponseSchema,
+					},
+				},
+			},
+			400: errorJsonResponse(
+				"Bad request - Invalid request payload or missing actor for an unlinked private API key"
+			),
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			403: errorJsonResponse(
+				"Forbidden - Private API key required or actor user not allowed for this website"
+			),
+			404: errorJsonResponse("Conversation not found"),
+			500: errorJsonResponse("Internal server error"),
+		},
+		...privateControlAuth({
+			parameters: [conversationIdPathParameter],
+			includeActorUserIdHeader: true,
+		}),
+	},
+	async (c) => {
+		const extracted = await safelyExtractRequestData(
+			c,
+			updateConversationSentimentRestRequestSchema
+		);
+		const privateContext = assertPrivateConversationControlContext(extracted);
+
+		const { conversationId } = getConversationPathParams(c);
+		const conversationRecord = await loadPrivateConversationRecord({
+			db: extracted.db,
+			organizationId: privateContext.organization.id,
+			websiteId: privateContext.website.id,
+			conversationId,
+		});
+
+		if (!conversationRecord) {
+			return restError(c, 404, "NOT_FOUND", "Conversation not found");
+		}
+
+		const actor = await requirePrivateConversationActor({
+			c,
+			db: extracted.db,
+			apiKey: privateContext.apiKey,
+			organizationId: privateContext.organization.id,
+			websiteTeamId: privateContext.website.teamId,
+			required: true,
+		});
+
+		const updatedConversation = await updateConversationSentiment(
+			extracted.db,
+			{
+				conversation: conversationRecord,
+				sentiment: extracted.body.sentiment,
+				actorUserId: actor.userId,
+			}
+		);
+
+		if (!updatedConversation) {
+			return restError(
+				c,
+				500,
+				"INTERNAL_SERVER_ERROR",
+				"Unable to update conversation sentiment"
+			);
+		}
+
+		await emitPrivateConversationUpdate(updatedConversation, {
+			sentiment: updatedConversation.sentiment,
+			sentimentConfidence: updatedConversation.sentimentConfidence,
+			sentimentSource: updatedConversation.sentimentSource,
+		});
+
+		return c.json(
+			createPrivateConversationMutationResponse(updatedConversation),
+			200
+		);
+	}
+);
+
+conversationRouter.openapi(
+	{
+		method: "patch",
 		path: "/{conversationId}",
 		summary: "Update a conversation title",
 		description:
@@ -2779,6 +2992,7 @@ conversationRouter.openapi(
 			db,
 			organizationId: organization.id,
 			websiteId: website.id,
+			website,
 			conversationId: conversationRecord.id,
 			visitorId: visitor.id,
 			contactId: visitor.contactId,

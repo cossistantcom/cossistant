@@ -13,6 +13,8 @@ import {
 	reopenConversation,
 	resolveConversation,
 	unarchiveConversation,
+	updateConversationPriority,
+	updateConversationSentiment,
 	updateConversationTitle,
 } from "@api/db/mutations/conversation";
 import {
@@ -62,6 +64,8 @@ import {
 	ConversationEventType,
 	conversationExportSchema,
 	conversationMutationResponseSchema,
+	conversationPrioritySchema,
+	conversationSentimentSchema,
 	listConversationHeadersResponseSchema,
 	TimelineItemVisibility,
 	visitorResponseSchema,
@@ -117,8 +121,11 @@ async function emitConversationMetadataUpdate(
 		translationActivatedAt?: string | null;
 		translationChargedAt?: string | null;
 		viewIds?: string[];
+		priority?: ConversationRecord["priority"];
+		prioritySource?: ConversationRecord["prioritySource"];
 		sentiment?: ConversationRecord["sentiment"];
 		sentimentConfidence?: number | null;
+		sentimentSource?: ConversationRecord["sentimentSource"];
 	}
 ) {
 	await realtime.emit("conversationUpdated", {
@@ -953,6 +960,79 @@ export const conversationRouter = createTRPCRouter({
 			});
 
 			return { conversation: toConversationOutput(responseConversation) };
+		}),
+
+	updatePriority: protectedProcedure
+		.input(
+			z.object({
+				conversationId: z.string(),
+				websiteSlug: z.string(),
+				priority: conversationPrioritySchema,
+			})
+		)
+		.output(conversationMutationResponseSchema)
+		.mutation(async ({ ctx: { db, user }, input }) => {
+			const { conversation } = await loadConversationContext(
+				db,
+				user.id,
+				input
+			);
+			const updatedConversation = await updateConversationPriority(db, {
+				conversation,
+				priority: input.priority,
+				actorUserId: user.id,
+			});
+
+			if (!updatedConversation) {
+				throw new TRPCError({
+					code: "INTERNAL_SERVER_ERROR",
+					message: "Unable to update conversation priority",
+				});
+			}
+
+			await emitConversationMetadataUpdate(updatedConversation, {
+				priority: updatedConversation.priority,
+				prioritySource: updatedConversation.prioritySource,
+			});
+
+			return { conversation: toConversationOutput(updatedConversation) };
+		}),
+
+	updateSentiment: protectedProcedure
+		.input(
+			z.object({
+				conversationId: z.string(),
+				websiteSlug: z.string(),
+				sentiment: conversationSentimentSchema,
+			})
+		)
+		.output(conversationMutationResponseSchema)
+		.mutation(async ({ ctx: { db, user }, input }) => {
+			const { conversation } = await loadConversationContext(
+				db,
+				user.id,
+				input
+			);
+			const updatedConversation = await updateConversationSentiment(db, {
+				conversation,
+				sentiment: input.sentiment,
+				actorUserId: user.id,
+			});
+
+			if (!updatedConversation) {
+				throw new TRPCError({
+					code: "INTERNAL_SERVER_ERROR",
+					message: "Unable to update conversation sentiment",
+				});
+			}
+
+			await emitConversationMetadataUpdate(updatedConversation, {
+				sentiment: updatedConversation.sentiment,
+				sentimentConfidence: updatedConversation.sentimentConfidence,
+				sentimentSource: updatedConversation.sentimentSource,
+			});
+
+			return { conversation: toConversationOutput(updatedConversation) };
 		}),
 
 	translateMessage: protectedProcedure

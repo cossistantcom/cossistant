@@ -1,5 +1,6 @@
 import {
 	ConversationEventType,
+	ConversationFieldSource,
 	ConversationParticipationStatus,
 	ConversationPriority,
 	ConversationSentiment,
@@ -61,6 +62,11 @@ export const conversationTitleSourceEnum = pgEnum("conversation_title_source", [
 	"ai",
 	"user",
 ]);
+
+export const conversationFieldSourceEnum = pgEnum(
+	"conversation_field_source",
+	enumToPgEnum(ConversationFieldSource)
+);
 
 export const itemVisibilityEnum = pgEnum(
 	"item_visibility",
@@ -150,6 +156,7 @@ export const conversation = pgTable(
 		priority: conversationPriorityEnum("priority")
 			.default(ConversationPriority.NORMAL)
 			.notNull(),
+		prioritySource: conversationFieldSourceEnum("priority_source"),
 		organizationId: ulidReference("organization_id").references(
 			() => organization.id,
 			{ onDelete: "cascade" }
@@ -163,6 +170,7 @@ export const conversation = pgTable(
 
 		sentiment: conversationSentimentEnum("sentiment"),
 		sentimentConfidence: real("sentiment_confidence"),
+		sentimentSource: conversationFieldSourceEnum("sentiment_source"),
 		channel: text("channel").notNull().default("widget"),
 		title: text("title"),
 		visitorTitle: text("visitor_title"),

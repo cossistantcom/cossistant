@@ -176,6 +176,9 @@ export const supportTextDefinitions = {
 	"component.message.timestamp.aiIndicator": {
 		variables: undefined,
 	},
+	"component.message.feedback.label": {
+		variables: undefined,
+	},
 } as const satisfies Record<string, SupportTextDefinition<unknown>>;
 
 export type SupportTextDefinitions = typeof supportTextDefinitions;

@@ -4,6 +4,7 @@ import { conversationClarificationSummarySchema } from "../api/knowledge-clarifi
 import { timelineItemSchema } from "../api/timeline-item";
 import { visitorProfileSchema } from "../api/visitor";
 import {
+	ConversationFieldSource,
 	ConversationPriority,
 	ConversationSentiment,
 	ConversationStatus,
@@ -31,6 +32,10 @@ export const conversationSentimentSchema = z
 	])
 	.nullable();
 
+export const conversationFieldSourceSchema = z
+	.enum([ConversationFieldSource.AI, ConversationFieldSource.USER])
+	.nullable();
+
 export const conversationRecordSchema = z.object({
 	id: z.string(),
 	organizationId: z.string(),
@@ -39,8 +44,10 @@ export const conversationRecordSchema = z.object({
 	metadata: conversationMetadataSchema.nullable().optional(),
 	status: conversationStatusSchema,
 	priority: conversationPrioritySchema,
+	prioritySource: conversationFieldSourceSchema,
 	sentiment: conversationSentimentSchema,
 	sentimentConfidence: z.number().nullable(),
+	sentimentSource: conversationFieldSourceSchema,
 	channel: z.string(),
 	title: z.string().nullable(),
 	visitorTitle: z.string().nullable().optional(),
@@ -84,6 +91,7 @@ export const conversationHeaderSchema = z.object({
 	id: z.string(),
 	status: conversationStatusSchema,
 	priority: conversationPrioritySchema,
+	prioritySource: conversationFieldSourceSchema,
 	organizationId: z.string(),
 	visitorId: z.string(),
 	visitor: visitorProfileSchema,
@@ -99,6 +107,7 @@ export const conversationHeaderSchema = z.object({
 	translationChargedAt: z.string().nullable().optional(),
 	sentiment: conversationSentimentSchema,
 	sentimentConfidence: z.number().nullable(),
+	sentimentSource: conversationFieldSourceSchema,
 	resolutionTime: z.number().nullable(),
 	visitorRating: z.number().int().min(1).max(5).nullable(),
 	visitorRatingAt: z.string().nullable(),

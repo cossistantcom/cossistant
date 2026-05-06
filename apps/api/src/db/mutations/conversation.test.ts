@@ -1,5 +1,16 @@
-import { describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { ConversationRecord } from "./conversation";
+
+const createConversationEventMock = mock(async () => null);
+const createTimelineItemMock = mock(async () => null);
+
+mock.module("@api/utils/conversation-event", () => ({
+	createConversationEvent: createConversationEventMock,
+}));
+
+mock.module("@api/utils/timeline-item", () => ({
+	createTimelineItem: createTimelineItemMock,
+}));
 
 const conversationMutationsModulePromise = import("./conversation");
 
@@ -12,11 +23,13 @@ function buildConversationRow(
 		id: "conv-1",
 		status: "open",
 		priority: "normal",
+		prioritySource: null,
 		organizationId: "org-1",
 		visitorId: "visitor-1",
 		websiteId: "site-1",
 		sentiment: null,
 		sentimentConfidence: null,
+		sentimentSource: null,
 		channel: "widget",
 		title: null,
 		visitorTitle: null,
@@ -69,9 +82,17 @@ function createDbHarness(updatedRow: ConversationRow | null) {
 		db: {
 			update: updateMock,
 		},
+		updateMock,
 		setMock,
 	};
 }
+
+beforeEach(() => {
+	createConversationEventMock.mockReset();
+	createTimelineItemMock.mockReset();
+	createConversationEventMock.mockResolvedValue(null);
+	createTimelineItemMock.mockResolvedValue(null);
+});
 
 describe("mergeConversationMetadata", () => {
 	it("merges metadata into an empty conversation metadata object", async () => {
@@ -146,5 +167,109 @@ describe("mergeConversationMetadata", () => {
 				updatedAt: expect.any(String),
 			})
 		);
+	});
+});
+
+describe("manual conversation metadata ownership", () => {
+	it("lets same-value priority updates claim user ownership", async () => {
+		const updated = buildConversationRow({
+			priority: "normal",
+			prioritySource: "user",
+		});
+		const harness = createDbHarness(updated);
+		const { updateConversationPriority } =
+			await conversationMutationsModulePromise;
+
+		const result = await updateConversationPriority(harness.db as never, {
+			conversation: buildConversationRow({
+				priority: "normal",
+				prioritySource: null,
+			}),
+			priority: "normal",
+			actorUserId: "user-1",
+		});
+
+		expect(harness.setMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				priority: "normal",
+				prioritySource: "user",
+				updatedAt: expect.any(String),
+			})
+		);
+		expect(createConversationEventMock).toHaveBeenCalledTimes(1);
+		expect(result).toEqual(updated);
+	});
+
+	it("lets same-value sentiment updates claim user ownership and clear confidence", async () => {
+		const updated = buildConversationRow({
+			sentiment: "neutral",
+			sentimentConfidence: null,
+			sentimentSource: "user",
+		});
+		const harness = createDbHarness(updated);
+		const { updateConversationSentiment } =
+			await conversationMutationsModulePromise;
+
+		const result = await updateConversationSentiment(harness.db as never, {
+			conversation: buildConversationRow({
+				sentiment: "neutral",
+				sentimentConfidence: 0.9,
+				sentimentSource: null,
+			}),
+			sentiment: "neutral",
+			actorUserId: "user-1",
+		});
+
+		expect(harness.setMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				sentiment: "neutral",
+				sentimentConfidence: null,
+				sentimentSource: "user",
+				updatedAt: expect.any(String),
+			})
+		);
+		expect(createTimelineItemMock).toHaveBeenCalledTimes(1);
+		expect(result).toEqual(updated);
+	});
+
+	it("does not rewrite priority when the same value is already user-owned", async () => {
+		const existing = buildConversationRow({
+			priority: "high",
+			prioritySource: "user",
+		});
+		const harness = createDbHarness(buildConversationRow());
+		const { updateConversationPriority } =
+			await conversationMutationsModulePromise;
+
+		const result = await updateConversationPriority(harness.db as never, {
+			conversation: existing,
+			priority: "high",
+			actorUserId: "user-1",
+		});
+
+		expect(harness.updateMock).not.toHaveBeenCalled();
+		expect(createConversationEventMock).not.toHaveBeenCalled();
+		expect(result).toEqual(existing);
+	});
+
+	it("does not rewrite sentiment when the same unknown value is already user-owned", async () => {
+		const existing = buildConversationRow({
+			sentiment: null,
+			sentimentConfidence: null,
+			sentimentSource: "user",
+		});
+		const harness = createDbHarness(buildConversationRow());
+		const { updateConversationSentiment } =
+			await conversationMutationsModulePromise;
+
+		const result = await updateConversationSentiment(harness.db as never, {
+			conversation: existing,
+			sentiment: null,
+			actorUserId: "user-1",
+		});
+
+		expect(harness.updateMock).not.toHaveBeenCalled();
+		expect(createTimelineItemMock).not.toHaveBeenCalled();
+		expect(result).toEqual(existing);
 	});
 });

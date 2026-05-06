@@ -1,5 +1,9 @@
 import {
+	formatFeedbackRatingLabel,
 	formatFileSize,
+	getFeedbackTimelineComment,
+	getFeedbackTimelineMetadataEntries,
+	getTimelineItemFeedback,
 	getTimelineItemTranslation,
 	resolveTimelineItemText,
 } from "@cossistant/core";
@@ -60,13 +64,23 @@ export function TimelineMessageItem({
 		showOriginal && teamTranslation
 			? item.text
 			: resolveTimelineItemText(item, "team");
+	const feedback = getTimelineItemFeedback(item);
+	const feedbackComment = feedback
+		? getFeedbackTimelineComment({
+				parts: item.parts,
+				text: resolvedDisplayText,
+			})
+		: null;
+	const feedbackMetadataEntries = feedback
+		? getFeedbackTimelineMetadataEntries(feedback)
+		: [];
 
 	// Extract image and file parts
 	const images = extractImageParts(item.parts);
 	const files = extractFileParts(item.parts);
 	const hasAttachments = images.length > 0 || files.length > 0;
 	const hasText = Boolean(
-		resolvedDisplayText && resolvedDisplayText.trim().length > 0
+		!feedback && resolvedDisplayText && resolvedDisplayText.trim().length > 0
 	);
 	const messageContainerWidthClassName =
 		getDashboardMessageContainerWidthClasses(resolvedDisplayText);
@@ -118,6 +132,59 @@ export function TimelineMessageItem({
 								isSentByViewer && "items-end"
 							)}
 						>
+							{feedback && (
+								<div
+									className={cn(
+										"flex min-w-0 flex-col",
+										"w-fit max-w-full md:max-w-[420px]",
+										{
+											"items-end": isSentByViewer,
+										}
+									)}
+								>
+									<div className="flex min-w-0 flex-col gap-3 rounded border border-border bg-background-50 py-3 text-foreground shadow-sm">
+										<div className="flex items-center gap-2 px-3">
+											<span className="flex size-7 shrink-0 items-center justify-center rounded bg-background-200 text-cossistant-yellow-700 dark:bg-background-600 dark:text-cossistant-yellow-500">
+												<Icon className="size-3" name="star" variant="filled" />
+											</span>
+											<div className="min-w-0">
+												<div className="font-medium text-xs capitalize">
+													Feedback
+												</div>
+												<div className="text-muted-foreground text-xs">
+													{formatFeedbackRatingLabel(feedback.rating)}
+												</div>
+											</div>
+										</div>
+
+										{feedbackMetadataEntries.length > 0 && (
+											<div className="flex flex-col">
+												{feedbackMetadataEntries.map((entry) => (
+													<span
+														className="inline-flex items-center gap-1 px-3 py-1.5 text-muted-foreground text-xs"
+														key={entry.label}
+													>
+														<span className="font-medium text-foreground">
+															{entry.label}
+														</span>
+														<span>{entry.value}</span>
+													</span>
+												))}
+											</div>
+										)}
+
+										{feedbackComment && (
+											<TimelineItemContent
+												className="block min-w-0 max-w-full break-words px-3 text-foreground text-sm"
+												markdownRenderers={markdownRenderers}
+												renderMarkdown
+												text={feedbackComment}
+											/>
+										)}
+									</div>
+								</div>
+							)}
+
 							{/* Text content */}
 							{hasText && (
 								<div

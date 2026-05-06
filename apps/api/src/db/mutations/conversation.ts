@@ -3,9 +3,11 @@ import { conversation, conversationSeen } from "@api/db/schema";
 import { trackConversationMetricForVisitor } from "@api/lib/tinybird-sdk";
 import { createConversationEvent } from "@api/utils/conversation-event";
 import { generateULID } from "@api/utils/db/ids";
+import { createTimelineItem } from "@api/utils/timeline-item";
 import {
 	ConversationEventType,
 	ConversationStatus,
+	ConversationTimelineType,
 	TimelineItemVisibility,
 } from "@cossistant/types";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
@@ -222,6 +224,139 @@ export async function updateConversationTitle(
 		.returning();
 
 	return updated ?? null;
+}
+
+export async function updateConversationPriority(
+	db: Database,
+	params: {
+		conversation: ConversationRecord;
+		priority: ConversationRecord["priority"];
+		actorUserId: string;
+	}
+) {
+	if (
+		params.conversation.priority === params.priority &&
+		params.conversation.prioritySource === "user"
+	) {
+		return params.conversation;
+	}
+
+	const updatedAt = new Date();
+	const updatedAtIso = updatedAt.toISOString();
+
+	const [updated] = await db
+		.update(conversation)
+		.set({
+			priority: params.priority,
+			prioritySource: "user",
+			updatedAt: updatedAtIso,
+		})
+		.where(
+			and(
+				eq(conversation.id, params.conversation.id),
+				eq(conversation.organizationId, params.conversation.organizationId),
+				eq(conversation.websiteId, params.conversation.websiteId)
+			)
+		)
+		.returning();
+
+	if (!updated) {
+		return null;
+	}
+
+	if (
+		params.conversation.priority !== params.priority ||
+		params.conversation.prioritySource !== "user"
+	) {
+		await createConversationEvent({
+			db,
+			context: {
+				conversationId: params.conversation.id,
+				organizationId: params.conversation.organizationId,
+				websiteId: params.conversation.websiteId,
+				visitorId: params.conversation.visitorId,
+			},
+			event: {
+				type: ConversationEventType.PRIORITY_CHANGED,
+				actorUserId: params.actorUserId,
+				metadata: {
+					previousPriority: params.conversation.priority,
+					newPriority: params.priority,
+				},
+				createdAt: updatedAt,
+				visibility: TimelineItemVisibility.PRIVATE,
+			},
+		});
+	}
+
+	return updated;
+}
+
+export async function updateConversationSentiment(
+	db: Database,
+	params: {
+		conversation: ConversationRecord;
+		sentiment: ConversationRecord["sentiment"];
+		actorUserId: string;
+	}
+) {
+	if (
+		params.conversation.sentiment === params.sentiment &&
+		params.conversation.sentimentConfidence === null &&
+		params.conversation.sentimentSource === "user"
+	) {
+		return params.conversation;
+	}
+
+	const updatedAt = new Date();
+	const updatedAtIso = updatedAt.toISOString();
+
+	const [updated] = await db
+		.update(conversation)
+		.set({
+			sentiment: params.sentiment,
+			sentimentConfidence: null,
+			sentimentSource: "user",
+			updatedAt: updatedAtIso,
+		})
+		.where(
+			and(
+				eq(conversation.id, params.conversation.id),
+				eq(conversation.organizationId, params.conversation.organizationId),
+				eq(conversation.websiteId, params.conversation.websiteId)
+			)
+		)
+		.returning();
+
+	if (!updated) {
+		return null;
+	}
+
+	if (
+		params.conversation.sentiment !== params.sentiment ||
+		params.conversation.sentimentConfidence !== null ||
+		params.conversation.sentimentSource !== "user"
+	) {
+		const sentimentLabel = params.sentiment ?? "unknown";
+		const eventText = `changed sentiment to ${sentimentLabel}`;
+
+		await createTimelineItem({
+			db,
+			organizationId: params.conversation.organizationId,
+			websiteId: params.conversation.websiteId,
+			conversationId: params.conversation.id,
+			conversationOwnerVisitorId: params.conversation.visitorId,
+			item: {
+				type: ConversationTimelineType.EVENT,
+				visibility: TimelineItemVisibility.PRIVATE,
+				text: eventText,
+				parts: [{ type: "text", text: eventText }],
+				userId: params.actorUserId,
+			},
+		});
+	}
+
+	return updated;
 }
 
 export async function mergeConversationMetadata(

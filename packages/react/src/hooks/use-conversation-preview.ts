@@ -1,4 +1,5 @@
 import {
+	getTimelineItemFeedback,
 	resolveConversationTitle,
 	resolveTimelineItemText,
 } from "@cossistant/core";
@@ -23,6 +24,7 @@ export type ConversationPreviewLastMessage = {
 	content: string;
 	time: string;
 	isFromVisitor: boolean;
+	isFeedbackReview?: boolean;
 	senderName?: string;
 	senderImage?: string | null;
 };
@@ -157,6 +159,7 @@ export function useConversationPreview(
 		}
 
 		const isFromVisitor = lastTimelineMessage.visitorId !== null;
+		const feedback = getTimelineItemFeedback(lastTimelineMessage);
 
 		let senderName = text("common.fallbacks.unknown");
 		let senderImage: string | null = null;
@@ -196,6 +199,7 @@ export function useConversationPreview(
 			),
 			time: formatTimeAgo(lastTimelineMessage.createdAt),
 			isFromVisitor,
+			isFeedbackReview: Boolean(feedback),
 			senderName,
 			senderImage,
 		};

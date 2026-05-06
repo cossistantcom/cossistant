@@ -161,6 +161,7 @@ export const realtimeSchema = {
 				.nullable()
 				.optional(),
 			sentimentConfidence: z.number().nullable().optional(),
+			sentimentSource: z.enum(["ai", "user"]).nullable().optional(),
 			escalatedAt: z.string().nullable().optional(),
 			escalationReason: z.string().nullable().optional(),
 			status: z
@@ -171,6 +172,7 @@ export const realtimeSchema = {
 				])
 				.optional(),
 			priority: z.enum(["low", "normal", "high", "urgent"]).optional(),
+			prioritySource: z.enum(["ai", "user"]).nullable().optional(),
 			resolvedAt: z.string().nullable().optional(),
 			resolvedByUserId: z.string().nullable().optional(),
 			resolvedByAiAgentId: z.string().nullable().optional(),

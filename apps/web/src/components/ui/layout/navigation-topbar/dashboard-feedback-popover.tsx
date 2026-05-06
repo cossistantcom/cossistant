@@ -1,6 +1,6 @@
 "use client";
 
-import { useFeedbackForm } from "@cossistant/next/feedback";
+import { useFeedbackForm } from "@cossistant/react/feedback";
 import { Button } from "@/components/ui/button";
 import {
 	Popover,
@@ -34,10 +34,6 @@ export function DashboardFeedbackPopover() {
 		topics: FEEDBACK_TOPICS,
 		trigger: DASHBOARD_FEEDBACK_TRIGGER,
 	});
-
-	const topicErrorId = "dashboard-feedback-topic-error";
-	const commentErrorId = "dashboard-feedback-comment-error";
-	const ratingErrorId = "dashboard-feedback-rating-error";
 
 	return (
 		<Popover onOpenChange={feedback.handleOpenChange} open={feedback.open}>
@@ -97,9 +93,6 @@ export function DashboardFeedbackPopover() {
 								value={feedback.topic}
 							>
 								<SelectTrigger
-									aria-describedby={
-										feedback.fields.topic.error ? topicErrorId : undefined
-									}
 									aria-invalid={feedback.fields.topic.isMissing}
 									aria-label="Select topic"
 									className={cn(
@@ -109,6 +102,7 @@ export function DashboardFeedbackPopover() {
 									)}
 									data-slot="dashboard-feedback-topic"
 									id="dashboard-feedback-topic"
+									onBlur={feedback.fields.topic.handleBlur}
 								>
 									<SelectValue placeholder="Select topic" />
 								</SelectTrigger>
@@ -120,20 +114,8 @@ export function DashboardFeedbackPopover() {
 									))}
 								</SelectContent>
 							</Select>
-							{feedback.fields.topic.error ? (
-								<p
-									className="text-destructive text-xs"
-									id={topicErrorId}
-									role="alert"
-								>
-									{feedback.fields.topic.error}
-								</p>
-							) : null}
 
 							<Textarea
-								aria-describedby={
-									feedback.fields.comment.error ? commentErrorId : undefined
-								}
 								aria-invalid={feedback.fields.comment.isMissing}
 								aria-label="Your feedback"
 								className={cn(
@@ -142,33 +124,23 @@ export function DashboardFeedbackPopover() {
 								)}
 								disabled={feedback.isPending}
 								id="dashboard-feedback-comment"
+								onBlur={feedback.fields.comment.handleBlur}
 								onChange={(event) =>
 									feedback.handleCommentChange(event.target.value)
 								}
 								placeholder="Your feedback"
 								value={feedback.comment}
 							/>
-							{feedback.fields.comment.error ? (
-								<p
-									className="text-destructive text-xs"
-									id={commentErrorId}
-									role="alert"
-								>
-									{feedback.fields.comment.error}
-								</p>
-							) : null}
 						</div>
 
 						<div className="space-y-2 border-border border-t p-2">
 							<div className="flex items-center justify-between gap-3">
 								<div className="space-y-1">
 									<ToggleGroup
-										aria-describedby={
-											feedback.fields.rating.error ? ratingErrorId : undefined
-										}
 										aria-invalid={feedback.fields.rating.isMissing}
 										aria-label="Feedback rating"
 										className="gap-2"
+										onBlur={feedback.fields.rating.handleBlur}
 										onValueChange={(value) => {
 											if (value) {
 												feedback.handleRatingSelect(Number(value));
@@ -202,15 +174,6 @@ export function DashboardFeedbackPopover() {
 											</ToggleGroupItem>
 										))}
 									</ToggleGroup>
-									{feedback.fields.rating.error ? (
-										<p
-											className="text-destructive text-xs"
-											id={ratingErrorId}
-											role="alert"
-										>
-											{feedback.fields.rating.error}
-										</p>
-									) : null}
 								</div>
 
 								<Button
@@ -222,16 +185,6 @@ export function DashboardFeedbackPopover() {
 									{feedback.submit.label}
 								</Button>
 							</div>
-
-							{feedback.submitError ? (
-								<p
-									aria-live="polite"
-									className="text-destructive text-xs"
-									role="alert"
-								>
-									{feedback.submitError}
-								</p>
-							) : null}
 						</div>
 					</form>
 				)}

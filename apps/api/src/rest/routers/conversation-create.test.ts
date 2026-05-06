@@ -280,6 +280,8 @@ mock.module("@api/db/mutations/conversation", () => ({
 	reopenConversation: mock(async () => null),
 	resolveConversation: mock(async () => null),
 	unarchiveConversation: mock(async () => null),
+	updateConversationPriority: mock(async () => null),
+	updateConversationSentiment: mock(async () => null),
 	updateConversationTitle: mock(async () => null),
 }));
 

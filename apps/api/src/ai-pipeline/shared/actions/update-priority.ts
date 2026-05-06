@@ -14,7 +14,7 @@ import {
 	ConversationEventType,
 	TimelineItemVisibility,
 } from "@cossistant/types";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 import { loadCurrentConversation } from "./load-current-conversation";
 
 type UpdatePriorityParams = {
@@ -32,7 +32,7 @@ type UpdatePriorityParams = {
  */
 export async function updatePriority(params: UpdatePriorityParams): Promise<{
 	changed: boolean;
-	reason?: "unchanged";
+	reason?: "unchanged" | "manual_priority";
 }> {
 	const {
 		db,
@@ -51,6 +51,13 @@ export async function updatePriority(params: UpdatePriorityParams): Promise<{
 		};
 	}
 
+	if (currentConversation.prioritySource === "user") {
+		return {
+			changed: false,
+			reason: "manual_priority",
+		};
+	}
+
 	// Skip if already at desired priority
 	if (currentConversation.priority === newPriority) {
 		return {
@@ -66,14 +73,24 @@ export async function updatePriority(params: UpdatePriorityParams): Promise<{
 		.update(conversation)
 		.set({
 			priority: newPriority,
+			prioritySource: "ai",
 			updatedAt: nowIso,
 		})
-		.where(eq(conversation.id, currentConversation.id))
+		.where(
+			and(
+				eq(conversation.id, currentConversation.id),
+				or(
+					isNull(conversation.prioritySource),
+					eq(conversation.prioritySource, "ai")
+				)
+			)
+		)
 		.returning();
 
 	if (!updatedConversation) {
 		return {
 			changed: false,
+			reason: "manual_priority",
 		};
 	}
 
@@ -107,6 +124,7 @@ export async function updatePriority(params: UpdatePriorityParams): Promise<{
 		conversationId: currentConversation.id,
 		updates: {
 			priority: updatedConversation.priority,
+			prioritySource: updatedConversation.prioritySource,
 		},
 		aiAgentId,
 	});

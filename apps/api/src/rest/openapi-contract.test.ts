@@ -32,6 +32,11 @@ mock.module("@api/services/upload", () => ({
 	})),
 }));
 
+mock.module("./middleware", () => ({
+	protectedPublicApiKeyMiddleware: [],
+	protectedPrivateApiKeyMiddleware: [],
+}));
+
 const routersModulePromise = import("./routers");
 
 const routersDir = path.resolve(import.meta.dir, "routers");
@@ -192,6 +197,57 @@ describe("REST OpenAPI contract guards", () => {
 		expect(inboxPath?.responses).toHaveProperty("200");
 		expect(inboxPath?.responses).toHaveProperty("401");
 		expect(inboxPath?.responses).toHaveProperty("403");
+	});
+
+	it("documents private priority and sentiment mutation routes as actor-aware", async () => {
+		const { routers } = await routersModulePromise;
+		const doc = routers.getOpenAPI31Document({
+			openapi: "3.1.0",
+			info: {
+				title: "REST router contract test",
+				version: "1.0.0",
+			},
+		});
+
+		const priorityPath =
+			doc.paths?.["/conversations/{conversationId}/priority"]?.patch;
+		const sentimentPath =
+			doc.paths?.["/conversations/{conversationId}/sentiment"]?.patch;
+		const priorityParameterNames =
+			priorityPath?.parameters?.map((parameter) =>
+				"name" in parameter ? parameter.name : null
+			) ?? [];
+		const sentimentParameterNames =
+			sentimentPath?.parameters?.map((parameter) =>
+				"name" in parameter ? parameter.name : null
+			) ?? [];
+		const priorityRequest = priorityPath?.requestBody as
+			| OpenAPIJsonContent
+			| undefined;
+		const sentimentRequest = sentimentPath?.requestBody as
+			| OpenAPIJsonContent
+			| undefined;
+
+		expect(priorityPath).toBeDefined();
+		expect(sentimentPath).toBeDefined();
+		expect(priorityPath?.security).toEqual([
+			{ [PRIVATE_API_KEY_SECURITY_SCHEME]: [] },
+		]);
+		expect(sentimentPath?.security).toEqual([
+			{ [PRIVATE_API_KEY_SECURITY_SCHEME]: [] },
+		]);
+		expect(priorityParameterNames).toContain("Authorization");
+		expect(priorityParameterNames).toContain("X-Actor-User-Id");
+		expect(sentimentParameterNames).toContain("Authorization");
+		expect(sentimentParameterNames).toContain("X-Actor-User-Id");
+		expect(
+			priorityRequest?.content?.["application/json"]?.schema?.properties
+		).toHaveProperty("priority");
+		expect(
+			sentimentRequest?.content?.["application/json"]?.schema?.properties
+		).toHaveProperty("sentiment");
+		expect(priorityPath?.responses).toHaveProperty("200");
+		expect(sentimentPath?.responses).toHaveProperty("200");
 	});
 
 	it("documents public conversation metadata on create requests and conversation reads", () => {

@@ -1,7 +1,11 @@
 "use client";
 
 import type { RouterOutputs } from "@api/trpc/types";
-import { resolveTimelineItemText } from "@cossistant/core";
+import {
+	formatFeedbackReviewPreview,
+	getTimelineItemFeedback,
+	resolveTimelineItemText,
+} from "@cossistant/core";
 import { useConversationTyping } from "@cossistant/react";
 import { formatMessagePreview } from "@cossistant/tiny-markdown/utils";
 import {
@@ -65,6 +69,46 @@ type ConversationItemViewProps = {
 	href?: string;
 	locked?: boolean;
 };
+
+type ConversationItemTimelinePreviewParams = {
+	item: NonNullable<ConversationHeader["lastTimelineItem"]>;
+	availableAIAgents: Parameters<
+		typeof buildTimelineEventPreview
+	>[0]["availableAIAgents"];
+	availableHumanAgents: Parameters<
+		typeof buildTimelineEventPreview
+	>[0]["availableHumanAgents"];
+	visitor: Parameters<typeof buildTimelineEventPreview>[0]["visitor"];
+};
+
+export function resolveConversationItemTimelinePreview({
+	item,
+	availableAIAgents,
+	availableHumanAgents,
+	visitor,
+}: ConversationItemTimelinePreviewParams): string {
+	const feedback = getTimelineItemFeedback(item);
+	if (feedback) {
+		return formatFeedbackReviewPreview(feedback.rating);
+	}
+
+	if (item.type === ConversationTimelineType.EVENT) {
+		const eventPart = extractEventPart(item);
+
+		if (!eventPart) {
+			return "";
+		}
+
+		return buildTimelineEventPreview({
+			event: eventPart,
+			availableAIAgents,
+			availableHumanAgents,
+			visitor,
+		});
+	}
+
+	return formatMessagePreview(resolveTimelineItemText(item, "team") ?? "");
+}
 
 export function ConversationItemView({
 	visitorName,
@@ -470,24 +514,12 @@ export function ConversationItem({
 			return "";
 		}
 
-		if (lastTimelineItem.type === ConversationTimelineType.EVENT) {
-			const eventPart = extractEventPart(lastTimelineItem);
-
-			if (!eventPart) {
-				return "";
-			}
-
-			return buildTimelineEventPreview({
-				event: eventPart,
-				availableAIAgents,
-				availableHumanAgents,
-				visitor,
-			});
-		}
-
-		return formatMessagePreview(
-			resolveTimelineItemText(lastTimelineItem, "team") ?? ""
-		);
+		return resolveConversationItemTimelinePreview({
+			item: lastTimelineItem,
+			availableAIAgents,
+			availableHumanAgents,
+			visitor,
+		});
 	}, [availableAIAgents, availableHumanAgents, lastTimelineItem, visitor]);
 
 	const isEventPreview = Boolean(

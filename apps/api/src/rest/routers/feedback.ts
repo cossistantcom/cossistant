@@ -155,6 +155,7 @@ feedbackCreateRouter.openapi(
 					db,
 					organizationId: organization.id,
 					websiteId: website.id,
+					website,
 					conversationId: body.conversationId,
 					visitorId: visitor.id,
 					contactId: visitor.contactId,
@@ -174,18 +175,96 @@ feedbackCreateRouter.openapi(
 				);
 			}
 
+			let privateVisitor:
+				| Awaited<ReturnType<typeof getVisitor>>
+				| null
+				| undefined;
+			let privateContactId = body.contactId;
+
+			if (body.visitorId) {
+				privateVisitor = await getVisitor(db, {
+					visitorId: body.visitorId,
+				});
+
+				if (!privateVisitor || privateVisitor.websiteId !== website.id) {
+					return c.json(
+						{
+							error: "BAD_REQUEST",
+							message: "Visitor not found, please pass a valid visitorId",
+						},
+						400
+					);
+				}
+
+				privateContactId =
+					privateContactId ?? privateVisitor.contactId ?? undefined;
+			}
+
+			if (body.conversationId) {
+				const conversationRecord = await getConversationByIdWithLastMessage(
+					db,
+					{
+						organizationId: website.organizationId,
+						websiteId: website.id,
+						conversationId: body.conversationId,
+					}
+				);
+
+				if (!conversationRecord) {
+					return c.json(
+						{
+							error: "NOT_FOUND",
+							message: "Conversation not found",
+						},
+						404
+					);
+				}
+
+				if (
+					privateVisitor &&
+					conversationRecord.visitorId !== privateVisitor.id
+				) {
+					return c.json(
+						{
+							error: "BAD_REQUEST",
+							message: "Visitor does not match conversation",
+						},
+						400
+					);
+				}
+
+				if (!privateVisitor) {
+					privateVisitor = await getVisitor(db, {
+						visitorId: conversationRecord.visitorId,
+					});
+
+					if (!privateVisitor || privateVisitor.websiteId !== website.id) {
+						return c.json(
+							{
+								error: "NOT_FOUND",
+								message: "Conversation not found",
+							},
+							404
+						);
+					}
+				}
+
+				privateContactId = privateVisitor.contactId ?? undefined;
+			}
+
 			const { entry } = await persistFeedbackSubmission({
 				db,
 				organizationId: website.organizationId,
 				websiteId: website.id,
+				website,
 				rating: body.rating,
 				topic: body.topic,
 				comment: body.comment,
 				trigger: body.trigger,
 				source: body.source ?? "widget",
 				conversationId: body.conversationId,
-				visitorId: body.visitorId,
-				contactId: body.contactId,
+				visitorId: privateVisitor?.id,
+				contactId: privateContactId,
 			});
 
 			return c.json(

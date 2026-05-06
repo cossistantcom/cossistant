@@ -97,6 +97,42 @@ describe("Composer", () => {
 		expect(html).toContain("Private note");
 	});
 
+	it("renders compact priority and sentiment controls in the default footer", async () => {
+		const { Composer } = await composerModulePromise;
+
+		const html = renderToStaticMarkup(
+			React.createElement(Composer, {
+				onChange: () => {},
+				onPriorityChange: () => {},
+				onSentimentChange: () => {},
+				onSubmit: () => {},
+				priority: "urgent",
+				sentiment: "negative",
+				value: "",
+			})
+		);
+
+		expect(html).toContain("Priority: Urgent");
+		expect(html).toContain("Sentiment: Negative");
+		expect(html).toContain('data-composer-bottom-block="true"');
+	});
+
+	it("renders unknown when manual sentiment is cleared", async () => {
+		const { Composer } = await composerModulePromise;
+
+		const html = renderToStaticMarkup(
+			React.createElement(Composer, {
+				onChange: () => {},
+				onSentimentChange: () => {},
+				onSubmit: () => {},
+				sentiment: null,
+				value: "",
+			})
+		);
+
+		expect(html).toContain("Sentiment: Unknown");
+	});
+
 	it("supports inline layout mode for centered landing compositions", async () => {
 		const { Composer } = await composerModulePromise;
 

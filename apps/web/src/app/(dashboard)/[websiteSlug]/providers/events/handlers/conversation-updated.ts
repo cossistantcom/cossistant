@@ -169,6 +169,10 @@ function createHeaderUpdaterFromUpdates(
 			updatedHeader.priority = updates.priority;
 		}
 
+		if (updates.prioritySource !== undefined) {
+			updatedHeader.prioritySource = updates.prioritySource;
+		}
+
 		if (updates.viewIds !== undefined) {
 			updatedHeader.viewIds = updates.viewIds;
 		}
@@ -179,6 +183,10 @@ function createHeaderUpdaterFromUpdates(
 
 		if (updates.sentimentConfidence !== undefined) {
 			updatedHeader.sentimentConfidence = updates.sentimentConfidence;
+		}
+
+		if (updates.sentimentSource !== undefined) {
+			updatedHeader.sentimentSource = updates.sentimentSource;
 		}
 
 		if (updates.resolvedAt !== undefined) {

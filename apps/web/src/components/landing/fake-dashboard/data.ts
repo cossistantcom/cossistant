@@ -172,6 +172,7 @@ const createConversation = (params: {
 		id: params.id,
 		status: params.status ?? ConversationStatus.OPEN,
 		priority: params.priority ?? "normal",
+		prioritySource: null,
 		organizationId: ORGANIZATION_ID,
 		visitorId: params.visitor.id,
 		visitor: params.visitor as ConversationHeader["visitor"],
@@ -181,6 +182,7 @@ const createConversation = (params: {
 		titleSource: null,
 		sentiment: null,
 		sentimentConfidence: null,
+		sentimentSource: null,
 		resolutionTime:
 			resolvedAt && params.lastTimelineItem
 				? Math.max(

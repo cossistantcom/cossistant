@@ -173,17 +173,13 @@ export function FeedbackPanel({
 									iconClassName="text-co-muted-foreground"
 									id="cossistant-feedback-topic"
 									invalid={feedback.fields.topic.isMissing}
+									onBlur={feedback.fields.topic.handleBlur}
 									onValueChange={feedback.handleTopicChange}
 									options={feedback.availableTopics}
 									placeholder={topicPlaceholder}
 									ref={topicRef}
 									value={feedback.topic}
 								/>
-								{feedback.fields.topic.error ? (
-									<p className="text-co-destructive text-xs" role="alert">
-										{feedback.fields.topic.error}
-									</p>
-								) : null}
 							</div>
 						) : null}
 
@@ -205,17 +201,14 @@ export function FeedbackPanel({
 								disabled={feedback.isPending}
 								id="cossistant-feedback-comment"
 								invalid={feedback.fields.comment.isMissing}
+								onBlur={feedback.fields.comment.handleBlur}
 								onValueChange={feedback.handleCommentChange}
 								placeholder={commentPlaceholder}
 								ref={commentRef}
 								rows={7}
 								value={feedback.comment}
 							/>
-							{feedback.fields.comment.error ? (
-								<p className="text-co-destructive text-xs" role="alert">
-									{feedback.fields.comment.error}
-								</p>
-							) : commentRequired ? (
+							{commentRequired ? (
 								<p className="text-co-muted-foreground text-xs">
 									A short message is required for this form.
 								</p>
@@ -238,6 +231,7 @@ export function FeedbackPanel({
 									disabled={feedback.isPending}
 									hoveredValue={feedback.fields.rating.displayValue}
 									labelForRating={(rating) => `Rate ${rating} out of 5`}
+									onBlur={feedback.fields.rating.handleBlur}
 									onHoverChange={feedback.handleRatingHoverChange}
 									onSelect={feedback.handleRatingSelect}
 									size="md"
@@ -259,22 +253,6 @@ export function FeedbackPanel({
 								{feedback.submit.label}
 							</CoButton>
 						</div>
-
-						{feedback.fields.rating.error ? (
-							<p className="mt-2 text-co-destructive text-xs" role="alert">
-								{feedback.fields.rating.error}
-							</p>
-						) : null}
-
-						{feedback.submitError ? (
-							<p
-								aria-live="polite"
-								className="mt-2 text-co-destructive text-xs"
-								role="alert"
-							>
-								{feedback.submitError}
-							</p>
-						) : null}
 					</div>
 				</div>
 			)}

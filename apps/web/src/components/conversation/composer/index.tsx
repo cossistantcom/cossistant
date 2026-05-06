@@ -20,7 +20,11 @@ import {
 	ComposerAnimatedSlot,
 	ComposerBlocksFrame,
 } from "./composer-blocks-frame";
-import { ComposerDefaultBottomBlock } from "./composer-bottom-block";
+import {
+	ComposerDefaultBottomBlock,
+	type ConversationPriorityValue,
+	type ConversationSentimentValue,
+} from "./composer-bottom-block";
 import { ComposerDefaultCentralBlock } from "./composer-central-block";
 import { getComposerAnimatedSlotKey } from "./composer-slot-key";
 import {
@@ -80,6 +84,12 @@ export type ComposerProps = {
 	aiPausedUntil?: string | null;
 	onAiPauseAction?: (action: AiPauseAction) => void;
 	isAiPauseActionPending?: boolean;
+	priority?: ConversationPriorityValue;
+	onPriorityChange?: (priority: ConversationPriorityValue) => void;
+	isPriorityActionPending?: boolean;
+	sentiment?: ConversationSentimentValue | null;
+	onSentimentChange?: (sentiment: ConversationSentimentValue | null) => void;
+	isSentimentActionPending?: boolean;
 };
 
 export const Composer: React.FC<ComposerProps> = ({
@@ -114,6 +124,12 @@ export const Composer: React.FC<ComposerProps> = ({
 	aiPausedUntil = null,
 	onAiPauseAction,
 	isAiPauseActionPending = false,
+	priority = "normal",
+	onPriorityChange,
+	isPriorityActionPending = false,
+	sentiment = null,
+	onSentimentChange,
+	isSentimentActionPending = false,
 }) => {
 	const isPrivate = visibility === "private";
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -293,8 +309,14 @@ export const Composer: React.FC<ComposerProps> = ({
 			aiPauseStatusLabel={aiPauseStatus.label}
 			getAiPauseActionLabel={getAiPauseActionLabel}
 			isAiPauseControlDisabled={isAiPauseControlDisabled}
+			isPriorityActionPending={isPriorityActionPending}
+			isSentimentActionPending={isSentimentActionPending}
 			onAiPauseAction={onAiPauseAction}
 			onAiPauseSelectValueChange={handleAiPauseSelectValueChange}
+			onPriorityChange={onPriorityChange}
+			onSentimentChange={onSentimentChange}
+			priority={priority}
+			sentiment={sentiment}
 		/>
 	);
 	const aboveSlotKey = getComposerAnimatedSlotKey("above-custom", aboveBlock);
@@ -350,6 +372,10 @@ export {
 	mapAiPauseSelectValueToAction,
 } from "./ai-pause-control";
 export { ComposerBlocksFrame } from "./composer-blocks-frame";
+export type {
+	ConversationPriorityValue,
+	ConversationSentimentValue,
+} from "./composer-bottom-block";
 export { ComposerBottomBlock } from "./composer-bottom-block";
 export { ComposerCentralBlock } from "./composer-central-block";
 export type { MentionStore } from "./mention-store";

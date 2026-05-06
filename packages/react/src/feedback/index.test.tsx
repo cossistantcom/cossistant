@@ -140,7 +140,7 @@ describe("Feedback widget", () => {
 		expect(source).toContain("feedback.handleTopicChange");
 		expect(source).toContain("feedback.handleRatingSelect");
 		expect(source).toContain("conversationId");
-		expect(source).toContain('role="alert"');
+		expect(source).not.toContain('role="alert"');
 		expect(source).not.toContain("useSubmitFeedback");
 		expect(source).not.toContain("client.submitFeedback({");
 		expect(source).not.toContain("useFeedbackComposer");

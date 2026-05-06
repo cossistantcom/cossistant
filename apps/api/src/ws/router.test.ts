@@ -492,6 +492,7 @@ describe("conversationCreated handler", () => {
 					id: "conv-created",
 					status: "open",
 					priority: "normal",
+					prioritySource: null,
 					organizationId: "org-created",
 					visitorId: "visitor-created",
 					visitor: {
@@ -508,6 +509,7 @@ describe("conversationCreated handler", () => {
 					titleSource: null,
 					sentiment: null,
 					sentimentConfidence: null,
+					sentimentSource: null,
 					resolutionTime: null,
 					startedAt: new Date().toISOString(),
 					firstResponseAt: null,

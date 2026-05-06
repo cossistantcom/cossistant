@@ -22,6 +22,11 @@ export const ConversationPriority = {
 	URGENT: "urgent",
 } as const;
 
+export const ConversationFieldSource = {
+	AI: "ai",
+	USER: "user",
+} as const;
+
 export const TimelineItemVisibility = {
 	PUBLIC: "public",
 	PRIVATE: "private",
@@ -87,6 +92,9 @@ export type TimelineItemVisibility =
 
 export type ConversationPriority =
 	(typeof ConversationPriority)[keyof typeof ConversationPriority];
+
+export type ConversationFieldSource =
+	(typeof ConversationFieldSource)[keyof typeof ConversationFieldSource];
 
 export const WebsiteInstallationTarget = {
 	NEXTJS: "nextjs",

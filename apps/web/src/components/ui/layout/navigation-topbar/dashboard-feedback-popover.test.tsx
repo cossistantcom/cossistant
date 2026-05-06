@@ -17,6 +17,11 @@ type SubmitFeedbackVariables = {
 
 const submittedFeedback: SubmitFeedbackVariables[] = [];
 let shouldReject = false;
+const emptyFieldInteraction = {
+	comment: false,
+	rating: false,
+	topic: false,
+};
 
 const PopoverContext = React.createContext<{
 	onOpenChange?: (open: boolean) => void;
@@ -38,7 +43,7 @@ const ToggleGroupContext = React.createContext<{
 	value: "",
 });
 
-mock.module("@cossistant/next/feedback", () => ({
+mock.module("@cossistant/react/feedback", () => ({
 	useFeedbackForm: ({
 		commentRequired = false,
 		topics = [],
@@ -59,6 +64,10 @@ mock.module("@cossistant/next/feedback", () => ({
 		const [hasAttemptedSubmit, setHasAttemptedSubmit] = React.useState(false);
 		const [error, setError] = React.useState<Error | null>(null);
 		const [isPending, setIsPending] = React.useState(false);
+		const [dirtyFields, setDirtyFields] = React.useState(emptyFieldInteraction);
+		const [touchedFields, setTouchedFields] = React.useState(
+			emptyFieldInteraction
+		);
 		const normalizedTopic = topic.trim();
 		const normalizedComment = comment.trim();
 		const rawIsRatingMissing = rating == null;
@@ -71,39 +80,64 @@ mock.module("@cossistant/next/feedback", () => ({
 			rawIsCommentMissing
 		);
 		const canSubmit = isValid && !isPending;
-		const canAttemptSubmit = !isPending && (!hasAttemptedSubmit || isValid);
+		const canAttemptSubmit = canSubmit;
 		const isRatingMissing = hasAttemptedSubmit && rawIsRatingMissing;
 		const isTopicMissing = hasAttemptedSubmit && rawIsTopicMissing;
 		const isCommentMissing = hasAttemptedSubmit && rawIsCommentMissing;
+		const markDirty = (field: keyof typeof emptyFieldInteraction) => {
+			setDirtyFields((current) =>
+				current[field] ? current : { ...current, [field]: true }
+			);
+		};
+		const markTouched = (field: keyof typeof emptyFieldInteraction) => {
+			setTouchedFields((current) =>
+				current[field] ? current : { ...current, [field]: true }
+			);
+		};
+		const shouldShowRatingError =
+			rawIsRatingMissing && (dirtyFields.rating || touchedFields.rating);
+		const shouldShowTopicError =
+			rawIsTopicMissing && (dirtyFields.topic || touchedFields.topic);
+		const shouldShowCommentError =
+			rawIsCommentMissing && (dirtyFields.comment || touchedFields.comment);
 		const submitError =
 			error?.message ||
 			(error ? "We could not submit your feedback. Please try again." : null);
 		const fields = {
 			comment: {
-				error: isCommentMissing
+				error: shouldShowCommentError
 					? "Add a message before sending feedback."
 					: null,
-				isMissing: isCommentMissing,
+				handleBlur: () => markTouched("comment"),
+				isDirty: dirtyFields.comment,
+				isMissing: shouldShowCommentError,
+				isTouched: touchedFields.comment,
 			},
 			rating: {
 				displayValue: hoveredRating ?? rating,
-				error: isRatingMissing
+				error: shouldShowRatingError
 					? "Choose a rating before sending feedback."
 					: null,
-				isMissing: isRatingMissing,
+				handleBlur: () => markTouched("rating"),
+				isDirty: dirtyFields.rating,
+				isMissing: shouldShowRatingError,
+				isTouched: touchedFields.rating,
 				selectedValue: rating?.toString() ?? "",
 			},
 			topic: {
-				error: isTopicMissing
+				error: shouldShowTopicError
 					? "Select a topic before sending feedback."
 					: null,
-				isMissing: isTopicMissing,
+				handleBlur: () => markTouched("topic"),
+				isDirty: dirtyFields.topic,
+				isMissing: shouldShowTopicError,
+				isTouched: touchedFields.topic,
 			},
 		};
 		const submit = {
 			canAttemptSubmit,
 			canSubmit,
-			disabled: !canAttemptSubmit,
+			disabled: !canSubmit,
 			label: isPending
 				? "Sending..."
 				: rawIsRatingMissing
@@ -120,6 +154,8 @@ mock.module("@cossistant/next/feedback", () => ({
 			setHasAttemptedSubmit(false);
 			setError(null);
 			setIsPending(false);
+			setDirtyFields(emptyFieldInteraction);
+			setTouchedFields(emptyFieldInteraction);
 		};
 
 		const handleOpenChange = (nextOpen: boolean) => {
@@ -145,12 +181,15 @@ mock.module("@cossistant/next/feedback", () => ({
 			fields,
 			handleCommentChange: (value: string) => {
 				clearSubmitError();
+				markDirty("comment");
 				setComment(value);
 			},
 			handleOpenChange,
 			handleRatingHoverChange: setHoveredRating,
 			handleRatingSelect: (value: number) => {
 				clearSubmitError();
+				markDirty("rating");
+				markTouched("rating");
 				setRating(value);
 			},
 			handleSubmit: async (event?: React.FormEvent<HTMLFormElement>) => {
@@ -181,6 +220,8 @@ mock.module("@cossistant/next/feedback", () => ({
 			},
 			handleTopicChange: (value: string) => {
 				clearSubmitError();
+				markDirty("topic");
+				markTouched("topic");
 				setTopic(value);
 			},
 			hasAttemptedSubmit,
@@ -467,6 +508,10 @@ function click(element: HTMLElement) {
 	element.click();
 }
 
+function blur(element: HTMLElement) {
+	element.dispatchEvent(new window.Event("focusout", { bubbles: true }));
+}
+
 function changeSelect(value: string) {
 	const option = document.querySelector<HTMLButtonElement>(
 		`[data-select-value="${value}"]`
@@ -598,9 +643,20 @@ describe("DashboardFeedbackPopover", () => {
 		expect(getBySlot("dashboard-feedback-submit").textContent).toBe(
 			"Rating needed"
 		);
+		expect(
+			(getBySlot("dashboard-feedback-submit") as HTMLButtonElement).disabled
+		).toBe(true);
+		expect(
+			getBySlot("dashboard-feedback-topic").getAttribute("aria-invalid")
+		).toBe("false");
+		expect(
+			document
+				.querySelector<HTMLTextAreaElement>("#dashboard-feedback-comment")
+				?.getAttribute("aria-invalid")
+		).toBe("false");
 	});
 
-	it("updates the submit label once a rating is selected", async () => {
+	it("keeps submit disabled until the feedback payload is complete", async () => {
 		await renderPopover();
 
 		const { act } = await import("react");
@@ -613,51 +669,75 @@ describe("DashboardFeedbackPopover", () => {
 		) as HTMLButtonElement;
 
 		expect(submitButton.textContent).toBe("Rating needed");
-		expect(submitButton.disabled).toBe(false);
+		expect(submitButton.disabled).toBe(true);
 
 		await act(async () => {
 			clickRating(4);
 		});
 
 		expect(submitButton.textContent).toBe("Send");
+		expect(submitButton.disabled).toBe(true);
+
+		await act(async () => {
+			changeSelect("Bug");
+			inputComment("The dashboard nav feels jumpy.");
+		});
+
+		expect(submitButton.textContent).toBe("Send");
 		expect(submitButton.disabled).toBe(false);
 	});
 
-	it("validates topic and rating before submission", async () => {
+	it("marks missing fields without rendering validation messages", async () => {
 		await renderPopover();
 
 		const { act } = await import("react");
 		await act(async () => {
 			click(getBySlot("dashboard-feedback-trigger"));
 		});
-		await act(async () => {
-			click(getBySlot("dashboard-feedback-submit"));
-		});
 
-		expect(document.body.textContent).toContain(
+		expect(document.body.textContent).not.toContain(
 			"Select a topic before sending feedback."
 		);
-		expect(document.body.textContent).toContain(
+		expect(document.body.textContent).not.toContain(
 			"Choose a rating before sending feedback."
 		);
-		expect(document.body.textContent).toContain(
+		expect(document.body.textContent).not.toContain(
 			"Add a message before sending feedback."
 		);
 		const topicTrigger = getBySlot("dashboard-feedback-topic");
-		expect(topicTrigger.getAttribute("aria-invalid")).toBe("true");
-		expect(topicTrigger.className).toContain("border-destructive");
 		const textarea = document.querySelector<HTMLTextAreaElement>(
 			"#dashboard-feedback-comment"
 		);
+		const ratingGroup = document.querySelector<HTMLElement>(
+			'[aria-label="Feedback rating"]'
+		);
+
+		expect(topicTrigger.getAttribute("aria-invalid")).toBe("false");
+		expect(textarea?.getAttribute("aria-invalid")).toBe("false");
+		expect(ratingGroup?.getAttribute("aria-invalid")).toBe("false");
+
+		await act(async () => {
+			blur(topicTrigger);
+			if (textarea) {
+				blur(textarea);
+			}
+			if (ratingGroup) {
+				blur(ratingGroup);
+			}
+		});
+
+		expect(topicTrigger.getAttribute("aria-invalid")).toBe("true");
+		expect(topicTrigger.className).toContain("border-destructive");
 		expect(textarea?.getAttribute("aria-invalid")).toBe("true");
 		expect(textarea?.className).toContain("border-destructive");
+		expect(ratingGroup?.getAttribute("aria-invalid")).toBe("true");
 		expect(
 			(getBySlot("dashboard-feedback-submit") as HTMLButtonElement).disabled
 		).toBe(true);
 		expect(submittedFeedback).toEqual([]);
 	});
 
-	it("blocks empty comments with input-level validation", async () => {
+	it("keeps empty comments blocked at the input level", async () => {
 		await renderPopover();
 
 		const { act } = await import("react");
@@ -676,11 +756,24 @@ describe("DashboardFeedbackPopover", () => {
 			"#dashboard-feedback-comment"
 		);
 
-		expect(document.body.textContent).toContain(
+		expect(document.body.textContent).not.toContain(
 			"Add a message before sending feedback."
 		);
-		expect(textarea?.getAttribute("aria-invalid")).toBe("true");
+		expect(
+			(getBySlot("dashboard-feedback-submit") as HTMLButtonElement).disabled
+		).toBe(true);
 		expect(submittedFeedback).toEqual([]);
+
+		expect(textarea?.getAttribute("aria-invalid")).toBe("false");
+
+		if (textarea) {
+			await act(async () => {
+				blur(textarea);
+			});
+		}
+
+		expect(textarea?.getAttribute("aria-invalid")).toBe("true");
+		expect(textarea?.className).toContain("border-destructive");
 	});
 
 	it("submits dashboard feedback and shows the success state", async () => {
@@ -743,7 +836,7 @@ describe("DashboardFeedbackPopover", () => {
 		).toBeNull();
 	});
 
-	it("renders submission errors from the hook", async () => {
+	it("does not render submission errors inline", async () => {
 		shouldReject = true;
 		await renderPopover();
 
@@ -760,12 +853,13 @@ describe("DashboardFeedbackPopover", () => {
 			click(getBySlot("dashboard-feedback-submit"));
 		});
 
-		expect(document.body.textContent).toContain(
+		expect(document.body.textContent).not.toContain(
 			"Feedback service is unavailable."
 		);
+		expect(document.body.textContent).not.toContain("Thanks for the feedback");
 	});
 
-	it("clears stale submission errors when the form changes", async () => {
+	it("keeps submission errors out of the layout after form changes", async () => {
 		shouldReject = true;
 		await renderPopover();
 
@@ -782,7 +876,7 @@ describe("DashboardFeedbackPopover", () => {
 			click(getBySlot("dashboard-feedback-submit"));
 		});
 
-		expect(document.body.textContent).toContain(
+		expect(document.body.textContent).not.toContain(
 			"Feedback service is unavailable."
 		);
 

@@ -190,11 +190,19 @@ describe("support docs examples", () => {
 			path.resolve(import.meta.dir, "../../content/docs/quickstart/react.mdx"),
 			"utf8"
 		);
+		const userFeedbackDoc = readFileSync(
+			path.resolve(
+				import.meta.dir,
+				"../../content/docs/user-feedback/index.mdx"
+			),
+			"utf8"
+		);
 
 		expect(topMeta.pages).toEqual([
 			"(root)",
 			"quickstart",
 			"support-component",
+			"user-feedback",
 			"advanced",
 			"concepts",
 			"others",
@@ -232,6 +240,12 @@ describe("support docs examples", () => {
 		expect(routingDoc).toContain("[Advanced](/docs/advanced)");
 		expect(routingDoc).not.toContain("sizeClasses=");
 		expect(routingDoc).not.toContain("/docs/support-component/primitives");
+		expect(userFeedbackDoc).toContain('name="user-feedback-emoji"');
+		expect(userFeedbackDoc).toContain('name="user-feedback-stars"');
+		expect(userFeedbackDoc).toContain(
+			"npx shadcn@latest add button popover select textarea toggle-group"
+		);
+		expect(userFeedbackDoc).not.toContain("Preview submissions are faked");
 		expect(advancedIndexDoc).toContain("title: Advanced");
 		expect(advancedIndexDoc).toContain("Templates are coming soon");
 		expect(advancedIndexDoc).toContain(

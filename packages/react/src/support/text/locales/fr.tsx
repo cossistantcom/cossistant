@@ -119,6 +119,7 @@ const fr: SupportLocaleMessages = {
 	"component.navigation.articles": "Articles",
 	"component.navigation.home": "Accueil",
 	"component.message.timestamp.aiIndicator": "• Agent IA",
+	"component.message.feedback.label": "Retour",
 };
 
 export default fr;

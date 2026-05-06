@@ -325,6 +325,27 @@ const timelinePartMetadataSchema = z.object({
 	}),
 });
 
+const timelinePartFeedbackSchema = z.object({
+	type: z.literal("feedback").openapi({
+		description: "Type of timeline part - always 'feedback' for feedback parts",
+	}),
+	feedbackId: z.string().openapi({
+		description: "Feedback record associated with this timeline item",
+	}),
+	rating: z.number().int().min(1).max(5).openapi({
+		description: "Visitor rating from 1 to 5",
+	}),
+	topic: z.string().nullable().optional().openapi({
+		description: "Structured feedback topic selected by the visitor",
+	}),
+	trigger: z.string().nullable().optional().openapi({
+		description: "What triggered this feedback",
+	}),
+	source: z.string().openapi({
+		description: "Source channel where the feedback was collected",
+	}),
+});
+
 // ============================================================================
 // TIMELINE ITEM PARTS UNION
 // Combines AI SDK compatible parts with Cossistant-specific parts
@@ -346,11 +367,12 @@ export const timelineItemPartsSchema = z
 			timelinePartTranslationSchema,
 			timelinePartEventSchema,
 			timelinePartMetadataSchema,
+			timelinePartFeedbackSchema,
 		])
 	)
 	.openapi({
 		description:
-			"Array of timeline parts that make up the timeline item content. Includes AI SDK compatible parts (text, reasoning, tool-*, source-url, source-document, step-start, file, image) and Cossistant-specific parts (event, metadata).",
+			"Array of timeline parts that make up the timeline item content. Includes AI SDK compatible parts (text, reasoning, tool-*, source-url, source-document, step-start, file, image) and Cossistant-specific parts (event, metadata, feedback).",
 	});
 
 export const timelineItemSchema = z.object({
@@ -483,6 +505,7 @@ export type TimelinePartTranslation = z.infer<
 >;
 export type TimelinePartEvent = z.infer<typeof timelinePartEventSchema>;
 export type TimelinePartMetadata = z.infer<typeof timelinePartMetadataSchema>;
+export type TimelinePartFeedback = z.infer<typeof timelinePartFeedbackSchema>;
 
 // Backward-compatible type aliases (deprecated, use new names)
 /** @deprecated Use `FilePart` instead */
@@ -517,6 +540,7 @@ export {
 	timelinePartTranslationSchema,
 	timelinePartEventSchema,
 	timelinePartMetadataSchema,
+	timelinePartFeedbackSchema,
 	cossistantProviderMetadataSchema,
 };
 

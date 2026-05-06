@@ -176,6 +176,29 @@ describe("resolveConversationButtonPreviewSelection", () => {
 		});
 	});
 
+	it("shows the review preview when the latest visitor action is feedback", async () => {
+		const { resolveConversationButtonPreviewSelection } =
+			await conversationButtonLinkModulePromise;
+		const result = resolveConversationButtonPreviewSelection({
+			title: "The drawer closes unexpectedly",
+			lastMessage: {
+				content: "The drawer closes unexpectedly",
+				time: "1m",
+				isFromVisitor: true,
+				isFeedbackReview: true,
+				senderName: "You",
+			},
+			isTyping: false,
+			text,
+		});
+
+		expect(result).toEqual({
+			showTitle: true,
+			subtitle: "You left a review",
+			showTyping: false,
+		});
+	});
+
 	it("normalizes whitespace before deciding content is duplicated", async () => {
 		const { resolveConversationButtonPreviewSelection } =
 			await conversationButtonLinkModulePromise;

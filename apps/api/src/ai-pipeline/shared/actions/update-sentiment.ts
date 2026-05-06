@@ -15,7 +15,7 @@ import {
 	ConversationTimelineType,
 	TimelineItemVisibility,
 } from "@cossistant/types";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 import { loadCurrentConversation } from "./load-current-conversation";
 
 type UpdateSentimentParams = {
@@ -51,7 +51,7 @@ function isSentimentEffectivelyUnchanged(params: {
  */
 export async function updateSentiment(params: UpdateSentimentParams): Promise<{
 	changed: boolean;
-	reason?: "unchanged";
+	reason?: "unchanged" | "manual_sentiment";
 }> {
 	const {
 		db,
@@ -68,6 +68,13 @@ export async function updateSentiment(params: UpdateSentimentParams): Promise<{
 	if (!currentConversation) {
 		return {
 			changed: false,
+		};
+	}
+
+	if (currentConversation.sentimentSource === "user") {
+		return {
+			changed: false,
+			reason: "manual_sentiment",
 		};
 	}
 
@@ -88,14 +95,31 @@ export async function updateSentiment(params: UpdateSentimentParams): Promise<{
 	const now = new Date().toISOString();
 
 	// Update conversation
-	await db
+	const [updatedConversation] = await db
 		.update(conversation)
 		.set({
 			sentiment,
 			sentimentConfidence: confidence,
+			sentimentSource: "ai",
 			updatedAt: now,
 		})
-		.where(eq(conversation.id, currentConversation.id));
+		.where(
+			and(
+				eq(conversation.id, currentConversation.id),
+				or(
+					isNull(conversation.sentimentSource),
+					eq(conversation.sentimentSource, "ai")
+				)
+			)
+		)
+		.returning();
+
+	if (!updatedConversation) {
+		return {
+			changed: false,
+			reason: "manual_sentiment",
+		};
+	}
 
 	if (emitTimelineEvent) {
 		const eventText = `AI analyzed sentiment: ${sentiment} (${Math.round(confidence * 100)}% confidence)`;
@@ -123,8 +147,9 @@ export async function updateSentiment(params: UpdateSentimentParams): Promise<{
 		userId: null,
 		conversationId: currentConversation.id,
 		updates: {
-			sentiment,
-			sentimentConfidence: confidence,
+			sentiment: updatedConversation.sentiment,
+			sentimentConfidence: updatedConversation.sentimentConfidence,
+			sentimentSource: updatedConversation.sentimentSource,
 		},
 		aiAgentId,
 	});

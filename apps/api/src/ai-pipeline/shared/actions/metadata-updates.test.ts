@@ -6,8 +6,10 @@ type MockConversationState = {
 	title?: string | null;
 	titleSource?: string | null;
 	priority?: string;
+	prioritySource?: string | null;
 	sentiment?: string | null;
 	sentimentConfidence?: number | null;
+	sentimentSource?: string | null;
 };
 
 const realtimeEmitMock = mock(async () => {});
@@ -108,8 +110,10 @@ describe("metadata update actions", () => {
 			title: null,
 			titleSource: null,
 			priority: "normal",
+			prioritySource: null,
 			sentiment: null,
 			sentimentConfidence: null,
+			sentimentSource: null,
 		});
 	});
 
@@ -299,6 +303,75 @@ describe("metadata update actions", () => {
 		expect(realtimeEmitMock).not.toHaveBeenCalled();
 	});
 
+	it("does not let AI overwrite a manually owned priority", async () => {
+		const [, { updatePriority }] = await modulePromise;
+		const { db, updateMock } = createDbMock();
+		loadCurrentConversationMock.mockResolvedValueOnce({
+			id: "conv-1",
+			visitorId: "visitor-1",
+			priority: "normal",
+			prioritySource: "user",
+		});
+
+		const result = await updatePriority({
+			db: db as never,
+			conversation: {
+				id: "conv-1",
+				visitorId: "visitor-1",
+				priority: "normal",
+				prioritySource: "user",
+			} as never,
+			organizationId: "org-1",
+			websiteId: "site-1",
+			aiAgentId: "ai-1",
+			newPriority: "urgent",
+		});
+
+		expect(result).toEqual({
+			changed: false,
+			reason: "manual_priority",
+		});
+		expect(updateMock).not.toHaveBeenCalled();
+		expect(createConversationEventMock).not.toHaveBeenCalled();
+		expect(realtimeEmitMock).not.toHaveBeenCalled();
+	});
+
+	it("does not let AI overwrite a manually owned sentiment", async () => {
+		const [, , { updateSentiment }] = await modulePromise;
+		const { db, updateMock } = createDbMock();
+		loadCurrentConversationMock.mockResolvedValueOnce({
+			id: "conv-1",
+			visitorId: "visitor-1",
+			sentiment: "neutral",
+			sentimentConfidence: null,
+			sentimentSource: "user",
+		});
+
+		const result = await updateSentiment({
+			db: db as never,
+			conversation: {
+				id: "conv-1",
+				visitorId: "visitor-1",
+				sentiment: "neutral",
+				sentimentConfidence: null,
+				sentimentSource: "user",
+			} as never,
+			organizationId: "org-1",
+			websiteId: "site-1",
+			aiAgentId: "ai-1",
+			sentiment: "negative",
+			confidence: 0.9,
+		});
+
+		expect(result).toEqual({
+			changed: false,
+			reason: "manual_sentiment",
+		});
+		expect(updateMock).not.toHaveBeenCalled();
+		expect(createTimelineItemMock).not.toHaveBeenCalled();
+		expect(realtimeEmitMock).not.toHaveBeenCalled();
+	});
+
 	it("does not rewrite the title on a second call when the caller snapshot is stale", async () => {
 		const [{ updateTitle }] = await modulePromise;
 		const { db, updateMock, returningMock } = createDbMock();
@@ -393,6 +466,78 @@ describe("metadata update actions", () => {
 			reason: "manual_title",
 		});
 		expect(syncConversationVisitorTitleMock).not.toHaveBeenCalled();
+		expect(realtimeEmitMock).not.toHaveBeenCalled();
+	});
+
+	it("does not overwrite priority when it becomes user-owned between read and write", async () => {
+		const [, { updatePriority }] = await modulePromise;
+		const { db, updateMock, returningMock } = createDbMock();
+
+		loadCurrentConversationMock.mockResolvedValueOnce({
+			id: "conv-1",
+			visitorId: "visitor-1",
+			priority: "normal",
+			prioritySource: null,
+		});
+		returningMock.mockResolvedValueOnce([]);
+
+		const result = await updatePriority({
+			db: db as never,
+			conversation: {
+				id: "conv-1",
+				visitorId: "visitor-1",
+				priority: "normal",
+				prioritySource: null,
+			} as never,
+			organizationId: "org-1",
+			websiteId: "site-1",
+			aiAgentId: "ai-1",
+			newPriority: "urgent",
+			emitTimelineEvent: false,
+		});
+
+		expect(updateMock).toHaveBeenCalledTimes(1);
+		expect(result).toEqual({
+			changed: false,
+			reason: "manual_priority",
+		});
+		expect(realtimeEmitMock).not.toHaveBeenCalled();
+	});
+
+	it("does not overwrite sentiment when it becomes user-owned between read and write", async () => {
+		const [, , { updateSentiment }] = await modulePromise;
+		const { db, updateMock, returningMock } = createDbMock();
+
+		loadCurrentConversationMock.mockResolvedValueOnce({
+			id: "conv-1",
+			visitorId: "visitor-1",
+			sentiment: null,
+			sentimentConfidence: null,
+			sentimentSource: null,
+		});
+		returningMock.mockResolvedValueOnce([]);
+
+		const result = await updateSentiment({
+			db: db as never,
+			conversation: {
+				id: "conv-1",
+				visitorId: "visitor-1",
+				sentiment: null,
+				sentimentConfidence: null,
+				sentimentSource: null,
+			} as never,
+			organizationId: "org-1",
+			websiteId: "site-1",
+			aiAgentId: "ai-1",
+			sentiment: "negative",
+			confidence: 0.9,
+		});
+
+		expect(updateMock).toHaveBeenCalledTimes(1);
+		expect(result).toEqual({
+			changed: false,
+			reason: "manual_sentiment",
+		});
 		expect(realtimeEmitMock).not.toHaveBeenCalled();
 	});
 
@@ -518,7 +663,7 @@ describe("metadata update actions", () => {
 
 	it("does not rewrite sentiment on a second call when the caller snapshot is stale", async () => {
 		const [, , { updateSentiment }] = await modulePromise;
-		const { db, updateMock } = createDbMock();
+		const { db, updateMock, returningMock } = createDbMock();
 
 		loadCurrentConversationMock
 			.mockResolvedValueOnce({
@@ -533,6 +678,14 @@ describe("metadata update actions", () => {
 				sentiment: "positive",
 				sentimentConfidence: 0.9,
 			});
+		returningMock.mockResolvedValueOnce([
+			{
+				id: "conv-1",
+				sentiment: "positive",
+				sentimentConfidence: 0.9,
+				sentimentSource: "ai",
+			},
+		]);
 
 		await updateSentiment({
 			db: db as never,

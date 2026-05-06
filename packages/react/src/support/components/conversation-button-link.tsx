@@ -1,11 +1,11 @@
-import { ConversationStatus } from "@cossistant/types/enums";
+import { WIDGET_FEEDBACK_REVIEW_PREVIEW } from "@cossistant/core";
 import type { Conversation } from "@cossistant/types/schemas";
 import type React from "react";
 import {
 	type ConversationPreviewLastMessage,
 	useConversationPreview,
 } from "../../hooks/use-conversation-preview";
-import { type SupportTextKey, useSupportText } from "../text";
+import { useSupportText } from "../text";
 import type { SupportTextResolvedFormatter } from "../text/locales/keys";
 import { cn } from "../utils";
 import { Avatar } from "./avatar";
@@ -19,22 +19,6 @@ export type ConversationButtonLinkProps = {
 	className?: string;
 };
 
-const STATUS_BADGE_CLASSNAMES: Record<ConversationStatus, string> = {
-	[ConversationStatus.OPEN]: "bg-co-success/20 text-co-success-foreground",
-	[ConversationStatus.RESOLVED]: "bg-co-neutral/20 text-co-neutral-foreground",
-	[ConversationStatus.SPAM]: "bg-co-warning/20 text-co-warning-foreground",
-};
-
-const DEFAULT_STATUS_BADGE_CLASSNAME =
-	"bg-co-neutral/20 text-co-neutral-foreground";
-
-const STATUS_TEXT_KEYS: Record<ConversationStatus, SupportTextKey> = {
-	[ConversationStatus.OPEN]: "component.conversationButtonLink.status.open",
-	[ConversationStatus.RESOLVED]:
-		"component.conversationButtonLink.status.resolved",
-	[ConversationStatus.SPAM]: "component.conversationButtonLink.status.spam",
-};
-
 type ConversationButtonPreviewSelection = {
 	showTitle: boolean;
 	subtitle: string | null;
@@ -43,7 +27,7 @@ type ConversationButtonPreviewSelection = {
 
 type ConversationButtonPreviewMessage = Pick<
 	ConversationPreviewLastMessage,
-	"content" | "time" | "isFromVisitor" | "senderName"
+	"content" | "time" | "isFromVisitor" | "isFeedbackReview" | "senderName"
 >;
 
 function normalizePreviewText(value: string | null | undefined): string {
@@ -73,6 +57,14 @@ export function resolveConversationButtonPreviewSelection({
 		return {
 			showTitle: true,
 			subtitle: null,
+			showTyping: false,
+		};
+	}
+
+	if (lastMessage.isFromVisitor && lastMessage.isFeedbackReview) {
+		return {
+			showTitle: true,
+			subtitle: WIDGET_FEEDBACK_REVIEW_PREVIEW,
 			showTyping: false,
 		};
 	}
@@ -128,21 +120,6 @@ export function ConversationButtonLink({
 	const text = useSupportText();
 	const { lastMessage, assignedAgent, typing } = preview;
 
-	const statusBadgeClassName = conversation.deletedAt
-		? STATUS_BADGE_CLASSNAMES[ConversationStatus.RESOLVED]
-		: (STATUS_BADGE_CLASSNAMES[conversation.status] ??
-			DEFAULT_STATUS_BADGE_CLASSNAME);
-
-	const statusTextKey = conversation.deletedAt
-		? STATUS_TEXT_KEYS[ConversationStatus.RESOLVED]
-		: STATUS_TEXT_KEYS[conversation.status];
-
-	const statusText = conversation.deletedAt
-		? text("component.conversationButtonLink.status.closed")
-		: statusTextKey
-			? text(statusTextKey)
-			: text("common.fallbacks.unknown");
-
 	const displayTitle = preview.title;
 	const previewSelection = resolveConversationButtonPreviewSelection({
 		title: displayTitle,
@@ -190,15 +167,6 @@ export function ConversationButtonLink({
 					</p>
 				) : null}
 			</div>
-
-			{/* <div
-        className={cn(
-          "mr-6 inline-flex items-center rounded-co px-2 py-0.5 font-medium text-[9px] uppercase",
-          statusBadgeClassName,
-        )}
-      >
-        {statusText}
-      </div> */}
 
 			<Icon
 				className="-translate-y-1/2 absolute top-1/2 right-4 size-3 text-co-primary/60 transition-transform duration-200 group-hover/btn:translate-x-0.5 group-hover/btn:text-co-primary"

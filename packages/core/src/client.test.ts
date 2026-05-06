@@ -249,6 +249,101 @@ describe("CossistantClient.isConversationPending", () => {
 });
 
 describe("CossistantClient realtime activity state", () => {
+	it("hydrates feedback-started conversations and their timeline items from realtime", () => {
+		const client = new CossistantClient({
+			apiUrl: "https://api.example.com",
+			publicKey: "pk_test",
+		});
+		client.setWebsiteContext("site_123", visitorId);
+
+		const feedbackItem = {
+			id: "msg-feedback",
+			conversationId: "conv-feedback",
+			organizationId: "org_123",
+			type: "message" as const,
+			text: "The drawer closes unexpectedly",
+			parts: [
+				{ type: "text" as const, text: "The drawer closes unexpectedly" },
+				{
+					type: "feedback" as const,
+					feedbackId: "feedback-1",
+					rating: 5,
+					topic: "Bug",
+					trigger: "dashboard_topbar",
+					source: "widget",
+				},
+			],
+			visibility: "public" as const,
+			tool: null,
+			userId: null,
+			visitorId,
+			aiAgentId: null,
+			createdAt: "2026-03-11T03:00:00.000Z",
+			deletedAt: null,
+		};
+
+		const conversationCreatedEvent: RealtimeEvent<"conversationCreated"> = {
+			type: "conversationCreated",
+			payload: {
+				websiteId: "site_123",
+				organizationId: "org_123",
+				visitorId,
+				userId: null,
+				conversationId: "conv-feedback",
+				conversation: {
+					id: "conv-feedback",
+					title: undefined,
+					visitorTitle: null,
+					visitorTitleLanguage: null,
+					visitorLanguage: null,
+					translationActivatedAt: null,
+					translationChargedAt: null,
+					createdAt: "2026-03-11T03:00:01.000Z",
+					updatedAt: "2026-03-11T03:00:01.000Z",
+					visitorId,
+					websiteId: "site_123",
+					channel: "widget",
+					status: ConversationStatus.OPEN,
+					deletedAt: null,
+					lastTimelineItem: feedbackItem,
+				},
+			},
+		};
+		const timelineItemCreatedEvent: RealtimeEvent<"timelineItemCreated"> = {
+			type: "timelineItemCreated",
+			payload: {
+				websiteId: "site_123",
+				organizationId: "org_123",
+				visitorId,
+				userId: null,
+				conversationId: "conv-feedback",
+				item: feedbackItem,
+			},
+		};
+
+		client.handleRealtimeEvent(timelineItemCreatedEvent);
+
+		expect(
+			client.timelineItemsStore.getState().conversations["conv-feedback"]?.items
+		).toHaveLength(1);
+		expect(
+			client.conversationsStore.getState().byId["conv-feedback"]
+		).toBeUndefined();
+
+		client.handleRealtimeEvent(conversationCreatedEvent);
+
+		expect(
+			client.conversationsStore.getState().byId["conv-feedback"]
+				?.lastTimelineItem
+		).toMatchObject({
+			id: "msg-feedback",
+			text: "The drawer closes unexpectedly",
+		});
+		expect(
+			client.timelineItemsStore.getState().conversations["conv-feedback"]?.items
+		).toHaveLength(1);
+	});
+
 	it("tracks and clears processing progress from realtime events", () => {
 		const client = new CossistantClient({
 			apiUrl: "https://api.example.com",

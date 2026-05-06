@@ -1,4 +1,10 @@
-import { resolveTimelineItemText } from "@cossistant/core";
+import {
+	formatFeedbackRatingLabel,
+	getFeedbackTimelineComment,
+	getFeedbackTimelineMetadataEntries,
+	getTimelineItemFeedback,
+	resolveTimelineItemText,
+} from "@cossistant/core";
 import { formatFileSize } from "@cossistant/core/upload-constants";
 import type { TimelineItem } from "@cossistant/types/api/timeline-item";
 import type React from "react";
@@ -46,12 +52,24 @@ export function TimelineMessageItem({
 	const [lightboxOpen, setLightboxOpen] = useState(false);
 	const [lightboxIndex, setLightboxIndex] = useState(0);
 	const displayText = resolveTimelineItemText(item, "visitor");
+	const feedback = getTimelineItemFeedback(item);
+	const feedbackComment = feedback
+		? getFeedbackTimelineComment({
+				parts: item.parts,
+				text: displayText,
+			})
+		: null;
+	const feedbackMetadataEntries = feedback
+		? getFeedbackTimelineMetadataEntries(feedback)
+		: [];
 
 	// Extract image and file parts
 	const images = extractImageParts(item.parts);
 	const files = extractFileParts(item.parts);
 	const hasAttachments = images.length > 0 || files.length > 0;
-	const hasText = Boolean(displayText && displayText.trim().length > 0);
+	const hasText = Boolean(
+		!feedback && displayText && displayText.trim().length > 0
+	);
 	const messageWidthClassName = getSupportMessageWidthClasses(displayText);
 	const markdownRenderers = useMemo<TimelineItemContentMarkdownRenderers>(
 		() => ({
@@ -101,6 +119,61 @@ export function TimelineMessageItem({
 									isSentByViewerFinal && "items-end"
 								)}
 							>
+								{feedback && (
+									<div
+										className={cn(
+											"flex min-w-0 flex-col",
+											messageWidthClassName,
+											isSentByViewerFinal ? "self-end" : "self-start"
+										)}
+									>
+										<div className="flex min-w-0 flex-col gap-3 rounded-co-lg border border-co-border/70 bg-co-background/80 px-3.5 py-3 text-co-foreground shadow-sm">
+											<div className="flex items-center gap-2">
+												<span className="flex size-6 shrink-0 items-center justify-center rounded-co bg-co-background-200 text-co-primary ring-1 ring-co-border/50 dark:bg-co-background-500">
+													<Icon
+														className="size-3"
+														name="star"
+														variant="filled"
+													/>
+												</span>
+												<div className="min-w-0">
+													<div className="font-medium text-co-foreground text-xs capitalize">
+														{text("component.message.feedback.label")}
+													</div>
+													<div className="text-co-muted-foreground text-xs">
+														{formatFeedbackRatingLabel(feedback.rating)}
+													</div>
+												</div>
+											</div>
+
+											{feedbackMetadataEntries.length > 0 && (
+												<div className="flex flex-wrap gap-1.5">
+													{feedbackMetadataEntries.map((entry) => (
+														<span
+															className="inline-flex items-center gap-1 rounded-co border border-co-border/60 bg-co-background-100 px-2 py-1 text-co-muted-foreground text-xs dark:bg-co-background-300"
+															key={entry.label}
+														>
+															<span className="font-medium text-co-foreground">
+																{entry.label}
+															</span>
+															<span>{entry.value}</span>
+														</span>
+													))}
+												</div>
+											)}
+
+											{feedbackComment && (
+												<TimelineItemContent
+													className="block min-w-0 max-w-full break-words text-co-foreground text-sm"
+													markdownRenderers={markdownRenderers}
+													renderMarkdown
+													text={feedbackComment}
+												/>
+											)}
+										</div>
+									</div>
+								)}
+
 								{/* Text content */}
 								{hasText && (
 									<TimelineItemContent

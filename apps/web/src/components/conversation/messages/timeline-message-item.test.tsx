@@ -7,12 +7,14 @@ import { TimelineMessageItem } from "./timeline-message-item";
 function createMessageItem({
 	id,
 	text,
+	parts = [],
 	userId = null,
 	visitorId = null,
 	aiAgentId = null,
 }: {
 	id: string;
 	text: string;
+	parts?: TimelineItem["parts"];
 	userId?: string | null;
 	visitorId?: string | null;
 	aiAgentId?: string | null;
@@ -24,7 +26,7 @@ function createMessageItem({
 		visibility: "public",
 		type: "message",
 		text,
-		parts: [],
+		parts,
 		userId,
 		visitorId,
 		aiAgentId,
@@ -107,5 +109,61 @@ describe("TimelineMessageItem code and command theming", () => {
 		expect(html).toContain(
 			'class="language-bash font-mono text-foreground">npm install @cossistant/react</code>'
 		);
+	});
+
+	it("renders feedback items as feedback cards with metadata", () => {
+		const html = renderMessageItem({
+			item: createMessageItem({
+				id: "message-feedback",
+				text: "The drawer closes unexpectedly",
+				visitorId: "visitor-1",
+				parts: [
+					{ type: "text", text: "The drawer closes unexpectedly" },
+					{
+						type: "feedback",
+						feedbackId: "feedback-1",
+						rating: 5,
+						topic: "Bug",
+						trigger: "dashboard_topbar",
+						source: "widget",
+					},
+				],
+			}),
+		});
+
+		expect(html).toContain("Feedback");
+		expect(html).toContain("5 star review");
+		expect(html).toContain("Reason");
+		expect(html).toContain("Bug");
+		expect(html).toContain("Trigger");
+		expect(html).toContain("Dashboard Topbar");
+		expect(html).toContain("Source");
+		expect(html).toContain("Widget");
+		expect(html).toContain("The drawer closes unexpectedly");
+		expect(html).not.toContain("bg-primary text-primary-foreground");
+	});
+
+	it("does not render fallback review text as a feedback comment", () => {
+		const html = renderMessageItem({
+			item: createMessageItem({
+				id: "message-feedback-no-comment",
+				text: "left a 4 star review",
+				visitorId: "visitor-1",
+				parts: [
+					{ type: "text", text: "left a 4 star review" },
+					{
+						type: "feedback",
+						feedbackId: "feedback-2",
+						rating: 4,
+						topic: null,
+						trigger: null,
+						source: "widget",
+					},
+				],
+			}),
+		});
+
+		expect(html).toContain("4 star review");
+		expect(html).not.toContain("left a 4 star review");
 	});
 });

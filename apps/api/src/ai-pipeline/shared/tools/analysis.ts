@@ -81,7 +81,7 @@ export function createUpdateSentimentTool(ctx: PipelineToolContext) {
 		}): Promise<
 			PipelineToolResult<{
 				changed: boolean;
-				reason?: "unchanged";
+				reason?: "unchanged" | "manual_sentiment";
 				sentiment?: string;
 			}>
 		> => {
@@ -118,7 +118,7 @@ export function createSetPriorityTool(ctx: PipelineToolContext) {
 		}): Promise<
 			PipelineToolResult<{
 				changed: boolean;
-				reason?: "unchanged";
+				reason?: "unchanged" | "manual_priority";
 				priority?: string;
 			}>
 		> => {

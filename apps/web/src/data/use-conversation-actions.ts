@@ -36,6 +36,8 @@ type MarkUnreadVariables = RouterInputs["conversation"]["markUnread"];
 type PauseAiVariables = RouterInputs["conversation"]["pauseAi"];
 type ResumeAiVariables = RouterInputs["conversation"]["resumeAi"];
 type UpdateTitleVariables = RouterInputs["conversation"]["updateTitle"];
+type UpdatePriorityVariables = RouterInputs["conversation"]["updatePriority"];
+type UpdateSentimentVariables = RouterInputs["conversation"]["updateSentiment"];
 type BlockVisitorVariables = RouterInputs["visitor"]["block"];
 type UnblockVisitorVariables = RouterInputs["visitor"]["unblock"];
 
@@ -80,6 +82,12 @@ type UseConversationActionsReturn = {
 	pauseAi: (durationMinutes: number) => Promise<ConversationMutationResponse>;
 	resumeAi: () => Promise<ConversationMutationResponse>;
 	updateTitle: (title: string | null) => Promise<UpdateTitleResponse>;
+	updatePriority: (
+		priority: UpdatePriorityVariables["priority"]
+	) => Promise<ConversationMutationResponse>;
+	updateSentiment: (
+		sentiment: UpdateSentimentVariables["sentiment"]
+	) => Promise<ConversationMutationResponse>;
 	joinEscalation: () => Promise<ConversationMutationResponse>;
 	blockVisitor: () => Promise<BlockVisitorResponse>;
 	unblockVisitor: () => Promise<BlockVisitorResponse>;
@@ -96,6 +104,8 @@ type UseConversationActionsReturn = {
 		pauseAi: boolean;
 		resumeAi: boolean;
 		updateTitle: boolean;
+		updatePriority: boolean;
+		updateSentiment: boolean;
 		joinEscalation: boolean;
 		blockVisitor: boolean;
 		unblockVisitor: boolean;
@@ -586,6 +596,67 @@ export function useConversationActions({
 		},
 	});
 
+	const updatePriorityMutation = useMutation<
+		ConversationMutationResponse,
+		TRPCError,
+		UpdatePriorityVariables,
+		MutationContext
+	>({
+		...trpc.conversation.updatePriority.mutationOptions(),
+		onMutate: async (variables) => {
+			const context = await prepareContext();
+			const now = new Date().toISOString();
+
+			applyOptimisticUpdate((existing) => ({
+				...existing,
+				priority: variables.priority,
+				prioritySource: "user",
+				updatedAt: now,
+			}));
+
+			return context;
+		},
+		onError: (_error, _variables, context) => {
+			restoreContext(context);
+		},
+		onSuccess: (data) => {
+			applyOptimisticUpdate((existing) =>
+				mergeWithServerConversation(existing, data.conversation)
+			);
+		},
+	});
+
+	const updateSentimentMutation = useMutation<
+		ConversationMutationResponse,
+		TRPCError,
+		UpdateSentimentVariables,
+		MutationContext
+	>({
+		...trpc.conversation.updateSentiment.mutationOptions(),
+		onMutate: async (variables) => {
+			const context = await prepareContext();
+			const now = new Date().toISOString();
+
+			applyOptimisticUpdate((existing) => ({
+				...existing,
+				sentiment: variables.sentiment,
+				sentimentConfidence: null,
+				sentimentSource: "user",
+				updatedAt: now,
+			}));
+
+			return context;
+		},
+		onError: (_error, _variables, context) => {
+			restoreContext(context);
+		},
+		onSuccess: (data) => {
+			applyOptimisticUpdate((existing) =>
+				mergeWithServerConversation(existing, data.conversation)
+			);
+		},
+	});
+
 	const joinEscalationMutation = useMutation<
 		ConversationMutationResponse,
 		TRPCError,
@@ -905,6 +976,26 @@ export function useConversationActions({
 		[conversationId, updateTitleMutation, website.slug]
 	);
 
+	const updatePriority = useCallback(
+		(priority: UpdatePriorityVariables["priority"]) =>
+			updatePriorityMutation.mutateAsync({
+				conversationId,
+				websiteSlug: website.slug,
+				priority,
+			}),
+		[conversationId, updatePriorityMutation, website.slug]
+	);
+
+	const updateSentiment = useCallback(
+		(sentiment: UpdateSentimentVariables["sentiment"]) =>
+			updateSentimentMutation.mutateAsync({
+				conversationId,
+				websiteSlug: website.slug,
+				sentiment,
+			}),
+		[conversationId, updateSentimentMutation, website.slug]
+	);
+
 	const joinEscalation = useCallback(
 		() =>
 			joinEscalationMutation.mutateAsync({
@@ -944,6 +1035,8 @@ export function useConversationActions({
 		pauseAi,
 		resumeAi,
 		updateTitle,
+		updatePriority,
+		updateSentiment,
 		joinEscalation,
 		blockVisitor,
 		unblockVisitor,
@@ -959,6 +1052,8 @@ export function useConversationActions({
 			pauseAiMutation.isPending ||
 			resumeAiMutation.isPending ||
 			updateTitleMutation.isPending ||
+			updatePriorityMutation.isPending ||
+			updateSentimentMutation.isPending ||
 			joinEscalationMutation.isPending ||
 			blockVisitorMutation.isPending ||
 			unblockVisitorMutation.isPending,
@@ -974,6 +1069,8 @@ export function useConversationActions({
 			pauseAi: pauseAiMutation.isPending,
 			resumeAi: resumeAiMutation.isPending,
 			updateTitle: updateTitleMutation.isPending,
+			updatePriority: updatePriorityMutation.isPending,
+			updateSentiment: updateSentimentMutation.isPending,
 			joinEscalation: joinEscalationMutation.isPending,
 			blockVisitor: blockVisitorMutation.isPending,
 			unblockVisitor: unblockVisitorMutation.isPending,

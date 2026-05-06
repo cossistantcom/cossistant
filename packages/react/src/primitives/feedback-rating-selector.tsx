@@ -11,6 +11,7 @@ export type FeedbackRatingSelectorProps = {
 	hoveredValue?: number | null;
 	onHoverChange?: (value: number | null) => void;
 	onSelect?: (value: number) => void;
+	onBlur?: React.FocusEventHandler<HTMLButtonElement>;
 	disabled?: boolean;
 	className?: string;
 	buttonClassName?: string;
@@ -24,6 +25,7 @@ export function FeedbackRatingSelector({
 	hoveredValue = null,
 	onHoverChange,
 	onSelect,
+	onBlur,
 	disabled = false,
 	className,
 	buttonClassName,
@@ -58,6 +60,7 @@ export function FeedbackRatingSelector({
 						data-rating-value={ratingValue}
 						disabled={disabled}
 						key={ratingValue}
+						onBlur={onBlur}
 						onClick={() => onSelect?.(ratingValue)}
 						onMouseEnter={() => onHoverChange?.(ratingValue)}
 						onMouseLeave={() => onHoverChange?.(null)}

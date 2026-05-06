@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import {
+	ConversationFieldSource,
 	ConversationPriority,
 	ConversationSentiment,
 	ConversationStatus,
@@ -188,6 +189,13 @@ export const conversationInboxItemSchema = z
 		priority: conversationInboxPrioritySchema.openapi({
 			description: "Current priority level of the conversation.",
 		}),
+		prioritySource: z
+			.enum([ConversationFieldSource.AI, ConversationFieldSource.USER])
+			.nullable()
+			.openapi({
+				description:
+					"Source currently owning the conversation priority value. null means legacy AI-managed.",
+			}),
 		organizationId: z.string().openapi({
 			description: "Organization that owns the conversation.",
 		}),
@@ -243,6 +251,13 @@ export const conversationInboxItemSchema = z
 		sentimentConfidence: z.number().nullable().openapi({
 			description: "Confidence score for the inferred sentiment, if available.",
 		}),
+		sentimentSource: z
+			.enum([ConversationFieldSource.AI, ConversationFieldSource.USER])
+			.nullable()
+			.openapi({
+				description:
+					"Source currently owning the conversation sentiment value. null means legacy AI-managed.",
+			}),
 		resolutionTime: z.number().nullable().openapi({
 			description:
 				"Resolution time in seconds once the conversation has been resolved.",
@@ -394,6 +409,37 @@ export const privateConversationMutationResponseSchema = z
 
 export type PrivateConversationMutationResponse = z.infer<
 	typeof privateConversationMutationResponseSchema
+>;
+
+export const updateConversationPriorityRestRequestSchema = z
+	.object({
+		priority: conversationInboxPrioritySchema.openapi({
+			description: "New conversation priority.",
+			example: ConversationPriority.HIGH,
+		}),
+	})
+	.openapi({
+		description: "Request payload for changing a conversation priority.",
+	});
+
+export type UpdateConversationPriorityRestRequest = z.infer<
+	typeof updateConversationPriorityRestRequestSchema
+>;
+
+export const updateConversationSentimentRestRequestSchema = z
+	.object({
+		sentiment: conversationInboxSentimentSchema.openapi({
+			description:
+				"New conversation sentiment. Pass null to mark sentiment as unknown.",
+			example: ConversationSentiment.NEUTRAL,
+		}),
+	})
+	.openapi({
+		description: "Request payload for changing a conversation sentiment.",
+	});
+
+export type UpdateConversationSentimentRestRequest = z.infer<
+	typeof updateConversationSentimentRestRequestSchema
 >;
 
 export const updateConversationMetadataRequestSchema = z

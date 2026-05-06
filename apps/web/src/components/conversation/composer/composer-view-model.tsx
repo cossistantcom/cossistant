@@ -42,6 +42,12 @@ type ComposerViewModelInputState = {
 	aiPausedUntil?: string | null;
 	onAiPauseAction?: (action: AiPauseAction) => void;
 	isAiPauseActionPending?: boolean;
+	priority?: ComposerProps["priority"];
+	onPriorityChange?: ComposerProps["onPriorityChange"];
+	isPriorityActionPending?: boolean;
+	sentiment?: ComposerProps["sentiment"];
+	onSentimentChange?: ComposerProps["onSentimentChange"];
+	isSentimentActionPending?: boolean;
 };
 
 export type ComposerViewModelState = {

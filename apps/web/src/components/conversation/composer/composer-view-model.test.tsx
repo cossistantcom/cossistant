@@ -116,4 +116,29 @@ describe("buildComposerViewModel", () => {
 			windowDays: 30,
 		});
 	});
+
+	it("passes metadata controls through the conversation composer view model", async () => {
+		const { buildConversationComposerViewModel } = await viewModelModulePromise;
+		const onPriorityChange = () => {};
+		const onSentimentChange = () => {};
+
+		const viewModel = buildConversationComposerViewModel({
+			input: {
+				...createInputState(),
+				priority: "high",
+				onPriorityChange,
+				isPriorityActionPending: true,
+				sentiment: null,
+				onSentimentChange,
+				isSentimentActionPending: true,
+			},
+		});
+
+		expect(viewModel.input.priority).toBe("high");
+		expect(viewModel.input.onPriorityChange).toBe(onPriorityChange);
+		expect(viewModel.input.isPriorityActionPending).toBe(true);
+		expect(viewModel.input.sentiment).toBeNull();
+		expect(viewModel.input.onSentimentChange).toBe(onSentimentChange);
+		expect(viewModel.input.isSentimentActionPending).toBe(true);
+	});
 });

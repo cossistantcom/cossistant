@@ -56,6 +56,33 @@ export async function createFeedback(
 	return inserted;
 }
 
+export async function updateFeedbackConversationId(
+	db: Database,
+	params: { id: string; websiteId: string; conversationId: string }
+): Promise<typeof feedback.$inferSelect> {
+	const now = new Date().toISOString();
+	const [updated] = await db
+		.update(feedback)
+		.set({
+			conversationId: params.conversationId,
+			updatedAt: now,
+		})
+		.where(
+			and(
+				eq(feedback.id, params.id),
+				eq(feedback.websiteId, params.websiteId),
+				isNull(feedback.deletedAt)
+			)
+		)
+		.returning();
+
+	if (!updated) {
+		throw new Error("Failed to link feedback to conversation");
+	}
+
+	return updated;
+}
+
 export async function listFeedback(
 	db: Database,
 	params: FeedbackListParams

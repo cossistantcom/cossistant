@@ -275,6 +275,8 @@ export function ConversationPane({
 		pauseAi,
 		resumeAi,
 		updateTitle,
+		updatePriority,
+		updateSentiment,
 		pendingAction,
 	} = useConversationActions({
 		conversationId,
@@ -302,6 +304,20 @@ export function ConversationPane({
 			}
 		},
 		[pauseAi, resumeAi]
+	);
+
+	const handlePriorityChange = useCallback(
+		(priority: NonNullable<typeof selectedConversation>["priority"]) => {
+			void updatePriority(priority);
+		},
+		[updatePriority]
+	);
+
+	const handleSentimentChange = useCallback(
+		(sentiment: NonNullable<typeof selectedConversation>["sentiment"]) => {
+			void updateSentiment(sentiment);
+		},
+		[updateSentiment]
 	);
 
 	const lastMarkedMessageIdRef = useRef<string | null>(null);
@@ -612,6 +628,12 @@ export function ConversationPane({
 			aiPausedUntil: selectedConversation.aiPausedUntil,
 			onAiPauseAction: handleAiPauseAction,
 			isAiPauseActionPending: pendingAction.pauseAi || pendingAction.resumeAi,
+			priority: selectedConversation.priority,
+			onPriorityChange: handlePriorityChange,
+			isPriorityActionPending: pendingAction.updatePriority,
+			sentiment: selectedConversation.sentiment,
+			onSentimentChange: handleSentimentChange,
+			isSentimentActionPending: pendingAction.updateSentiment,
 			renderAttachButton: ({ triggerFileInput, disabled }) => (
 				<TooltipOnHover content="Attach files">
 					<ButtonWithPaywall

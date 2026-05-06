@@ -1,10 +1,20 @@
-import { describe, expect, it, mock } from "bun:test";
+import { afterAll, describe, expect, it, mock } from "bun:test";
 import type React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-mock.module("facehash", () => ({
-	Facehash: ({ className }: { className?: string }) => (
-		<div className={className}>facehash</div>
+mock.module("@/components/ui/avatar", () => ({
+	Avatar: ({
+		className,
+		fallbackName,
+	}: {
+		className?: string;
+		fallbackName: string;
+	}) => (
+		<div
+			className={className}
+			data-fallback-name={fallbackName}
+			data-slot="avatar"
+		/>
 	),
 }));
 
@@ -48,7 +58,47 @@ async function renderView(props: Record<string, unknown> = {}) {
 	);
 }
 
+afterAll(() => {
+	mock.restore();
+});
+
 describe("ConversationItemView", () => {
+	it("formats feedback timeline items as review previews", async () => {
+		const { resolveConversationItemTimelinePreview } = await modulePromise;
+
+		const preview = resolveConversationItemTimelinePreview({
+			item: {
+				id: "msg-feedback",
+				conversationId: "conv-feedback",
+				organizationId: "org-1",
+				visibility: "public",
+				type: "message",
+				text: "The drawer closes unexpectedly",
+				parts: [
+					{ type: "text", text: "The drawer closes unexpectedly" },
+					{
+						type: "feedback",
+						feedbackId: "feedback-1",
+						rating: 5,
+						topic: "Bug",
+						trigger: "dashboard_topbar",
+						source: "widget",
+					},
+				],
+				userId: null,
+				visitorId: "visitor-1",
+				aiAgentId: null,
+				createdAt: "2026-03-11T03:00:00.000Z",
+				deletedAt: null,
+			},
+			availableAIAgents: [],
+			availableHumanAgents: [],
+			visitor: null,
+		});
+
+		expect(preview).toBe("left a 5 star review");
+	});
+
 	it("renders an avatar trigger when a detail handler is provided", async () => {
 		const html = await renderView({
 			onAvatarClick: () => {},

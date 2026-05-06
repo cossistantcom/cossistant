@@ -39,6 +39,21 @@ export {
 	type CossistantClientOptions,
 } from "./client";
 export {
+	createFeedbackTimelinePart,
+	type FeedbackTimelineMetadataEntry,
+	type FeedbackTimelinePartInput,
+	formatFeedbackMetadataValue,
+	formatFeedbackRatingLabel,
+	formatFeedbackReviewPreview,
+	getFeedbackTimelineComment,
+	getFeedbackTimelineMetadataEntries,
+	getTimelineItemFeedback,
+	isFeedbackTimelineItem,
+	isTimelinePartFeedback,
+	resolveFeedbackTimelineText,
+	WIDGET_FEEDBACK_REVIEW_PREVIEW,
+} from "./feedback-timeline";
+export {
 	type HumanAgentDisplay,
 	type HumanAgentIdentity,
 	type HumanAgentSurface,

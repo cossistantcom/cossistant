@@ -35,18 +35,22 @@ describe("feedback primitives", () => {
 	it("wires rating hover and select handlers", () => {
 		const onHoverChange = mock(() => {});
 		const onSelect = mock(() => {});
+		const onBlur = mock(() => {});
 		const element = FeedbackRatingSelector({
 			value: 2,
+			onBlur,
 			onHoverChange,
 			onSelect,
 		});
 		const buttons = getElementChildren(element);
 		const thirdButton = buttons[2];
 
+		thirdButton?.props.onBlur();
 		thirdButton?.props.onMouseEnter();
 		thirdButton?.props.onClick();
 		thirdButton?.props.onMouseLeave();
 
+		expect(onBlur).toHaveBeenCalledTimes(1);
 		expect(onHoverChange).toHaveBeenNthCalledWith(1, 3);
 		expect(onHoverChange).toHaveBeenNthCalledWith(2, null);
 		expect(onSelect).toHaveBeenCalledWith(3);

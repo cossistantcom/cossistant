@@ -110,7 +110,7 @@ mock.module("@cossistant/next/support", () => {
 	return { Support };
 });
 
-mock.module("@cossistant/next/feedback", () => ({
+mock.module("@cossistant/react/feedback", () => ({
 	useFeedbackForm: () => ({
 		availableTopics: [],
 		canSubmit: false,
@@ -119,17 +119,26 @@ mock.module("@cossistant/next/feedback", () => ({
 		fields: {
 			comment: {
 				error: null,
+				handleBlur: () => {},
+				isDirty: false,
 				isMissing: false,
+				isTouched: false,
 			},
 			rating: {
 				displayValue: null,
 				error: null,
+				handleBlur: () => {},
+				isDirty: false,
 				isMissing: false,
+				isTouched: false,
 				selectedValue: "",
 			},
 			topic: {
 				error: null,
+				handleBlur: () => {},
+				isDirty: false,
 				isMissing: false,
+				isTouched: false,
 			},
 		},
 		handleCommentChange: () => {},
@@ -148,9 +157,9 @@ mock.module("@cossistant/next/feedback", () => ({
 		rating: null,
 		sendAnother: () => {},
 		submit: {
-			canAttemptSubmit: true,
+			canAttemptSubmit: false,
 			canSubmit: false,
-			disabled: false,
+			disabled: true,
 			label: "Rating needed",
 		},
 		submitError: null,

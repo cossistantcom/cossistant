@@ -33,6 +33,7 @@ type PersistFeedbackSubmissionParams = {
 	websiteId: string;
 	website?: FeedbackWebsite | null;
 	visitorId?: string;
+	conversationOwnerVisitorId?: string | null;
 	contactId?: string | null;
 	conversationId?: string;
 	rating: number;
@@ -212,6 +213,7 @@ async function createFeedbackTimelineItem({
 	websiteId,
 	conversationId,
 	visitorId,
+	conversationOwnerVisitorId,
 	entry,
 }: {
 	db: Database;
@@ -219,6 +221,7 @@ async function createFeedbackTimelineItem({
 	websiteId: string;
 	conversationId: string;
 	visitorId: string;
+	conversationOwnerVisitorId?: string | null;
 	entry: FeedbackEntry;
 }) {
 	const feedbackPart = createFeedbackTimelinePart({
@@ -234,7 +237,7 @@ async function createFeedbackTimelineItem({
 		organizationId,
 		websiteId,
 		conversationId,
-		conversationOwnerVisitorId: visitorId,
+		conversationOwnerVisitorId: conversationOwnerVisitorId ?? visitorId,
 		text: resolveFeedbackTimelineText({
 			comment: entry.comment,
 			rating: entry.rating,
@@ -319,6 +322,7 @@ export async function persistFeedbackSubmission({
 	websiteId,
 	website,
 	visitorId,
+	conversationOwnerVisitorId,
 	contactId,
 	conversationId,
 	rating,
@@ -370,6 +374,8 @@ export async function persistFeedbackSubmission({
 			websiteId,
 			conversationId: resolvedConversationId,
 			visitorId,
+			conversationOwnerVisitorId:
+				createdConversation?.visitorId ?? conversationOwnerVisitorId,
 			entry,
 		});
 		createdTimelineItemId = item.id;

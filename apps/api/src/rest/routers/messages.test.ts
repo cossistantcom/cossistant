@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import { APIKeyType } from "@cossistant/types";
 
 const safelyExtractRequestDataMock = mock((async () => ({})) as (
@@ -6,6 +6,15 @@ const safelyExtractRequestDataMock = mock((async () => ({})) as (
 ) => Promise<unknown>);
 const validateResponseMock = mock(<T>(value: T) => value);
 const getConversationByIdMock = mock(
+	(async () => null) as (...args: unknown[]) => Promise<unknown>
+);
+const canVisitorAccessConversationMock = mock(
+	(async () => false) as (...args: unknown[]) => Promise<boolean>
+);
+const getVisitorMock = mock(
+	(async () => null) as (...args: unknown[]) => Promise<unknown>
+);
+const getActiveVisitorForWebsiteMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
 );
 const getPlanForWebsiteMock = mock((async () => ({
@@ -95,6 +104,7 @@ const markVisitorPresenceMock = mock(
 
 mock.module("@api/utils/validate", () => ({
 	safelyExtractRequestData: safelyExtractRequestDataMock,
+	safelyExtractRequestQuery: mock(async () => ({})),
 	validateResponse: validateResponseMock,
 }));
 
@@ -102,24 +112,42 @@ mock.module("@api/db/queries/conversation", () => ({
 	getConversationById: getConversationByIdMock,
 }));
 
+mock.module("@api/db/queries/conversation-access", () => ({
+	canVisitorAccessConversation: canVisitorAccessConversationMock,
+	getActiveVisitorForWebsite: getActiveVisitorForWebsiteMock,
+	getConversationDeliveryVisitorIds: mock(async () => []),
+	getConversationVisibleVisitorIds: mock(async () => []),
+	resolveVisitorConversationScope: mock(async () => null),
+}));
+
+mock.module("@api/db/queries", () => ({
+	getVisitor: getVisitorMock,
+}));
+
 mock.module("@api/lib/plans/access", () => ({
 	getPlanForWebsite: getPlanForWebsiteMock,
 }));
 
 mock.module("@api/lib/translation", () => ({
+	detectMessageLanguage: mock(async () => null),
 	finalizeConversationTranslation: finalizeConversationTranslationMock,
 	isAutomaticTranslationEnabled: isAutomaticTranslationEnabledMock,
 	prepareInboundVisitorTranslation: prepareInboundVisitorTranslationMock,
 	prepareOutboundVisitorTranslation: prepareOutboundVisitorTranslationMock,
+	shouldMaskTypingPreview: mock(() => false),
+	syncConversationVisitorTitle: mock(async () => null),
 }));
 
 mock.module("@api/utils/timeline-item", () => ({
 	createMessageTimelineItem: createMessageTimelineItemMock,
 	createTimelineItem: createTimelineItemMock,
+	resolveMessageTimelineActor: mock(() => null),
 }));
 
 mock.module("@api/utils/participant-helpers", () => ({
 	addConversationParticipant: addConversationParticipantMock,
+	addConversationParticipants: mock(async () => []),
+	getDefaultParticipants: mock(async () => []),
 	isUserParticipant: isUserParticipantMock,
 }));
 
@@ -132,11 +160,31 @@ mock.module("@api/utils/send-message-with-notification", () => ({
 }));
 
 mock.module("@api/db/mutations/conversation", () => ({
+	archiveConversation: mock(async () => null),
+	joinEscalation: mock(async () => null),
+	markConversationAsNotSpam: mock(async () => null),
+	markConversationAsRead: mock(async () => ({
+		conversation: null,
+		lastSeenAt: null,
+	})),
 	markConversationAsSeen: markConversationAsSeenMock,
+	markConversationAsSeenByVisitor: mock(async () => "2026-04-07T12:00:00.000Z"),
+	markConversationAsSpam: mock(async () => null),
+	markConversationAsUnread: mock(async () => null),
+	mergeConversationMetadata: mock(async () => null),
+	reopenConversation: mock(async () => null),
+	resolveConversation: mock(async () => null),
+	unarchiveConversation: mock(async () => null),
+	updateConversationPriority: mock(async () => null),
+	updateConversationSentiment: mock(async () => null),
+	updateConversationTitle: mock(async () => null),
 }));
 
 mock.module("@api/utils/conversation-realtime", () => ({
+	emitConversationCreatedEvent: mock(async () => null),
 	emitConversationSeenEvent: emitConversationSeenEventMock,
+	emitConversationTypingEvent: mock(async () => null),
+	emitConversationTranslationUpdate: mock(async () => null),
 }));
 
 mock.module("@api/services/presence", () => ({
@@ -175,6 +223,9 @@ describe("messages router POST /", () => {
 		safelyExtractRequestDataMock.mockReset();
 		validateResponseMock.mockReset();
 		getConversationByIdMock.mockReset();
+		canVisitorAccessConversationMock.mockReset();
+		getVisitorMock.mockReset();
+		getActiveVisitorForWebsiteMock.mockReset();
 		getPlanForWebsiteMock.mockReset();
 		isAutomaticTranslationEnabledMock.mockReset();
 		prepareInboundVisitorTranslationMock.mockReset();
@@ -193,6 +244,27 @@ describe("messages router POST /", () => {
 
 		validateResponseMock.mockImplementation((value) => value);
 		getConversationByIdMock.mockResolvedValue(baseConversation);
+		canVisitorAccessConversationMock.mockImplementation(async (_db, params) => {
+			const accessParams = params as {
+				viewerVisitorId: string;
+				conversationVisitorId: string | null;
+			};
+			return (
+				accessParams.viewerVisitorId === accessParams.conversationVisitorId
+			);
+		});
+		getVisitorMock.mockResolvedValue({
+			id: "visitor-1",
+			websiteId: "site-1",
+		});
+		getActiveVisitorForWebsiteMock.mockResolvedValue({
+			id: "visitor-1",
+			websiteId: "site-1",
+			organizationId: "org-1",
+			contactId: null,
+			language: null,
+			deletedAt: null,
+		});
 		getPlanForWebsiteMock.mockResolvedValue({
 			features: { "auto-translate": false },
 		});
@@ -312,6 +384,52 @@ describe("messages router POST /", () => {
 		expect(createMessageTimelineItemMock).not.toHaveBeenCalled();
 	});
 
+	it("returns 400 when public message visitor identifiers mismatch", async () => {
+		safelyExtractRequestDataMock.mockResolvedValue({
+			apiKey: { keyType: APIKeyType.PUBLIC },
+			db: {},
+			website: {
+				id: "site-1",
+				defaultLanguage: "en",
+				autoTranslateEnabled: false,
+			},
+			organization: { id: "org-1" },
+			visitorIdHeader: "visitor-header",
+			body: {
+				conversationId: "conv-1",
+				item: {
+					type: "message",
+					text: "hello",
+					parts: [{ type: "text", text: "hello" }],
+					visibility: "public",
+					visitorId: "visitor-body",
+					userId: null,
+					aiAgentId: null,
+				},
+			},
+		});
+
+		const { messagesRouter } = await messagesRouterModulePromise;
+		const response = await messagesRouter.request(
+			createMessagesPostRequest({
+				conversationId: "conv-1",
+				item: {
+					type: "message",
+					text: "hello",
+					parts: [{ type: "text", text: "hello" }],
+					visibility: "public",
+					visitorId: "visitor-body",
+					userId: null,
+					aiAgentId: null,
+				},
+			})
+		);
+
+		expect(response.status).toBe(400);
+		expect(getConversationByIdMock).not.toHaveBeenCalled();
+		expect(createMessageTimelineItemMock).not.toHaveBeenCalled();
+	});
+
 	it("accepts historical item.createdAt values", async () => {
 		safelyExtractRequestDataMock.mockResolvedValue({
 			apiKey: { keyType: APIKeyType.PRIVATE },
@@ -362,4 +480,146 @@ describe("messages router POST /", () => {
 			})
 		);
 	});
+
+	it("allows a same-contact public visitor to reply to an old conversation", async () => {
+		getConversationByIdMock.mockResolvedValue({
+			...baseConversation,
+			visitorId: "visitor-1",
+		});
+		getVisitorMock.mockResolvedValue({
+			id: "visitor-2",
+			websiteId: "site-1",
+		});
+		getActiveVisitorForWebsiteMock.mockResolvedValue({
+			id: "visitor-2",
+			websiteId: "site-1",
+			organizationId: "org-1",
+			contactId: "contact-1",
+			language: null,
+			deletedAt: null,
+		});
+		canVisitorAccessConversationMock.mockResolvedValue(true);
+		safelyExtractRequestDataMock.mockResolvedValue({
+			apiKey: { keyType: APIKeyType.PUBLIC },
+			db: {},
+			website: {
+				id: "site-1",
+				defaultLanguage: "en",
+				autoTranslateEnabled: false,
+			},
+			organization: { id: "org-1" },
+			visitorIdHeader: "visitor-2",
+			body: {
+				conversationId: "conv-1",
+				item: {
+					type: "message",
+					text: "I am back",
+					parts: [{ type: "text", text: "I am back" }],
+					visibility: "public",
+					visitorId: "visitor-2",
+					userId: null,
+					aiAgentId: null,
+				},
+			},
+		});
+
+		const { messagesRouter } = await messagesRouterModulePromise;
+		const response = await messagesRouter.request(
+			createMessagesPostRequest({
+				conversationId: "conv-1",
+				item: {
+					type: "message",
+					text: "I am back",
+					parts: [{ type: "text", text: "I am back" }],
+					visibility: "public",
+					visitorId: "visitor-2",
+					userId: null,
+					aiAgentId: null,
+				},
+			})
+		);
+
+		expect(response.status).toBe(200);
+		expect(canVisitorAccessConversationMock).toHaveBeenCalledWith(
+			{},
+			{
+				organizationId: "org-1",
+				websiteId: "site-1",
+				viewerVisitorId: "visitor-2",
+				conversationVisitorId: "visitor-1",
+			}
+		);
+		expect(createMessageTimelineItemMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				conversationId: "conv-1",
+				conversationOwnerVisitorId: "visitor-1",
+				visitorId: "visitor-2",
+				text: "I am back",
+			})
+		);
+	});
+
+	it("rejects public replies from unrelated visitors", async () => {
+		getConversationByIdMock.mockResolvedValue({
+			...baseConversation,
+			visitorId: "visitor-1",
+		});
+		getVisitorMock.mockResolvedValue({
+			id: "visitor-2",
+			websiteId: "site-1",
+		});
+		getActiveVisitorForWebsiteMock.mockResolvedValue({
+			id: "visitor-2",
+			websiteId: "site-1",
+			organizationId: "org-1",
+			contactId: "contact-2",
+			language: null,
+			deletedAt: null,
+		});
+		canVisitorAccessConversationMock.mockResolvedValue(false);
+		safelyExtractRequestDataMock.mockResolvedValue({
+			apiKey: { keyType: APIKeyType.PUBLIC },
+			db: {},
+			website: {
+				id: "site-1",
+				defaultLanguage: "en",
+				autoTranslateEnabled: false,
+			},
+			organization: { id: "org-1" },
+			visitorIdHeader: "visitor-2",
+			body: {
+				conversationId: "conv-1",
+				item: {
+					type: "message",
+					text: "nope",
+					parts: [{ type: "text", text: "nope" }],
+					visibility: "public",
+					userId: null,
+					aiAgentId: null,
+				},
+			},
+		});
+
+		const { messagesRouter } = await messagesRouterModulePromise;
+		const response = await messagesRouter.request(
+			createMessagesPostRequest({
+				conversationId: "conv-1",
+				item: {
+					type: "message",
+					text: "nope",
+					parts: [{ type: "text", text: "nope" }],
+					visibility: "public",
+					userId: null,
+					aiAgentId: null,
+				},
+			})
+		);
+
+		expect(response.status).toBe(403);
+		expect(createMessageTimelineItemMock).not.toHaveBeenCalled();
+	});
+});
+
+afterAll(() => {
+	mock.restore();
 });

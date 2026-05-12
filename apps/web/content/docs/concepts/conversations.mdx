@@ -126,13 +126,17 @@ This powers unread badges in the support widget and dashboard.
 
 ## Cross-Device Continuity
 
-For identified [contacts](/docs/concepts/contacts), conversations sync across devices:
+For identified [contacts](/docs/concepts/contacts), conversations sync across devices and storage resets:
 
 - Start conversation on desktop
 - Continue on mobile
+- Reinstall the app or clear browser storage
+- Log in again and identify with the same `externalId` or email
 - Same history, same context
 
-Anonymous [visitors](/docs/concepts) have device-specific conversations.
+Internally, old conversations keep the original visitor ID that created them. After identification, any current visitor linked to the same contact can still list, read, and continue those conversations through the shared contact.
+
+Anonymous [visitors](/docs/concepts) have device-specific conversations. Until a visitor is identified, Cossistant scopes their history to the visitor ID stored on that device/browser.
 
 ## Learn More
 

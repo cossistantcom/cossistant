@@ -3,6 +3,7 @@ import { z } from "@hono/zod-openapi";
 export const MemberNotificationChannel = {
 	EMAIL_MARKETING: "email_marketing",
 	EMAIL_NEW_MESSAGE: "email_new_message",
+	EMAIL_ESCALATION: "email_escalation",
 	BROWSER_PUSH_NEW_MESSAGE: "browser_push_new_message",
 	SOUND_NEW_MESSAGE: "sound_new_message",
 	SOUND_TYPING: "sound_typing",
@@ -50,6 +51,18 @@ export const MEMBER_NOTIFICATION_CHANNEL_DEFINITIONS = [
 		defaultPriority: 10,
 		requiresSetup: false,
 		supportsDelaySeconds: true,
+		defaultConfig: null,
+	},
+	{
+		channel: MemberNotificationChannel.EMAIL_ESCALATION,
+		label: "Human help needed emails",
+		description:
+			"Send an email when Cossistant escalates a conversation to the team.",
+		defaultEnabled: true,
+		defaultDelaySeconds: 0,
+		defaultPriority: 0,
+		requiresSetup: false,
+		supportsDelaySeconds: false,
 		defaultConfig: null,
 	},
 	{

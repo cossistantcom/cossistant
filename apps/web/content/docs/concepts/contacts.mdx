@@ -9,7 +9,7 @@ description: Identified visitors with metadata and cross-device conversation his
 
 Contacts enable:
 
-- **Cross-device support**: Same user on desktop and mobile shares conversation history
+- **Cross-device support**: Same user on desktop, mobile, or a reinstalled app shares conversation history
 - **Rich metadata**: Attach context like plan type, MRR, company, or lifecycle stage
 - **Dashboard visibility**: Support agents see user details alongside conversations
 - **Persistent identity**: Conversations follow the user, not the device
@@ -23,7 +23,7 @@ A contact requires **at least one** of:
 - `externalId`: Your internal user ID (recommended)
 - `email`: User's email address
 
-Both are accepted, but `externalId` is preferred for robust cross-system tracking.
+Both are accepted, but `externalId` is preferred for robust cross-system tracking. Use a stable ID from your own user table, such as `user.id`, so Cossistant can recognize the same person after browser storage is cleared, an app is reinstalled, or the user signs in on another device.
 
 ### Using the Component
 
@@ -159,7 +159,11 @@ All three visitors share:
 - Contact metadata
 - Support context
 
-This provides seamless support across devices—agents see the full picture regardless of where the user reaches out.
+This also covers storage-loss cases. If a user reinstalls your app or loses browser storage, Cossistant may create a new visitor at first. As soon as you identify that visitor with the same `externalId` or email, Cossistant links them to the existing contact and restores access to that contact's prior conversations.
+
+You do not need to persist Cossistant's visitor ID in your own user records for identified users. Store and send your stable `externalId` instead. Anonymous visitors remain scoped to the current device/browser storage until they are identified.
+
+This provides seamless support across devices and reinstalls - agents see the full picture regardless of where the user reaches out.
 
 ## Learn More
 

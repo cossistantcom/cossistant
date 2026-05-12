@@ -26,6 +26,8 @@ export function buildBehaviorInstructions(
 		instructions.push(escalationInstructions);
 	}
 
+	instructions.push(PROMPT_TEMPLATES.ESCALATED_CONTEXT);
+
 	const clarificationInstructions =
 		buildKnowledgeClarificationInstructions(settings);
 	if (clarificationInstructions) {

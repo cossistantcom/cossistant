@@ -1,6 +1,7 @@
 /** biome-ignore-all lint/style/noNonNullAssertion: ok here */
 import { DEFAULT_PAGE_LIMIT } from "@api/constants";
 import type { Database } from "@api/db";
+import { getConversationVisibleVisitorIds } from "@api/db/queries/conversation-access";
 import { listActiveKnowledgeClarificationSummariesForConversations } from "@api/db/queries/knowledge-clarification";
 
 import {
@@ -40,6 +41,7 @@ import {
 	lt,
 	lte,
 	or,
+	sql,
 } from "drizzle-orm";
 
 const TIMELINE_ITEM_TYPES: ConversationTimelineType[] = [
@@ -226,12 +228,23 @@ export async function listConversations(
 	const offset = (page - 1) * limit;
 	const orderBy = params.orderBy ?? "updatedAt";
 	const order = params.order ?? "desc";
+	const visibleVisitorIds = await getConversationVisibleVisitorIds(db, {
+		organizationId: params.organizationId,
+		websiteId: params.websiteId,
+		visitorId: params.visitorId,
+	});
+	const visitorScopeCondition =
+		visibleVisitorIds.length === 0
+			? sql`false`
+			: visibleVisitorIds.length === 1
+				? eq(conversation.visitorId, visibleVisitorIds[0]!)
+				: inArray(conversation.visitorId, visibleVisitorIds);
 
 	// Build where conditions
 	const whereConditions = [
 		eq(conversation.organizationId, params.organizationId),
 		eq(conversation.websiteId, params.websiteId),
-		eq(conversation.visitorId, params.visitorId),
+		visitorScopeCondition,
 	];
 
 	if (params.status) {

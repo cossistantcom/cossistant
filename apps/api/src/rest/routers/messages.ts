@@ -3,6 +3,7 @@ import {
 	markConversationAsSeen,
 } from "@api/db/mutations/conversation";
 import { getConversationById } from "@api/db/queries/conversation";
+import { canVisitorAccessConversation } from "@api/db/queries/conversation-access";
 import { getPlanForWebsite } from "@api/lib/plans/access";
 import {
 	finalizeConversationTranslation,
@@ -42,6 +43,7 @@ import {
 } from "../client-timeline-item-created-at";
 import { protectedPublicApiKeyMiddleware } from "../middleware";
 import { errorJsonResponse, restError, runtimeDualAuth } from "../openapi";
+import { resolveRuntimeVisitorIdentity } from "../runtime-visitor";
 import type { RestContext } from "../types";
 
 export const messagesRouter = new OpenAPIHono<RestContext>();
@@ -124,7 +126,27 @@ messagesRouter.openapi(
 		const { db, website, organization, body, visitorIdHeader, apiKey } =
 			await safelyExtractRequestData(c, sendTimelineItemRequestSchema);
 
-		const visitorId = body.item.visitorId || visitorIdHeader || null;
+		let visitorId = body.item.visitorId || visitorIdHeader || null;
+		const isPublic = apiKey?.keyType === "public";
+		const publicVisitorIdentity = await resolveRuntimeVisitorIdentity({
+			c,
+			db,
+			apiKey,
+			organizationId: organization.id,
+			websiteId: website.id,
+			headerVisitorId: visitorIdHeader,
+			requestVisitorId: body.item.visitorId,
+			publicOnly: true,
+		});
+
+		if (publicVisitorIdentity.error) {
+			return publicVisitorIdentity.error;
+		}
+
+		if (isPublic) {
+			visitorId = publicVisitorIdentity.visitor?.id ?? null;
+		}
+
 		let itemCreatedAt: Date | undefined;
 		try {
 			itemCreatedAt = normalizeClientTimelineItemCreatedAt({
@@ -153,18 +175,33 @@ messagesRouter.openapi(
 			);
 		}
 
-		// With a public key,
-		const isPublic = apiKey?.keyType === "public";
+		if (isPublic) {
+			if (!visitorId) {
+				return c.json(
+					validateResponse(
+						{ error: "Forbidden: visitor does not own the conversation" },
+						z.object({ error: z.string() })
+					),
+					403
+				);
+			}
 
-		// Visitor must own the conversation when using the public key
-		if (isPublic && conversation.visitorId !== visitorId) {
-			return c.json(
-				validateResponse(
-					{ error: "Forbidden: visitor does not own the conversation" },
-					z.object({ error: z.string() })
-				),
-				403
-			);
+			const canAccessConversation = await canVisitorAccessConversation(db, {
+				organizationId: organization.id,
+				websiteId: website.id,
+				viewerVisitorId: visitorId,
+				conversationVisitorId: conversation.visitorId,
+			});
+
+			if (!canAccessConversation) {
+				return c.json(
+					validateResponse(
+						{ error: "Forbidden: visitor does not own the conversation" },
+						z.object({ error: z.string() })
+					),
+					403
+				);
+			}
 		}
 
 		const conversationIsClosed =
@@ -271,7 +308,7 @@ messagesRouter.openapi(
 						organizationId: organization.id,
 						websiteId: website.id,
 						conversationId: body.conversationId,
-						conversationOwnerVisitorId: visitorId,
+						conversationOwnerVisitorId: conversation.visitorId,
 						id: body.item.id,
 						text: body.item.text ?? "",
 						extraParts: [
@@ -297,7 +334,7 @@ messagesRouter.openapi(
 							organizationId: organization.id,
 							websiteId: website.id,
 							conversationId: body.conversationId,
-							conversationOwnerVisitorId: visitorId,
+							conversationOwnerVisitorId: conversation.visitorId,
 							item: {
 								id: body.item.id,
 								type: timelineItemType,

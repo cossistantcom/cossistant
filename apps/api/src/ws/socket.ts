@@ -1,6 +1,7 @@
 import { db } from "@api/db";
 import type { ApiKeyWithWebsiteAndOrganization } from "@api/db/queries/api-keys";
 import { getConversationById } from "@api/db/queries/conversation";
+import { canVisitorAccessConversation } from "@api/db/queries/conversation-access";
 import { normalizeSessionToken, resolveSession } from "@api/db/queries/session";
 import { getWebsiteByIdWithAccess } from "@api/db/queries/website";
 import { website as websiteTable } from "@api/db/schema";
@@ -263,29 +264,29 @@ async function validateTypingEventAuthorization(
 		return false;
 	}
 
-	// For visitors: verify they own the conversation
-	if (
-		connectionVisitorId &&
-		!userId &&
-		conversation.visitorId !== connectionVisitorId
-	) {
-		sendError(ws, {
-			error: "Unauthorized",
-			message: "You can only send typing events for your own conversations",
+	if (connectionVisitorId && !userId) {
+		const canAccessConversation = await canVisitorAccessConversation(db, {
+			organizationId: connectionContext.organizationId ?? "",
+			websiteId,
+			viewerVisitorId: connectionVisitorId,
+			conversationVisitorId: conversation.visitorId,
 		});
-		return false;
-	}
 
-	if (
-		payload.visitorId &&
-		conversation.visitorId &&
-		payload.visitorId !== conversation.visitorId
-	) {
-		sendError(ws, {
-			error: "Invalid visitorId",
-			message: "visitorId must match the conversation visitor",
-		});
-		return false;
+		if (!canAccessConversation) {
+			sendError(ws, {
+				error: "Unauthorized",
+				message: "You can only send typing events for your own conversations",
+			});
+			return false;
+		}
+
+		if (payload.visitorId && payload.visitorId !== connectionVisitorId) {
+			sendError(ws, {
+				error: "Invalid visitorId",
+				message: "visitorId must match the current visitor",
+			});
+			return false;
+		}
 	}
 
 	// For users: they're already authenticated for the website, so they can type in any conversation
@@ -328,17 +329,21 @@ async function validateSeenEventAuthorization(
 		return false;
 	}
 
-	// For visitors: verify they own the conversation
-	if (
-		connectionVisitorId &&
-		!userId &&
-		conversation.visitorId !== connectionVisitorId
-	) {
-		sendError(ws, {
-			error: "Unauthorized",
-			message: "You can only mark your own conversations as seen",
+	if (connectionVisitorId && !userId) {
+		const canAccessConversation = await canVisitorAccessConversation(db, {
+			organizationId: connectionContext.organizationId ?? "",
+			websiteId,
+			viewerVisitorId: connectionVisitorId,
+			conversationVisitorId: conversation.visitorId,
 		});
-		return false;
+
+		if (!canAccessConversation) {
+			sendError(ws, {
+				error: "Unauthorized",
+				message: "You can only mark your own conversations as seen",
+			});
+			return false;
+		}
 	}
 
 	return true;

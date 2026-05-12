@@ -4,7 +4,8 @@ import {
 	getDefaultMemberNotificationPreference,
 	MEMBER_NOTIFICATION_CHANNEL_DEFINITIONS,
 	MEMBER_NOTIFICATION_DEFINITION_MAP,
-	type MemberNotificationChannel,
+	MemberNotificationChannel,
+	type MemberNotificationChannel as MemberNotificationChannelValue,
 	type MemberNotificationPreference,
 	type MemberNotificationSettingsResponse,
 } from "@cossistant/types";
@@ -18,7 +19,7 @@ type GetMemberNotificationSettingsParams = {
 type UpdateMemberNotificationSettingsParams =
 	GetMemberNotificationSettingsParams & {
 		settings: Array<{
-			channel: MemberNotificationChannel;
+			channel: MemberNotificationChannelValue;
 			enabled: boolean;
 			delaySeconds: number;
 			priority?: number;
@@ -40,10 +41,13 @@ export async function getMemberNotificationSettings(
 			)
 		);
 
-	const rowMap = new Map<MemberNotificationChannel, (typeof rows)[number]>();
+	const rowMap = new Map<
+		MemberNotificationChannelValue,
+		(typeof rows)[number]
+	>();
 
 	for (const row of rows) {
-		rowMap.set(row.channel as MemberNotificationChannel, row);
+		rowMap.set(row.channel as MemberNotificationChannelValue, row);
 	}
 
 	const settings: MemberNotificationPreference[] =
@@ -51,7 +55,22 @@ export async function getMemberNotificationSettings(
 			const stored = rowMap.get(definition.channel);
 
 			if (!stored) {
-				return getDefaultMemberNotificationPreference(definition.channel);
+				const defaultPreference = getDefaultMemberNotificationPreference(
+					definition.channel
+				);
+
+				if (definition.channel !== MemberNotificationChannel.EMAIL_ESCALATION) {
+					return defaultPreference;
+				}
+
+				const emailNewMessageSetting = rowMap.get(
+					MemberNotificationChannel.EMAIL_NEW_MESSAGE
+				);
+
+				return {
+					...defaultPreference,
+					enabled: emailNewMessageSetting?.enabled ?? defaultPreference.enabled,
+				};
 			}
 
 			return {

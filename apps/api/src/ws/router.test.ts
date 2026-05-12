@@ -161,6 +161,58 @@ describe("timelineItemCreated handler", () => {
 		expect(sendToVisitor.mock.calls[0]).toEqual(["visitor-1", event]);
 	});
 
+	it("fans out contact-scoped timeline items with recipient-targeted payloads", async () => {
+		const event: RealtimeEvent<"timelineItemCreated"> = {
+			type: "timelineItemCreated",
+			payload: {
+				websiteId: "site-1",
+				organizationId: "org-1",
+				userId: "user-1",
+				visitorId: "visitor-old",
+				conversationId: "conv-1",
+				item: {
+					id: "item-1",
+					conversationId: "conv-1",
+					organizationId: "org-1",
+					type: "message",
+					text: "agent reply",
+					parts: [{ type: "text", text: "agent reply" }],
+					userId: "user-1",
+					aiAgentId: null,
+					visitorId: null,
+					visibility: "public",
+					createdAt: new Date().toISOString(),
+					deletedAt: null,
+				},
+			},
+		};
+
+		await routeEvent(event, {
+			connectionId: "conn-1",
+			websiteId: "site-1",
+			visitorId: "visitor-old",
+			visitorIds: ["visitor-old", "visitor-new"],
+			sendToWebsite,
+			sendToVisitor,
+			sendToConnection,
+		});
+
+		expect(sendToWebsite).toHaveBeenCalledTimes(1);
+		expect(sendToWebsite.mock.calls[0]).toEqual(["site-1", event]);
+		expect(sendToVisitor).toHaveBeenCalledTimes(2);
+		expect(sendToVisitor.mock.calls[0]).toEqual(["visitor-old", event]);
+		expect(sendToVisitor.mock.calls[1]?.[0]).toBe("visitor-new");
+		expect(sendToVisitor.mock.calls[1]?.[1]).toMatchObject({
+			type: "timelineItemCreated",
+			payload: {
+				visitorId: "visitor-new",
+				item: {
+					visitorId: null,
+				},
+			},
+		});
+	});
+
 	it("falls back to context visitor when timeline item has no visitorId", async () => {
 		const event: RealtimeEvent<"timelineItemCreated"> = {
 			type: "timelineItemCreated",
@@ -243,6 +295,7 @@ describe("timelineItemCreated handler", () => {
 			connectionId: "conn-tools",
 			websiteId: "site-tools",
 			visitorId: "visitor-tools",
+			visitorIds: ["visitor-tools", "visitor-linked"],
 			sendToWebsite,
 			sendToVisitor,
 			sendToConnection,
@@ -558,6 +611,42 @@ describe("conversationUpdated handler", () => {
 		sendToWebsite.mockReset();
 		sendToVisitor.mockReset();
 		sendToConnection.mockReset();
+	});
+
+	it("fans out public conversation updates to linked contact visitors once per visitor", async () => {
+		const event: RealtimeEvent<"conversationUpdated"> = {
+			type: "conversationUpdated",
+			payload: {
+				websiteId: "site-updated",
+				organizationId: "org-updated",
+				conversationId: "conv-updated",
+				userId: null,
+				visitorId: "visitor-old",
+				updates: {
+					status: "open",
+				},
+				aiAgentId: null,
+			},
+		};
+
+		await routeEvent(event, {
+			connectionId: "conn-updated",
+			websiteId: "site-updated",
+			visitorId: "visitor-old",
+			visitorIds: ["visitor-old", "visitor-new"],
+			sendToWebsite,
+			sendToVisitor,
+			sendToConnection,
+		});
+
+		expect(sendToWebsite).toHaveBeenCalledTimes(1);
+		expect(sendToVisitor).toHaveBeenCalledTimes(2);
+		expect(sendToVisitor.mock.calls[1]?.[0]).toBe("visitor-new");
+		expect(sendToVisitor.mock.calls[1]?.[1]).toMatchObject({
+			payload: {
+				visitorId: "visitor-new",
+			},
+		});
 	});
 
 	it("keeps ai pause updates private to dashboard connections", async () => {

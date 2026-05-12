@@ -174,6 +174,44 @@ describe("buildGenerationSystemPrompt", () => {
 		);
 	});
 
+	it("carries prompt-owned escalation handoff guidance through Behaviour", () => {
+		const prompt = buildGenerationSystemPrompt({
+			input: createInput({
+				conversationState: {
+					isEscalated: true,
+					escalationReason: "Needs account review",
+					hasHumanAssignee: false,
+				},
+			}) as never,
+			promptBundle: {
+				...promptBundle,
+				coreDocuments: {
+					...promptBundle.coreDocuments,
+					"behaviour.md": {
+						...promptBundle.coreDocuments["behaviour.md"],
+						content: `## Escalation Handoff Message
+Use visitorMessage from this Behaviour prompt.
+
+## Already Escalated Conversations
+Continue helping while the visitor waits.`,
+					},
+				},
+			},
+			toolset: {
+				escalate: { description: "Finish escalation" },
+				skip: { description: "Finish without changes" },
+			} as never,
+			toolNames: ["escalate", "skip"],
+		});
+
+		expect(prompt).toContain("## Behaviour");
+		expect(prompt).toContain("## Escalation Handoff Message");
+		expect(prompt).toContain("Use visitorMessage from this Behaviour prompt.");
+		expect(prompt).toContain("## Already Escalated Conversations");
+		expect(prompt).toContain("conversationEscalated=yes");
+		expect(prompt).toContain("escalationReason=Needs account review");
+	});
+
 	it("changes the prompt when any editable core generation doc changes", () => {
 		const basePromptBundle = {
 			...promptBundle,

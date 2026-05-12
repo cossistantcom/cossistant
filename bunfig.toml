@@ -1,0 +1,27 @@
+[install]
+# Bun expects seconds; 259200 = 3 days.
+minimumReleaseAge = 259200
+
+# Bun documents exact package-name excludes, so keep current workspace packages exempt.
+minimumReleaseAgeExcludes = [
+  "@cossistant/api",
+  "@cossistant/browser",
+  "@cossistant/core",
+  "@cossistant/example-nextjs-tailwind",
+  "@cossistant/facehash-landing",
+  "@cossistant/jobs",
+  "@cossistant/location",
+  "@cossistant/memory",
+  "@cossistant/next",
+  "@cossistant/react",
+  "@cossistant/redis",
+  "@cossistant/release",
+  "@cossistant/tiny-markdown",
+  "@cossistant/tinybird",
+  "@cossistant/transactional",
+  "@cossistant/types",
+  "@cossistant/typescript-config",
+  "@cossistant/web",
+  "@cossistant/workers",
+  "facehash",
+]

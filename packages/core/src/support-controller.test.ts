@@ -170,9 +170,21 @@ describe("support controller", () => {
 			},
 			visitorId: "visitor_123",
 		}));
+		const listConversationsMock = mock(async () => ({
+			conversations: [],
+			pagination: {
+				page: 1,
+				limit: 10,
+				total: 0,
+				totalPages: 0,
+				hasMore: false,
+			},
+		}));
 
 		controller.refresh = refreshMock as typeof controller.refresh;
 		client.identify = identifyMock as typeof client.identify;
+		client.listConversations =
+			listConversationsMock as typeof client.listConversations;
 
 		const receivedErrors: string[] = [];
 		const unsubscribe = controller.on("error", (event) => {
@@ -190,6 +202,7 @@ describe("support controller", () => {
 
 		expect(result?.contact.id).toBe("contact_123");
 		expect(refreshMock).toHaveBeenCalledWith({ force: true });
+		expect(listConversationsMock).toHaveBeenCalledTimes(1);
 		expect(receivedErrors).toEqual(["boom"]);
 
 		unsubscribe();

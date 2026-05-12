@@ -109,10 +109,12 @@ describe("createEscalateTool", () => {
 		});
 	});
 
-	it("reassures the visitor after escalating and records the public send", async () => {
+	it("sends the model-provided handoff after escalating and records the public send", async () => {
 		const { createEscalateTool } = await modulePromise;
 		const ctx = createContext();
 		const escalate = createEscalateTool(ctx);
+		const visitorMessage =
+			"I can't safely finish this from the information I have, so I'm bringing a teammate into the conversation.";
 
 		if (!escalate.execute) {
 			throw new Error("Expected execute handler for escalate");
@@ -122,6 +124,7 @@ describe("createEscalateTool", () => {
 			await escalate.execute(
 				{
 					reason: "Visitor requested a human",
+					visitorMessage,
 					reasoning: "Need a teammate",
 					confidence: 1,
 				} as never,
@@ -142,20 +145,18 @@ describe("createEscalateTool", () => {
 		);
 		expect(sendPublicMessageMock).toHaveBeenCalledWith(
 			expect.objectContaining({
-				text: "I've asked a team member to join the conversation. They'll be with you shortly.",
+				text: visitorMessage,
 				idempotencyKey: "public:trigger-1:escalate",
 			})
 		);
 		expect(ctx.runtimeState.publicMessagesSent).toBe(1);
 		expect(ctx.runtimeState.publicSendSequence).toBe(1);
 		expect(ctx.runtimeState.sentPublicMessageIds.has("msg-1")).toBe(true);
-		expect(ctx.runtimeState.publicReplyTexts).toEqual([
-			"I've asked a team member to join the conversation. They'll be with you shortly.",
-		]);
+		expect(ctx.runtimeState.publicReplyTexts).toEqual([visitorMessage]);
 		expect(ctx.runtimeState.finalAction?.action).toBe("escalate");
 	});
 
-	it("stays successful when the reassurance message fails after escalation", async () => {
+	it("stays successful when the handoff message fails after escalation", async () => {
 		const { createEscalateTool } = await modulePromise;
 		const ctx = createContext();
 		const escalate = createEscalateTool(ctx);
@@ -172,6 +173,8 @@ describe("createEscalateTool", () => {
 			await escalate.execute(
 				{
 					reason: "Visitor requested a human",
+					visitorMessage:
+						"I'm looping in a teammate so we can handle this properly.",
 					reasoning: "Need a teammate",
 					confidence: 1,
 				} as never,

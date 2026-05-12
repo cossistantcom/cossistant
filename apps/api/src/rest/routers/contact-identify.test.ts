@@ -4,6 +4,9 @@ import { APIKeyType } from "@cossistant/types";
 const safelyExtractRequestDataMock = mock((async () => ({})) as (
 	...args: unknown[]
 ) => Promise<unknown>);
+const safelyExtractRequestQueryMock = mock((async () => ({})) as (
+	...args: unknown[]
+) => Promise<unknown>);
 const validateResponseMock = mock(<T>(value: T) => value);
 
 const createContactMock = mock((async () => ({
@@ -36,9 +39,9 @@ const identifyContactMock = mock((async () => ({
 const linkVisitorToContactMock = mock((async () => {}) as (
 	...args: unknown[]
 ) => Promise<void>);
-const findVisitorForWebsiteMock = mock((async () => ({ id: "visitor-1" })) as (
-	...args: unknown[]
-) => Promise<unknown>);
+const getActiveVisitorForWebsiteMock = mock((async () => ({
+	id: "visitor-1",
+})) as (...args: unknown[]) => Promise<unknown>);
 const getCompleteVisitorWithContactMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
 );
@@ -50,6 +53,7 @@ const realtimeEmitMock = mock((async () => {}) as (
 
 mock.module("@api/utils/validate", () => ({
 	safelyExtractRequestData: safelyExtractRequestDataMock,
+	safelyExtractRequestQuery: safelyExtractRequestQueryMock,
 	validateResponse: validateResponseMock,
 }));
 
@@ -72,6 +76,12 @@ mock.module("@api/db/queries/contact", () => ({
 	),
 	identifyContact: identifyContactMock,
 	linkVisitorToContact: linkVisitorToContactMock,
+	listContacts: mock(async () => ({
+		items: [],
+		page: 1,
+		pageSize: 20,
+		totalCount: 0,
+	})),
 	mergeContactMetadata: mock(
 		(async () => null) as (...args: unknown[]) => Promise<null>
 	),
@@ -85,8 +95,19 @@ mock.module("@api/db/queries/contact", () => ({
 }));
 
 mock.module("@api/db/queries/visitor", () => ({
-	findVisitorForWebsite: findVisitorForWebsiteMock,
 	getCompleteVisitorWithContact: getCompleteVisitorWithContactMock,
+}));
+
+mock.module("@api/db/queries/support", () => ({
+	copyVisitorOnboardingToContactIfEmpty: mock(async () => null),
+}));
+
+mock.module("@api/db/queries/conversation-access", () => ({
+	canVisitorAccessConversation: mock(async () => false),
+	getActiveVisitorForWebsite: getActiveVisitorForWebsiteMock,
+	getConversationDeliveryVisitorIds: mock(async () => []),
+	getConversationVisibleVisitorIds: mock(async () => []),
+	resolveVisitorConversationScope: mock(async () => null),
 }));
 
 mock.module("@api/utils/format-visitor", () => ({
@@ -100,6 +121,10 @@ mock.module("@api/realtime/emitter", () => ({
 	},
 }));
 
+mock.module("@api/realtime/support-state", () => ({
+	emitSupportStateUpdated: mock(async () => null),
+}));
+
 mock.module("../middleware", () => ({
 	protectedPublicApiKeyMiddleware: [],
 	protectedPrivateApiKeyMiddleware: [],
@@ -110,12 +135,13 @@ const contactRouterModulePromise = import("./contact");
 describe("contact identify route", () => {
 	beforeEach(() => {
 		safelyExtractRequestDataMock.mockReset();
+		safelyExtractRequestQueryMock.mockReset();
 		validateResponseMock.mockReset();
 		createContactMock.mockReset();
 		upsertContactByExternalIdMock.mockReset();
 		identifyContactMock.mockReset();
 		linkVisitorToContactMock.mockReset();
-		findVisitorForWebsiteMock.mockReset();
+		getActiveVisitorForWebsiteMock.mockReset();
 		getCompleteVisitorWithContactMock.mockReset();
 		formatContactResponseMock.mockReset();
 		formatVisitorWithContactResponseMock.mockReset();
@@ -150,7 +176,14 @@ describe("contact identify route", () => {
 			updatedAt: "2026-02-24T01:00:00.000Z",
 		});
 		linkVisitorToContactMock.mockResolvedValue(undefined);
-		findVisitorForWebsiteMock.mockResolvedValue({ id: "visitor-1" });
+		getActiveVisitorForWebsiteMock.mockImplementation(async (_db, params) => ({
+			id: (params as { visitorId: string }).visitorId,
+			websiteId: "site-1",
+			organizationId: "org-1",
+			contactId: null,
+			language: null,
+			deletedAt: null,
+		}));
 		getCompleteVisitorWithContactMock.mockResolvedValue(null);
 		formatContactResponseMock.mockImplementation((record) => record);
 		formatVisitorWithContactResponseMock.mockImplementation((record) => record);
@@ -188,7 +221,7 @@ describe("contact identify route", () => {
 			error: "BAD_REQUEST",
 			message: "Either externalId or email is required",
 		});
-		expect(findVisitorForWebsiteMock).toHaveBeenCalledTimes(0);
+		expect(getActiveVisitorForWebsiteMock).toHaveBeenCalledTimes(0);
 		expect(identifyContactMock).toHaveBeenCalledTimes(0);
 	});
 
@@ -258,7 +291,8 @@ describe("contact identify route", () => {
 		};
 
 		expect(response.status).toBe(200);
-		expect(findVisitorForWebsiteMock).toHaveBeenCalledWith(db, {
+		expect(getActiveVisitorForWebsiteMock).toHaveBeenCalledWith(db, {
+			organizationId: "org-1",
 			visitorId: "visitor-header-1",
 			websiteId: "site-1",
 		});
@@ -270,7 +304,7 @@ describe("contact identify route", () => {
 		expect(payload.visitorId).toBe("visitor-header-1");
 	});
 
-	it("prefers body visitorId over X-Visitor-Id header when both are provided", async () => {
+	it("returns 400 when body visitorId and X-Visitor-Id header mismatch", async () => {
 		const db = {};
 		safelyExtractRequestDataMock.mockResolvedValue({
 			db,
@@ -297,20 +331,17 @@ describe("contact identify route", () => {
 			})
 		);
 		const payload = (await response.json()) as {
-			visitorId: string;
+			error: string;
+			message: string;
 		};
 
-		expect(response.status).toBe(200);
-		expect(findVisitorForWebsiteMock).toHaveBeenCalledWith(db, {
-			visitorId: "visitor-body-1",
-			websiteId: "site-1",
+		expect(response.status).toBe(400);
+		expect(payload).toEqual({
+			error: "BAD_REQUEST",
+			message: "Visitor ID mismatch between request and X-Visitor-Id header",
 		});
-		expect(linkVisitorToContactMock).toHaveBeenCalledWith(db, {
-			visitorId: "visitor-body-1",
-			contactId: "contact-1",
-			websiteId: "site-1",
-		});
-		expect(payload.visitorId).toBe("visitor-body-1");
+		expect(getActiveVisitorForWebsiteMock).toHaveBeenCalledTimes(0);
+		expect(linkVisitorToContactMock).toHaveBeenCalledTimes(0);
 	});
 
 	it("returns 400 when neither body nor header provides a visitorId", async () => {
@@ -348,7 +379,7 @@ describe("contact identify route", () => {
 			error: "BAD_REQUEST",
 			message: "Visitor not found, please pass a valid visitorId",
 		});
-		expect(findVisitorForWebsiteMock).toHaveBeenCalledTimes(0);
+		expect(getActiveVisitorForWebsiteMock).toHaveBeenCalledTimes(0);
 		expect(identifyContactMock).toHaveBeenCalledTimes(0);
 	});
 

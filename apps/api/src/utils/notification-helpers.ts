@@ -108,6 +108,7 @@ export async function getMemberNotificationPreference(
 	params: {
 		memberId: string;
 		organizationId: string;
+		channel?: MemberNotificationChannel;
 	}
 ) {
 	const settings = await getMemberNotificationSettings(db, {
@@ -115,11 +116,12 @@ export async function getMemberNotificationPreference(
 		organizationId: params.organizationId,
 	});
 
-	const emailNewMessageSetting = settings.settings.find(
-		(s) => s.channel === MemberNotificationChannel.EMAIL_NEW_MESSAGE
+	const channel = params.channel ?? MemberNotificationChannel.EMAIL_NEW_MESSAGE;
+	const notificationSetting = settings.settings.find(
+		(s) => s.channel === channel
 	);
 
-	return emailNewMessageSetting;
+	return notificationSetting;
 }
 
 /**

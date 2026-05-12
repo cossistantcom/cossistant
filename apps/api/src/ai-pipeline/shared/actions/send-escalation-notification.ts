@@ -5,9 +5,13 @@
  */
 
 import type { Database } from "@api/db";
-import { getNotificationData } from "@api/utils/notification-helpers";
+import {
+	getMemberNotificationPreference,
+	getNotificationData,
+} from "@api/utils/notification-helpers";
 import { sendMemberPushNotification } from "@api/workflows/message/member-push-notifier";
 import { EscalationNotification, sendEmail } from "@cossistant/transactional";
+import { MemberNotificationChannel } from "@cossistant/types";
 import type { EscalationSummary } from "./analysis/escalation-summary";
 
 type SendEscalationNotificationParams = {
@@ -99,10 +103,20 @@ export async function sendEscalationNotifications(
 		// Send email notifications
 		const emailPromises = participants.map(async (participant) => {
 			if (!participant.userEmail) {
-				return;
+				return false;
 			}
 
 			try {
+				const preference = await getMemberNotificationPreference(db, {
+					memberId: participant.memberId,
+					organizationId,
+					channel: MemberNotificationChannel.EMAIL_ESCALATION,
+				});
+
+				if (preference !== undefined && !preference.enabled) {
+					return false;
+				}
+
 				await sendEmail({
 					to: participant.userEmail,
 					subject: `🚨 Human help needed - ${websiteInfo.name}`,
@@ -123,16 +137,18 @@ export async function sendEscalationNotifications(
 				console.log(
 					`[escalation-notification] Email sent to ${participant.userEmail} for conversation ${conversationId}`
 				);
+				return true;
 			} catch (error) {
 				console.error(
 					`[escalation-notification] Failed to send email to ${participant.userEmail}:`,
 					error
 				);
+				return false;
 			}
 		});
 
 		// Wait for all notifications to complete
-		const [pushResults] = await Promise.all([
+		const [pushResults, emailResults] = await Promise.all([
 			Promise.allSettled(pushPromises),
 			Promise.allSettled(emailPromises),
 		]);
@@ -140,9 +156,12 @@ export async function sendEscalationNotifications(
 		const pushSent = pushResults.filter(
 			(r) => r.status === "fulfilled" && r.value.sent
 		).length;
+		const emailsAttempted = emailResults.filter(
+			(r) => r.status === "fulfilled" && r.value
+		).length;
 
 		console.log(
-			`[escalation-notification] Notifications sent for conversation ${conversationId}: ${pushSent} push, ${participants.length} emails attempted`
+			`[escalation-notification] Notifications sent for conversation ${conversationId}: ${pushSent} push, ${emailsAttempted} emails attempted`
 		);
 	} catch (error) {
 		// Don't throw - notification failures shouldn't block escalation

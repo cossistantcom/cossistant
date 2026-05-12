@@ -19,7 +19,6 @@ import {
 	updateConversationSentiment,
 	updateConversationTitle,
 } from "@api/db/mutations/conversation";
-import { getVisitor } from "@api/db/queries";
 import {
 	getConversationById,
 	getConversationByIdWithLastMessage,
@@ -30,6 +29,7 @@ import {
 	listConversationsHeaders,
 	upsertConversation,
 } from "@api/db/queries/conversation";
+import { canVisitorAccessConversation } from "@api/db/queries/conversation-access";
 import {
 	type conversation,
 	conversationTimelineItem,
@@ -140,6 +140,7 @@ import {
 	restError,
 	runtimeDualAuth,
 } from "../openapi";
+import { resolveRuntimeVisitorIdentity } from "../runtime-visitor";
 import type { RestContext } from "../types";
 import { mapDefaultTimelineItemForCreation } from "./conversation-default-timeline-item";
 import { persistFeedbackSubmission } from "./feedback-shared";
@@ -575,54 +576,44 @@ async function requirePrivateConversationActor(params: {
 async function resolvePublicConversationVisitor(params: {
 	c: Parameters<typeof restError>[0];
 	db: RestContext["Variables"]["db"];
+	organizationId: string;
 	websiteId: string;
-	apiKey: { keyType?: APIKeyType } | null | undefined;
-	visitorId: string | null;
+	apiKey: RestContext["Variables"]["apiKey"] | null | undefined;
+	headerVisitorId: string | null;
+	requestVisitorId?: string | null;
 }) {
-	if (params.apiKey?.keyType !== APIKeyType.PUBLIC) {
-		return { visitor: null, error: null };
-	}
-
-	if (!params.visitorId) {
-		return {
-			visitor: null,
-			error: restError(
-				params.c,
-				400,
-				"BAD_REQUEST",
-				"Visitor not found, please pass a valid visitorId"
-			),
-		};
-	}
-
-	const visitor = await getVisitor(params.db, {
-		visitorId: params.visitorId,
+	return resolveRuntimeVisitorIdentity({
+		c: params.c,
+		db: params.db,
+		apiKey: params.apiKey,
+		organizationId: params.organizationId,
+		websiteId: params.websiteId,
+		headerVisitorId: params.headerVisitorId,
+		requestVisitorId: params.requestVisitorId,
+		publicOnly: true,
 	});
-
-	if (!visitor || visitor.websiteId !== params.websiteId) {
-		return {
-			visitor: null,
-			error: restError(
-				params.c,
-				400,
-				"BAD_REQUEST",
-				"Visitor not found, please pass a valid visitorId"
-			),
-		};
-	}
-
-	return { visitor, error: null };
 }
 
-function ensureConversationViewerOwnsRecord(params: {
+async function ensurePublicConversationAccess(params: {
 	c: Parameters<typeof restError>[0];
+	db: RestContext["Variables"]["db"];
+	organizationId: string;
+	websiteId: string;
 	conversationVisitorId: string | null;
 	viewerVisitorId: string | null;
 }) {
-	if (
-		params.viewerVisitorId &&
-		params.conversationVisitorId !== params.viewerVisitorId
-	) {
+	if (!params.viewerVisitorId) {
+		return null;
+	}
+
+	const canAccess = await canVisitorAccessConversation(params.db, {
+		organizationId: params.organizationId,
+		websiteId: params.websiteId,
+		viewerVisitorId: params.viewerVisitorId,
+		conversationVisitorId: params.conversationVisitorId,
+	});
+
+	if (!canAccess) {
 		return restError(params.c, 404, "NOT_FOUND", "Conversation not found");
 	}
 
@@ -708,16 +699,26 @@ conversationRouter.openapi(
 			throw error;
 		}
 
-		const visitor = await getVisitor(db, {
-			visitorId: body.visitorId || visitorIdHeader,
+		const visitorIdentity = await resolveRuntimeVisitorIdentity({
+			c,
+			db,
+			organizationId: organization.id,
+			websiteId: website.id,
+			headerVisitorId: visitorIdHeader,
+			requestVisitorId: body.visitorId,
 		});
 
+		if (visitorIdentity.error) {
+			return visitorIdentity.error;
+		}
+
+		const visitor = visitorIdentity.visitor;
 		if (!visitor) {
-			return c.json(
-				{
-					error: "Visitor not found, please pass a valid visitorId",
-				},
-				400
+			return restError(
+				c,
+				400,
+				"BAD_REQUEST",
+				"Visitor not found, please pass a valid visitorId"
 			);
 		}
 
@@ -1056,19 +1057,30 @@ conversationRouter.openapi(
 		...runtimeDualAuth({ includeVisitorIdHeader: true }),
 	},
 	async (c) => {
-		const { db, website, organization, query, visitorIdHeader } =
+		const { db, website, organization, query, visitorIdHeader, apiKey } =
 			await safelyExtractRequestQuery(c, listConversationsRequestSchema);
 
-		const visitor = await getVisitor(db, {
-			visitorId: query.visitorId || visitorIdHeader,
+		const visitorIdentity = await resolveRuntimeVisitorIdentity({
+			c,
+			db,
+			apiKey,
+			organizationId: organization.id,
+			websiteId: website.id,
+			headerVisitorId: visitorIdHeader,
+			requestVisitorId: query.visitorId,
 		});
 
+		if (visitorIdentity.error) {
+			return visitorIdentity.error;
+		}
+
+		const visitor = visitorIdentity.visitor;
 		if (!visitor) {
-			return c.json(
-				{
-					error: "Visitor not found, please pass a valid visitorId",
-				},
-				400
+			return restError(
+				c,
+				400,
+				"BAD_REQUEST",
+				"Visitor not found, please pass a valid visitorId"
 			);
 		}
 
@@ -2626,17 +2638,21 @@ conversationRouter.openapi(
 		const publicVisitor = await resolvePublicConversationVisitor({
 			c,
 			db,
+			organizationId: organization.id,
 			websiteId: website.id,
 			apiKey,
-			visitorId: visitorIdHeader,
+			headerVisitorId: visitorIdHeader,
 		});
 
 		if (publicVisitor.error) {
 			return publicVisitor.error;
 		}
 
-		const ownershipError = ensureConversationViewerOwnsRecord({
+		const ownershipError = await ensurePublicConversationAccess({
 			c,
+			db,
+			organizationId: organization.id,
+			websiteId: website.id,
 			conversationVisitorId: conversationRecord.visitorId,
 			viewerVisitorId: publicVisitor.visitor?.id ?? null,
 		});
@@ -2718,9 +2734,14 @@ conversationRouter.openapi(
 			conversationId: c.req.param("conversationId"),
 		});
 
-		const [visitor, conversationRecord] = await Promise.all([
-			getVisitor(db, {
-				visitorId: body.visitorId || visitorIdHeader,
+		const [visitorIdentity, conversationRecord] = await Promise.all([
+			resolveRuntimeVisitorIdentity({
+				c,
+				db,
+				organizationId: organization.id,
+				websiteId: website.id,
+				headerVisitorId: visitorIdHeader,
+				requestVisitorId: body.visitorId,
 			}),
 			getConversationByIdWithLastMessage(db, {
 				organizationId: organization.id,
@@ -2729,16 +2750,37 @@ conversationRouter.openapi(
 			}),
 		]);
 
-		if (!visitor || visitor.websiteId !== website.id) {
-			return c.json(
-				{
-					error: "Visitor not found, please pass a valid visitorId",
-				},
-				400
+		if (visitorIdentity.error) {
+			return visitorIdentity.error;
+		}
+
+		const visitor = visitorIdentity.visitor;
+		if (!visitor) {
+			return restError(
+				c,
+				400,
+				"BAD_REQUEST",
+				"Visitor not found, please pass a valid visitorId"
 			);
 		}
 
-		if (!conversationRecord || conversationRecord.visitorId !== visitor.id) {
+		if (!conversationRecord) {
+			return c.json(
+				{
+					error: "Conversation not found",
+				},
+				404
+			);
+		}
+
+		const canAccessConversation = await canVisitorAccessConversation(db, {
+			organizationId: organization.id,
+			websiteId: website.id,
+			viewerVisitorId: visitor.id,
+			conversationVisitorId: conversationRecord.visitorId,
+		});
+
+		if (!canAccessConversation) {
 			return c.json(
 				{
 					error: "Conversation not found",
@@ -2815,9 +2857,14 @@ conversationRouter.openapi(
 			conversationId: c.req.param("conversationId"),
 		});
 
-		const [visitor, conversationRecord] = await Promise.all([
-			getVisitor(db, {
-				visitorId: body.visitorId || visitorIdHeader,
+		const [visitorIdentity, conversationRecord] = await Promise.all([
+			resolveRuntimeVisitorIdentity({
+				c,
+				db,
+				organizationId: organization.id,
+				websiteId: website.id,
+				headerVisitorId: visitorIdHeader,
+				requestVisitorId: body.visitorId,
 			}),
 			getConversationByIdWithLastMessage(db, {
 				organizationId: organization.id,
@@ -2826,16 +2873,37 @@ conversationRouter.openapi(
 			}),
 		]);
 
-		if (!visitor || visitor.websiteId !== website.id) {
-			return c.json(
-				{
-					error: "Visitor not found, please pass a valid visitorId",
-				},
-				400
+		if (visitorIdentity.error) {
+			return visitorIdentity.error;
+		}
+
+		const visitor = visitorIdentity.visitor;
+		if (!visitor) {
+			return restError(
+				c,
+				400,
+				"BAD_REQUEST",
+				"Visitor not found, please pass a valid visitorId"
 			);
 		}
 
-		if (!conversationRecord || conversationRecord.visitorId !== visitor.id) {
+		if (!conversationRecord) {
+			return c.json(
+				{
+					error: "Conversation not found",
+				},
+				404
+			);
+		}
+
+		const canAccessConversation = await canVisitorAccessConversation(db, {
+			organizationId: organization.id,
+			websiteId: website.id,
+			viewerVisitorId: visitor.id,
+			conversationVisitorId: conversationRecord.visitorId,
+		});
+
+		if (!canAccessConversation) {
 			return c.json(
 				{
 					error: "Conversation not found",
@@ -2950,9 +3018,14 @@ conversationRouter.openapi(
 			conversationId: c.req.param("conversationId"),
 		});
 
-		const [visitor, conversationRecord] = await Promise.all([
-			getVisitor(db, {
-				visitorId: body.visitorId || visitorIdHeader,
+		const [visitorIdentity, conversationRecord] = await Promise.all([
+			resolveRuntimeVisitorIdentity({
+				c,
+				db,
+				organizationId: organization.id,
+				websiteId: website.id,
+				headerVisitorId: visitorIdHeader,
+				requestVisitorId: body.visitorId,
 			}),
 			getConversationByIdWithLastMessage(db, {
 				organizationId: organization.id,
@@ -2961,16 +3034,37 @@ conversationRouter.openapi(
 			}),
 		]);
 
-		if (!visitor || visitor.websiteId !== website.id) {
-			return c.json(
-				{
-					error: "Visitor not found, please pass a valid visitorId",
-				},
-				400
+		if (visitorIdentity.error) {
+			return visitorIdentity.error;
+		}
+
+		const visitor = visitorIdentity.visitor;
+		if (!visitor) {
+			return restError(
+				c,
+				400,
+				"BAD_REQUEST",
+				"Visitor not found, please pass a valid visitorId"
 			);
 		}
 
-		if (!conversationRecord || conversationRecord.visitorId !== visitor.id) {
+		if (!conversationRecord) {
+			return c.json(
+				{
+					error: "Conversation not found",
+				},
+				404
+			);
+		}
+
+		const canAccessConversation = await canVisitorAccessConversation(db, {
+			organizationId: organization.id,
+			websiteId: website.id,
+			viewerVisitorId: visitor.id,
+			conversationVisitorId: conversationRecord.visitorId,
+		});
+
+		if (!canAccessConversation) {
 			return c.json(
 				{
 					error: "Conversation not found",
@@ -3069,17 +3163,21 @@ conversationRouter.openapi(
 		const publicVisitor = await resolvePublicConversationVisitor({
 			c,
 			db,
+			organizationId: organization.id,
 			websiteId: website.id,
 			apiKey,
-			visitorId: visitorIdHeader,
+			headerVisitorId: visitorIdHeader,
 		});
 
 		if (publicVisitor.error) {
 			return publicVisitor.error;
 		}
 
-		const ownershipError = ensureConversationViewerOwnsRecord({
+		const ownershipError = await ensurePublicConversationAccess({
 			c,
+			db,
+			organizationId: organization.id,
+			websiteId: website.id,
 			conversationVisitorId: conversationRecord.visitorId,
 			viewerVisitorId: publicVisitor.visitor?.id ?? null,
 		});
@@ -3239,17 +3337,21 @@ conversationRouter.openapi(
 		const publicVisitor = await resolvePublicConversationVisitor({
 			c,
 			db,
+			organizationId: organization.id,
 			websiteId: website.id,
 			apiKey,
-			visitorId: visitorIdHeader,
+			headerVisitorId: visitorIdHeader,
 		});
 
 		if (publicVisitor.error) {
 			return publicVisitor.error;
 		}
 
-		const ownershipError = ensureConversationViewerOwnsRecord({
+		const ownershipError = await ensurePublicConversationAccess({
 			c,
+			db,
+			organizationId: organization.id,
+			websiteId: website.id,
 			conversationVisitorId: conversationRecord.visitorId,
 			viewerVisitorId: publicVisitor.visitor?.id ?? null,
 		});

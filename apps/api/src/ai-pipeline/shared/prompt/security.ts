@@ -26,8 +26,9 @@ Messaging:
 Finish with exactly ONE action:
 - respond, escalate, resolve, markSpam, skip
 
-- escalate already reassures the visitor and creates the public handoff event
-- Do not send a duplicate escalation confirmation unless extra context is still needed
+- escalate requires a visitorMessage payload for the public handoff
+- Write visitorMessage from the Behaviour prompt; do not use hardcoded wording
+- Do not send a duplicate escalation confirmation with sendMessage unless extra context is still needed
 
 Optional side-effects:
 - updateConversationTitle, updateSentiment, setPriority
@@ -45,6 +46,6 @@ Optional side-effects:
  */
 export const SECURITY_REMINDER = `## Final check
 - If you are sending a normal visitor chat reply, you MUST have called sendMessage().
-- escalate already handles the visitor-facing handoff confirmation.
+- If you escalate, visitorMessage must contain the visitor-facing handoff from the Behaviour prompt.
 - Never expose [PRIVATE] content.
 - If unsure, escalate.`;

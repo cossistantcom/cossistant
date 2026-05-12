@@ -11,9 +11,6 @@ import type {
 } from "./contracts";
 import { setFinalAction, setToolError } from "./helpers";
 
-const ESCALATION_REASSURANCE_MESSAGE =
-	"I've asked a team member to join the conversation. They'll be with you shortly.";
-
 const respondSchema = z.object({
 	reasoning: z.string().min(1),
 	confidence: z.number().min(0).max(1),
@@ -21,6 +18,13 @@ const respondSchema = z.object({
 
 const escalateSchema = z.object({
 	reason: z.string().min(1),
+	visitorMessage: z
+		.string()
+		.trim()
+		.min(1)
+		.describe(
+			"Visitor-facing handoff message to send while escalating. Follow the Behaviour prompt for wording."
+		),
 	urgency: z.enum(["normal", "high", "urgent"]).optional(),
 	reasoning: z.string().min(1),
 	confidence: z.number().min(0).max(1),
@@ -40,10 +44,17 @@ const skipSchema = z.object({
 	reasoning: z.string().min(1),
 });
 
-async function sendEscalationReassurance(
-	ctx: PipelineToolContext
-): Promise<void> {
+async function sendEscalationVisitorMessage(params: {
+	ctx: PipelineToolContext;
+	visitorMessage: string;
+}): Promise<void> {
+	const { ctx, visitorMessage } = params;
 	if (!ctx.allowPublicMessages) {
+		return;
+	}
+
+	const trimmedMessage = visitorMessage.trim();
+	if (!trimmedMessage) {
 		return;
 	}
 
@@ -68,7 +79,7 @@ async function sendEscalationReassurance(
 			websiteId: ctx.websiteId,
 			visitorId: ctx.visitorId,
 			aiAgentId: ctx.aiAgentId,
-			text: ESCALATION_REASSURANCE_MESSAGE,
+			text: trimmedMessage,
 			idempotencyKey: `public:${ctx.triggerMessageId}:escalate`,
 			createdAt: new Date(Date.now() + slot),
 		});
@@ -90,7 +101,7 @@ async function sendEscalationReassurance(
 			ctx.runtimeState.publicMessagesSent += 1;
 			ctx.runtimeState.publicReplyTexts ??= [];
 			ctx.runtimeState.publicReplyTexts.push(
-				normalizePublicReplyText(ESCALATION_REASSURANCE_MESSAGE)
+				normalizePublicReplyText(trimmedMessage)
 			);
 		}
 	} catch (error) {
@@ -125,10 +136,11 @@ export function createRespondTool(ctx: PipelineToolContext) {
 export function createEscalateTool(ctx: PipelineToolContext) {
 	return tool({
 		description:
-			"Escalate this conversation to human support and finish. This tool also reassures the visitor and creates the public handoff event automatically.",
+			"Escalate this conversation to human support and finish. Provide the visitor-facing handoff message from the Behaviour prompt in visitorMessage.",
 		inputSchema: escalateSchema,
 		execute: async ({
 			reason,
+			visitorMessage,
 			reasoning,
 			confidence,
 			urgency,
@@ -164,7 +176,10 @@ export function createEscalateTool(ctx: PipelineToolContext) {
 					visitorName: ctx.visitorName,
 					urgency: urgency ?? "normal",
 				});
-				await sendEscalationReassurance(ctx);
+				await sendEscalationVisitorMessage({
+					ctx,
+					visitorMessage,
+				});
 
 				setFinalAction(ctx, {
 					action: "escalate",

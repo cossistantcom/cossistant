@@ -8,8 +8,14 @@ const validateResponseMock = mock(<T>(value: T) => value);
 const getVisitorMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
 );
+const getActiveVisitorForWebsiteMock = mock(
+	(async () => null) as (...args: unknown[]) => Promise<unknown>
+);
 const getConversationByIdWithLastMessageMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
+);
+const canVisitorAccessConversationMock = mock(
+	(async () => false) as (...args: unknown[]) => Promise<boolean>
 );
 const listFeedbackMock = mock((async () => ({
 	items: [],
@@ -37,6 +43,14 @@ function installFeedbackRouterMocks() {
 
 	mock.module("@api/db/queries/visitor", () => ({
 		getVisitor: getVisitorMock,
+	}));
+
+	mock.module("@api/db/queries/conversation-access", () => ({
+		canVisitorAccessConversation: canVisitorAccessConversationMock,
+		getActiveVisitorForWebsite: getActiveVisitorForWebsiteMock,
+		getConversationDeliveryVisitorIds: mock(async () => []),
+		getConversationVisibleVisitorIds: mock(async () => []),
+		resolveVisitorConversationScope: mock(async () => null),
 	}));
 
 	mock.module("@api/db/queries/conversation", () => ({
@@ -88,12 +102,31 @@ describe("feedback router", () => {
 		safelyExtractRequestDataMock.mockReset();
 		validateResponseMock.mockReset();
 		getVisitorMock.mockReset();
+		getActiveVisitorForWebsiteMock.mockReset();
 		getConversationByIdWithLastMessageMock.mockReset();
+		canVisitorAccessConversationMock.mockReset();
 		listFeedbackMock.mockReset();
 		getFeedbackByIdMock.mockReset();
 		persistFeedbackSubmissionMock.mockReset();
 
 		validateResponseMock.mockImplementation((value) => value);
+		getActiveVisitorForWebsiteMock.mockResolvedValue({
+			id: "visitor-1",
+			websiteId: "site-1",
+			organizationId: "org-1",
+			contactId: "contact-1",
+			language: null,
+			deletedAt: null,
+		});
+		canVisitorAccessConversationMock.mockImplementation(async (_db, params) => {
+			const accessParams = params as {
+				viewerVisitorId: string;
+				conversationVisitorId: string | null;
+			};
+			return (
+				accessParams.viewerVisitorId === accessParams.conversationVisitorId
+			);
+		});
 		listFeedbackMock.mockResolvedValue({
 			items: [],
 			pagination: {
@@ -176,6 +209,84 @@ describe("feedback router", () => {
 		expect(persistFeedbackSubmissionMock).toHaveBeenCalledTimes(0);
 	});
 
+	it("allows public feedback on a same-contact old conversation", async () => {
+		canVisitorAccessConversationMock.mockResolvedValueOnce(true);
+		getActiveVisitorForWebsiteMock.mockResolvedValueOnce({
+			id: "visitor-2",
+			websiteId: "site-1",
+			organizationId: "org-1",
+			contactId: "contact-1",
+			language: null,
+			deletedAt: null,
+		});
+		safelyExtractRequestDataMock.mockResolvedValue({
+			apiKey: { keyType: APIKeyType.PUBLIC },
+			db: {},
+			organization: { id: "org-1" },
+			website: { id: "site-1", organizationId: "org-1" },
+			body: {
+				rating: 4,
+				conversationId: "conv-1",
+			},
+			visitorIdHeader: "visitor-2",
+		});
+		getConversationByIdWithLastMessageMock.mockResolvedValue({
+			id: "conv-1",
+			visitorId: "visitor-1",
+		});
+
+		const { feedbackRouter } = await loadFeedbackRouterModule();
+		const response = await feedbackRouter.request(
+			new Request("http://localhost/", {
+				method: "POST",
+			})
+		);
+
+		const persistedArgs = persistFeedbackSubmissionMock.mock.calls[0]?.[0] as
+			| Record<string, unknown>
+			| undefined;
+
+		expect(response.status).toBe(201);
+		expect(canVisitorAccessConversationMock).toHaveBeenCalledWith(
+			{},
+			{
+				organizationId: "org-1",
+				websiteId: "site-1",
+				viewerVisitorId: "visitor-2",
+				conversationVisitorId: "visitor-1",
+			}
+		);
+		expect(persistedArgs).toMatchObject({
+			conversationId: "conv-1",
+			visitorId: "visitor-2",
+			conversationOwnerVisitorId: "visitor-1",
+		});
+	});
+
+	it("returns 400 when public feedback visitor identifiers mismatch", async () => {
+		safelyExtractRequestDataMock.mockResolvedValue({
+			apiKey: { keyType: APIKeyType.PUBLIC },
+			db: {},
+			organization: { id: "org-1" },
+			website: { id: "site-1", organizationId: "org-1" },
+			body: {
+				rating: 4,
+				visitorId: "visitor-body",
+			},
+			visitorIdHeader: "visitor-header",
+		});
+
+		const { feedbackRouter } = await loadFeedbackRouterModule();
+		const response = await feedbackRouter.request(
+			new Request("http://localhost/", {
+				method: "POST",
+			})
+		);
+
+		expect(response.status).toBe(400);
+		expect(persistFeedbackSubmissionMock).toHaveBeenCalledTimes(0);
+	});
+
 	it("persists topic, comment, and trigger for public widget submissions", async () => {
 		safelyExtractRequestDataMock.mockResolvedValue({
 			apiKey: { keyType: APIKeyType.PUBLIC },
@@ -223,6 +334,7 @@ describe("feedback router", () => {
 			websiteId: "site-1",
 			conversationId: "conv-1",
 			visitorId: "visitor-1",
+			conversationOwnerVisitorId: "visitor-1",
 			contactId: "contact-1",
 			rating: 5,
 			topic: "Bug",

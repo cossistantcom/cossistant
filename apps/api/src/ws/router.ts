@@ -30,6 +30,7 @@ type EventContext = {
 	connectionId: string;
 	userId?: string;
 	visitorId?: string;
+	visitorIds?: string[];
 	websiteId?: string;
 	organizationId?: string;
 	ws?: WebSocket;
@@ -190,16 +191,46 @@ function dispatchEvent<T extends RealtimeEventType>(
 	}
 
 	const visitorTarget = event.payload.visitorId ?? ctx.visitorId;
+	const hasExplicitVisitorTargets = Boolean(ctx.visitorIds?.length);
+	const visitorTargets = hasExplicitVisitorTargets
+		? [...new Set(ctx.visitorIds)]
+		: visitorTarget
+			? [visitorTarget]
+			: [];
 
 	// Check audience filter before sending to visitor
 	if (
 		rules.visitor &&
-		visitorTarget &&
+		visitorTargets.length > 0 &&
 		ctx.sendToVisitor &&
 		shouldSendToVisitor(event)
 	) {
-		ctx.sendToVisitor(visitorTarget, event as AnyRealtimeEvent);
+		for (const targetVisitorId of visitorTargets) {
+			ctx.sendToVisitor(
+				targetVisitorId,
+				hasExplicitVisitorTargets
+					? cloneEventForVisitorTarget(event, targetVisitorId)
+					: (event as AnyRealtimeEvent)
+			);
+		}
 	}
+}
+
+function cloneEventForVisitorTarget<T extends RealtimeEventType>(
+	event: RealtimeEvent<T>,
+	visitorId: string
+): AnyRealtimeEvent {
+	if (event.payload.visitorId === visitorId) {
+		return event as AnyRealtimeEvent;
+	}
+
+	return {
+		...event,
+		payload: {
+			...event.payload,
+			visitorId,
+		},
+	} as AnyRealtimeEvent;
 }
 
 /**

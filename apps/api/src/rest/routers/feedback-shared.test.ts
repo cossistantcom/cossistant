@@ -198,6 +198,7 @@ describe("persistFeedbackSubmission", () => {
 			expect.objectContaining({
 				db,
 				conversationId: "conv-feedback",
+				conversationOwnerVisitorId: "visitor-1",
 				visitorId: "visitor-1",
 				text: "The drawer closes unexpectedly",
 				createdAt: new Date("2026-03-11T03:00:00.000Z"),
@@ -234,6 +235,7 @@ describe("persistFeedbackSubmission", () => {
 			websiteId: "site-1",
 			conversationId: "conv-existing",
 			visitorId: "visitor-1",
+			conversationOwnerVisitorId: "visitor-old",
 			rating: 4,
 			source: "widget",
 		});
@@ -243,6 +245,8 @@ describe("persistFeedbackSubmission", () => {
 		expect(createMessageTimelineItemMock).toHaveBeenCalledWith(
 			expect.objectContaining({
 				conversationId: "conv-existing",
+				conversationOwnerVisitorId: "visitor-old",
+				visitorId: "visitor-1",
 				text: "left a 4 star review",
 				extraParts: [
 					expect.objectContaining({

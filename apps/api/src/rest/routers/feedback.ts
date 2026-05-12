@@ -1,4 +1,5 @@
 import { getConversationByIdWithLastMessage } from "@api/db/queries/conversation";
+import { canVisitorAccessConversation } from "@api/db/queries/conversation-access";
 import { getFeedbackById, listFeedback } from "@api/db/queries/feedback";
 import { getVisitor } from "@api/db/queries/visitor";
 import {
@@ -23,6 +24,7 @@ import {
 	privateControlAuth,
 	runtimeDualAuth,
 } from "../openapi";
+import { resolveRuntimeVisitorIdentity } from "../runtime-visitor";
 import type { RestContext } from "../types";
 import { persistFeedbackSubmission } from "./feedback-shared";
 
@@ -113,11 +115,23 @@ feedbackCreateRouter.openapi(
 			}
 
 			if (apiKey?.keyType === APIKeyType.PUBLIC) {
-				const visitor = await getVisitor(db, {
-					visitorId: body.visitorId || visitorIdHeader,
+				const visitorIdentity = await resolveRuntimeVisitorIdentity({
+					c,
+					db,
+					apiKey,
+					organizationId: organization.id,
+					websiteId: website.id,
+					headerVisitorId: visitorIdHeader,
+					requestVisitorId: body.visitorId,
+					publicOnly: true,
 				});
 
-				if (!visitor || visitor.websiteId !== website.id) {
+				if (visitorIdentity.error) {
+					return visitorIdentity.error;
+				}
+
+				const visitor = visitorIdentity.visitor;
+				if (!visitor) {
 					return c.json(
 						{
 							error: "BAD_REQUEST",
@@ -127,6 +141,7 @@ feedbackCreateRouter.openapi(
 					);
 				}
 
+				let conversationOwnerVisitorId: string | null = null;
 				if (body.conversationId) {
 					const conversationRecord = await getConversationByIdWithLastMessage(
 						db,
@@ -137,10 +152,7 @@ feedbackCreateRouter.openapi(
 						}
 					);
 
-					if (
-						!conversationRecord ||
-						conversationRecord.visitorId !== visitor.id
-					) {
+					if (!conversationRecord) {
 						return c.json(
 							{
 								error: "NOT_FOUND",
@@ -149,6 +161,25 @@ feedbackCreateRouter.openapi(
 							404
 						);
 					}
+
+					const canAccessConversation = await canVisitorAccessConversation(db, {
+						organizationId: organization.id,
+						websiteId: website.id,
+						viewerVisitorId: visitor.id,
+						conversationVisitorId: conversationRecord.visitorId,
+					});
+
+					if (!canAccessConversation) {
+						return c.json(
+							{
+								error: "NOT_FOUND",
+								message: "Conversation not found",
+							},
+							404
+						);
+					}
+
+					conversationOwnerVisitorId = conversationRecord.visitorId;
 				}
 
 				const { entry: authenticatedEntry } = await persistFeedbackSubmission({
@@ -158,6 +189,7 @@ feedbackCreateRouter.openapi(
 					website,
 					conversationId: body.conversationId,
 					visitorId: visitor.id,
+					conversationOwnerVisitorId,
 					contactId: visitor.contactId,
 					rating: body.rating,
 					topic: body.topic,
@@ -180,6 +212,7 @@ feedbackCreateRouter.openapi(
 				| null
 				| undefined;
 			let privateContactId = body.contactId;
+			let privateConversationOwnerVisitorId: string | null = null;
 
 			if (body.visitorId) {
 				privateVisitor = await getVisitor(db, {
@@ -219,18 +252,25 @@ feedbackCreateRouter.openapi(
 						404
 					);
 				}
+				privateConversationOwnerVisitorId = conversationRecord.visitorId;
 
-				if (
-					privateVisitor &&
-					conversationRecord.visitorId !== privateVisitor.id
-				) {
-					return c.json(
-						{
-							error: "BAD_REQUEST",
-							message: "Visitor does not match conversation",
-						},
-						400
-					);
+				if (privateVisitor) {
+					const canAccessConversation = await canVisitorAccessConversation(db, {
+						organizationId: website.organizationId,
+						websiteId: website.id,
+						viewerVisitorId: privateVisitor.id,
+						conversationVisitorId: conversationRecord.visitorId,
+					});
+
+					if (!canAccessConversation) {
+						return c.json(
+							{
+								error: "BAD_REQUEST",
+								message: "Visitor does not match conversation",
+							},
+							400
+						);
+					}
 				}
 
 				if (!privateVisitor) {
@@ -263,6 +303,7 @@ feedbackCreateRouter.openapi(
 				trigger: body.trigger,
 				source: body.source ?? "widget",
 				conversationId: body.conversationId,
+				conversationOwnerVisitorId: privateConversationOwnerVisitorId,
 				visitorId: privateVisitor?.id,
 				contactId: privateContactId,
 			});

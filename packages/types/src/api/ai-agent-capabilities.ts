@@ -332,8 +332,8 @@ const AI_AGENT_TOOL_CATALOG_RAW: readonly RawToolCatalogEntry[] = [
 
 - Choose this when human intervention is required.
 - Include a clear escalation reason payload for teammate routing.
-- This tool already reassures the visitor and creates the public handoff event.
-- Do not send a duplicate confirmation unless the visitor still needs extra context.`,
+- Include visitorMessage with the public handoff text from the Behaviour prompt.
+- The tool sends visitorMessage as the handoff; do not send a duplicate confirmation unless the visitor still needs extra context.`,
 		},
 	},
 	{

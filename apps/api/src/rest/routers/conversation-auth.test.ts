@@ -2,6 +2,8 @@ import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import { AuthValidationError } from "@api/lib/auth-validation";
 import { APIKeyType } from "@cossistant/types";
 
+mock.restore();
+
 const safelyExtractRequestDataMock = mock((async () => ({})) as (
 	...args: unknown[]
 ) => Promise<unknown>);
@@ -13,11 +15,17 @@ const validateResponseMock = mock(<T>(value: T) => value);
 const getVisitorMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
 );
+const getActiveVisitorForWebsiteMock = mock(
+	(async () => null) as (...args: unknown[]) => Promise<unknown>
+);
 const getConversationByIdWithLastMessageMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
 );
 const getConversationByIdMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
+);
+const canVisitorAccessConversationMock = mock(
+	(async () => false) as (...args: unknown[]) => Promise<boolean>
 );
 const listConversationsMock = mock((async () => ({
 	conversations: [],
@@ -79,6 +87,14 @@ mock.module("@api/utils/validate", () => ({
 mock.module("@api/db/queries", () => ({
 	getVisitor: getVisitorMock,
 	upsertVisitor: mock(async () => null),
+}));
+
+mock.module("@api/db/queries/conversation-access", () => ({
+	canVisitorAccessConversation: canVisitorAccessConversationMock,
+	getActiveVisitorForWebsite: getActiveVisitorForWebsiteMock,
+	getConversationDeliveryVisitorIds: mock(async () => []),
+	getConversationVisibleVisitorIds: mock(async () => []),
+	resolveVisitorConversationScope: mock(async () => null),
 }));
 
 mock.module("@api/db/queries/conversation", () => ({
@@ -312,8 +328,10 @@ describe("conversation auth and inbox routes", () => {
 		safelyExtractRequestQueryMock.mockReset();
 		validateResponseMock.mockReset();
 		getVisitorMock.mockReset();
+		getActiveVisitorForWebsiteMock.mockReset();
 		getConversationByIdWithLastMessageMock.mockReset();
 		getConversationByIdMock.mockReset();
+		canVisitorAccessConversationMock.mockReset();
 		listConversationsMock.mockReset();
 		getConversationTimelineItemsMock.mockReset();
 		buildConversationExportMock.mockReset();
@@ -328,6 +346,23 @@ describe("conversation auth and inbox routes", () => {
 		getVisitorMock.mockResolvedValue({
 			id: visitorId,
 			websiteId: "site-1",
+		});
+		getActiveVisitorForWebsiteMock.mockResolvedValue({
+			id: visitorId,
+			websiteId: "site-1",
+			organizationId: "org-1",
+			contactId: null,
+			language: null,
+			deletedAt: null,
+		});
+		canVisitorAccessConversationMock.mockImplementation(async (_db, params) => {
+			const accessParams = params as {
+				viewerVisitorId: string;
+				conversationVisitorId: string | null;
+			};
+			return (
+				accessParams.viewerVisitorId === accessParams.conversationVisitorId
+			);
 		});
 		getConversationByIdWithLastMessageMock.mockResolvedValue(
 			createConversationRecord()
@@ -630,6 +665,114 @@ describe("conversation auth and inbox routes", () => {
 		});
 	});
 
+	it("includes conversations from old linked visitors in public listings", async () => {
+		listConversationsMock.mockResolvedValue({
+			conversations: [
+				createConversationRecord({
+					visitorId: otherVisitorId,
+				}),
+			],
+			pagination: {
+				page: 1,
+				limit: 10,
+				total: 1,
+				totalPages: 1,
+				hasMore: false,
+			},
+		});
+		safelyExtractRequestQueryMock.mockResolvedValue({
+			db: {},
+			apiKey: { keyType: APIKeyType.PUBLIC },
+			organization: { id: "org-1" },
+			website: { id: "site-1", organizationId: "org-1" },
+			visitorIdHeader: visitorId,
+			query: {
+				visitorId,
+				page: 1,
+				limit: 10,
+				status: undefined,
+				orderBy: "updatedAt",
+				order: "desc",
+			},
+		});
+
+		const { conversationRouter } = await conversationRouterModulePromise;
+		const response = await conversationRouter.request(
+			new Request("http://localhost/?visitorId=01ARZ3NDEKTSV4RRFFQ69G5FAV", {
+				method: "GET",
+			})
+		);
+		const payload = (await response.json()) as {
+			conversations: Array<{ visitorId: string }>;
+		};
+
+		expect(response.status).toBe(200);
+		expect(payload.conversations[0]?.visitorId).toBe(otherVisitorId);
+		expect(listConversationsMock).toHaveBeenCalledWith(
+			{},
+			expect.objectContaining({
+				visitorId,
+			})
+		);
+	});
+
+	it("returns 400 when listing visitor identifiers mismatch", async () => {
+		safelyExtractRequestQueryMock.mockResolvedValue({
+			db: {},
+			apiKey: { keyType: APIKeyType.PUBLIC },
+			organization: { id: "org-1" },
+			website: { id: "site-1", organizationId: "org-1" },
+			visitorIdHeader: visitorId,
+			query: {
+				visitorId: otherVisitorId,
+				page: 1,
+				limit: 10,
+				status: undefined,
+				orderBy: "updatedAt",
+				order: "desc",
+			},
+		});
+
+		const { conversationRouter } = await conversationRouterModulePromise;
+		const response = await conversationRouter.request(
+			new Request("http://localhost/?visitorId=other", {
+				method: "GET",
+			})
+		);
+
+		expect(response.status).toBe(400);
+		expect(listConversationsMock).toHaveBeenCalledTimes(0);
+	});
+
+	it("returns 400 when the current listing visitor is deleted", async () => {
+		getActiveVisitorForWebsiteMock.mockResolvedValueOnce(null);
+		safelyExtractRequestQueryMock.mockResolvedValue({
+			db: {},
+			apiKey: { keyType: APIKeyType.PUBLIC },
+			organization: { id: "org-1" },
+			website: { id: "site-1", organizationId: "org-1" },
+			visitorIdHeader: visitorId,
+			query: {
+				visitorId,
+				page: 1,
+				limit: 10,
+				status: undefined,
+				orderBy: "updatedAt",
+				order: "desc",
+			},
+		});
+
+		const { conversationRouter } = await conversationRouterModulePromise;
+		const response = await conversationRouter.request(
+			new Request("http://localhost/?visitorId=visitor-1", {
+				method: "GET",
+			})
+		);
+
+		expect(response.status).toBe(400);
+		expect(listConversationsMock).toHaveBeenCalledTimes(0);
+	});
+
 	it("returns public metadata on visitor-owned conversation reads", async () => {
 		safelyExtractRequestDataMock.mockResolvedValue({
 			db: {},
@@ -664,6 +807,76 @@ describe("conversation auth and inbox routes", () => {
 			priority: "vip",
 			mrr: 299,
 		});
+	});
+
+	it("allows public reads for conversations owned by a linked contact visitor", async () => {
+		canVisitorAccessConversationMock.mockResolvedValueOnce(true);
+		safelyExtractRequestDataMock.mockResolvedValue({
+			db: {},
+			apiKey: { keyType: APIKeyType.PUBLIC },
+			organization: { id: "org-1" },
+			website: { id: "site-1", organizationId: "org-1" },
+			visitorIdHeader: visitorId,
+		});
+		getConversationByIdWithLastMessageMock.mockResolvedValue(
+			createConversationRecord({ visitorId: otherVisitorId })
+		);
+
+		const { conversationRouter } = await conversationRouterModulePromise;
+		const response = await conversationRouter.request(
+			new Request("http://localhost/conv-1", {
+				method: "GET",
+			})
+		);
+		const payload = (await response.json()) as {
+			conversation: { visitorId: string };
+		};
+
+		expect(response.status).toBe(200);
+		expect(payload.conversation.visitorId).toBe(otherVisitorId);
+		expect(canVisitorAccessConversationMock).toHaveBeenCalledWith(
+			{},
+			{
+				organizationId: "org-1",
+				websiteId: "site-1",
+				viewerVisitorId: visitorId,
+				conversationVisitorId: otherVisitorId,
+			}
+		);
+	});
+
+	it("allows public timeline reads for conversations owned by a linked contact visitor", async () => {
+		canVisitorAccessConversationMock.mockResolvedValueOnce(true);
+		safelyExtractRequestQueryMock.mockResolvedValue({
+			db: {},
+			apiKey: { keyType: APIKeyType.PUBLIC },
+			organization: { id: "org-1" },
+			website: { id: "site-1", organizationId: "org-1" },
+			visitorIdHeader: visitorId,
+			query: {
+				limit: 50,
+				cursor: null,
+			},
+		});
+		getConversationByIdWithLastMessageMock.mockResolvedValue(
+			createConversationRecord({ visitorId: otherVisitorId })
+		);
+
+		const { conversationRouter } = await conversationRouterModulePromise;
+		const response = await conversationRouter.request(
+			new Request("http://localhost/conv-1/timeline", {
+				method: "GET",
+			})
+		);
+
+		expect(response.status).toBe(200);
+		expect(getConversationTimelineItemsMock).toHaveBeenCalledWith(
+			{},
+			expect.objectContaining({
+				conversationId,
+				visibility: ["public"],
+			})
+		);
 	});
 
 	it("returns 404 when a public API key reads another visitor's conversation", async () => {
@@ -713,6 +926,151 @@ describe("conversation auth and inbox routes", () => {
 
 		expect(response.status).toBe(404);
 		expect(getConversationTimelineItemsMock).toHaveBeenCalledTimes(0);
+	});
+
+	it("allows public seen reads for conversations owned by a linked contact visitor", async () => {
+		canVisitorAccessConversationMock.mockResolvedValueOnce(true);
+		safelyExtractRequestQueryMock.mockResolvedValue({
+			db: {},
+			apiKey: { keyType: APIKeyType.PUBLIC },
+			organization: { id: "org-1" },
+			website: { id: "site-1", organizationId: "org-1" },
+			visitorIdHeader: visitorId,
+			query: {},
+		});
+		getConversationByIdWithLastMessageMock.mockResolvedValue(
+			createConversationRecord({ visitorId: otherVisitorId })
+		);
+
+		const { conversationRouter } = await conversationRouterModulePromise;
+		const response = await conversationRouter.request(
+			new Request("http://localhost/conv-1/seen", {
+				method: "GET",
+			})
+		);
+
+		expect(response.status).toBe(200);
+		expect(getConversationSeenDataMock).toHaveBeenCalledWith(
+			{},
+			{
+				conversationId,
+				organizationId: "org-1",
+			}
+		);
+	});
+
+	it("allows same-contact visitors to update seen, typing, and rating", async () => {
+		const { conversationRouter } = await conversationRouterModulePromise;
+		const sharedContext = {
+			db: {},
+			website: {
+				id: "site-1",
+				organizationId: "org-1",
+				defaultLanguage: "en",
+				autoTranslateEnabled: false,
+			},
+			organization: { id: "org-1" },
+			visitorIdHeader: visitorId,
+		};
+
+		for (const scenario of [
+			{
+				path: "/conv-1/seen",
+				body: { visitorId },
+				conversation: createConversationRecord({ visitorId: otherVisitorId }),
+			},
+			{
+				path: "/conv-1/typing",
+				body: { visitorId, isTyping: true, visitorPreview: "hello" },
+				conversation: createConversationRecord({ visitorId: otherVisitorId }),
+			},
+			{
+				path: "/conv-1/rating",
+				body: { visitorId, rating: 5 },
+				conversation: createConversationRecord({
+					visitorId: otherVisitorId,
+					status: "resolved",
+				}),
+			},
+		]) {
+			canVisitorAccessConversationMock.mockResolvedValueOnce(true);
+			safelyExtractRequestDataMock.mockResolvedValueOnce({
+				...sharedContext,
+				body: scenario.body,
+			});
+			getConversationByIdWithLastMessageMock.mockResolvedValueOnce(
+				scenario.conversation
+			);
+
+			const response = await conversationRouter.request(
+				new Request(`http://localhost${scenario.path}`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify(scenario.body),
+				})
+			);
+
+			expect(response.status).toBe(200);
+		}
+	});
+
+	it("rejects unrelated visitors for seen, typing, and rating updates", async () => {
+		const { conversationRouter } = await conversationRouterModulePromise;
+		const sharedContext = {
+			db: {},
+			website: {
+				id: "site-1",
+				organizationId: "org-1",
+				defaultLanguage: "en",
+				autoTranslateEnabled: false,
+			},
+			organization: { id: "org-1" },
+			visitorIdHeader: visitorId,
+		};
+
+		for (const scenario of [
+			{
+				path: "/conv-1/seen",
+				body: { visitorId },
+				conversation: createConversationRecord({ visitorId: otherVisitorId }),
+			},
+			{
+				path: "/conv-1/typing",
+				body: { visitorId, isTyping: true, visitorPreview: "hello" },
+				conversation: createConversationRecord({ visitorId: otherVisitorId }),
+			},
+			{
+				path: "/conv-1/rating",
+				body: { visitorId, rating: 5 },
+				conversation: createConversationRecord({
+					visitorId: otherVisitorId,
+					status: "resolved",
+				}),
+			},
+		]) {
+			canVisitorAccessConversationMock.mockResolvedValueOnce(false);
+			safelyExtractRequestDataMock.mockResolvedValueOnce({
+				...sharedContext,
+				body: scenario.body,
+			});
+			getConversationByIdWithLastMessageMock.mockResolvedValueOnce(
+				scenario.conversation
+			);
+
+			const response = await conversationRouter.request(
+				new Request(`http://localhost${scenario.path}`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify(scenario.body),
+				})
+			);
+
+			expect(response.status).toBe(404);
+		}
 	});
 
 	it("returns a plain-text attachment for private export requests", async () => {

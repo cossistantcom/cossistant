@@ -15,10 +15,7 @@ import {
 	upsertContactByExternalId,
 } from "@api/db/queries/contact";
 import { copyVisitorOnboardingToContactIfEmpty } from "@api/db/queries/support";
-import {
-	findVisitorForWebsite,
-	getCompleteVisitorWithContact,
-} from "@api/db/queries/visitor";
+import { getCompleteVisitorWithContact } from "@api/db/queries/visitor";
 import { realtime } from "@api/realtime/emitter";
 import { emitSupportStateUpdated } from "@api/realtime/support-state";
 import {
@@ -59,6 +56,7 @@ import {
 	requirePrivateControlContext,
 	runtimeDualAuth,
 } from "../openapi";
+import { resolveRuntimeVisitorIdentity } from "../runtime-visitor";
 import type { RestContext } from "../types";
 
 const contactRuntimeRouter = new OpenAPIHono<RestContext>();
@@ -124,7 +122,7 @@ contactRuntimeRouter.openapi(
 		path: "/identify",
 		summary: "Identify a visitor",
 		description:
-			"Creates or updates a contact for a visitor. If a contact with the same externalId or email exists, it will be updated. The visitor will be linked to the contact. Public callers may pass the visitor ID in the request body or via X-Visitor-Id, and the body value takes precedence when both are provided.",
+			"Creates or updates a contact for a visitor. If a contact with the same externalId or email exists, it will be updated. The visitor will be linked to the contact. Public callers may pass the visitor ID in the request body or via X-Visitor-Id; when both are provided they must match.",
 		request: {
 			body: {
 				content: {
@@ -162,18 +160,6 @@ contactRuntimeRouter.openapi(
 				);
 			}
 
-			const resolvedVisitorId = body.visitorId ?? visitorIdHeader;
-
-			if (!resolvedVisitorId) {
-				return c.json(
-					{
-						error: "BAD_REQUEST",
-						message: "Visitor not found, please pass a valid visitorId",
-					},
-					400
-				);
-			}
-
 			const { externalId, email } = normalizeIdentifyContactIdentifiers({
 				externalId: body.externalId,
 				email: body.email,
@@ -189,15 +175,27 @@ contactRuntimeRouter.openapi(
 				);
 			}
 
-			const visitor = await findVisitorForWebsite(db, {
-				visitorId: resolvedVisitorId,
+			const visitorIdentity = await resolveRuntimeVisitorIdentity({
+				c,
+				db,
+				organizationId: website.organizationId,
 				websiteId: website.id,
+				headerVisitorId: visitorIdHeader,
+				requestVisitorId: body.visitorId,
 			});
 
+			if (visitorIdentity.error) {
+				return visitorIdentity.error;
+			}
+
+			const visitor = visitorIdentity.visitor;
 			if (!visitor) {
 				return c.json(
-					{ error: "NOT_FOUND", message: "Visitor not found" },
-					404
+					{
+						error: "BAD_REQUEST",
+						message: "Visitor not found, please pass a valid visitorId",
+					},
+					400
 				);
 			}
 
@@ -213,19 +211,19 @@ contactRuntimeRouter.openapi(
 			});
 
 			await linkVisitorToContact(db, {
-				visitorId: resolvedVisitorId,
+				visitorId: visitor.id,
 				contactId: contact.id,
 				websiteId: website.id,
 			});
 
 			await copyVisitorOnboardingToContactIfEmpty(db, {
-				visitorId: resolvedVisitorId,
+				visitorId: visitor.id,
 				contactId: contact.id,
 				websiteId: website.id,
 			});
 
 			const visitorRecord = await getCompleteVisitorWithContact(db, {
-				visitorId: resolvedVisitorId,
+				visitorId: visitor.id,
 			});
 
 			if (visitorRecord) {
@@ -247,7 +245,7 @@ contactRuntimeRouter.openapi(
 			try {
 				await emitSupportStateUpdated({
 					db,
-					visitorId: resolvedVisitorId,
+					visitorId: visitor.id,
 					websiteId: website.id,
 					organizationId: website.organizationId,
 				});
@@ -257,7 +255,7 @@ contactRuntimeRouter.openapi(
 
 			const response: IdentifyContactResponse = {
 				contact: formatContactResponse(contact),
-				visitorId: resolvedVisitorId,
+				visitorId: visitor.id,
 			};
 
 			return c.json(

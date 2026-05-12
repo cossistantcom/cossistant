@@ -865,6 +865,7 @@ export function createSupportController(
 				await currentClient
 					.fetchSupportState({ force: true })
 					.catch(() => null);
+				await currentClient.listConversations().catch(() => null);
 				return result;
 			} catch {
 				return null;

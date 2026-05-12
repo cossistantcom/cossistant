@@ -96,6 +96,8 @@ export function AuthHandler({ user }) {
 
 Once identified, all conversations and data are linked to the [contact](/docs/concepts/contacts), even across different devices.
 
+Use a stable `externalId` from your own user records as the restore key. When the same user logs in after a reinstall, storage loss, or on another device, identifying with that `externalId` gives the new visitor access to the contact's existing conversation history. You do not need to store Cossistant's visitor ID for logged-in users.
+
 ## Learn More
 
 - **[Contacts](/docs/concepts/contacts)**: Identified visitors with metadata and cross-device support

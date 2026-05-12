@@ -147,11 +147,20 @@ const buildPipelineToolsetMock = mock(
 				execute: async (input: unknown) => {
 					const parsed = input as {
 						reason: string;
+						visitorMessage: string;
 						reasoning: string;
 						confidence: number;
 					};
 					increment("escalate");
 					incrementMutation("escalate");
+					if (parsed.visitorMessage?.trim()) {
+						context.runtimeState.publicSendSequence += 1;
+						context.runtimeState.publicMessagesSent += 1;
+						context.runtimeState.publicReplyTexts ??= [];
+						context.runtimeState.publicReplyTexts.push(
+							parsed.visitorMessage.trim()
+						);
+					}
 					context.runtimeState.finalAction = {
 						action: "escalate",
 						reasoning: parsed.reasoning || parsed.reason,
@@ -691,10 +700,12 @@ ${secondPrompt}`);
 		expect(result.error).toContain("requires sendMessage");
 	});
 
-	it("allows escalate to complete without an explicit sendMessage", async () => {
+	it("completes escalation with a model-provided visitor handoff", async () => {
 		queuedGenerateHandlers.push(async ({ options }) => {
 			await options.tools.escalate.execute({
 				reason: "Visitor requested a human",
+				visitorMessage:
+					"I'll bring a teammate into the conversation so they can help from here.",
 				reasoning: "Human help requested",
 				confidence: 1,
 			});
@@ -707,7 +718,7 @@ ${secondPrompt}`);
 		expect(result.status).toBe("completed");
 		expect(result.action.action).toBe("escalate");
 		expect(result.failureCode).toBeUndefined();
-		expect(result.publicMessagesSent).toBe(0);
+		expect(result.publicMessagesSent).toBe(1);
 	});
 
 	it("repairs a strong KB clarification-only reply into an answer-first reply", async () => {
@@ -839,12 +850,10 @@ ${secondPrompt}`);
 				query: "pricing",
 				questionContext: "How much is the product?",
 			});
-			await options.tools.sendMessage.execute({
-				message:
-					"I couldn't confirm that from the current knowledge base, so I'm looping in a teammate.",
-			});
 			await options.tools.escalate.execute({
 				reason: "Need human confirmation",
+				visitorMessage:
+					"I couldn't confirm that from the current knowledge base, so I'm looping in a teammate.",
 				reasoning: "Escalated after explaining the KB gap",
 				confidence: 1,
 			});
@@ -856,6 +865,7 @@ ${secondPrompt}`);
 
 		expect(result.status).toBe("completed");
 		expect(result.action.action).toBe("escalate");
+		expect(result.publicMessagesSent).toBe(1);
 		expect(result.attempts).toHaveLength(1);
 	});
 

@@ -64,6 +64,9 @@ const notificationFormSchema = z.object({
 	[MemberNotificationChannel.EMAIL_NEW_MESSAGE]: z.object({
 		enabled: z.boolean(),
 	}),
+	[MemberNotificationChannel.EMAIL_ESCALATION]: z.object({
+		enabled: z.boolean(),
+	}),
 	[MemberNotificationChannel.BROWSER_PUSH_NEW_MESSAGE]: z.object({
 		enabled: z.boolean(),
 	}),
@@ -198,6 +201,9 @@ function toFormValues(
 	const emailMessages = data?.settings.find(
 		(setting) => setting.channel === MemberNotificationChannel.EMAIL_NEW_MESSAGE
 	);
+	const emailEscalation = data?.settings.find(
+		(setting) => setting.channel === MemberNotificationChannel.EMAIL_ESCALATION
+	);
 	const browserPush = data?.settings.find(
 		(setting) =>
 			setting.channel === MemberNotificationChannel.BROWSER_PUSH_NEW_MESSAGE
@@ -215,6 +221,9 @@ function toFormValues(
 		},
 		[MemberNotificationChannel.EMAIL_NEW_MESSAGE]: {
 			enabled: emailMessages?.enabled ?? true,
+		},
+		[MemberNotificationChannel.EMAIL_ESCALATION]: {
+			enabled: emailEscalation?.enabled ?? emailMessages?.enabled ?? true,
 		},
 		[MemberNotificationChannel.BROWSER_PUSH_NEW_MESSAGE]: {
 			enabled: browserPush?.enabled ?? false,
@@ -433,6 +442,13 @@ export function MemberNotificationSettingsForm({
 					};
 				}
 
+				if (setting.channel === MemberNotificationChannel.EMAIL_ESCALATION) {
+					return {
+						...setting,
+						enabled: values[MemberNotificationChannel.EMAIL_ESCALATION].enabled,
+					};
+				}
+
 				if (
 					setting.channel === MemberNotificationChannel.BROWSER_PUSH_NEW_MESSAGE
 				) {
@@ -553,6 +569,37 @@ export function MemberNotificationSettingsForm({
 										<FormDescription>
 											{renderDescription(
 												MemberNotificationChannel.EMAIL_NEW_MESSAGE
+											)}
+										</FormDescription>
+									</div>
+									<FormControl>
+										<Switch
+											checked={field.value}
+											disabled={isDisabled}
+											onCheckedChange={field.onChange}
+										/>
+									</FormControl>
+								</div>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+
+					<FormField
+						control={form.control}
+						name={
+							`${MemberNotificationChannel.EMAIL_ESCALATION}.enabled` as const
+						}
+						render={({ field }) => (
+							<FormItem className="space-y-3">
+								<div className="flex items-center justify-between gap-6">
+									<div>
+										<FormLabel className="text-base">
+											Human help needed emails
+										</FormLabel>
+										<FormDescription>
+											{renderDescription(
+												MemberNotificationChannel.EMAIL_ESCALATION
 											)}
 										</FormDescription>
 									</div>

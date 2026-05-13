@@ -133,31 +133,3 @@ export const LandingTriggerContent = ({
 		<UnreadBadge className="top-0.5 right-0.5" count={unreadCount} />
 	</>
 );
-
-// =============================================================================
-// Dashboard Trigger Content
-// =============================================================================
-
-/**
- * Content for the dashboard trigger (horizontal button with text).
- */
-export const DashboardTriggerContent = ({
-	isOpen,
-	isTyping,
-	unreadCount,
-}: TriggerRenderProps) => (
-	<>
-		<TriggerIconContent
-			icon={<Icon className="size-4" name="chat" variant="filled" />}
-			iconSize="size-4"
-			isOpen={isOpen}
-			isTyping={isTyping}
-			unreadCount={unreadCount}
-		/>
-		<span className="font-medium text-sm">Need help?</span>
-		<UnreadBadge
-			className="-top-1 -right-1 bg-cossistant-orange outline-1 outline-background"
-			count={unreadCount}
-		/>
-	</>
-);

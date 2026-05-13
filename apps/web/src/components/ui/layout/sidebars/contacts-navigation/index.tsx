@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { SidebarContainer } from "@/components/ui/layout/sidebars/container";
 import { ResizableSidebar } from "@/components/ui/layout/sidebars/resizable-sidebar";
 import { SidebarItem } from "@/components/ui/layout/sidebars/sidebar-item";
+import { SidebarSupportItem } from "@/components/ui/layout/sidebars/sidebar-support-item";
 import { Separator } from "@/components/ui/separator";
 import {
 	type ContactSortField,
@@ -139,6 +140,7 @@ export function ContactsNavigationSidebar() {
 								websiteSlug={website.slug}
 							/>
 						)}
+						<SidebarSupportItem />
 						<SidebarItem href="/docs">Docs</SidebarItem>
 						<SidebarItem href={`/${website.slug}/settings`}>
 							Settings

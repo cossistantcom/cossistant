@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { SidebarContainer } from "@/components/ui/layout/sidebars/container";
 import { ResizableSidebar } from "@/components/ui/layout/sidebars/resizable-sidebar";
 import { SidebarItem } from "@/components/ui/layout/sidebars/sidebar-item";
+import { SidebarSupportItem } from "@/components/ui/layout/sidebars/sidebar-support-item";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Separator } from "@/components/ui/separator";
 import { useWebsite } from "@/contexts/website";
@@ -37,6 +38,7 @@ export function AdminNavigationSidebar() {
 								websiteSlug={website.slug}
 							/>
 						)}
+						<SidebarSupportItem />
 						<SidebarItem href="/docs">Docs</SidebarItem>
 						<SidebarItem href={`/${website.slug}/settings`}>
 							Settings

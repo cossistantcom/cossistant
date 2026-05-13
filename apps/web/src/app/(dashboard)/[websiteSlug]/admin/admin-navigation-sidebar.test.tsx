@@ -14,8 +14,45 @@ let capturedSegmentedControlProps: {
 let capturedInputPlaceholder = "";
 
 mock.module("@tanstack/react-query", () => ({
-	useQuery: () => ({
-		data: null,
+	useMutation: (options: { onSuccess?: () => void } = {}) => ({
+		isPending: false,
+		mutate: () => {
+			options.onSuccess?.();
+		},
+	}),
+	useQuery: (options?: { queryKey?: unknown[] }) => ({
+		data:
+			options?.queryKey?.[0] === "aiAgent"
+				? {
+						onboardingCompletedAt: "2026-03-10T00:00:00.000Z",
+					}
+				: null,
+	}),
+}));
+
+mock.module("next/link", () => ({
+	default: ({
+		children,
+		href,
+	}: {
+		children: React.ReactNode;
+		href: string;
+	}) => <a href={href}>{children}</a>,
+}));
+
+mock.module("@cossistant/next", () => ({
+	useConversations: () => ({
+		conversations: [],
+	}),
+	useSupport: () => ({
+		client: null,
+		unreadCount: 0,
+	}),
+}));
+
+mock.module("@cossistant/next/support", () => ({
+	useSupportNavigation: () => ({
+		navigate: () => {},
 	}),
 }));
 
@@ -71,12 +108,6 @@ mock.module("@/components/ui/layout/sidebars/resizable-sidebar", () => ({
 	),
 }));
 
-mock.module("@/components/ui/layout/sidebars/sidebar-item", () => ({
-	SidebarItem: ({ children }: { children: React.ReactNode }) => (
-		<a href="/test">{children}</a>
-	),
-}));
-
 mock.module("@/components/ui/segmented-control", () => ({
 	SegmentedControl: (props: {
 		value: AdminView;
@@ -101,6 +132,13 @@ mock.module("@/components/ui/separator", () => ({
 mock.module("@/contexts/website", () => ({
 	useWebsite: () => ({
 		slug: "acme",
+	}),
+}));
+
+mock.module("@/hooks/use-support-overlay-state", () => ({
+	useSupportOverlayState: () => ({
+		isOpen: false,
+		openSupportOverlay: () => Promise.resolve(new URLSearchParams()),
 	}),
 }));
 
@@ -130,8 +168,6 @@ mock.module("./use-admin-users-controls", () => ({
 	}),
 }));
 
-const modulePromise = import("./admin-navigation-sidebar");
-
 function resetState() {
 	adminView = "users";
 	setAdminViewCalls.length = 0;
@@ -143,12 +179,17 @@ function resetState() {
 describe("AdminNavigationSidebar", () => {
 	it("toggles between users and websites and updates search copy", async () => {
 		resetState();
-		const { AdminNavigationSidebar } = await modulePromise;
+		const { AdminNavigationSidebar } = await import(
+			`./admin-navigation-sidebar?${Math.random()}`
+		);
 
 		const usersHtml = renderToStaticMarkup(<AdminNavigationSidebar />);
 
 		expect(usersHtml).toContain("Users");
 		expect(usersHtml).toContain("Websites");
+		expect(usersHtml.indexOf("Support")).toBeLessThan(
+			usersHtml.indexOf("Docs")
+		);
 		expect(capturedSegmentedControlProps?.value).toBe("users");
 		expect(capturedInputPlaceholder).toBe("Search by name or email");
 

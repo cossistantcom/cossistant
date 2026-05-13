@@ -1,6 +1,5 @@
 "use client";
 
-import { Support } from "@cossistant/next/support";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
@@ -8,11 +7,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
 import { ChangelogNotification } from "@/components/changelog-notification";
-import { DashboardTriggerContent } from "@/components/support/custom-trigger";
 import { Button } from "@/components/ui/button";
 import { useWebsite } from "@/contexts/website";
 import { useContactVisitorDetailState } from "@/hooks/use-contact-visitor-detail-state";
 import { useLiveVisitorsOverlayState } from "@/hooks/use-live-visitors-overlay-state";
+import { useSupportOverlayState } from "@/hooks/use-support-overlay-state";
 import { authClient } from "@/lib/auth/client";
 import type { LatestRelease } from "@/lib/latest-release";
 import { useTRPC } from "@/lib/trpc/client";
@@ -39,6 +38,8 @@ export function NavigationTopbar({
 	const { activeDetail, closeDetailPage } = useContactVisitorDetailState();
 	const { closeLiveVisitorsOverlay, isOpen: isLiveVisitorsOverlayOpen } =
 		useLiveVisitorsOverlayState();
+	const { closeSupportOverlay, isOpen: isSupportOverlayOpen } =
+		useSupportOverlayState();
 	const { isChangelogOpen, setIsChangelogOpen } = useChangelogOverlayState();
 	const { data: sessionData } = authClient.useSession();
 
@@ -82,6 +83,7 @@ export function NavigationTopbar({
 					isChangelogVisible ||
 					isDetailPageOpen ||
 					isLiveVisitorsOverlayOpen ||
+					isSupportOverlayOpen ||
 					!isOnInboxView
 				)
 			) {
@@ -93,6 +95,11 @@ export function NavigationTopbar({
 
 			if (isChangelogVisible) {
 				setIsChangelogOpen(false);
+				return;
+			}
+
+			if (isSupportOverlayOpen) {
+				void closeSupportOverlay();
 				return;
 			}
 
@@ -113,6 +120,7 @@ export function NavigationTopbar({
 				isChangelogVisible ||
 				isDetailPageOpen ||
 				isLiveVisitorsOverlayOpen ||
+				isSupportOverlayOpen ||
 				!isOnInboxView,
 			preventDefault: true,
 			enableOnContentEditable: false,
@@ -122,10 +130,12 @@ export function NavigationTopbar({
 			baseInboxPath,
 			closeDetailPage,
 			closeLiveVisitorsOverlay,
+			closeSupportOverlay,
 			isChangelogVisible,
 			isDetailPageOpen,
 			isLiveVisitorsOverlayOpen,
 			isOnInboxView,
+			isSupportOverlayOpen,
 			router,
 			setIsChangelogOpen,
 		]
@@ -144,6 +154,29 @@ export function NavigationTopbar({
 					className="mr-2 size-5.5 rounded-md hover:bg-background-200"
 					onClick={() => {
 						setIsChangelogOpen(false);
+					}}
+					size="icon-small"
+					type="button"
+					variant="ghost"
+				>
+					<Icon className="size-4 text-primary" name="arrow-left" />
+					<span className="sr-only">Back</span>
+				</Button>
+			</motion.div>
+		</TooltipOnHover>
+	) : isSupportOverlayOpen ? (
+		<TooltipOnHover content="Back" shortcuts={["Esc"]} side="right">
+			<motion.div
+				animate={{ opacity: 1, scale: 1 }}
+				exit={{ opacity: 0, scale: 0.8 }}
+				initial={{ opacity: 0, scale: 0.8 }}
+				key="support-back"
+				transition={{ duration: 0.1 }}
+			>
+				<Button
+					className="mr-2 size-5.5 rounded-md hover:bg-background-200"
+					onClick={() => {
+						void closeSupportOverlay();
 					}}
 					size="icon-small"
 					type="button"
@@ -302,11 +335,6 @@ export function NavigationTopbar({
 					Contacts
 				</TopbarItem>
 				<DashboardFeedbackPopover />
-				<Support side="bottom" sideOffset={8}>
-					<Support.Trigger className="group/btn relative flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-primary/80 text-sm transition-colors hover:bg-background-300 hover:text-primary">
-						{(props) => <DashboardTriggerContent {...props} />}
-					</Support.Trigger>
-				</Support>
 			</div>
 		</header>
 	);

@@ -19,6 +19,7 @@ import { getDashboardPrefetchTasks } from "./layout-prefetch";
 import { ContactVisitorDetailOverlay } from "./overlays/detail-page-overlay";
 import { LiveVisitorsOverlay } from "./overlays/live-visitors-overlay";
 import { ModalsAndSheets } from "./overlays/modals-and-sheets";
+import { SupportOverlay } from "./overlays/support-overlay";
 import { Realtime } from "./providers/realtime";
 import { DashboardWebSocketProvider } from "./providers/websocket";
 
@@ -90,6 +91,7 @@ export default async function Layout({ children, params }: LayoutProps) {
 									<CentralContainer>{children}</CentralContainer>
 									<LiveVisitorsOverlay />
 									<ContactVisitorDetailOverlay />
+									<SupportOverlay />
 									<ModalsAndSheets />
 								</div>
 							</InboxesProvider>

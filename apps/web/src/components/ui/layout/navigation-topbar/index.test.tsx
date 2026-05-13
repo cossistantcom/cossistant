@@ -11,6 +11,7 @@ const routerPushCalls: string[] = [];
 const routerRefreshCalls: string[] = [];
 const closeDetailCalls: string[] = [];
 const closeLiveVisitorsCalls: string[] = [];
+const closeSupportOverlayCalls: string[] = [];
 const setIsChangelogOpenCalls: boolean[] = [];
 const stopImpersonatingCalls: string[] = [];
 const authStoreNotifyCalls: string[] = [];
@@ -20,6 +21,7 @@ const toastErrorCalls: string[] = [];
 let pathname = "/acme/inbox";
 let isChangelogOpen = false;
 let isLiveVisitorsOverlayOpen = false;
+let isSupportOverlayOpen = false;
 let currentUserRole: string | null = null;
 let sessionData: { session: { impersonatedBy: string | null } } | null = {
 	session: { impersonatedBy: null },
@@ -93,22 +95,6 @@ mock.module("@tanstack/react-query", () => ({
 		};
 	},
 }));
-
-mock.module("@cossistant/next/support", () => {
-	function Support({ children }: { children: React.ReactNode }) {
-		return <div>{children}</div>;
-	}
-
-	Support.Trigger = ({
-		children,
-	}: {
-		children:
-			| ((props: Record<string, never>) => React.ReactNode)
-			| React.ReactNode;
-	}) => <div>{typeof children === "function" ? children({}) : children}</div>;
-
-	return { Support };
-});
 
 mock.module("@cossistant/react/feedback", () => ({
 	useFeedbackForm: () => ({
@@ -187,10 +173,6 @@ mock.module("@/components/changelog-notification", () => ({
 	}) => <div data-changelog-open={String(open)}>{children}</div>,
 }));
 
-mock.module("@/components/support/custom-trigger", () => ({
-	DashboardTriggerContent: () => <span>Support</span>,
-}));
-
 mock.module("@/components/ui/button", () => ({
 	Button: ({
 		children,
@@ -237,6 +219,16 @@ mock.module("@/hooks/use-live-visitors-overlay-state", () => ({
 			return Promise.resolve(new URLSearchParams());
 		},
 		isOpen: isLiveVisitorsOverlayOpen,
+	}),
+}));
+
+mock.module("@/hooks/use-support-overlay-state", () => ({
+	useSupportOverlayState: () => ({
+		closeSupportOverlay: () => {
+			closeSupportOverlayCalls.push("close");
+			return Promise.resolve(new URLSearchParams());
+		},
+		isOpen: isSupportOverlayOpen,
 	}),
 }));
 
@@ -323,8 +315,6 @@ mock.module("./topbar-item", () => ({
 	}) => <a href={href}>{children}</a>,
 }));
 
-const modulePromise = import("./index");
-
 function resetState() {
 	registeredHotkeys.length = 0;
 	renderedButtonHandlers.length = 0;
@@ -332,6 +322,7 @@ function resetState() {
 	routerRefreshCalls.length = 0;
 	closeDetailCalls.length = 0;
 	closeLiveVisitorsCalls.length = 0;
+	closeSupportOverlayCalls.length = 0;
 	setIsChangelogOpenCalls.length = 0;
 	stopImpersonatingCalls.length = 0;
 	authStoreNotifyCalls.length = 0;
@@ -340,6 +331,7 @@ function resetState() {
 	pathname = "/acme/inbox";
 	isChangelogOpen = false;
 	isLiveVisitorsOverlayOpen = false;
+	isSupportOverlayOpen = false;
 	currentUserRole = null;
 	sessionData = { session: { impersonatedBy: null } };
 	activeDetail = null;
@@ -356,7 +348,7 @@ async function renderTopbar(
 		} | null;
 	}> = {}
 ) {
-	const { NavigationTopbar } = await modulePromise;
+	const { NavigationTopbar } = await import(`./index?${Math.random()}`);
 	return renderToStaticMarkup(
 		<NavigationTopbar
 			changelogContent={<div>Latest changes</div>}
@@ -424,6 +416,23 @@ describe("NavigationTopbar", () => {
 		expect(routerPushCalls).toEqual([]);
 	});
 
+	it("shows the support back button and closes the overlay on click", async () => {
+		resetState();
+		isSupportOverlayOpen = true;
+
+		const html = await renderTopbar({ latestRelease: null });
+
+		expect(html).toContain('data-slot="icon-arrow-left"');
+		expect(html).not.toContain('data-slot="logo"');
+
+		renderedButtonHandlers[0]?.();
+
+		expect(closeSupportOverlayCalls).toEqual(["close"]);
+		expect(closeLiveVisitorsCalls).toEqual([]);
+		expect(closeDetailCalls).toEqual([]);
+		expect(routerPushCalls).toEqual([]);
+	});
+
 	it("closes the detail page on Escape before any inbox navigation", async () => {
 		resetState();
 		pathname = "/acme/contacts";
@@ -465,6 +474,28 @@ describe("NavigationTopbar", () => {
 		});
 
 		expect(closeLiveVisitorsCalls).toEqual(["close"]);
+		expect(closeDetailCalls).toEqual([]);
+		expect(routerPushCalls).toEqual([]);
+	});
+
+	it("closes the support overlay on Escape before inbox navigation", async () => {
+		resetState();
+		pathname = "/acme/contacts";
+		isSupportOverlayOpen = true;
+
+		await renderTopbar();
+
+		const escapeHotkey = registeredHotkeys.find(
+			(entry) => entry.keys === "escape"
+		);
+
+		escapeHotkey?.handler({
+			preventDefault() {},
+			stopPropagation() {},
+		});
+
+		expect(closeSupportOverlayCalls).toEqual(["close"]);
+		expect(closeLiveVisitorsCalls).toEqual([]);
 		expect(closeDetailCalls).toEqual([]);
 		expect(routerPushCalls).toEqual([]);
 	});
@@ -520,6 +551,53 @@ describe("NavigationTopbar", () => {
 		expect(routerPushCalls).toEqual([]);
 	});
 
+	it("closes the support overlay before the live visitors overlay on Escape", async () => {
+		resetState();
+		pathname = "/acme/contacts";
+		isSupportOverlayOpen = true;
+		isLiveVisitorsOverlayOpen = true;
+
+		await renderTopbar({ latestRelease: null });
+
+		const escapeHotkey = registeredHotkeys.find(
+			(entry) => entry.keys === "escape"
+		);
+
+		escapeHotkey?.handler({
+			preventDefault() {},
+			stopPropagation() {},
+		});
+
+		expect(closeSupportOverlayCalls).toEqual(["close"]);
+		expect(closeLiveVisitorsCalls).toEqual([]);
+		expect(routerPushCalls).toEqual([]);
+	});
+
+	it("closes the support overlay before the detail overlay on Escape", async () => {
+		resetState();
+		pathname = "/acme/contacts";
+		isSupportOverlayOpen = true;
+		activeDetail = {
+			type: "contact",
+			contactId: "contact-1",
+		};
+
+		await renderTopbar({ latestRelease: null });
+
+		const escapeHotkey = registeredHotkeys.find(
+			(entry) => entry.keys === "escape"
+		);
+
+		escapeHotkey?.handler({
+			preventDefault() {},
+			stopPropagation() {},
+		});
+
+		expect(closeSupportOverlayCalls).toEqual(["close"]);
+		expect(closeDetailCalls).toEqual([]);
+		expect(routerPushCalls).toEqual([]);
+	});
+
 	it("keeps the existing logo and inbox-back states when no detail page is active", async () => {
 		resetState();
 		const inboxHtml = await renderTopbar({ latestRelease: null });
@@ -548,14 +626,13 @@ describe("NavigationTopbar", () => {
 		expect(closeLiveVisitorsCalls).toEqual([]);
 	});
 
-	it("renders dashboard feedback next to the custom support control", async () => {
+	it("renders dashboard feedback without the legacy support control", async () => {
 		resetState();
 
 		const html = await renderTopbar({ latestRelease: null });
 
 		expect(html).toContain("Feedback?");
-		expect(html).toContain("Support");
-		expect(html.indexOf("Feedback?")).toBeLessThan(html.indexOf("Support"));
+		expect(html).not.toContain("Support");
 	});
 
 	it("shows the admin link only for global admins", async () => {

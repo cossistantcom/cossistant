@@ -1,6 +1,5 @@
 "use client";
 
-import { useSupport } from "@cossistant/next";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -34,7 +33,6 @@ export function NavigationDropdown({ websiteSlug }: NavigationDropdownProps) {
 	const trpc = useTRPC();
 	const { data: session } = authClient.useSession();
 	const { setTheme, resolvedTheme } = useTheme();
-	const { open } = useSupport();
 	const website = useWebsite();
 	const organizationWebsites = useOrganizationWebsites();
 	const { canCreateWebsite } = useOrganizationRole();
@@ -185,10 +183,6 @@ export function NavigationDropdown({ websiteSlug }: NavigationDropdownProps) {
 
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>
-					<DropdownMenuItem onSelect={() => open()}>
-						<Icon className="mx-1.5 size-4" filledOnHover name="help" />
-						Help
-					</DropdownMenuItem>
 					<DropdownMenuItem onSelect={() => router.push("/docs")}>
 						<Icon className="mx-1.5 size-4" filledOnHover name="docs" />
 						Docs

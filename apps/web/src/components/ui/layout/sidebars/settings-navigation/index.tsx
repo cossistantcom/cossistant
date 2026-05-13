@@ -10,6 +10,7 @@ import { NavigationDropdown } from "../../../../navigation-dropdown";
 import { SidebarContainer } from "../container";
 import { ResizableSidebar } from "../resizable-sidebar";
 import { SidebarItem } from "../sidebar-item";
+import { SidebarSupportItem } from "../sidebar-support-item";
 
 export function SettingsNavigationSidebar() {
 	const website = useWebsite();
@@ -36,6 +37,7 @@ export function SettingsNavigationSidebar() {
 								websiteSlug={website.slug}
 							/>
 						)}
+						<SidebarSupportItem />
 						<SidebarItem href="/docs">Docs</SidebarItem>
 						<Separator className="opacity-30" />
 						<NavigationDropdown websiteSlug={website.slug} />

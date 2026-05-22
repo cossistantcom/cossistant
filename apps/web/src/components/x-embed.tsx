@@ -1,21 +1,37 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
-import { enrichTweet } from "react-tweet";
 import { getTweet } from "react-tweet/api";
 
 type XEmbedProps = {
 	id: string;
 };
 
-async function TweetContent({ id }: { id: string }) {
-	const tweet = await getTweet(id);
+function TweetFallback({ id }: { id: string }) {
+	return (
+		<Link
+			className="block text-muted-foreground text-sm transition-colors hover:text-foreground"
+			href={`https://x.com/i/status/${id}`}
+			rel="noopener noreferrer"
+			target="_blank"
+		>
+			View this post on X
+		</Link>
+	);
+}
 
-	if (!tweet) {
-		return null;
+async function TweetContent({ id }: { id: string }) {
+	let tweet: Awaited<ReturnType<typeof getTweet>>;
+
+	try {
+		tweet = await getTweet(id);
+	} catch {
+		return <TweetFallback id={id} />;
 	}
 
-	const enriched = enrichTweet(tweet);
+	if (!tweet) {
+		return <TweetFallback id={id} />;
+	}
 
 	return (
 		<Link
@@ -42,7 +58,7 @@ async function TweetContent({ id }: { id: string }) {
 				</div>
 			</div>
 			<p className="mt-10 whitespace-pre-wrap text-pretty text-primary/90">
-				{enriched.text}
+				{tweet.text}
 			</p>
 		</Link>
 	);

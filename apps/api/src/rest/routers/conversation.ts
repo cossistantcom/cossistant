@@ -55,6 +55,7 @@ import {
 	shouldMaskTypingPreview,
 	syncConversationVisitorTitle,
 } from "@api/lib/translation";
+import type { OpenRouterBillingSource } from "@api/lib/openrouter-byok/resolver";
 import { realtime } from "@api/realtime/emitter";
 import { getRedis } from "@api/redis";
 import { markVisitorPresence } from "@api/services/presence";
@@ -775,6 +776,7 @@ conversationRouter.openapi(
 			visitorLanguage: conversationRecord.visitorLanguage ?? null,
 		});
 		let hasBootstrapTranslationPart = false;
+		let bootstrapBillingSource: OpenRouterBillingSource | undefined;
 		const translatedDefaults: ReturnType<
 			typeof mapDefaultTimelineItemForCreation
 		>[] = [];
@@ -796,6 +798,11 @@ conversationRouter.openapi(
 						visitorLanguageHint: resolvedVisitorLanguage,
 						mode: "auto",
 						autoTranslateEnabled,
+						aiContext: {
+							db,
+							organizationId: organization.id,
+							websiteId: website.id,
+						},
 					})
 				: null;
 			const outboundTranslation =
@@ -805,6 +812,11 @@ conversationRouter.openapi(
 							sourceLanguage: website.defaultLanguage,
 							visitorLanguage: resolvedVisitorLanguage,
 							mode: "auto",
+							aiContext: {
+								db,
+								organizationId: organization.id,
+								websiteId: website.id,
+							},
 						})
 					: null;
 
@@ -816,6 +828,11 @@ conversationRouter.openapi(
 
 			if (inboundTranslation?.translationPart) {
 				hasBootstrapTranslationPart = true;
+				if (inboundTranslation.translationResult.status === "translated") {
+					bootstrapBillingSource =
+						inboundTranslation.translationResult.billingSource ??
+						bootstrapBillingSource;
+				}
 				extraParts = replaceAudienceTranslationPart(
 					extraParts,
 					"team",
@@ -825,6 +842,11 @@ conversationRouter.openapi(
 
 			if (outboundTranslation?.translationPart) {
 				hasBootstrapTranslationPart = true;
+				if (outboundTranslation.translationResult.status === "translated") {
+					bootstrapBillingSource =
+						outboundTranslation.translationResult.billingSource ??
+						bootstrapBillingSource;
+				}
 				extraParts = replaceAudienceTranslationPart(
 					extraParts,
 					"visitor",
@@ -955,6 +977,7 @@ conversationRouter.openapi(
 						visitorLanguage: resolvedVisitorLanguage,
 						hasTranslationPart: hasBootstrapTranslationPart,
 						chargeCredits: autoTranslateEnabled,
+						billingSource: bootstrapBillingSource,
 						emitRealtime: false,
 					})
 				)
@@ -2141,6 +2164,11 @@ conversationRouter.openapi(
 				websiteAutoTranslateEnabled:
 					privateContext.website.autoTranslateEnabled,
 			}),
+			aiContext: {
+				db: extracted.db,
+				organizationId: updatedConversation.organizationId,
+				websiteId: updatedConversation.websiteId,
+			},
 		});
 		const responseConversation = {
 			...updatedConversation,

@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { BackgroundTitleReviewParams } from "./title-review";
 
 const createModelMock = mock((modelId: string) => modelId);
+const createModelForWebsiteMock = mock(async (modelId: string) => ({
+	model: createModelMock(modelId),
+	billingSource: "cossistant" as const,
+}));
 const generateTextMock = mock((async () => ({
 	output: {
 		title: "Visitor asked for help",
@@ -35,10 +39,16 @@ const syncConversationVisitorTitleMock = mock(async () => ({
 
 mock.module("@api/lib/ai", () => ({
 	createModel: createModelMock,
+	createModelForWebsite: createModelForWebsiteMock,
 	generateText: generateTextMock,
 	Output: {
 		object: (params: unknown) => params,
 	},
+}));
+
+mock.module("@api/lib/openrouter-byok/resolver", () => ({
+	recordOpenRouterByokFailure: mock(async () => {}),
+	recordOpenRouterByokSuccess: mock(async () => {}),
 }));
 
 mock.module("@api/lib/ai-credits/config", () => ({
@@ -64,6 +74,24 @@ mock.module("@api/utils/timeline-item", () => ({
 }));
 
 mock.module("@api/lib/translation", () => ({
+	detectMessageLanguage: mock(() => ({
+		language: null,
+		confidence: "low",
+		source: "unknown",
+	})),
+	finalizeConversationTranslation: mock(async () => ({ status: "noop" })),
+	isAutomaticTranslationEnabled: mock(() => false),
+	prepareInboundVisitorTranslation: mock(async () => ({
+		visitorLanguage: null,
+		translationPart: null,
+		translationResult: { status: "skipped", reason: "empty" },
+	})),
+	prepareOutboundVisitorTranslation: mock(async () => ({
+		sourceLanguage: null,
+		translationPart: null,
+		translationResult: { status: "skipped", reason: "empty" },
+	})),
+	shouldMaskTypingPreview: mock(() => false),
 	syncConversationVisitorTitle: syncConversationVisitorTitleMock,
 }));
 
@@ -147,6 +175,7 @@ function createParams(
 describe("runBackgroundTitleReview", () => {
 	beforeEach(() => {
 		createModelMock.mockReset();
+		createModelForWebsiteMock.mockReset();
 		generateTextMock.mockReset();
 		resolveModelForExecutionMock.mockReset();
 		logAiPipelineMock.mockReset();
@@ -156,6 +185,10 @@ describe("runBackgroundTitleReview", () => {
 		syncConversationVisitorTitleMock.mockReset();
 
 		createModelMock.mockImplementation((modelId: string) => modelId);
+		createModelForWebsiteMock.mockImplementation(async (modelId: string) => ({
+			model: createModelMock(modelId),
+			billingSource: "cossistant" as const,
+		}));
 		resolveModelForExecutionMock.mockImplementation((modelId: string) => ({
 			modelIdResolved: modelId,
 		}));

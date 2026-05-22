@@ -18,6 +18,11 @@
 
 import { devToolsMiddleware } from "@ai-sdk/devtools";
 import { env } from "@api/env";
+import {
+	type OpenRouterBillingSource,
+	resolveOpenRouterCredentialsForWebsite,
+	type WebsiteOpenRouterContext,
+} from "@api/lib/openrouter-byok/resolver";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { embed, embedMany, type LanguageModel, wrapLanguageModel } from "ai";
 
@@ -71,6 +76,10 @@ function getOpenRouter() {
 	return openRouterInstance;
 }
 
+function createOpenRouterForApiKey(apiKey: string) {
+	return createOpenRouter({ apiKey });
+}
+
 /**
  * Model configuration options
  */
@@ -80,6 +89,15 @@ export type ModelOptions = {
 	 * Defaults to true in development, false in production
 	 */
 	devTools?: boolean;
+};
+
+export type WebsiteModelOptions = ModelOptions & {
+	context: WebsiteOpenRouterContext;
+};
+
+export type WebsiteLanguageModelResolution = {
+	model: LanguageModel;
+	billingSource: OpenRouterBillingSource;
 };
 
 type WrappableLanguageModel = Parameters<typeof wrapLanguageModel>[0]["model"];
@@ -125,6 +143,20 @@ export function createModel(
 	return wrapWithOptionalDevTools(openrouter.chat(modelId), devTools);
 }
 
+export async function createModelForWebsite(
+	modelId: string,
+	options: WebsiteModelOptions
+): Promise<WebsiteLanguageModelResolution> {
+	const { devTools = isDevToolsEnabled, context } = options;
+	const credentials = await resolveOpenRouterCredentialsForWebsite(context);
+	const openrouter = createOpenRouterForApiKey(credentials.apiKey);
+
+	return {
+		model: wrapWithOptionalDevTools(openrouter.chat(modelId), devTools),
+		billingSource: credentials.billingSource,
+	};
+}
+
 /**
  * Create a language model for structured-output calls that require a provider
  * supporting the full request parameter set.
@@ -146,6 +178,27 @@ export function createStructuredOutputModel(
 	);
 }
 
+export async function createStructuredOutputModelForWebsite(
+	modelId: string,
+	options: WebsiteModelOptions
+): Promise<WebsiteLanguageModelResolution> {
+	const { devTools = isDevToolsEnabled, context } = options;
+	const credentials = await resolveOpenRouterCredentialsForWebsite(context);
+	const openrouter = createOpenRouterForApiKey(credentials.apiKey);
+
+	return {
+		model: wrapWithOptionalDevTools(
+			openrouter.chat(modelId, {
+				provider: {
+					require_parameters: true,
+				},
+			}),
+			devTools
+		),
+		billingSource: credentials.billingSource,
+	};
+}
+
 /**
  * Create a language model WITHOUT DevTools middleware
  * Useful for high-frequency or background operations where DevTools overhead is unwanted
@@ -156,6 +209,19 @@ export function createStructuredOutputModel(
 export function createModelRaw(modelId: string): LanguageModel {
 	const openrouter = getOpenRouter();
 	return openrouter.chat(modelId);
+}
+
+export async function createModelRawForWebsite(
+	modelId: string,
+	context: WebsiteOpenRouterContext
+): Promise<WebsiteLanguageModelResolution> {
+	const credentials = await resolveOpenRouterCredentialsForWebsite(context);
+	const openrouter = createOpenRouterForApiKey(credentials.apiKey);
+
+	return {
+		model: openrouter.chat(modelId),
+		billingSource: credentials.billingSource,
+	};
 }
 
 /**

@@ -46,6 +46,12 @@ const WEBSITE_STATUS_VALUES = [
 	WebsiteStatus.INACTIVE,
 ] as const;
 
+const OPENROUTER_BYOK_STATUS_VALUES = [
+	"unchecked",
+	"valid",
+	"invalid",
+] as const;
+
 export const websiteApiKeySchema = z
 	.object({
 		id: z.ulid().openapi({
@@ -101,6 +107,55 @@ export const websiteApiKeySchema = z
 	});
 
 export type WebsiteApiKey = z.infer<typeof websiteApiKeySchema>;
+
+export const websiteOpenRouterByokSettingsSchema = z
+	.object({
+		enabled: z.boolean().openapi({
+			description:
+				"Whether this website is configured to use its saved OpenRouter key.",
+			example: true,
+		}),
+		hasKey: z.boolean().openapi({
+			description: "Whether an encrypted OpenRouter key is saved.",
+			example: true,
+		}),
+		maskedKey: z.string().nullable().openapi({
+			description: "A non-sensitive preview of the saved key.",
+			example: "sk-or-v1...abc123",
+		}),
+		lastConnectionStatus: z.enum(OPENROUTER_BYOK_STATUS_VALUES).openapi({
+			description: "The latest non-secret status recorded for this key.",
+			example: "unchecked",
+		}),
+		lastErrorCode: z.string().nullable().openapi({
+			description: "A non-secret error summary from the latest failed call.",
+			example: "provider_error",
+		}),
+		lastCheckedAt: nullableApiTimestampSchema.openapi({
+			description: "Timestamp for the latest status check.",
+			example: null,
+		}),
+		updatedAt: nullableApiTimestampSchema.openapi({
+			description: "Timestamp for the latest BYOK config update.",
+			example: "2024-01-10T12:00:00.000Z",
+		}),
+		featureAvailable: z.boolean().openapi({
+			description: "Whether the current plan can use OpenRouter BYOK.",
+			example: true,
+		}),
+		requiredPlan: z.literal("pro").openapi({
+			description: "The minimum hosted plan required for this feature.",
+			example: "pro",
+		}),
+	})
+	.openapi({
+		description:
+			"Website OpenRouter BYOK settings without exposing the plaintext key.",
+	});
+
+export type WebsiteOpenRouterByokSettings = z.infer<
+	typeof websiteOpenRouterByokSettingsSchema
+>;
 
 export const websiteSummarySchema = z
 	.object({
@@ -164,6 +219,7 @@ export const websiteDeveloperSettingsResponseSchema = z
 	.object({
 		website: websiteSummarySchema,
 		apiKeys: z.array(websiteApiKeySchema),
+		openRouterByok: websiteOpenRouterByokSettingsSchema,
 	})
 	.openapi({
 		description:
@@ -208,6 +264,71 @@ export const createWebsiteApiKeyRequestSchema = z
 
 export type CreateWebsiteApiKeyRequest = z.infer<
 	typeof createWebsiteApiKeyRequestSchema
+>;
+
+export const upsertWebsiteOpenRouterApiKeyRequestSchema = z
+	.object({
+		organizationId: z.ulid().openapi({
+			description: "The organization's unique identifier.",
+			example: "01JG000000000000000000000",
+		}),
+		websiteId: z.ulid().openapi({
+			description: "The website's unique identifier.",
+			example: "01JG000000000000000000000",
+		}),
+		apiKey: z.string().trim().min(20).max(512).openapi({
+			description: "The OpenRouter API key to encrypt and store.",
+			example: "sk-or-v1-...",
+		}),
+	})
+	.openapi({
+		description: "Payload to save a website OpenRouter BYOK key.",
+	});
+
+export type UpsertWebsiteOpenRouterApiKeyRequest = z.infer<
+	typeof upsertWebsiteOpenRouterApiKeyRequestSchema
+>;
+
+export const setWebsiteOpenRouterByokEnabledRequestSchema = z
+	.object({
+		organizationId: z.ulid().openapi({
+			description: "The organization's unique identifier.",
+			example: "01JG000000000000000000000",
+		}),
+		websiteId: z.ulid().openapi({
+			description: "The website's unique identifier.",
+			example: "01JG000000000000000000000",
+		}),
+		enabled: z.boolean().openapi({
+			description: "Whether BYOK should be enabled.",
+			example: true,
+		}),
+	})
+	.openapi({
+		description: "Payload to enable or disable website OpenRouter BYOK.",
+	});
+
+export type SetWebsiteOpenRouterByokEnabledRequest = z.infer<
+	typeof setWebsiteOpenRouterByokEnabledRequestSchema
+>;
+
+export const deleteWebsiteOpenRouterApiKeyRequestSchema = z
+	.object({
+		organizationId: z.ulid().openapi({
+			description: "The organization's unique identifier.",
+			example: "01JG000000000000000000000",
+		}),
+		websiteId: z.ulid().openapi({
+			description: "The website's unique identifier.",
+			example: "01JG000000000000000000000",
+		}),
+	})
+	.openapi({
+		description: "Payload to delete a website OpenRouter BYOK key.",
+	});
+
+export type DeleteWebsiteOpenRouterApiKeyRequest = z.infer<
+	typeof deleteWebsiteOpenRouterApiKeyRequestSchema
 >;
 
 export const websiteTeamMembersResponseSchema = z

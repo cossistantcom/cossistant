@@ -9,6 +9,10 @@ const getConversationTimelineItemsMock = mock(async () => ({
 	nextCursor: null,
 }));
 const createModelMock = mock((modelId: string) => modelId);
+const createModelForWebsiteMock = mock(async (modelId: string) => ({
+	model: createModelMock(modelId),
+	billingSource: "cossistant" as const,
+}));
 const generateTextMock = mock((async () => ({
 	output: {
 		action: "skip",
@@ -42,10 +46,16 @@ mock.module("@api/db/queries/conversation", () => ({
 
 mock.module("@api/lib/ai", () => ({
 	createModel: createModelMock,
+	createModelForWebsite: createModelForWebsiteMock,
 	generateText: generateTextMock,
 	Output: {
 		object: (params: unknown) => params,
 	},
+}));
+
+mock.module("@api/lib/openrouter-byok/resolver", () => ({
+	recordOpenRouterByokFailure: mock(async () => {}),
+	recordOpenRouterByokSuccess: mock(async () => {}),
 }));
 
 mock.module("@api/lib/ai-credits/config", () => ({
@@ -147,6 +157,7 @@ describe("runBackgroundKnowledgeGapReview", () => {
 		getActiveKnowledgeClarificationForConversationMock.mockReset();
 		getConversationTimelineItemsMock.mockReset();
 		createModelMock.mockReset();
+		createModelForWebsiteMock.mockReset();
 		generateTextMock.mockReset();
 		resolveModelForExecutionMock.mockReset();
 		requestKnowledgeClarificationMock.mockReset();
@@ -156,6 +167,10 @@ describe("runBackgroundKnowledgeGapReview", () => {
 			items: [],
 			nextCursor: null,
 		});
+		createModelForWebsiteMock.mockImplementation(async (modelId: string) => ({
+			model: createModelMock(modelId),
+			billingSource: "cossistant" as const,
+		}));
 		generateTextMock.mockResolvedValue({
 			output: {
 				action: "skip",

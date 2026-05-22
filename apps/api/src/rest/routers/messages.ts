@@ -273,6 +273,11 @@ messagesRouter.openapi(
 
 		const resolvedUserId = isPublic ? null : (body.item.userId ?? null);
 		const resolvedAiAgentId = isPublic ? null : (body.item.aiAgentId ?? null);
+		const aiContext = {
+			db,
+			organizationId: organization.id,
+			websiteId: website.id,
+		};
 		const isVisitorMessage =
 			timelineItemType === ConversationTimelineType.MESSAGE &&
 			Boolean(visitorId) &&
@@ -286,6 +291,7 @@ messagesRouter.openapi(
 					visitorLanguageHint: conversation.visitorLanguage,
 					mode: "auto",
 					autoTranslateEnabled,
+					aiContext,
 				})
 			: null;
 
@@ -298,6 +304,7 @@ messagesRouter.openapi(
 						sourceLanguage: website.defaultLanguage,
 						visitorLanguage: conversation.visitorLanguage,
 						mode: "auto",
+						aiContext,
 					})
 				: null;
 
@@ -359,6 +366,10 @@ messagesRouter.openapi(
 				visitorLanguage: inboundTranslation.visitorLanguage,
 				hasTranslationPart: Boolean(inboundTranslation.translationPart),
 				chargeCredits: autoTranslateEnabled,
+				billingSource:
+					inboundTranslation.translationResult.status === "translated"
+						? inboundTranslation.translationResult.billingSource
+						: undefined,
 			});
 		}
 
@@ -370,6 +381,10 @@ messagesRouter.openapi(
 				visitorLanguage: conversation.visitorLanguage,
 				hasTranslationPart: true,
 				chargeCredits: autoTranslateEnabled,
+				billingSource:
+					outboundTranslation.translationResult.status === "translated"
+						? outboundTranslation.translationResult.billingSource
+						: undefined,
 			});
 		}
 

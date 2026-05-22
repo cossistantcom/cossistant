@@ -1,8 +1,14 @@
 import type { Database } from "@api/db";
 import type { ConversationRecord } from "@api/db/mutations/conversation";
 import { conversation } from "@api/db/schema";
-import { createModelRaw, generateText } from "@api/lib/ai";
+import { createModelRaw, createModelRawForWebsite, generateText } from "@api/lib/ai";
 import { ingestAiCreditUsage } from "@api/lib/ai-credits/polar-meter";
+import {
+	recordOpenRouterByokFailure,
+	recordOpenRouterByokSuccess,
+	type OpenRouterBillingSource,
+	type WebsiteOpenRouterContext,
+} from "@api/lib/openrouter-byok/resolver";
 import { emitConversationTranslationUpdate } from "@api/utils/conversation-realtime";
 import {
 	getPrimaryLanguageTag,
@@ -30,6 +36,7 @@ export type TranslationResult =
 			sourceLanguage: string;
 			targetLanguage: string;
 			modelId: string;
+			billingSource?: OpenRouterBillingSource;
 	  }
 	| {
 			status: "not_needed" | "skipped";
@@ -305,6 +312,7 @@ export async function maybeTranslateText(params: {
 	sourceLanguage?: string | null;
 	targetLanguage?: string | null;
 	timeoutMs?: number;
+	aiContext?: WebsiteOpenRouterContext;
 }): Promise<TranslationResult> {
 	const trimmedText = params.text.trim();
 	const sourceLanguage = normalizeLanguageTag(params.sourceLanguage);
@@ -355,10 +363,17 @@ export async function maybeTranslateText(params: {
 		};
 	}
 
+	let billingSource: OpenRouterBillingSource | undefined;
+
 	try {
+		const modelResolution = params.aiContext
+			? await createModelRawForWebsite(AUTO_TRANSLATE_MODEL_ID, params.aiContext)
+			: null;
+		billingSource = modelResolution?.billingSource;
+
 		const result = await withTimeout(
 			generateText({
-				model: createModelRaw(AUTO_TRANSLATE_MODEL_ID),
+				model: modelResolution?.model ?? createModelRaw(AUTO_TRANSLATE_MODEL_ID),
 				temperature: 0,
 				system: `Translate MESSAGE into ${targetLanguage}. The message probably uses ${sourceLanguage}. If MESSAGE is already in ${targetLanguage}, return it unchanged. Return only the translated message. Preserve markdown, URLs, code blocks, placeholders, emoji, punctuation, and line breaks. Do not add quotes, labels, or explanations.`,
 				prompt: trimmedText,
@@ -368,6 +383,14 @@ export async function maybeTranslateText(params: {
 		const translatedText = result.text.trim();
 
 		if (!translatedText) {
+			if (params.aiContext && billingSource) {
+				await recordOpenRouterByokFailure({
+					context: params.aiContext,
+					billingSource,
+					error: new Error("empty_translation_result"),
+				});
+			}
+
 			return {
 				status: "failed",
 				reason: "empty_result",
@@ -376,14 +399,30 @@ export async function maybeTranslateText(params: {
 			};
 		}
 
+		if (params.aiContext && billingSource) {
+			await recordOpenRouterByokSuccess({
+				context: params.aiContext,
+				billingSource,
+			});
+		}
+
 		return {
 			status: "translated",
 			text: translatedText,
 			sourceLanguage,
 			targetLanguage,
 			modelId: AUTO_TRANSLATE_MODEL_ID,
+			billingSource,
 		};
 	} catch (error) {
+		if (params.aiContext && billingSource) {
+			await recordOpenRouterByokFailure({
+				context: params.aiContext,
+				billingSource,
+				error,
+			});
+		}
+
 		const reason =
 			error instanceof Error && error.message === "translation_timeout"
 				? "timeout"
@@ -430,6 +469,7 @@ export async function prepareInboundVisitorTranslation(params: {
 	visitorLanguageHint?: string | null;
 	mode: "auto" | "manual";
 	autoTranslateEnabled: boolean;
+	aiContext?: WebsiteOpenRouterContext;
 }): Promise<PreparedInboundTranslation> {
 	const detection = detectMessageLanguage({
 		text: params.text,
@@ -456,6 +496,7 @@ export async function prepareInboundVisitorTranslation(params: {
 		text: params.text,
 		sourceLanguage: visitorLanguage,
 		targetLanguage: params.websiteDefaultLanguage,
+		aiContext: params.aiContext,
 	});
 
 	return {
@@ -479,6 +520,7 @@ export async function prepareOutboundVisitorTranslation(params: {
 	sourceLanguage: string;
 	visitorLanguage?: string | null;
 	mode: "auto" | "manual";
+	aiContext?: WebsiteOpenRouterContext;
 }): Promise<PreparedOutboundTranslation> {
 	const detection = detectMessageLanguage({
 		text: params.text,
@@ -492,6 +534,7 @@ export async function prepareOutboundVisitorTranslation(params: {
 		text: params.text,
 		sourceLanguage,
 		targetLanguage: params.visitorLanguage,
+		aiContext: params.aiContext,
 	});
 
 	return {
@@ -519,6 +562,7 @@ export async function syncConversationVisitorTitle(params: {
 	websiteDefaultLanguage: string;
 	visitorLanguage?: string | null;
 	autoTranslateEnabled: boolean;
+	aiContext?: WebsiteOpenRouterContext;
 }): Promise<{
 	visitorTitle: string | null;
 	visitorTitleLanguage: string | null;
@@ -540,6 +584,7 @@ export async function syncConversationVisitorTitle(params: {
 				text: normalizedTitle,
 				sourceLanguage: params.websiteDefaultLanguage,
 				targetLanguage: normalizedVisitorLanguage,
+				aiContext: params.aiContext,
 			})
 		: null;
 
@@ -590,6 +635,7 @@ export async function activateConversationTranslation(params: {
 	chargeCredits: boolean;
 	conversationTitle?: string | null;
 	websiteDefaultLanguage?: string | null;
+	billingSource?: OpenRouterBillingSource;
 }): Promise<{
 	visitorLanguage: string | null;
 	translationActivatedAt: string | null;
@@ -601,6 +647,9 @@ export async function activateConversationTranslation(params: {
 	const normalizedVisitorLanguage = normalizeLanguageTag(
 		params.visitorLanguage
 	);
+	const shouldChargeCredits =
+		params.chargeCredits &&
+		params.billingSource !== "customer_openrouter";
 
 	const [updated] = await params.db
 		.update(conversation)
@@ -608,7 +657,7 @@ export async function activateConversationTranslation(params: {
 			visitorLanguage: normalizedVisitorLanguage ?? undefined,
 			translationActivatedAt: params.alreadyActivated ? undefined : now,
 			translationChargedAt:
-				params.chargeCredits && !params.alreadyCharged ? now : undefined,
+				shouldChargeCredits && !params.alreadyCharged ? now : undefined,
 			updatedAt: now,
 		})
 		.where(
@@ -624,7 +673,7 @@ export async function activateConversationTranslation(params: {
 			translationChargedAt: conversation.translationChargedAt,
 		});
 
-	if (params.chargeCredits && !params.alreadyCharged) {
+	if (shouldChargeCredits && !params.alreadyCharged) {
 		try {
 			await ingestAiCreditUsage({
 				organizationId: params.organizationId,
@@ -657,6 +706,11 @@ export async function activateConversationTranslation(params: {
 				websiteDefaultLanguage: params.websiteDefaultLanguage,
 				visitorLanguage: updated?.visitorLanguage ?? normalizedVisitorLanguage,
 				autoTranslateEnabled: true,
+				aiContext: {
+					db: params.db,
+					organizationId: params.organizationId,
+					websiteId: params.websiteId,
+				},
 			})
 		: { visitorTitle: null, visitorTitleLanguage: null };
 
@@ -667,7 +721,7 @@ export async function activateConversationTranslation(params: {
 			updated?.translationActivatedAt ?? (params.alreadyActivated ? null : now),
 		translationChargedAt:
 			updated?.translationChargedAt ??
-			(params.chargeCredits && !params.alreadyCharged ? now : null),
+			(shouldChargeCredits && !params.alreadyCharged ? now : null),
 		visitorTitle: titleTranslation.visitorTitle,
 		visitorTitleLanguage: titleTranslation.visitorTitleLanguage,
 	};
@@ -750,6 +804,7 @@ export async function finalizeConversationTranslation(params: {
 	visitorLanguage?: string | null;
 	hasTranslationPart: boolean;
 	chargeCredits: boolean;
+	billingSource?: OpenRouterBillingSource;
 	aiAgentId?: string | null;
 	emitRealtime?: boolean;
 }): Promise<TranslationFinalizeResult> {
@@ -771,6 +826,7 @@ export async function finalizeConversationTranslation(params: {
 			chargeCredits: params.chargeCredits,
 			conversationTitle: params.conversation.title,
 			websiteDefaultLanguage: params.websiteDefaultLanguage,
+			billingSource: params.billingSource,
 		});
 
 		if (shouldEmitRealtime) {

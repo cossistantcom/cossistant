@@ -29,7 +29,7 @@ import type {
 } from "@api/db/schema/knowledge-clarification";
 import {
 	APICallError,
-	createStructuredOutputModel,
+	createStructuredOutputModelForWebsite,
 	EmptyResponseBodyError,
 	generateEmbedding,
 	generateEmbeddings,
@@ -48,6 +48,11 @@ import {
 	extractLinkedFaqSnapshot,
 	type KnowledgeClarificationContextSnapshot,
 } from "@api/lib/knowledge-clarification-context";
+import {
+	recordOpenRouterByokFailure,
+	recordOpenRouterByokSuccess,
+	type OpenRouterBillingSource,
+} from "@api/lib/openrouter-byok/resolver";
 import { realtime } from "@api/realtime/emitter";
 import { buildClarificationRelevancePacket } from "@api/services/knowledge-clarification-relevance";
 import {
@@ -192,6 +197,7 @@ type ClarificationModelCallSuccess<TOutput> = {
 	model: ClarificationModelMetadata;
 	output: TOutput;
 	providerUsage?: ClarificationProviderUsage;
+	billingSource?: OpenRouterBillingSource;
 	attemptCount: number;
 	toolName: string | null;
 };
@@ -222,6 +228,7 @@ type ClarificationUsageEvent = {
 	stepIndex: number;
 	model: ClarificationModelMetadata;
 	providerUsage?: ClarificationProviderUsage;
+	billingSource?: OpenRouterBillingSource;
 };
 
 type ClarificationGenerationResult = {
@@ -1337,7 +1344,8 @@ function logClarificationModelAttemptFailure(params: {
 
 async function* emptyTextStream() {}
 
-function startStructuredClarificationModelWithFallback<TOutput>(params: {
+async function startStructuredClarificationModelWithFallback<TOutput>(params: {
+	db: Database;
 	request: KnowledgeClarificationRequestSelect;
 	aiAgent: AiAgentSelect;
 	schema: z.ZodType<TOutput>;
@@ -1345,16 +1353,28 @@ function startStructuredClarificationModelWithFallback<TOutput>(params: {
 	prompt: string;
 	maxOutputTokens: number;
 	progressReporter?: ClarificationProgressReporter;
-}): ClarificationModelCallStream<TOutput> {
+}): Promise<ClarificationModelCallStream<TOutput>> {
 	const resolvedModel = resolveClarificationModelForExecution(
 		params.aiAgent.model
 	);
 	let toolName: string | null = null;
 	let result: ReturnType<typeof streamText>;
+	let billingSource: OpenRouterBillingSource | undefined;
+	const openRouterContext = {
+		db: params.db,
+		organizationId: params.request.organizationId,
+		websiteId: params.request.websiteId,
+	};
 
 	try {
+		const modelResolution = await createStructuredOutputModelForWebsite(
+			resolvedModel.modelIdResolved,
+			{ context: openRouterContext }
+		);
+		billingSource = modelResolution.billingSource;
+
 		result = streamText({
-			model: createStructuredOutputModel(resolvedModel.modelIdResolved),
+			model: modelResolution.model,
 			output: Output.object({
 				schema: params.schema,
 			}),
@@ -1377,6 +1397,14 @@ function startStructuredClarificationModelWithFallback<TOutput>(params: {
 			},
 		});
 	} catch (error) {
+		if (billingSource) {
+			await recordOpenRouterByokFailure({
+				context: openRouterContext,
+				billingSource,
+				error,
+			});
+		}
+
 		if (!isRetryableClarificationGenerationError(error)) {
 			throw error;
 		}
@@ -1412,6 +1440,13 @@ function startStructuredClarificationModelWithFallback<TOutput>(params: {
 					throw new NoOutputGeneratedError();
 				}
 
+				if (billingSource) {
+					await recordOpenRouterByokSuccess({
+						context: openRouterContext,
+						billingSource,
+					});
+				}
+
 				return {
 					kind: "success",
 					model: buildClarificationModelMetadata(
@@ -1420,10 +1455,19 @@ function startStructuredClarificationModelWithFallback<TOutput>(params: {
 					),
 					output,
 					providerUsage,
+					billingSource,
 					attemptCount: 1,
 					toolName,
 				} satisfies ClarificationModelCallSuccess<TOutput>;
 			} catch (error) {
+				if (billingSource) {
+					await recordOpenRouterByokFailure({
+						context: openRouterContext,
+						billingSource,
+						error,
+					});
+				}
+
 				if (!isRetryableClarificationGenerationError(error)) {
 					throw error;
 				}
@@ -1447,6 +1491,7 @@ function startStructuredClarificationModelWithFallback<TOutput>(params: {
 }
 
 async function callStructuredClarificationModelWithFallback<TOutput>(params: {
+	db: Database;
 	request: KnowledgeClarificationRequestSelect;
 	aiAgent: AiAgentSelect;
 	schema: z.ZodType<TOutput>;
@@ -1455,7 +1500,7 @@ async function callStructuredClarificationModelWithFallback<TOutput>(params: {
 	maxOutputTokens: number;
 	progressReporter?: ClarificationProgressReporter;
 }): Promise<ClarificationModelCallResult<TOutput>> {
-	const started = startStructuredClarificationModelWithFallback(params);
+	const started = await startStructuredClarificationModelWithFallback(params);
 	return started.result;
 }
 
@@ -1607,6 +1652,7 @@ Rules:
 }
 
 async function generateClarificationInteractiveStep(params: {
+	db: Database;
 	request: KnowledgeClarificationRequestSelect;
 	aiAgent: AiAgentSelect;
 	contextSnapshot: KnowledgeClarificationContextSnapshot | null;
@@ -1622,6 +1668,7 @@ async function generateClarificationInteractiveStep(params: {
 	});
 
 	return callStructuredClarificationModelWithFallback({
+		db: params.db,
 		request: params.request,
 		aiAgent: params.aiAgent,
 		schema: clarificationInteractiveOutputSchema,
@@ -1633,6 +1680,7 @@ async function generateClarificationInteractiveStep(params: {
 }
 
 async function startClarificationInteractiveStepStream(params: {
+	db: Database;
 	request: KnowledgeClarificationRequestSelect;
 	aiAgent: AiAgentSelect;
 	contextSnapshot: KnowledgeClarificationContextSnapshot | null;
@@ -1648,6 +1696,7 @@ async function startClarificationInteractiveStepStream(params: {
 	});
 
 	return startStructuredClarificationModelWithFallback({
+		db: params.db,
 		request: params.request,
 		aiAgent: params.aiAgent,
 		schema: clarificationInteractiveOutputSchema,
@@ -1670,12 +1719,14 @@ function appendClarificationUsageEvent(params: {
 	stepIndex: number;
 	model: ClarificationModelMetadata;
 	providerUsage?: ClarificationProviderUsage;
+	billingSource?: OpenRouterBillingSource;
 }): void {
 	params.usageEvents.push({
 		phase: params.phase,
 		stepIndex: params.stepIndex,
 		model: params.model,
 		providerUsage: params.providerUsage,
+		billingSource: params.billingSource,
 	});
 }
 
@@ -1782,6 +1833,7 @@ function finalizeClarificationGeneration(params: {
 				: getCurrentClarificationStepIndex(params.turns),
 		model: params.generation.model,
 		providerUsage: params.generation.providerUsage,
+		billingSource: params.generation.billingSource,
 	});
 
 	if (params.generation.output.kind === "draft_ready") {
@@ -1857,6 +1909,7 @@ async function generateClarificationOutput(params: {
 
 	const generationStartedAt = Date.now();
 	const generation = await generateClarificationInteractiveStep({
+		db: params.db,
 		request: params.request,
 		aiAgent: params.aiAgent,
 		contextSnapshot,
@@ -1908,6 +1961,7 @@ async function startClarificationOutputStream(params: {
 
 	const generationStartedAt = Date.now();
 	const generationStream = await startClarificationInteractiveStepStream({
+		db: params.db,
 		request: params.request,
 		aiAgent: params.aiAgent,
 		contextSnapshot,
@@ -1949,6 +2003,7 @@ async function trackKnowledgeClarificationUsage(params: {
 		modelIdOriginal: params.usageEvent.model.modelIdOriginal,
 		modelMigrationApplied: params.usageEvent.model.modelMigrationApplied,
 		providerUsage: params.usageEvent.providerUsage,
+		billingSource: params.usageEvent.billingSource,
 		source: "knowledge_clarification",
 		phase: params.usageEvent.phase,
 		knowledgeClarificationRequestId: params.request.id,

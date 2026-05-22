@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 
 const createModelRawMock = mock((modelId: string) => ({ modelId }));
+const createModelRawForWebsiteMock = mock(async (modelId: string) => ({
+	model: { modelId, source: "website" },
+	billingSource: "customer_openrouter" as const,
+}));
 const generateTextMock = mock((async () => ({
 	text: "translated",
 })) as (...args: unknown[]) => Promise<unknown>);
@@ -8,9 +12,12 @@ const ingestAiCreditUsageMock = mock(async () => ({
 	status: "ingested" as const,
 }));
 const emitConversationTranslationUpdateMock = mock(async () => {});
+const recordOpenRouterByokSuccessMock = mock(async () => {});
+const recordOpenRouterByokFailureMock = mock(async () => {});
 
 mock.module("@api/lib/ai", () => ({
 	createModelRaw: createModelRawMock,
+	createModelRawForWebsite: createModelRawForWebsiteMock,
 	generateText: generateTextMock,
 }));
 
@@ -20,6 +27,11 @@ mock.module("@api/lib/ai-credits/polar-meter", () => ({
 
 mock.module("@api/utils/conversation-realtime", () => ({
 	emitConversationTranslationUpdate: emitConversationTranslationUpdateMock,
+}));
+
+mock.module("@api/lib/openrouter-byok/resolver", () => ({
+	recordOpenRouterByokFailure: recordOpenRouterByokFailureMock,
+	recordOpenRouterByokSuccess: recordOpenRouterByokSuccessMock,
 }));
 
 const translationModulePromise = import("./translation");
@@ -76,6 +88,11 @@ describe("translation helpers", () => {
 	beforeEach(() => {
 		createModelRawMock.mockReset();
 		createModelRawMock.mockImplementation((modelId: string) => ({ modelId }));
+		createModelRawForWebsiteMock.mockReset();
+		createModelRawForWebsiteMock.mockImplementation(async (modelId: string) => ({
+			model: { modelId, source: "website" },
+			billingSource: "customer_openrouter" as const,
+		}));
 		generateTextMock.mockReset();
 		generateTextMock.mockResolvedValue({
 			text: "translated",
@@ -86,6 +103,10 @@ describe("translation helpers", () => {
 		});
 		emitConversationTranslationUpdateMock.mockReset();
 		emitConversationTranslationUpdateMock.mockResolvedValue(undefined);
+		recordOpenRouterByokSuccessMock.mockReset();
+		recordOpenRouterByokSuccessMock.mockResolvedValue(undefined);
+		recordOpenRouterByokFailureMock.mockReset();
+		recordOpenRouterByokFailureMock.mockResolvedValue(undefined);
 	});
 
 	it("sends a strict fail-safe translation prompt and the raw message body", async () => {
@@ -147,6 +168,35 @@ describe("translation helpers", () => {
 			sourceLanguage: "en",
 			targetLanguage: "es",
 		});
+	});
+
+	it("uses website OpenRouter credentials when translation receives AI context", async () => {
+		const { maybeTranslateText } = await translationModulePromise;
+
+		const result = await maybeTranslateText({
+			text: "Hello there",
+			sourceLanguage: "en",
+			targetLanguage: "es",
+			aiContext: {
+				db: {} as never,
+				organizationId: "org_1",
+				websiteId: "site_1",
+			},
+		});
+
+		expect(createModelRawForWebsiteMock).toHaveBeenCalledWith(
+			"google/gemini-2.5-flash-lite",
+			expect.objectContaining({
+				organizationId: "org_1",
+				websiteId: "site_1",
+			})
+		);
+		expect(createModelRawMock).not.toHaveBeenCalled();
+		expect(result).toMatchObject({
+			status: "translated",
+			billingSource: "customer_openrouter",
+		});
+		expect(recordOpenRouterByokSuccessMock).toHaveBeenCalledTimes(1);
 	});
 
 	it("enables automatic translation only when the plan allows it and the website toggle is on", async () => {
@@ -325,6 +375,42 @@ describe("translation helpers", () => {
 			visitorTitleLanguage: "es",
 		});
 		expect(emitConversationTranslationUpdateMock).not.toHaveBeenCalled();
+		expect(harness.updateMock).toHaveBeenCalledTimes(2);
+	});
+
+	it("does not ingest translation credits for customer OpenRouter billing", async () => {
+		const { finalizeConversationTranslation } = await translationModulePromise;
+		const harness = createDbHarness([
+			[
+				{
+					visitorLanguage: "es",
+					translationActivatedAt: "2026-04-11T10:01:00.000Z",
+					translationChargedAt: null,
+				},
+			],
+			[
+				{
+					visitorTitle: "Pregunta de facturacion",
+					visitorTitleLanguage: "es",
+				},
+			],
+		]);
+
+		const result = await finalizeConversationTranslation({
+			db: harness.db as never,
+			conversation: createConversationRecord() as never,
+			websiteDefaultLanguage: "en",
+			visitorLanguage: "es",
+			hasTranslationPart: true,
+			chargeCredits: true,
+			billingSource: "customer_openrouter",
+		});
+
+		expect(result).toMatchObject({
+			status: "activated",
+			translationChargedAt: null,
+		});
+		expect(ingestAiCreditUsageMock).not.toHaveBeenCalled();
 		expect(harness.updateMock).toHaveBeenCalledTimes(2);
 	});
 });

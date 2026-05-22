@@ -142,6 +142,7 @@ export async function updateTitle(params: UpdateTitleParams): Promise<{
 		visitorLanguage:
 			translationContext.visitorLanguage ?? currentConversation.visitorLanguage,
 		autoTranslateEnabled: translationContext.autoTranslateEnabled,
+		aiContext: { db, organizationId, websiteId },
 	});
 
 	if (emitTimelineEvent) {

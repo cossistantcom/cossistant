@@ -891,6 +891,11 @@ export const aiAgentRouter = createTRPCRouter({
 				goals: input.goals,
 				agentName: input.agentName,
 				domain: websiteData.domain,
+				aiContext: {
+					db,
+					organizationId: websiteData.organizationId,
+					websiteId: websiteData.id,
+				},
 			};
 
 			console.log("[generateBasePrompt] Calling prompt generator with:", {

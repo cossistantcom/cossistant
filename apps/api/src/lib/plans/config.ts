@@ -19,6 +19,7 @@ export type FeatureKey =
 	| "custom-events"
 	| "ai-workflows"
 	| "ai-credit"
+	| "openrouter-byok"
 	| "latest-ai-models"
 	| "custom-ai-skills"
 	| "custom-ai-agent-avatar"
@@ -177,6 +178,13 @@ export const FEATURE_CONFIG: Record<FeatureKey, FeatureConfig> = {
 		unit: "credits per month",
 		category: "secondary",
 	},
+	"openrouter-byok": {
+		key: "openrouter-byok",
+		name: "Bring Your Own OpenRouter Key",
+		description:
+			"Use your own encrypted OpenRouter API key for website AI calls without consuming Cossistant AI credits",
+		category: "secondary",
+	},
 	"latest-ai-models": {
 		key: "latest-ai-models",
 		name: "Latest AI Models",
@@ -317,6 +325,7 @@ export const PLAN_CONFIG: Record<PlanName, PlanConfig> = {
 			"custom-events": true, // Included
 			"ai-workflows": true, // Included (coming soon)
 			"ai-credit": 50, // Limited AI credits
+			"openrouter-byok": false, // Pro only
 			"latest-ai-models": false, // Paid only
 			"custom-ai-skills": true, // Included
 			"custom-ai-agent-avatar": false, // Pro only
@@ -357,6 +366,7 @@ export const PLAN_CONFIG: Record<PlanName, PlanConfig> = {
 			"custom-events": true, // Included
 			"ai-workflows": true, // Included (coming soon)
 			"ai-credit": 1000, // Higher AI credits
+			"openrouter-byok": false, // Pro only
 			"latest-ai-models": true, // Included
 			"custom-ai-skills": true, // Included
 			"custom-ai-agent-avatar": false, // Pro only
@@ -397,6 +407,7 @@ export const PLAN_CONFIG: Record<PlanName, PlanConfig> = {
 			"custom-events": true, // Included
 			"ai-workflows": true, // Included (coming soon)
 			"ai-credit": 3000, // Triple AI credits
+			"openrouter-byok": true, // Included
 			"latest-ai-models": true, // Included
 			"custom-ai-skills": true, // Included
 			"custom-ai-agent-avatar": true, // Included

@@ -42,6 +42,7 @@ describe("extractDecisionSignals", () => {
 		});
 
 		const signals = extractDecisionSignals({
+			db: {} as never,
 			aiAgent: {} as never,
 			conversation: {} as never,
 			decisionMessages: [humanMessage, triggerMessage],

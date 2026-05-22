@@ -145,4 +145,49 @@ describe("trackGenerationUsage", () => {
 		expect(ingestAiCreditUsageMock).toHaveBeenCalledTimes(1);
 		expect(createTimelineItemMock).not.toHaveBeenCalled();
 	});
+
+	it("skips Polar ingestion for customer OpenRouter usage while preserving timeline telemetry", async () => {
+		const { trackGenerationUsage } = await loadUsageModule();
+
+		const result = await trackGenerationUsage({
+			db: {} as never,
+			organizationId: "org_1",
+			websiteId: "site_1",
+			conversationId: "conv_1",
+			visitorId: "visitor_1",
+			aiAgentId: "agent_1",
+			usageEventId: "usage_evt_byok",
+			modelId: "openai/gpt-5.2-chat",
+			providerUsage: {
+				inputTokens: 40,
+				outputTokens: 10,
+				totalTokens: 50,
+			},
+			source: "agent_generation",
+			billingSource: "customer_openrouter",
+		});
+
+		expect(ingestAiCreditUsageMock).not.toHaveBeenCalled();
+		expect(result.creditUsage).toMatchObject({
+			billingSource: "customer_openrouter",
+			ingestStatus: "skipped_customer_openrouter",
+			totalCredits: 1,
+		});
+
+		const timelineCreateCall = createTimelineItemMock.mock
+			.calls[0] as unknown as [Record<string, unknown>] | undefined;
+		expect(createTimelineItemMock).toHaveBeenCalledTimes(1);
+		expect(timelineCreateCall?.[0]).toMatchObject({
+			item: {
+				tool: "aiCreditUsage",
+				parts: [
+					{
+						output: {
+							totalTokens: 50,
+						},
+					},
+				],
+			},
+		});
+	});
 });

@@ -50,6 +50,12 @@ const updateKnowledgeMock = mock(async () => null);
 const createStructuredOutputModelMock = mock((modelId: string) => ({
 	modelId,
 }));
+const createStructuredOutputModelForWebsiteMock = mock(
+	async (modelId: string) => ({
+		model: createStructuredOutputModelMock(modelId),
+		billingSource: "cossistant" as const,
+	})
+);
 const createModelMock = mock((modelId: string) => modelId);
 const generateTextMock = mock((async () => ({
 	output: null,
@@ -156,6 +162,7 @@ mock.module("@api/lib/ai", () => ({
 	APICallError: APICallErrorMock,
 	createModel: createModelMock,
 	createStructuredOutputModel: createStructuredOutputModelMock,
+	createStructuredOutputModelForWebsite: createStructuredOutputModelForWebsiteMock,
 	EmptyResponseBodyError: EmptyResponseBodyErrorMock,
 	generateEmbedding: generateEmbeddingMock,
 	generateEmbeddings: generateEmbeddingsMock,
@@ -168,6 +175,11 @@ mock.module("@api/lib/ai", () => ({
 		object: outputObjectMock,
 	},
 	streamText: streamTextMock,
+}));
+
+mock.module("@api/lib/openrouter-byok/resolver", () => ({
+	recordOpenRouterByokFailure: mock(async () => {}),
+	recordOpenRouterByokSuccess: mock(async () => {}),
 }));
 
 mock.module("@api/lib/ai-credits/config", () => ({
@@ -457,6 +469,7 @@ describe("knowledge clarification usage tracking", () => {
 		getTotalKnowledgeSizeBytesMock.mockReset();
 		updateKnowledgeMock.mockReset();
 		createStructuredOutputModelMock.mockReset();
+		createStructuredOutputModelForWebsiteMock.mockReset();
 		generateEmbeddingMock.mockReset();
 		generateEmbeddingsMock.mockReset();
 		generateTextMock.mockReset();
@@ -491,6 +504,12 @@ describe("knowledge clarification usage tracking", () => {
 		createStructuredOutputModelMock.mockImplementation((modelId: string) => ({
 			modelId,
 		}));
+		createStructuredOutputModelForWebsiteMock.mockImplementation(
+			async (modelId: string) => ({
+				model: createStructuredOutputModelMock(modelId),
+				billingSource: "cossistant" as const,
+			})
+		);
 		streamTextMock.mockImplementation((options: unknown) => {
 			const resultPromise = Promise.resolve(generateTextMock(options)).then(
 				(result) => result as { output?: unknown; usage?: unknown }

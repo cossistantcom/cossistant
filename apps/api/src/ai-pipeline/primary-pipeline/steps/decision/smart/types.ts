@@ -1,3 +1,4 @@
+import type { Database } from "@api/db";
 import type { AiAgentSelect } from "@api/db/schema/ai-agent";
 import type { ConversationSelect } from "@api/db/schema/conversation";
 import type {
@@ -21,6 +22,7 @@ export type SmartDecisionResult = {
 };
 
 export type SmartDecisionInput = {
+	db: Database;
 	aiAgent: AiAgentSelect;
 	conversation: ConversationSelect;
 	decisionMessages: SegmentedConversationMessage[];

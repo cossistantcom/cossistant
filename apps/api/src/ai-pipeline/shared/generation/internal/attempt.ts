@@ -1,11 +1,16 @@
 import {
-	createModel,
+	createModelForWebsite,
 	hasToolCall,
 	type ModelMessage,
 	stepCountIs,
 	ToolLoopAgent,
 	type ToolSet,
 } from "@api/lib/ai";
+import {
+	recordOpenRouterByokFailure,
+	recordOpenRouterByokSuccess,
+	type OpenRouterBillingSource,
+} from "@api/lib/openrouter-byok/resolver";
 import type { PrepareStepFunction } from "ai";
 import { logAiPipeline } from "../../../logger";
 import { emitPipelineGenerationProgress } from "../../events";
@@ -160,6 +165,12 @@ export async function runGenerationAttempt(params: {
 	});
 
 	const deepTraceEnabled = params.input.deepTraceEnabled === true;
+	let billingSource: OpenRouterBillingSource | undefined;
+	const openRouterContext = {
+		db: params.input.db,
+		organizationId: params.input.conversation.organizationId,
+		websiteId: params.input.conversation.websiteId,
+	};
 
 	if (deepTraceEnabled) {
 		emitGenerationDebugLog(
@@ -189,8 +200,13 @@ export async function runGenerationAttempt(params: {
 			);
 		});
 
+		const modelResolution = await createModelForWebsite(params.modelId, {
+			context: openRouterContext,
+		});
+		billingSource = modelResolution.billingSource;
+
 		const agent = new ToolLoopAgent({
-			model: createModel(params.modelId),
+			model: modelResolution.model,
 			instructions: params.systemPrompt,
 			tools: params.toolsetResolution.tools,
 			prepareStep,
@@ -202,6 +218,10 @@ export async function runGenerationAttempt(params: {
 		const result = await agent.generate({
 			messages: params.messages,
 			abortSignal: generationAbortController.signal,
+		});
+		await recordOpenRouterByokSuccess({
+			context: openRouterContext,
+			billingSource,
 		});
 
 		await emitPipelineGenerationProgress({
@@ -252,6 +272,7 @@ export async function runGenerationAttempt(params: {
 				toolExecutions,
 				totalToolCalls,
 				usage: toUsage(result.usage),
+				billingSource,
 			};
 		}
 
@@ -289,6 +310,7 @@ export async function runGenerationAttempt(params: {
 				toolExecutions,
 				totalToolCalls,
 				usage: toUsage(result.usage),
+				billingSource,
 			};
 		}
 
@@ -310,8 +332,14 @@ export async function runGenerationAttempt(params: {
 			toolExecutions,
 			totalToolCalls,
 			usage: toUsage(result.usage),
+			billingSource,
 		};
 	} catch (error) {
+		await recordOpenRouterByokFailure({
+			context: openRouterContext,
+			billingSource,
+			error,
+		});
 		const durationMs = Date.now() - startedAt;
 		const toolCallsByName = { ...params.runtimeState.toolCallCounts };
 		const mutationToolCallsByName = {
@@ -370,6 +398,7 @@ export async function runGenerationAttempt(params: {
 					chargeableToolCallsByName,
 					toolExecutions,
 					totalToolCalls,
+					billingSource,
 				};
 			}
 
@@ -390,6 +419,7 @@ export async function runGenerationAttempt(params: {
 				chargeableToolCallsByName,
 				toolExecutions,
 				totalToolCalls,
+				billingSource,
 			};
 		}
 
@@ -415,6 +445,7 @@ export async function runGenerationAttempt(params: {
 			chargeableToolCallsByName,
 			toolExecutions,
 			totalToolCalls,
+			billingSource,
 		};
 	} finally {
 		clearTimeout(timeout);

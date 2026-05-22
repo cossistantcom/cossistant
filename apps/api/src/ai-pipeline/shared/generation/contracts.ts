@@ -1,6 +1,7 @@
 import type { Database } from "@api/db";
 import type { AiAgentSelect } from "@api/db/schema/ai-agent";
 import type { ConversationSelect } from "@api/db/schema/conversation";
+import type { OpenRouterBillingSource } from "@api/lib/openrouter-byok/resolver";
 import type { AiAgentToolId } from "@cossistant/types";
 import type {
 	ConversationState,
@@ -90,6 +91,7 @@ export type GenerationRuntimeResult = {
 		outputTokens?: number;
 		totalTokens?: number;
 	};
+	billingSource?: OpenRouterBillingSource;
 	error?: string;
 	aborted?: boolean;
 	failureCode?:

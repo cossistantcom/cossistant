@@ -41,6 +41,7 @@ import {
 	prepareOutboundVisitorTranslation,
 	syncConversationVisitorTitle,
 } from "@api/lib/translation";
+import type { OpenRouterBillingSource } from "@api/lib/openrouter-byok/resolver";
 import { realtime } from "@api/realtime/emitter";
 import { getRedis } from "@api/redis";
 import { createConversationEvent } from "@api/utils/conversation-event";
@@ -194,8 +195,14 @@ async function translateConversationMessageRows(params: {
 	chargeCredits: boolean;
 }) {
 	let resolvedVisitorLanguage = params.conversation.visitorLanguage;
+	let billingSource: OpenRouterBillingSource | undefined;
 	const updatedItems: ReturnType<typeof timelineItemSchema.parse>[] = [];
 	const skippedIds: string[] = [];
+	const aiContext = {
+		db: params.db,
+		organizationId: params.conversation.organizationId,
+		websiteId: params.conversation.websiteId,
+	};
 
 	for (const row of params.rows) {
 		const existingParts = Array.isArray(row.parts) ? row.parts : [];
@@ -208,12 +215,14 @@ async function translateConversationMessageRows(params: {
 					visitorLanguageHint: resolvedVisitorLanguage,
 					mode: "manual",
 					autoTranslateEnabled: true,
+					aiContext,
 				})
 			: await prepareOutboundVisitorTranslation({
 					text: row.text ?? "",
 					sourceLanguage: params.websiteDefaultLanguage,
 					visitorLanguage: resolvedVisitorLanguage,
 					mode: "manual",
+					aiContext,
 				});
 
 		if (
@@ -228,6 +237,11 @@ async function translateConversationMessageRows(params: {
 		if (!translationPart) {
 			skippedIds.push(row.id);
 			continue;
+		}
+
+		if (preparedTranslation.translationResult.status === "translated") {
+			billingSource =
+				preparedTranslation.translationResult.billingSource ?? billingSource;
 		}
 
 		const updatedItem = await updateTimelineItem({
@@ -258,6 +272,7 @@ async function translateConversationMessageRows(params: {
 			visitorLanguage: resolvedVisitorLanguage,
 			hasTranslationPart: true,
 			chargeCredits: params.chargeCredits,
+			billingSource,
 		});
 	}
 
@@ -529,6 +544,11 @@ export const conversationRouter = createTRPCRouter({
 						sourceLanguage: websiteData.defaultLanguage,
 						visitorLanguage: conversation.visitorLanguage,
 						mode: "auto",
+						aiContext: {
+							db,
+							organizationId: websiteData.organizationId,
+							websiteId: websiteData.id,
+						},
 					})
 				: null;
 
@@ -633,6 +653,10 @@ export const conversationRouter = createTRPCRouter({
 					visitorLanguage: conversation.visitorLanguage,
 					hasTranslationPart: true,
 					chargeCredits: autoTranslateEnabled,
+					billingSource:
+						outboundTranslation.translationResult.status === "translated"
+							? outboundTranslation.translationResult.billingSource
+							: undefined,
 				});
 			}
 
@@ -945,6 +969,11 @@ export const conversationRouter = createTRPCRouter({
 					planAllowsAutoTranslate: planInfo.features["auto-translate"] === true,
 					websiteAutoTranslateEnabled: website.autoTranslateEnabled,
 				}),
+				aiContext: {
+					db,
+					organizationId: updatedConversation.organizationId,
+					websiteId: updatedConversation.websiteId,
+				},
 			});
 			const responseConversation = {
 				...updatedConversation,

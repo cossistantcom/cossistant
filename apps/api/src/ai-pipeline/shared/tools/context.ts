@@ -131,6 +131,11 @@ export function createSearchKnowledgeBaseTool(ctx: PipelineToolContext) {
 							text: query,
 							sourceLanguage: queryLanguage,
 							targetLanguage: ctx.websiteDefaultLanguage,
+							aiContext: {
+								db: ctx.db,
+								organizationId: ctx.organizationId,
+								websiteId: ctx.websiteId,
+							},
 						})
 					: null;
 			const searchQuery =

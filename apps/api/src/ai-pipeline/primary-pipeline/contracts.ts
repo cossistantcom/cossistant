@@ -37,8 +37,10 @@ export type PrimaryPipelineResult = {
 			| "failed"
 			| "skipped_backoff"
 			| "skipped_disabled"
+			| "skipped_customer_openrouter"
 			| "skipped_zero"
 			| "skipped";
+		billingSource: "cossistant" | "customer_openrouter";
 	};
 	metrics: PrimaryPipelineMetrics;
 };

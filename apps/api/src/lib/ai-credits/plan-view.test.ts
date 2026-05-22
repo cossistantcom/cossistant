@@ -27,6 +27,7 @@ const basePlanInfo: PlanInfo = {
 		"latest-ai-models": false,
 		"custom-ai-skills": true,
 		"custom-ai-agent-avatar": false,
+		"openrouter-byok": false,
 		"ai-support-agents": 1,
 		"ai-agent-training-links": 10,
 		"ai-agent-training-mb": 1,

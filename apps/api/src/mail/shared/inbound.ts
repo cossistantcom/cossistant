@@ -119,6 +119,11 @@ export async function handleReceivedEmail(
 	const websiteRecord = await db.query.website.findFirst({
 		where: eq(website.id, conversation.websiteId),
 	});
+	const aiContext = {
+		db,
+		organizationId: conversation.organizationId,
+		websiteId: conversation.websiteId,
+	};
 	const autoTranslateEnabled = websiteRecord
 		? isAutomaticTranslationEnabled({
 				planAllowsAutoTranslate:
@@ -136,6 +141,7 @@ export async function handleReceivedEmail(
 					visitorLanguageHint: conversation.visitorLanguage,
 					mode: "auto",
 					autoTranslateEnabled,
+					aiContext,
 				})
 			: null;
 	const outboundTranslation =
@@ -145,6 +151,7 @@ export async function handleReceivedEmail(
 					sourceLanguage: websiteRecord.defaultLanguage,
 					visitorLanguage: conversation.visitorLanguage,
 					mode: "auto",
+					aiContext,
 				})
 			: null;
 
@@ -181,6 +188,10 @@ export async function handleReceivedEmail(
 			visitorLanguage: inboundTranslation.visitorLanguage,
 			hasTranslationPart: Boolean(inboundTranslation.translationPart),
 			chargeCredits: autoTranslateEnabled,
+			billingSource:
+				inboundTranslation.translationResult.status === "translated"
+					? inboundTranslation.translationResult.billingSource
+					: undefined,
 		});
 	}
 
@@ -192,6 +203,10 @@ export async function handleReceivedEmail(
 			visitorLanguage: conversation.visitorLanguage,
 			hasTranslationPart: true,
 			chargeCredits: autoTranslateEnabled,
+			billingSource:
+				outboundTranslation.translationResult.status === "translated"
+					? outboundTranslation.translationResult.billingSource
+					: undefined,
 		});
 	}
 

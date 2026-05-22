@@ -1,8 +1,12 @@
 import type { Database } from "@api/db";
 import type { AiAgentSelect } from "@api/db/schema/ai-agent";
 import type { ConversationSelect } from "@api/db/schema/conversation";
-import { createModel, generateText, Output } from "@api/lib/ai";
+import { createModelForWebsite, generateText, Output } from "@api/lib/ai";
 import { resolveModelForExecution } from "@api/lib/ai-credits/config";
+import {
+	recordOpenRouterByokFailure,
+	recordOpenRouterByokSuccess,
+} from "@api/lib/openrouter-byok/resolver";
 import { z } from "zod";
 import { logAiPipeline } from "../logger";
 import type {
@@ -322,9 +326,17 @@ export async function runBackgroundTitleReview(
 		let reason = "";
 		let confidence: number | null = null;
 		const modelResolution = resolveModelForExecution(params.aiAgent.model);
+		const openRouterContext = {
+			db: params.db,
+			organizationId: params.organizationId,
+			websiteId: params.websiteId,
+		};
+		const model = await createModelForWebsite(modelResolution.modelIdResolved, {
+			context: openRouterContext,
+		});
 		try {
 			const review = await generateText({
-				model: createModel(modelResolution.modelIdResolved),
+				model: model.model,
 				output: Output.object({
 					schema: TITLE_REVIEW_OUTPUT_SCHEMA,
 				}),
@@ -337,6 +349,10 @@ export async function runBackgroundTitleReview(
 				}),
 				temperature: 0,
 				maxOutputTokens: 180,
+			});
+			await recordOpenRouterByokSuccess({
+				context: openRouterContext,
+				billingSource: model.billingSource,
 			});
 
 			const output = review.output;
@@ -364,6 +380,11 @@ export async function runBackgroundTitleReview(
 				});
 			}
 		} catch (error) {
+			await recordOpenRouterByokFailure({
+				context: openRouterContext,
+				billingSource: model.billingSource,
+				error,
+			});
 			title = deriveFallbackTitle({
 				conversationHistory: params.conversationHistory,
 				triggerMessage: params.triggerMessage,

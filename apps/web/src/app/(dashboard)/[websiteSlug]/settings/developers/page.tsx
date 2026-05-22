@@ -1,3 +1,4 @@
+import { getPlanForWebsite } from "@api/lib/plans/access";
 import { PageContent } from "@/components/ui/layout";
 import {
 	SettingsHeader,
@@ -7,6 +8,7 @@ import {
 import { ensureWebsiteAccess } from "@/lib/auth/website-access";
 import { AllowedDomainsForm } from "./allowed-domains-form";
 import { ApiKeysSection } from "./api-keys-section";
+import { OpenRouterByokSection } from "./openrouter-byok-section";
 
 type DevelopersSettingsPageProps = {
 	params: Promise<{
@@ -20,6 +22,7 @@ export default async function DevelopersSettingsPage({
 	const { websiteSlug } = await params;
 
 	const { website } = await ensureWebsiteAccess(websiteSlug);
+	const planInfo = await getPlanForWebsite(website);
 
 	return (
 		<SettingsPage>
@@ -33,6 +36,23 @@ export default async function DevelopersSettingsPage({
 						organizationId={website.organizationId}
 						websiteId={website.id}
 						websiteName={website.name}
+						websiteSlug={website.slug}
+					/>
+				</SettingsRow>
+
+				<SettingsRow
+					description="Use a customer-owned OpenRouter API key for AI calls on this website."
+					title="OpenRouter key"
+				>
+					<OpenRouterByokSection
+						currentPlan={{
+							name: planInfo.planName,
+							displayName: planInfo.displayName,
+							price: planInfo.price,
+							features: planInfo.features,
+						}}
+						organizationId={website.organizationId}
+						websiteId={website.id}
 						websiteSlug={website.slug}
 					/>
 				</SettingsRow>

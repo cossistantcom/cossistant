@@ -36,6 +36,7 @@ export async function trackPrimaryGenerationUsage(params: {
 			modelMigrationApplied:
 				params.intake.modelResolution.modelMigrationApplied,
 			providerUsage: params.generationResult.usage,
+			billingSource: params.generationResult.billingSource,
 			toolCallsByName: params.generationResult.toolCallsByName,
 			chargeableToolCallsByName:
 				params.generationResult.chargeableToolCallsByName,

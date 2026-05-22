@@ -9,4 +9,5 @@ export * from "./feedback";
 export * from "./knowledge";
 export * from "./knowledge-clarification";
 export * from "./link-source";
+export * from "./openrouter-byok";
 export * from "./website";

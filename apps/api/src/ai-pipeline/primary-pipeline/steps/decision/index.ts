@@ -40,6 +40,7 @@ export async function runDecisionStep(params: {
 	}
 
 	const smartDecision = await runSmartDecision({
+		db: params.db,
 		aiAgent: params.input.aiAgent,
 		conversation: params.input.conversation,
 		decisionMessages: params.input.decisionMessages,

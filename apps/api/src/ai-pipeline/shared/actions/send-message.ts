@@ -126,6 +126,7 @@ export async function sendMessage(
 					sourceLanguage: websiteRecord.defaultLanguage,
 					visitorLanguage: conversationRecord.visitorLanguage,
 					mode: "auto",
+					aiContext: { db, organizationId, websiteId },
 				})
 			: null;
 
@@ -178,6 +179,10 @@ export async function sendMessage(
 			visitorLanguage: conversationRecord.visitorLanguage,
 			hasTranslationPart: true,
 			chargeCredits: autoTranslateEnabled,
+			billingSource:
+				outboundTranslation.translationResult.status === "translated"
+					? outboundTranslation.translationResult.billingSource
+					: undefined,
 			aiAgentId,
 		});
 	}

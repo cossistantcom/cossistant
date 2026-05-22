@@ -8,7 +8,17 @@
 import type { Database } from "@api/db";
 import { getConversationTimelineItems } from "@api/db/queries/conversation";
 import type { ConversationSelect } from "@api/db/schema/conversation";
-import { createModel, DefaultModels, generateText, Output } from "@api/lib/ai";
+import {
+	createModelForWebsite,
+	DefaultModels,
+	generateText,
+	Output,
+} from "@api/lib/ai";
+import {
+	recordOpenRouterByokFailure,
+	recordOpenRouterByokSuccess,
+	type OpenRouterBillingSource,
+} from "@api/lib/openrouter-byok/resolver";
 import {
 	ConversationTimelineType,
 	TimelineItemVisibility,
@@ -82,6 +92,13 @@ export async function generateEscalationSummary(
 		return null;
 	}
 
+	const openRouterContext = {
+		db,
+		organizationId,
+		websiteId,
+	};
+	let billingSource: OpenRouterBillingSource | undefined;
+
 	try {
 		console.log(
 			`[ai-agent:analysis] conv=${conversation.id} | Generating escalation summary from ${messages.length} messages`
@@ -94,9 +111,13 @@ export async function generateEscalationSummary(
 				return `${sender}: "${m.text}"`;
 			})
 			.join("\n");
+		const model = await createModelForWebsite(SUMMARY_MODEL, {
+			context: openRouterContext,
+		});
+		billingSource = model.billingSource;
 
 		const result = await generateText({
-			model: createModel(SUMMARY_MODEL),
+			model: model.model,
 			output: Output.object({
 				schema: escalationSummarySchema,
 			}),
@@ -121,6 +142,10 @@ Summarize:
 3. Why this was escalated`,
 			temperature: 0.3, // Low temperature for consistent summaries
 		});
+		await recordOpenRouterByokSuccess({
+			context: openRouterContext,
+			billingSource,
+		});
 
 		if (!result.output) {
 			console.error(
@@ -135,6 +160,11 @@ Summarize:
 
 		return result.output;
 	} catch (error) {
+		await recordOpenRouterByokFailure({
+			context: openRouterContext,
+			billingSource,
+			error,
+		});
 		// Log but don't throw - summary generation is non-critical
 		console.error(
 			`[ai-agent:analysis] conv=${conversation.id} | Escalation summary generation failed:`,

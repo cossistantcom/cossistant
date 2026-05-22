@@ -47,6 +47,7 @@ export type GenerationUsageTimelinePayload = {
 		| IngestAiCreditUsageStatus
 		| "failed"
 		| "skipped"
+		| "skipped_customer_openrouter"
 		| "skipped_zero";
 	balanceBefore: number | null;
 	balanceAfterEstimate: number | null;

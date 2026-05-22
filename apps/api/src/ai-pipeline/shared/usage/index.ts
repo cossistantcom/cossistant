@@ -6,6 +6,7 @@ import {
 	type IngestAiCreditUsageStatus,
 	ingestAiCreditUsage,
 } from "@api/lib/ai-credits/polar-meter";
+import type { OpenRouterBillingSource } from "@api/lib/openrouter-byok/resolver";
 import { logAiPipeline } from "../../logger";
 import type { GenerationTokenUsage } from "../generation/contracts";
 import {
@@ -23,7 +24,9 @@ export type GenerationCreditUsage = {
 		| IngestAiCreditUsageStatus
 		| "failed"
 		| "skipped"
+		| "skipped_customer_openrouter"
 		| "skipped_zero";
+	billingSource: OpenRouterBillingSource;
 };
 
 export type GenerationUsageTrackingResult = {
@@ -59,6 +62,7 @@ export async function trackGenerationUsage(params: {
 	phase?: GenerationUsagePhase;
 	knowledgeClarificationRequestId?: string;
 	knowledgeClarificationStepIndex?: number;
+	billingSource?: OpenRouterBillingSource;
 }): Promise<GenerationUsageTrackingResult> {
 	const usageTokens = resolveGenerationTokenUsage({
 		providerUsage: params.providerUsage,
@@ -86,10 +90,13 @@ export async function trackGenerationUsage(params: {
 				toolCallsByName: effectiveToolCallsByName,
 			})
 		: getMinimumAiCreditCharge(params.modelId);
+	const billingSource = params.billingSource ?? "cossistant";
 
 	let ingestStatus: GenerationCreditUsage["ingestStatus"] = "skipped";
 
-	if (charge.totalCredits <= 0) {
+	if (billingSource === "customer_openrouter") {
+		ingestStatus = "skipped_customer_openrouter";
+	} else if (charge.totalCredits <= 0) {
 		ingestStatus = "skipped_zero";
 	} else {
 		try {
@@ -184,6 +191,7 @@ export async function trackGenerationUsage(params: {
 			totalCredits: charge.totalCredits,
 			mode,
 			ingestStatus,
+			billingSource,
 		},
 	};
 }

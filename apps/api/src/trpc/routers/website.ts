@@ -7,6 +7,13 @@ import {
 	revokeApiKey,
 } from "@api/db/queries/api-keys";
 import {
+	deleteWebsiteOpenRouterKey,
+	getWebsiteOpenRouterKey,
+	setWebsiteOpenRouterKeyEnabled,
+	toOpenRouterByokPublicState,
+	upsertWebsiteOpenRouterKey,
+} from "@api/db/queries/openrouter-byok";
+import {
 	getWebsiteMemberById,
 	getWebsiteMembers,
 	type WebsiteMember,
@@ -35,8 +42,13 @@ import {
 	PolarCustomerInvariantViolationError,
 	partitionWebsiteSubscriptionsForDeletion,
 } from "@api/lib/plans/polar";
+import { getPlanForWebsite } from "@api/lib/plans/access";
 import polarClient from "@api/lib/polar";
 import { generateTinybirdJWT } from "@api/lib/tinybird-jwt";
+import {
+	encryptOpenRouterApiKey,
+	maskOpenRouterApiKey,
+} from "@api/lib/openrouter-byok/encryption";
 import {
 	isOrganizationAdminOrOwner,
 	isOrganizationOwner,
@@ -51,13 +63,17 @@ import {
 	createWebsiteApiKeyRequestSchema,
 	createWebsiteRequestSchema,
 	createWebsiteResponseSchema,
+	deleteWebsiteOpenRouterApiKeyRequestSchema,
 	deleteWebsiteRequestSchema,
 	deleteWebsiteResponseSchema,
 	listByOrganizationRequestSchema,
 	revokeWebsiteApiKeyRequestSchema,
+	setWebsiteOpenRouterByokEnabledRequestSchema,
 	updateWebsiteRequestSchema,
+	upsertWebsiteOpenRouterApiKeyRequestSchema,
 	websiteApiKeySchema,
 	websiteDeveloperSettingsResponseSchema,
+	websiteOpenRouterByokSettingsSchema,
 	websiteListItemSchema,
 	websiteSummarySchema,
 } from "@cossistant/types";
@@ -112,6 +128,64 @@ function buildWebsiteMemberMap(members: WebsiteMember[]) {
 	return new Map(
 		members.map((websiteMember) => [websiteMember.id, websiteMember])
 	);
+}
+
+function toWebsiteOpenRouterByokSettings(params: {
+	record: Awaited<ReturnType<typeof getWebsiteOpenRouterKey>>;
+	featureAvailable: boolean;
+}) {
+	return {
+		...toOpenRouterByokPublicState(params.record),
+		featureAvailable: params.featureAvailable,
+		requiredPlan: "pro" as const,
+	};
+}
+
+async function getWebsiteForOpenRouterByokMutation(params: {
+	ctx: {
+		db: Parameters<typeof getWebsiteOpenRouterKey>[0];
+		user: { id: string };
+	};
+	organizationId: string;
+	websiteId: string;
+}) {
+	const site = await params.ctx.db.query.website.findFirst({
+		where: and(
+			eq(website.id, params.websiteId),
+			eq(website.organizationId, params.organizationId),
+			isNull(website.deletedAt)
+		),
+	});
+
+	if (!site) {
+		throw new TRPCError({
+			code: "NOT_FOUND",
+			message: "Website not found",
+		});
+	}
+
+	const hasAdminAccess = await isOrganizationAdminOrOwner(params.ctx.db, {
+		organizationId: params.organizationId,
+		userId: params.ctx.user.id,
+	});
+
+	if (!hasAdminAccess) {
+		throw new TRPCError({
+			code: "FORBIDDEN",
+			message:
+				"You do not have permission to manage OpenRouter keys for this website.",
+		});
+	}
+
+	const planInfo = await getPlanForWebsite(site);
+	if (planInfo.features["openrouter-byok"] !== true) {
+		throw new TRPCError({
+			code: "FORBIDDEN",
+			message: "Bring your own OpenRouter key is available on the Pro plan.",
+		});
+	}
+
+	return site;
 }
 
 const WEBSITE_CREATE_ERROR_MESSAGE = "Failed to create website";
@@ -232,20 +306,6 @@ export const websiteRouter = createTRPCRouter({
 		.query(async ({ ctx, input }) => {
 			const site = await ctx.db.query.website.findFirst({
 				where: and(eq(website.slug, input.slug), isNull(website.deletedAt)),
-				columns: {
-					id: true,
-					slug: true,
-					name: true,
-					domain: true,
-					defaultLanguage: true,
-					autoTranslateEnabled: true,
-					contactEmail: true,
-					logoUrl: true,
-					organizationId: true,
-					teamId: true,
-					whitelistedDomains: true,
-					defaultParticipantIds: true,
-				},
 			});
 
 			if (!site) {
@@ -272,6 +332,13 @@ export const websiteRouter = createTRPCRouter({
 				orgId: site.organizationId,
 				websiteId: site.id,
 			});
+			const [planInfo, openRouterKey] = await Promise.all([
+				getPlanForWebsite(site),
+				getWebsiteOpenRouterKey(ctx.db, {
+					organizationId: site.organizationId,
+					websiteId: site.id,
+				}),
+			]);
 			const members =
 				site.teamId === null
 					? []
@@ -303,6 +370,10 @@ export const websiteRouter = createTRPCRouter({
 								(key.linkedUserId && memberMap.get(key.linkedUserId)) || null,
 						})
 					),
+				openRouterByok: toWebsiteOpenRouterByokSettings({
+					record: openRouterKey,
+					featureAvailable: planInfo.features["openrouter-byok"] === true,
+				}),
 			};
 		}),
 	create: protectedProcedure
@@ -599,6 +670,89 @@ export const websiteRouter = createTRPCRouter({
 					: null;
 
 			return toWebsiteApiKey(revoked, { linkedUser });
+		}),
+	upsertOpenRouterApiKey: protectedProcedure
+		.input(upsertWebsiteOpenRouterApiKeyRequestSchema)
+		.output(websiteOpenRouterByokSettingsSchema)
+		.mutation(async ({ ctx, input }) => {
+			await getWebsiteForOpenRouterByokMutation({
+				ctx,
+				organizationId: input.organizationId,
+				websiteId: input.websiteId,
+			});
+
+			const apiKey = input.apiKey.trim();
+			const record = await upsertWebsiteOpenRouterKey(ctx.db, {
+				organizationId: input.organizationId,
+				websiteId: input.websiteId,
+				encryptedApiKey: encryptOpenRouterApiKey({
+					apiKey,
+					secret: env.API_KEY_SECRET,
+				}),
+				maskedKey: maskOpenRouterApiKey(apiKey),
+				userId: ctx.user.id,
+			});
+
+			return toWebsiteOpenRouterByokSettings({
+				record,
+				featureAvailable: true,
+			});
+		}),
+	setOpenRouterByokEnabled: protectedProcedure
+		.input(setWebsiteOpenRouterByokEnabledRequestSchema)
+		.output(websiteOpenRouterByokSettingsSchema)
+		.mutation(async ({ ctx, input }) => {
+			await getWebsiteForOpenRouterByokMutation({
+				ctx,
+				organizationId: input.organizationId,
+				websiteId: input.websiteId,
+			});
+
+			const existing = await getWebsiteOpenRouterKey(ctx.db, {
+				organizationId: input.organizationId,
+				websiteId: input.websiteId,
+			});
+
+			if (input.enabled && !existing) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Save an OpenRouter API key before enabling BYOK.",
+				});
+			}
+
+			const record = existing
+				? await setWebsiteOpenRouterKeyEnabled(ctx.db, {
+						organizationId: input.organizationId,
+						websiteId: input.websiteId,
+						enabled: input.enabled,
+						userId: ctx.user.id,
+					})
+				: null;
+
+			return toWebsiteOpenRouterByokSettings({
+				record,
+				featureAvailable: true,
+			});
+		}),
+	deleteOpenRouterApiKey: protectedProcedure
+		.input(deleteWebsiteOpenRouterApiKeyRequestSchema)
+		.output(websiteOpenRouterByokSettingsSchema)
+		.mutation(async ({ ctx, input }) => {
+			await getWebsiteForOpenRouterByokMutation({
+				ctx,
+				organizationId: input.organizationId,
+				websiteId: input.websiteId,
+			});
+
+			await deleteWebsiteOpenRouterKey(ctx.db, {
+				organizationId: input.organizationId,
+				websiteId: input.websiteId,
+			});
+
+			return toWebsiteOpenRouterByokSettings({
+				record: null,
+				featureAvailable: true,
+			});
 		}),
 	checkDomain: protectedProcedure
 		.input(checkWebsiteDomainRequestSchema)

@@ -5,6 +5,7 @@ describe("buildSmartDecisionPrompt", () => {
 	it("renders before, trigger, and later message sections with explicit FIFO guidance", () => {
 		const prompt = buildSmartDecisionPrompt(
 			{
+				db: {} as never,
 				aiAgent: {
 					id: "ai-1",
 					name: "Agent",

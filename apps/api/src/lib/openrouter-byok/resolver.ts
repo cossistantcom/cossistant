@@ -23,18 +23,23 @@ export type ResolvedOpenRouterCredentials = {
 	billingSource: OpenRouterBillingSource;
 };
 
+type OpenRouterByokErrorCode =
+	| "website_not_found"
+	| "decrypt_failed"
+	| "missing_cossistant_key";
+
 export class OpenRouterByokError extends Error {
 	constructor(
-		public readonly code:
-			| "website_not_found"
-			| "decrypt_failed"
-			| "missing_cossistant_key",
+		code: OpenRouterByokErrorCode,
 		message: string,
 		options?: { cause?: unknown }
 	) {
 		super(message, options);
 		this.name = "OpenRouterByokError";
+		this.code = code;
 	}
+
+	readonly code: OpenRouterByokErrorCode;
 }
 
 function sanitizeErrorCode(value: string): string {
@@ -44,9 +49,25 @@ function sanitizeErrorCode(value: string): string {
 		.slice(0, 80);
 }
 
+function getStatusCode(error: unknown): number | null {
+	if (!(error && typeof error === "object" && "statusCode" in error)) {
+		return null;
+	}
+
+	const statusCode = (error as { statusCode?: unknown }).statusCode;
+	return typeof statusCode === "number" && Number.isInteger(statusCode)
+		? statusCode
+		: null;
+}
+
 export function normalizeOpenRouterByokErrorCode(error: unknown): string {
 	if (error instanceof OpenRouterByokError) {
 		return error.code;
+	}
+
+	const statusCode = getStatusCode(error);
+	if (statusCode !== null) {
+		return `openrouter_http_${statusCode}`;
 	}
 
 	if (error instanceof Error && error.name) {

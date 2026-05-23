@@ -19,12 +19,22 @@
 import { devToolsMiddleware } from "@ai-sdk/devtools";
 import { env } from "@api/env";
 import {
+	normalizeOpenRouterByokErrorCode,
 	type OpenRouterBillingSource,
+	OpenRouterByokError,
+	recordOpenRouterByokFailure,
+	recordOpenRouterByokSuccess,
 	resolveOpenRouterCredentialsForWebsite,
 	type WebsiteOpenRouterContext,
 } from "@api/lib/openrouter-byok/resolver";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { embed, embedMany, type LanguageModel, wrapLanguageModel } from "ai";
+import {
+	APICallError,
+	embed,
+	embedMany,
+	type LanguageModel,
+	wrapLanguageModel,
+} from "ai";
 
 // Re-export commonly used AI SDK functions for convenience
 export {
@@ -98,7 +108,19 @@ export type WebsiteModelOptions = ModelOptions & {
 export type WebsiteLanguageModelResolution = {
 	model: LanguageModel;
 	billingSource: OpenRouterBillingSource;
+	fallbackFromBillingSource?: "customer_openrouter";
+	fallbackErrorCode?: string;
+	usedOpenRouterByokFallback?: boolean;
 };
+
+export type WebsiteLanguageModelOperationResult<TResult> = Omit<
+	WebsiteLanguageModelResolution,
+	"model"
+> & {
+	result: TResult;
+};
+
+export type WebsiteModelKind = "chat" | "structured" | "raw";
 
 type WrappableLanguageModel = Parameters<typeof wrapLanguageModel>[0]["model"];
 
@@ -114,6 +136,222 @@ function wrapWithOptionalDevTools(
 		model,
 		middleware: devToolsMiddleware(),
 	});
+}
+
+function isAbortError(error: unknown): boolean {
+	return error instanceof Error && error.name === "AbortError";
+}
+
+function isAppTimeoutError(error: unknown): boolean {
+	return error instanceof Error && error.message === "translation_timeout";
+}
+
+function isLikelyTransportError(error: Error): boolean {
+	const payload = `${error.name} ${error.message}`.toLowerCase();
+	return [
+		"fetch failed",
+		"network",
+		"connection",
+		"connect",
+		"econnreset",
+		"econnrefused",
+		"enotfound",
+		"etimedout",
+		"eai_again",
+		"socket",
+		"dns",
+		"tls",
+	].some((needle) => payload.includes(needle));
+}
+
+export function isOpenRouterByokFallbackEligibleError(error: unknown): boolean {
+	if (error instanceof OpenRouterByokError) {
+		return error.code === "decrypt_failed";
+	}
+
+	if (APICallError.isInstance(error)) {
+		const statusCode = error.statusCode;
+		if (statusCode === undefined) {
+			return true;
+		}
+		return (
+			statusCode === 401 ||
+			statusCode === 402 ||
+			statusCode === 403 ||
+			statusCode === 408 ||
+			statusCode === 409 ||
+			statusCode === 429 ||
+			statusCode >= 500
+		);
+	}
+
+	if (!(error instanceof Error)) {
+		return false;
+	}
+
+	if (isAbortError(error) || isAppTimeoutError(error)) {
+		return false;
+	}
+
+	return isLikelyTransportError(error);
+}
+
+function createModelFromOpenRouter(params: {
+	openrouter: ReturnType<typeof createOpenRouter>;
+	modelId: string;
+	kind: WebsiteModelKind;
+	devTools: boolean;
+}): LanguageModel {
+	if (params.kind === "raw") {
+		return params.openrouter.chat(params.modelId);
+	}
+
+	const model =
+		params.kind === "structured"
+			? params.openrouter.chat(params.modelId, {
+					provider: {
+						require_parameters: true,
+					},
+				})
+			: params.openrouter.chat(params.modelId);
+
+	return wrapWithOptionalDevTools(model, params.devTools);
+}
+
+function createCossistantModelResolution(params: {
+	modelId: string;
+	kind: WebsiteModelKind;
+	devTools: boolean;
+	fallbackErrorCode?: string;
+}): WebsiteLanguageModelResolution {
+	return {
+		model: createModelFromOpenRouter({
+			openrouter: getOpenRouter(),
+			modelId: params.modelId,
+			kind: params.kind,
+			devTools: params.devTools,
+		}),
+		billingSource: "cossistant",
+		fallbackFromBillingSource: params.fallbackErrorCode
+			? "customer_openrouter"
+			: undefined,
+		fallbackErrorCode: params.fallbackErrorCode,
+		usedOpenRouterByokFallback: Boolean(params.fallbackErrorCode),
+	};
+}
+
+async function createWebsiteModelResolution(params: {
+	modelId: string;
+	context: WebsiteOpenRouterContext;
+	kind: WebsiteModelKind;
+	devTools: boolean;
+}): Promise<WebsiteLanguageModelResolution> {
+	const credentials = await resolveOpenRouterCredentialsForWebsite(
+		params.context
+	);
+	const openrouter = createOpenRouterForApiKey(credentials.apiKey);
+
+	return {
+		model: createModelFromOpenRouter({
+			openrouter,
+			modelId: params.modelId,
+			kind: params.kind,
+			devTools: params.devTools,
+		}),
+		billingSource: credentials.billingSource,
+	};
+}
+
+export async function runWithOpenRouterByokFallback<TResult>(params: {
+	modelId: string;
+	options: WebsiteModelOptions;
+	kind?: WebsiteModelKind;
+	operation: (
+		resolution: WebsiteLanguageModelResolution
+	) => Promise<TResult> | TResult;
+	canFallback?: (error: unknown) => boolean | Promise<boolean>;
+	onResolution?: (resolution: WebsiteLanguageModelResolution) => void;
+}): Promise<WebsiteLanguageModelOperationResult<TResult>> {
+	const { devTools = isDevToolsEnabled, context } = params.options;
+	const kind = params.kind ?? "chat";
+	let initialResolution: WebsiteLanguageModelResolution;
+
+	try {
+		initialResolution = await createWebsiteModelResolution({
+			modelId: params.modelId,
+			context,
+			kind,
+			devTools,
+		});
+		params.onResolution?.(initialResolution);
+	} catch (error) {
+		if (
+			!(error instanceof OpenRouterByokError && error.code === "decrypt_failed")
+		) {
+			throw error;
+		}
+
+		const fallbackErrorCode = normalizeOpenRouterByokErrorCode(error);
+		const fallbackResolution = createCossistantModelResolution({
+			modelId: params.modelId,
+			kind,
+			devTools,
+			fallbackErrorCode,
+		});
+		params.onResolution?.(fallbackResolution);
+		return {
+			result: await params.operation(fallbackResolution),
+			billingSource: fallbackResolution.billingSource,
+			fallbackFromBillingSource: fallbackResolution.fallbackFromBillingSource,
+			fallbackErrorCode: fallbackResolution.fallbackErrorCode,
+			usedOpenRouterByokFallback: fallbackResolution.usedOpenRouterByokFallback,
+		};
+	}
+
+	try {
+		const result = await params.operation(initialResolution);
+		await recordOpenRouterByokSuccess({
+			context,
+			billingSource: initialResolution.billingSource,
+		});
+
+		return {
+			result,
+			billingSource: initialResolution.billingSource,
+		};
+	} catch (error) {
+		const canFallback =
+			initialResolution.billingSource === "customer_openrouter" &&
+			isOpenRouterByokFallbackEligibleError(error) &&
+			(await (params.canFallback?.(error) ?? true));
+
+		if (!canFallback) {
+			throw error;
+		}
+
+		const fallbackErrorCode = normalizeOpenRouterByokErrorCode(error);
+		await recordOpenRouterByokFailure({
+			context,
+			billingSource: initialResolution.billingSource,
+			error,
+		});
+
+		const fallbackResolution = createCossistantModelResolution({
+			modelId: params.modelId,
+			kind,
+			devTools,
+			fallbackErrorCode,
+		});
+		params.onResolution?.(fallbackResolution);
+
+		return {
+			result: await params.operation(fallbackResolution),
+			billingSource: fallbackResolution.billingSource,
+			fallbackFromBillingSource: fallbackResolution.fallbackFromBillingSource,
+			fallbackErrorCode: fallbackResolution.fallbackErrorCode,
+			usedOpenRouterByokFallback: fallbackResolution.usedOpenRouterByokFallback,
+		};
+	}
 }
 
 /**
@@ -148,13 +386,12 @@ export async function createModelForWebsite(
 	options: WebsiteModelOptions
 ): Promise<WebsiteLanguageModelResolution> {
 	const { devTools = isDevToolsEnabled, context } = options;
-	const credentials = await resolveOpenRouterCredentialsForWebsite(context);
-	const openrouter = createOpenRouterForApiKey(credentials.apiKey);
-
-	return {
-		model: wrapWithOptionalDevTools(openrouter.chat(modelId), devTools),
-		billingSource: credentials.billingSource,
-	};
+	return createWebsiteModelResolution({
+		modelId,
+		context,
+		kind: "chat",
+		devTools,
+	});
 }
 
 /**
@@ -183,20 +420,12 @@ export async function createStructuredOutputModelForWebsite(
 	options: WebsiteModelOptions
 ): Promise<WebsiteLanguageModelResolution> {
 	const { devTools = isDevToolsEnabled, context } = options;
-	const credentials = await resolveOpenRouterCredentialsForWebsite(context);
-	const openrouter = createOpenRouterForApiKey(credentials.apiKey);
-
-	return {
-		model: wrapWithOptionalDevTools(
-			openrouter.chat(modelId, {
-				provider: {
-					require_parameters: true,
-				},
-			}),
-			devTools
-		),
-		billingSource: credentials.billingSource,
-	};
+	return createWebsiteModelResolution({
+		modelId,
+		context,
+		kind: "structured",
+		devTools,
+	});
 }
 
 /**
@@ -215,13 +444,12 @@ export async function createModelRawForWebsite(
 	modelId: string,
 	context: WebsiteOpenRouterContext
 ): Promise<WebsiteLanguageModelResolution> {
-	const credentials = await resolveOpenRouterCredentialsForWebsite(context);
-	const openrouter = createOpenRouterForApiKey(credentials.apiKey);
-
-	return {
-		model: openrouter.chat(modelId),
-		billingSource: credentials.billingSource,
-	};
+	return createWebsiteModelResolution({
+		modelId,
+		context,
+		kind: "raw",
+		devTools: false,
+	});
 }
 
 /**

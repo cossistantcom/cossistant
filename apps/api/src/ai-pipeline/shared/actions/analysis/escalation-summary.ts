@@ -9,16 +9,11 @@ import type { Database } from "@api/db";
 import { getConversationTimelineItems } from "@api/db/queries/conversation";
 import type { ConversationSelect } from "@api/db/schema/conversation";
 import {
-	createModelForWebsite,
 	DefaultModels,
 	generateText,
 	Output,
+	runWithOpenRouterByokFallback,
 } from "@api/lib/ai";
-import {
-	recordOpenRouterByokFailure,
-	recordOpenRouterByokSuccess,
-	type OpenRouterBillingSource,
-} from "@api/lib/openrouter-byok/resolver";
 import {
 	ConversationTimelineType,
 	TimelineItemVisibility,
@@ -97,7 +92,6 @@ export async function generateEscalationSummary(
 		organizationId,
 		websiteId,
 	};
-	let billingSource: OpenRouterBillingSource | undefined;
 
 	try {
 		console.log(
@@ -111,17 +105,16 @@ export async function generateEscalationSummary(
 				return `${sender}: "${m.text}"`;
 			})
 			.join("\n");
-		const model = await createModelForWebsite(SUMMARY_MODEL, {
-			context: openRouterContext,
-		});
-		billingSource = model.billingSource;
-
-		const result = await generateText({
-			model: model.model,
-			output: Output.object({
-				schema: escalationSummarySchema,
-			}),
-			system: `You are a support assistant helping human agents quickly understand escalated conversations.
+		const { result } = await runWithOpenRouterByokFallback({
+			modelId: SUMMARY_MODEL,
+			options: { context: openRouterContext },
+			operation: ({ model }) =>
+				generateText({
+					model,
+					output: Output.object({
+						schema: escalationSummarySchema,
+					}),
+					system: `You are a support assistant helping human agents quickly understand escalated conversations.
 
 Your task is to create a brief summary that:
 1. Explains what the visitor needs help with
@@ -129,7 +122,7 @@ Your task is to create a brief summary that:
 3. Highlights why the AI escalated (visitor request, complex issue, etc.)
 
 Keep the summary concise and actionable - the human agent needs to quickly understand the situation.`,
-			prompt: `Create a brief summary of this escalated conversation.
+					prompt: `Create a brief summary of this escalated conversation.
 
 Escalation reason: ${escalationReason}
 
@@ -140,11 +133,8 @@ Summarize:
 1. What the visitor needs
 2. Key context the agent should know
 3. Why this was escalated`,
-			temperature: 0.3, // Low temperature for consistent summaries
-		});
-		await recordOpenRouterByokSuccess({
-			context: openRouterContext,
-			billingSource,
+					temperature: 0.3, // Low temperature for consistent summaries
+				}),
 		});
 
 		if (!result.output) {
@@ -160,11 +150,6 @@ Summarize:
 
 		return result.output;
 	} catch (error) {
-		await recordOpenRouterByokFailure({
-			context: openRouterContext,
-			billingSource,
-			error,
-		});
 		// Log but don't throw - summary generation is non-critical
 		console.error(
 			`[ai-agent:analysis] conv=${conversation.id} | Escalation summary generation failed:`,

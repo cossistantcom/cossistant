@@ -1,12 +1,12 @@
 import { getConversationTimelineItems } from "@api/db/queries/conversation";
 import { getKnowledgeById } from "@api/db/queries/knowledge";
 import { getActiveKnowledgeClarificationForConversation } from "@api/db/queries/knowledge-clarification";
-import { createModelForWebsite, generateText, Output } from "@api/lib/ai";
-import { resolveModelForExecution } from "@api/lib/ai-credits/config";
 import {
-	recordOpenRouterByokFailure,
-	recordOpenRouterByokSuccess,
-} from "@api/lib/openrouter-byok/resolver";
+	generateText,
+	Output,
+	runWithOpenRouterByokFallback,
+} from "@api/lib/ai";
+import { resolveModelForExecution } from "@api/lib/ai-credits/config";
 import {
 	buildConversationClarificationContextSnapshot,
 	buildSpecificClarificationTopicSummary,
@@ -275,17 +275,16 @@ export async function runBackgroundKnowledgeGapReview(params: {
 		organizationId: params.input.organizationId,
 		websiteId: params.input.websiteId,
 	};
-	const model = await createModelForWebsite(modelResolution.modelIdResolved, {
-		context: openRouterContext,
-	});
-	let review: Awaited<ReturnType<typeof generateText>>;
-	try {
-		review = await generateText({
-			model: model.model,
-			output: Output.object({
-				schema: BACKGROUND_KNOWLEDGE_GAP_REVIEW_OUTPUT_SCHEMA,
-			}),
-			system: `You decide whether an internal knowledge clarification request should be created.
+	const { result: review } = await runWithOpenRouterByokFallback({
+		modelId: modelResolution.modelIdResolved,
+		options: { context: openRouterContext },
+		operation: ({ model }) =>
+			generateText({
+				model,
+				output: Output.object({
+					schema: BACKGROUND_KNOWLEDGE_GAP_REVIEW_OUTPUT_SCHEMA,
+				}),
+				system: `You decide whether an internal knowledge clarification request should be created.
 
 Open a clarification only when the recent knowledge-base retrieval and conversation suggest the FAQ or internal knowledge is incomplete, weak, stale, or contradicted by a teammate.
 
@@ -294,29 +293,18 @@ Do NOT create a clarification for normal teammate handling, acknowledgements, or
 If you choose create:
 - Write a short, concrete topic summary.
 - Focus on the missing policy, workflow, or product detail the team should clarify.`,
-			prompt: [
-				`Trigger sender: ${params.intake.triggerMessage?.senderType ?? "none"}`,
-				`Trigger visibility: ${params.intake.triggerMessage?.visibility ?? "none"}`,
-				`Trigger text: ${triggerText || "none"}`,
-				`Latest KB search workflow:\n${formatSearchSignals(latestWorkflowSignals)}`,
-				`FAQ candidates to deepen:\n${formatFaqCandidates(faqCandidates)}`,
-				`Recent transcript:\n${transcript || "- none"}`,
-			].join("\n\n"),
-			temperature: 0,
-			maxOutputTokens: 220,
-		});
-		await recordOpenRouterByokSuccess({
-			context: openRouterContext,
-			billingSource: model.billingSource,
-		});
-	} catch (error) {
-		await recordOpenRouterByokFailure({
-			context: openRouterContext,
-			billingSource: model.billingSource,
-			error,
-		});
-		throw error;
-	}
+				prompt: [
+					`Trigger sender: ${params.intake.triggerMessage?.senderType ?? "none"}`,
+					`Trigger visibility: ${params.intake.triggerMessage?.visibility ?? "none"}`,
+					`Trigger text: ${triggerText || "none"}`,
+					`Latest KB search workflow:\n${formatSearchSignals(latestWorkflowSignals)}`,
+					`FAQ candidates to deepen:\n${formatFaqCandidates(faqCandidates)}`,
+					`Recent transcript:\n${transcript || "- none"}`,
+				].join("\n\n"),
+				temperature: 0,
+				maxOutputTokens: 220,
+			}),
+	});
 
 	const reviewOutput = review.output;
 	if (!(reviewOutput && reviewOutput.action !== "skip")) {

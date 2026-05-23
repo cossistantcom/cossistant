@@ -1,16 +1,12 @@
 import {
-	createModelForWebsite,
 	hasToolCall,
 	type ModelMessage,
+	runWithOpenRouterByokFallback,
 	stepCountIs,
 	ToolLoopAgent,
 	type ToolSet,
 } from "@api/lib/ai";
-import {
-	recordOpenRouterByokFailure,
-	recordOpenRouterByokSuccess,
-	type OpenRouterBillingSource,
-} from "@api/lib/openrouter-byok/resolver";
+import type { OpenRouterBillingSource } from "@api/lib/openrouter-byok/resolver";
 import type { PrepareStepFunction } from "ai";
 import { logAiPipeline } from "../../../logger";
 import { emitPipelineGenerationProgress } from "../../events";
@@ -200,29 +196,35 @@ export async function runGenerationAttempt(params: {
 			);
 		});
 
-		const modelResolution = await createModelForWebsite(params.modelId, {
-			context: openRouterContext,
-		});
-		billingSource = modelResolution.billingSource;
+		const generationResult = await runWithOpenRouterByokFallback({
+			modelId: params.modelId,
+			options: { context: openRouterContext },
+			onResolution: (resolution) => {
+				billingSource = resolution.billingSource;
+			},
+			canFallback: () =>
+				!generationAbortController.signal.aborted &&
+				params.runtimeState.publicMessagesSent === 0 &&
+				countTotalToolCalls(params.runtimeState.toolCallCounts) === 0,
+			operation: ({ model }) => {
+				const agent = new ToolLoopAgent({
+					model,
+					instructions: params.systemPrompt,
+					tools: params.toolsetResolution.tools,
+					prepareStep,
+					toolChoice: "required",
+					stopWhen,
+					temperature: 0,
+				});
 
-		const agent = new ToolLoopAgent({
-			model: modelResolution.model,
-			instructions: params.systemPrompt,
-			tools: params.toolsetResolution.tools,
-			prepareStep,
-			toolChoice: "required",
-			stopWhen,
-			temperature: 0,
+				return agent.generate({
+					messages: params.messages,
+					abortSignal: generationAbortController.signal,
+				});
+			},
 		});
-
-		const result = await agent.generate({
-			messages: params.messages,
-			abortSignal: generationAbortController.signal,
-		});
-		await recordOpenRouterByokSuccess({
-			context: openRouterContext,
-			billingSource,
-		});
+		billingSource = generationResult.billingSource;
+		const result = generationResult.result;
 
 		await emitPipelineGenerationProgress({
 			conversation: params.input.conversation,
@@ -335,11 +337,6 @@ export async function runGenerationAttempt(params: {
 			billingSource,
 		};
 	} catch (error) {
-		await recordOpenRouterByokFailure({
-			context: openRouterContext,
-			billingSource,
-			error,
-		});
 		const durationMs = Date.now() - startedAt;
 		const toolCallsByName = { ...params.runtimeState.toolCallCounts };
 		const mutationToolCallsByName = {

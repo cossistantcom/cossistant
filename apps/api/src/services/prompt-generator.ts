@@ -1,16 +1,11 @@
 import { env } from "@api/env";
 import {
 	createModel,
-	createModelForWebsite,
 	DefaultModels,
 	generateText,
+	runWithOpenRouterByokFallback,
 } from "@api/lib/ai";
-import {
-	recordOpenRouterByokFailure,
-	recordOpenRouterByokSuccess,
-	type OpenRouterBillingSource,
-	type WebsiteOpenRouterContext,
-} from "@api/lib/openrouter-byok/resolver";
+import type { WebsiteOpenRouterContext } from "@api/lib/openrouter-byok/resolver";
 import {
 	AGENT_BASE_PROMPT_GENERATION_TEMPLATE,
 	createDefaultPromptWithCompany,
@@ -132,18 +127,8 @@ export async function generateAgentBasePrompt(
 		};
 	}
 
-	let billingSource: OpenRouterBillingSource | undefined;
-
 	try {
 		const metaPrompt = buildPrompt(options);
-		const model = options.aiContext
-			? await createModelForWebsite(PROMPT_GENERATION_MODEL, {
-					context: options.aiContext,
-				}).then((resolution) => {
-					billingSource = resolution.billingSource;
-					return resolution.model;
-				})
-			: createModel(PROMPT_GENERATION_MODEL);
 
 		// Log what we're sending to OpenRouter
 		console.log(
@@ -155,18 +140,26 @@ export async function generateAgentBasePrompt(
 			options.brandInfo.description?.substring(0, 150) ?? "NOT SET"
 		);
 
-		const result = await generateText({
-			model,
-			prompt: metaPrompt,
-			temperature: 0.7,
-			maxOutputTokens: 800,
-		});
-		if (options.aiContext) {
-			await recordOpenRouterByokSuccess({
-				context: options.aiContext,
-				billingSource,
-			});
-		}
+		const result = options.aiContext
+			? (
+					await runWithOpenRouterByokFallback({
+						modelId: PROMPT_GENERATION_MODEL,
+						options: { context: options.aiContext },
+						operation: ({ model }) =>
+							generateText({
+								model,
+								prompt: metaPrompt,
+								temperature: 0.7,
+								maxOutputTokens: 800,
+							}),
+					})
+				).result
+			: await generateText({
+					model: createModel(PROMPT_GENERATION_MODEL),
+					prompt: metaPrompt,
+					temperature: 0.7,
+					maxOutputTokens: 800,
+				});
 
 		const generatedPrompt = result.text.trim();
 		console.log(
@@ -194,13 +187,6 @@ export async function generateAgentBasePrompt(
 			isGenerated: true,
 		};
 	} catch (error) {
-		if (options.aiContext) {
-			await recordOpenRouterByokFailure({
-				context: options.aiContext,
-				billingSource,
-				error,
-			});
-		}
 		const message = error instanceof Error ? error.message : "Unknown error";
 		console.error("Failed to generate agent prompt:", message);
 

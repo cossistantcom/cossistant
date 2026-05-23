@@ -111,8 +111,9 @@ export function OpenRouterByokProblemAlert({
 						</Section>
 
 						<Text className="text-[14px] text-neutral-700 leading-6">
-							Cossistant kept this request fail-closed. We did not silently use
-							Cossistant AI credits after the customer OpenRouter key failed.
+							Cossistant retried the request with our OpenRouter key so the
+							workflow could continue. Normal Cossistant AI credit billing
+							applies to the fallback call.
 						</Text>
 
 						<Section className="my-6">

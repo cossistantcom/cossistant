@@ -1,13 +1,15 @@
 import type { Database } from "@api/db";
 import type { ConversationRecord } from "@api/db/mutations/conversation";
 import { conversation } from "@api/db/schema";
-import { createModelRaw, createModelRawForWebsite, generateText } from "@api/lib/ai";
-import { ingestAiCreditUsage } from "@api/lib/ai-credits/polar-meter";
 import {
-	recordOpenRouterByokFailure,
-	recordOpenRouterByokSuccess,
-	type OpenRouterBillingSource,
-	type WebsiteOpenRouterContext,
+	createModelRaw,
+	generateText,
+	runWithOpenRouterByokFallback,
+} from "@api/lib/ai";
+import { ingestAiCreditUsage } from "@api/lib/ai-credits/polar-meter";
+import type {
+	OpenRouterBillingSource,
+	WebsiteOpenRouterContext,
 } from "@api/lib/openrouter-byok/resolver";
 import { emitConversationTranslationUpdate } from "@api/utils/conversation-realtime";
 import {
@@ -363,34 +365,39 @@ export async function maybeTranslateText(params: {
 		};
 	}
 
-	let billingSource: OpenRouterBillingSource | undefined;
-
 	try {
-		const modelResolution = params.aiContext
-			? await createModelRawForWebsite(AUTO_TRANSLATE_MODEL_ID, params.aiContext)
-			: null;
-		billingSource = modelResolution?.billingSource;
-
-		const result = await withTimeout(
-			generateText({
-				model: modelResolution?.model ?? createModelRaw(AUTO_TRANSLATE_MODEL_ID),
-				temperature: 0,
-				system: `Translate MESSAGE into ${targetLanguage}. The message probably uses ${sourceLanguage}. If MESSAGE is already in ${targetLanguage}, return it unchanged. Return only the translated message. Preserve markdown, URLs, code blocks, placeholders, emoji, punctuation, and line breaks. Do not add quotes, labels, or explanations.`,
-				prompt: trimmedText,
-			}),
-			params.timeoutMs ?? AUTO_TRANSLATE_TIMEOUT_MS
-		);
+		const resultWithBillingSource = params.aiContext
+			? await runWithOpenRouterByokFallback({
+					modelId: AUTO_TRANSLATE_MODEL_ID,
+					options: { context: params.aiContext },
+					kind: "raw",
+					operation: ({ model }) =>
+						withTimeout(
+							generateText({
+								model,
+								temperature: 0,
+								system: `Translate MESSAGE into ${targetLanguage}. The message probably uses ${sourceLanguage}. If MESSAGE is already in ${targetLanguage}, return it unchanged. Return only the translated message. Preserve markdown, URLs, code blocks, placeholders, emoji, punctuation, and line breaks. Do not add quotes, labels, or explanations.`,
+								prompt: trimmedText,
+							}),
+							params.timeoutMs ?? AUTO_TRANSLATE_TIMEOUT_MS
+						),
+				})
+			: {
+					result: await withTimeout(
+						generateText({
+							model: createModelRaw(AUTO_TRANSLATE_MODEL_ID),
+							temperature: 0,
+							system: `Translate MESSAGE into ${targetLanguage}. The message probably uses ${sourceLanguage}. If MESSAGE is already in ${targetLanguage}, return it unchanged. Return only the translated message. Preserve markdown, URLs, code blocks, placeholders, emoji, punctuation, and line breaks. Do not add quotes, labels, or explanations.`,
+							prompt: trimmedText,
+						}),
+						params.timeoutMs ?? AUTO_TRANSLATE_TIMEOUT_MS
+					),
+					billingSource: undefined,
+				};
+		const result = resultWithBillingSource.result;
 		const translatedText = result.text.trim();
 
 		if (!translatedText) {
-			if (params.aiContext && billingSource) {
-				await recordOpenRouterByokFailure({
-					context: params.aiContext,
-					billingSource,
-					error: new Error("empty_translation_result"),
-				});
-			}
-
 			return {
 				status: "failed",
 				reason: "empty_result",
@@ -399,30 +406,15 @@ export async function maybeTranslateText(params: {
 			};
 		}
 
-		if (params.aiContext && billingSource) {
-			await recordOpenRouterByokSuccess({
-				context: params.aiContext,
-				billingSource,
-			});
-		}
-
 		return {
 			status: "translated",
 			text: translatedText,
 			sourceLanguage,
 			targetLanguage,
 			modelId: AUTO_TRANSLATE_MODEL_ID,
-			billingSource,
+			billingSource: resultWithBillingSource.billingSource,
 		};
 	} catch (error) {
-		if (params.aiContext && billingSource) {
-			await recordOpenRouterByokFailure({
-				context: params.aiContext,
-				billingSource,
-				error,
-			});
-		}
-
 		const reason =
 			error instanceof Error && error.message === "translation_timeout"
 				? "timeout"
@@ -648,8 +640,7 @@ export async function activateConversationTranslation(params: {
 		params.visitorLanguage
 	);
 	const shouldChargeCredits =
-		params.chargeCredits &&
-		params.billingSource !== "customer_openrouter";
+		params.chargeCredits && params.billingSource !== "customer_openrouter";
 
 	const [updated] = await params.db
 		.update(conversation)

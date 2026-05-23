@@ -191,7 +191,8 @@ export function OpenRouterByokSection({
 							</Label>
 							<p className="text-muted-foreground text-sm">
 								When enabled, AI calls for this website use your OpenRouter key
-								and Cossistant does not debit AI usage credits for those calls.
+								first. Successful customer-key calls do not debit Cossistant AI
+								usage credits.
 							</p>
 							<p className="text-muted-foreground text-xs">
 								Your key is encrypted at rest and only decrypted on the server
@@ -200,7 +201,8 @@ export function OpenRouterByokSection({
 							</p>
 							<p className="text-muted-foreground text-xs">
 								If the saved key fails while enabled, organization owners
-								receive at most one email alert per error every 24 hours.
+								receive at most one email alert per error every 24 hours, and
+								the request may retry with normal Cossistant AI credit billing.
 							</p>
 						</div>
 						<Switch

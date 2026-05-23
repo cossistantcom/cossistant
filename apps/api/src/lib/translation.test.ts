@@ -5,6 +5,21 @@ const createModelRawForWebsiteMock = mock(async (modelId: string) => ({
 	model: { modelId, source: "website" },
 	billingSource: "customer_openrouter" as const,
 }));
+const runWithOpenRouterByokFallbackMock = mock(
+	async (params: {
+		modelId: string;
+		operation: (resolution: {
+			model: { modelId: string; source: "website" };
+			billingSource: "cossistant" | "customer_openrouter";
+		}) => Promise<unknown>;
+	}) => ({
+		result: await params.operation({
+			model: { modelId: params.modelId, source: "website" },
+			billingSource: "customer_openrouter" as const,
+		}),
+		billingSource: "customer_openrouter" as const,
+	})
+);
 const generateTextMock = mock((async () => ({
 	text: "translated",
 })) as (...args: unknown[]) => Promise<unknown>);
@@ -19,6 +34,7 @@ mock.module("@api/lib/ai", () => ({
 	createModelRaw: createModelRawMock,
 	createModelRawForWebsite: createModelRawForWebsiteMock,
 	generateText: generateTextMock,
+	runWithOpenRouterByokFallback: runWithOpenRouterByokFallbackMock,
 }));
 
 mock.module("@api/lib/ai-credits/polar-meter", () => ({
@@ -89,8 +105,18 @@ describe("translation helpers", () => {
 		createModelRawMock.mockReset();
 		createModelRawMock.mockImplementation((modelId: string) => ({ modelId }));
 		createModelRawForWebsiteMock.mockReset();
-		createModelRawForWebsiteMock.mockImplementation(async (modelId: string) => ({
-			model: { modelId, source: "website" },
+		createModelRawForWebsiteMock.mockImplementation(
+			async (modelId: string) => ({
+				model: { modelId, source: "website" },
+				billingSource: "customer_openrouter" as const,
+			})
+		);
+		runWithOpenRouterByokFallbackMock.mockReset();
+		runWithOpenRouterByokFallbackMock.mockImplementation(async (params) => ({
+			result: await params.operation({
+				model: { modelId: params.modelId, source: "website" },
+				billingSource: "customer_openrouter" as const,
+			}),
 			billingSource: "customer_openrouter" as const,
 		}));
 		generateTextMock.mockReset();
@@ -184,19 +210,55 @@ describe("translation helpers", () => {
 			},
 		});
 
-		expect(createModelRawForWebsiteMock).toHaveBeenCalledWith(
-			"google/gemini-2.5-flash-lite",
-			expect.objectContaining({
-				organizationId: "org_1",
-				websiteId: "site_1",
-			})
-		);
+		expect(runWithOpenRouterByokFallbackMock).toHaveBeenCalledTimes(1);
+		expect(runWithOpenRouterByokFallbackMock.mock.calls[0]?.[0]).toMatchObject({
+			modelId: "google/gemini-2.5-flash-lite",
+			kind: "raw",
+			options: {
+				context: {
+					organizationId: "org_1",
+					websiteId: "site_1",
+				},
+			},
+		});
+		expect(createModelRawForWebsiteMock).not.toHaveBeenCalled();
 		expect(createModelRawMock).not.toHaveBeenCalled();
 		expect(result).toMatchObject({
 			status: "translated",
 			billingSource: "customer_openrouter",
 		});
-		expect(recordOpenRouterByokSuccessMock).toHaveBeenCalledTimes(1);
+	});
+
+	it("returns cossistant billing when website translation falls back from BYOK", async () => {
+		const { maybeTranslateText } = await translationModulePromise;
+		runWithOpenRouterByokFallbackMock.mockImplementationOnce(
+			async (params) => ({
+				result: await params.operation({
+					model: { modelId: params.modelId, source: "website" },
+					billingSource: "cossistant" as const,
+				}),
+				billingSource: "cossistant" as const,
+				fallbackFromBillingSource: "customer_openrouter" as const,
+				fallbackErrorCode: "openrouter_http_401",
+				usedOpenRouterByokFallback: true,
+			})
+		);
+
+		const result = await maybeTranslateText({
+			text: "Hello there",
+			sourceLanguage: "en",
+			targetLanguage: "es",
+			aiContext: {
+				db: {} as never,
+				organizationId: "org_1",
+				websiteId: "site_1",
+			},
+		});
+
+		expect(result).toMatchObject({
+			status: "translated",
+			billingSource: "cossistant",
+		});
 	});
 
 	it("enables automatic translation only when the plan allows it and the website toggle is on", async () => {

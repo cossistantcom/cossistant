@@ -121,6 +121,21 @@ const runBackgroundKnowledgeGapReviewMock = mock((async () => ({
 	reason: "no_candidate_gap" as const,
 })) as (...args: unknown[]) => Promise<any>);
 const createModelMock = mock((modelId: string) => modelId);
+const runWithOpenRouterByokFallbackMock = mock(
+	async (params: {
+		modelId: string;
+		operation: (resolution: {
+			model: string;
+			billingSource: "cossistant";
+		}) => Promise<unknown>;
+	}) => ({
+		result: await params.operation({
+			model: createModelMock(params.modelId),
+			billingSource: "cossistant" as const,
+		}),
+		billingSource: "cossistant" as const,
+	})
+);
 const generateTextMock = mock((async () => ({
 	output: {
 		title: "Visitor asked for help",
@@ -181,6 +196,7 @@ mock.module("./knowledge-gap-review", () => ({
 mock.module("@api/lib/ai", () => ({
 	createModel: createModelMock,
 	generateText: generateTextMock,
+	runWithOpenRouterByokFallback: runWithOpenRouterByokFallbackMock,
 	Output: {
 		object: (params: unknown) => params,
 	},
@@ -272,6 +288,7 @@ describe("runBackgroundPipeline", () => {
 		runGenerationRuntimeMock.mockReset();
 		runBackgroundKnowledgeGapReviewMock.mockReset();
 		createModelMock.mockReset();
+		runWithOpenRouterByokFallbackMock.mockReset();
 		generateTextMock.mockReset();
 		resolveModelForExecutionMock.mockReset();
 		loadCurrentConversationMock.mockReset();
@@ -371,6 +388,13 @@ describe("runBackgroundPipeline", () => {
 			reason: "no_candidate_gap",
 		});
 		createModelMock.mockImplementation((modelId: string) => modelId);
+		runWithOpenRouterByokFallbackMock.mockImplementation(async (params) => ({
+			result: await params.operation({
+				model: createModelMock(params.modelId),
+				billingSource: "cossistant" as const,
+			}),
+			billingSource: "cossistant" as const,
+		}));
 		generateTextMock.mockResolvedValue({
 			output: {
 				title: "Visitor asked for help",

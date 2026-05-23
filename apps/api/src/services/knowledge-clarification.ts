@@ -29,10 +29,12 @@ import type {
 } from "@api/db/schema/knowledge-clarification";
 import {
 	APICallError,
+	createStructuredOutputModel,
 	createStructuredOutputModelForWebsite,
 	EmptyResponseBodyError,
 	generateEmbedding,
 	generateEmbeddings,
+	isOpenRouterByokFallbackEligibleError,
 	NoContentGeneratedError,
 	NoObjectGeneratedError,
 	NoOutputGeneratedError,
@@ -49,9 +51,10 @@ import {
 	type KnowledgeClarificationContextSnapshot,
 } from "@api/lib/knowledge-clarification-context";
 import {
+	type OpenRouterBillingSource,
+	OpenRouterByokError,
 	recordOpenRouterByokFailure,
 	recordOpenRouterByokSuccess,
-	type OpenRouterBillingSource,
 } from "@api/lib/openrouter-byok/resolver";
 import { realtime } from "@api/realtime/emitter";
 import { buildClarificationRelevancePacket } from "@api/services/knowledge-clarification-relevance";
@@ -1366,15 +1369,9 @@ async function startStructuredClarificationModelWithFallback<TOutput>(params: {
 		websiteId: params.request.websiteId,
 	};
 
-	try {
-		const modelResolution = await createStructuredOutputModelForWebsite(
-			resolvedModel.modelIdResolved,
-			{ context: openRouterContext }
-		);
-		billingSource = modelResolution.billingSource;
-
-		result = streamText({
-			model: modelResolution.model,
+	const startStream = (model: Parameters<typeof streamText>[0]["model"]) =>
+		streamText({
+			model,
 			output: Output.object({
 				schema: params.schema,
 			}),
@@ -1396,35 +1393,46 @@ async function startStructuredClarificationModelWithFallback<TOutput>(params: {
 				}
 			},
 		});
+
+	try {
+		const modelResolution = await createStructuredOutputModelForWebsite(
+			resolvedModel.modelIdResolved,
+			{ context: openRouterContext }
+		);
+		billingSource = modelResolution.billingSource;
+
+		result = startStream(modelResolution.model);
 	} catch (error) {
-		if (billingSource) {
-			await recordOpenRouterByokFailure({
-				context: openRouterContext,
-				billingSource,
+		if (
+			error instanceof OpenRouterByokError &&
+			error.code === "decrypt_failed"
+		) {
+			billingSource = "cossistant";
+			result = startStream(
+				createStructuredOutputModel(resolvedModel.modelIdResolved)
+			);
+		} else {
+			if (!isRetryableClarificationGenerationError(error)) {
+				throw error;
+			}
+
+			logClarificationModelAttemptFailure({
+				requestId: params.request.id,
+				modelId: resolvedModel.modelIdResolved,
+				attempt: 1,
 				error,
 			});
+
+			return {
+				textStream: emptyTextStream(),
+				result: Promise.resolve({
+					kind: "retry_required",
+					lastError: formatClarificationRetryErrorMessage(error),
+					attemptCount: 1,
+					toolName: null,
+				}),
+			};
 		}
-
-		if (!isRetryableClarificationGenerationError(error)) {
-			throw error;
-		}
-
-		logClarificationModelAttemptFailure({
-			requestId: params.request.id,
-			modelId: resolvedModel.modelIdResolved,
-			attempt: 1,
-			error,
-		});
-
-		return {
-			textStream: emptyTextStream(),
-			result: Promise.resolve({
-				kind: "retry_required",
-				lastError: formatClarificationRetryErrorMessage(error),
-				attemptCount: 1,
-				toolName: null,
-			}),
-		};
 	}
 
 	return {
@@ -1460,12 +1468,60 @@ async function startStructuredClarificationModelWithFallback<TOutput>(params: {
 					toolName,
 				} satisfies ClarificationModelCallSuccess<TOutput>;
 			} catch (error) {
-				if (billingSource) {
+				if (
+					billingSource === "customer_openrouter" &&
+					isOpenRouterByokFallbackEligibleError(error)
+				) {
 					await recordOpenRouterByokFailure({
 						context: openRouterContext,
 						billingSource,
 						error,
 					});
+
+					const fallbackResult = startStream(
+						createStructuredOutputModel(resolvedModel.modelIdResolved)
+					);
+					try {
+						const [output, providerUsage] = await Promise.all([
+							fallbackResult.output,
+							fallbackResult.totalUsage,
+						]);
+
+						if (!output) {
+							throw new NoOutputGeneratedError();
+						}
+
+						return {
+							kind: "success",
+							model: buildClarificationModelMetadata(
+								params.aiAgent.model,
+								resolvedModel.modelIdResolved
+							),
+							output,
+							providerUsage,
+							billingSource: "cossistant",
+							attemptCount: 1,
+							toolName,
+						} satisfies ClarificationModelCallSuccess<TOutput>;
+					} catch (fallbackError) {
+						if (!isRetryableClarificationGenerationError(fallbackError)) {
+							throw fallbackError;
+						}
+
+						logClarificationModelAttemptFailure({
+							requestId: params.request.id,
+							modelId: resolvedModel.modelIdResolved,
+							attempt: 1,
+							error: fallbackError,
+						});
+
+						return {
+							kind: "retry_required",
+							lastError: formatClarificationRetryErrorMessage(fallbackError),
+							attemptCount: 1,
+							toolName,
+						} satisfies ClarificationModelCallRetryRequired;
+					}
 				}
 
 				if (!isRetryableClarificationGenerationError(error)) {

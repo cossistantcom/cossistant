@@ -13,6 +13,21 @@ const createModelForWebsiteMock = mock(async (modelId: string) => ({
 	model: createModelMock(modelId),
 	billingSource: "cossistant" as const,
 }));
+const runWithOpenRouterByokFallbackMock = mock(
+	async (params: {
+		modelId: string;
+		operation: (resolution: {
+			model: string;
+			billingSource: "cossistant";
+		}) => Promise<unknown>;
+	}) => ({
+		result: await params.operation({
+			model: createModelMock(params.modelId),
+			billingSource: "cossistant" as const,
+		}),
+		billingSource: "cossistant" as const,
+	})
+);
 const generateTextMock = mock((async () => ({
 	output: {
 		action: "skip",
@@ -48,6 +63,7 @@ mock.module("@api/lib/ai", () => ({
 	createModel: createModelMock,
 	createModelForWebsite: createModelForWebsiteMock,
 	generateText: generateTextMock,
+	runWithOpenRouterByokFallback: runWithOpenRouterByokFallbackMock,
 	Output: {
 		object: (params: unknown) => params,
 	},
@@ -158,6 +174,7 @@ describe("runBackgroundKnowledgeGapReview", () => {
 		getConversationTimelineItemsMock.mockReset();
 		createModelMock.mockReset();
 		createModelForWebsiteMock.mockReset();
+		runWithOpenRouterByokFallbackMock.mockReset();
 		generateTextMock.mockReset();
 		resolveModelForExecutionMock.mockReset();
 		requestKnowledgeClarificationMock.mockReset();
@@ -169,6 +186,13 @@ describe("runBackgroundKnowledgeGapReview", () => {
 		});
 		createModelForWebsiteMock.mockImplementation(async (modelId: string) => ({
 			model: createModelMock(modelId),
+			billingSource: "cossistant" as const,
+		}));
+		runWithOpenRouterByokFallbackMock.mockImplementation(async (params) => ({
+			result: await params.operation({
+				model: createModelMock(params.modelId),
+				billingSource: "cossistant" as const,
+			}),
 			billingSource: "cossistant" as const,
 		}));
 		generateTextMock.mockResolvedValue({

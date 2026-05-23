@@ -182,7 +182,7 @@ export const FEATURE_CONFIG: Record<FeatureKey, FeatureConfig> = {
 		key: "openrouter-byok",
 		name: "Bring Your Own OpenRouter Key",
 		description:
-			"Use your own encrypted OpenRouter API key for website AI calls without consuming Cossistant AI credits",
+			"Use your own encrypted OpenRouter API key for website AI calls; fallback calls use normal Cossistant AI credits",
 		category: "secondary",
 	},
 	"latest-ai-models": {

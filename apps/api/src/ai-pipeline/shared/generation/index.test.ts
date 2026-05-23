@@ -3,6 +3,29 @@ import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 const createModelMock = mock((modelId: string) => modelId);
+const runWithOpenRouterByokFallbackMock = mock(
+	async (params: {
+		modelId: string;
+		operation: (resolution: {
+			model: string;
+			billingSource: "cossistant";
+		}) => Promise<unknown>;
+		onResolution?: (resolution: {
+			model: string;
+			billingSource: "cossistant";
+		}) => void;
+	}) => {
+		const resolution = {
+			model: createModelMock(params.modelId),
+			billingSource: "cossistant" as const,
+		};
+		params.onResolution?.(resolution);
+		return {
+			result: await params.operation(resolution),
+			billingSource: "cossistant" as const,
+		};
+	}
+);
 const hasToolCallMock = mock((_toolName: string) => () => false);
 const stepCountIsMock = mock((_count: number) => () => false);
 const getBehaviorSettingsMock = mock(() => ({
@@ -264,6 +287,7 @@ const buildPipelineToolsetMock = mock(
 mock.module("@api/lib/ai", () => ({
 	createModel: createModelMock,
 	hasToolCall: hasToolCallMock,
+	runWithOpenRouterByokFallback: runWithOpenRouterByokFallbackMock,
 	stepCountIs: stepCountIsMock,
 	ToolLoopAgent: ToolLoopAgentMock,
 }));
@@ -451,6 +475,7 @@ describe("runGenerationRuntime", () => {
 		process.env.NODE_ENV = "test";
 		mockSearchKnowledgeResult = createSearchKnowledgeResult();
 		createModelMock.mockClear();
+		runWithOpenRouterByokFallbackMock.mockClear();
 		hasToolCallMock.mockClear();
 		stepCountIsMock.mockClear();
 		getBehaviorSettingsMock.mockClear();

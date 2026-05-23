@@ -1,9 +1,8 @@
-import { createModelRawForWebsite, generateText, Output } from "@api/lib/ai";
 import {
-	recordOpenRouterByokFailure,
-	recordOpenRouterByokSuccess,
-	type OpenRouterBillingSource,
-} from "@api/lib/openrouter-byok/resolver";
+	generateText,
+	Output,
+	runWithOpenRouterByokFallback,
+} from "@api/lib/ai";
 import { z } from "zod";
 import { logAiPipeline } from "../../../../logger";
 import { observeDecision } from "./rules";
@@ -41,27 +40,23 @@ export async function runSmartDecisionModel(params: {
 			organizationId: params.input.conversation.organizationId,
 			websiteId: params.input.conversation.websiteId,
 		};
-		let billingSource: OpenRouterBillingSource | undefined;
 		const timeout = setTimeout(() => {
 			abortController.abort();
 		}, modelConfig.timeoutMs);
 
 		try {
-			const model = await createModelRawForWebsite(
-				modelConfig.id,
-				openRouterContext
-			);
-			billingSource = model.billingSource;
-			const result = await generateText({
-				model: model.model,
-				output: Output.object({ schema: decisionOutputSchema }),
-				prompt: params.prompt,
-				temperature: 0,
-				abortSignal: abortController.signal,
-			});
-			await recordOpenRouterByokSuccess({
-				context: openRouterContext,
-				billingSource,
+			const { result } = await runWithOpenRouterByokFallback({
+				modelId: modelConfig.id,
+				options: { context: openRouterContext },
+				kind: "raw",
+				operation: ({ model }) =>
+					generateText({
+						model,
+						output: Output.object({ schema: decisionOutputSchema }),
+						prompt: params.prompt,
+						temperature: 0,
+						abortSignal: abortController.signal,
+					}),
 			});
 
 			if (!result.output) {
@@ -118,11 +113,6 @@ export async function runSmartDecisionModel(params: {
 				source: "model",
 			};
 		} catch (error) {
-			await recordOpenRouterByokFailure({
-				context: openRouterContext,
-				billingSource,
-				error,
-			});
 			const isTimeout = error instanceof Error && error.name === "AbortError";
 			lastFailure = isTimeout ? "timeout" : "error";
 

@@ -56,6 +56,7 @@ const createStructuredOutputModelForWebsiteMock = mock(
 		billingSource: "cossistant" as const,
 	})
 );
+const isOpenRouterByokFallbackEligibleErrorMock = mock(() => false);
 const createModelMock = mock((modelId: string) => modelId);
 const generateTextMock = mock((async () => ({
 	output: null,
@@ -162,11 +163,14 @@ mock.module("@api/lib/ai", () => ({
 	APICallError: APICallErrorMock,
 	createModel: createModelMock,
 	createStructuredOutputModel: createStructuredOutputModelMock,
-	createStructuredOutputModelForWebsite: createStructuredOutputModelForWebsiteMock,
+	createStructuredOutputModelForWebsite:
+		createStructuredOutputModelForWebsiteMock,
 	EmptyResponseBodyError: EmptyResponseBodyErrorMock,
 	generateEmbedding: generateEmbeddingMock,
 	generateEmbeddings: generateEmbeddingsMock,
 	generateText: generateTextMock,
+	isOpenRouterByokFallbackEligibleError:
+		isOpenRouterByokFallbackEligibleErrorMock,
 	NoContentGeneratedError: NoContentGeneratedErrorMock,
 	NoObjectGeneratedError: NoObjectGeneratedErrorMock,
 	NoOutputGeneratedError: NoOutputGeneratedErrorMock,
@@ -178,6 +182,21 @@ mock.module("@api/lib/ai", () => ({
 }));
 
 mock.module("@api/lib/openrouter-byok/resolver", () => ({
+	OpenRouterByokError: class OpenRouterByokError extends Error {
+		constructor(
+			code: "website_not_found" | "decrypt_failed" | "missing_cossistant_key",
+			message: string
+		) {
+			super(message);
+			this.name = "OpenRouterByokError";
+			this.code = code;
+		}
+
+		readonly code:
+			| "website_not_found"
+			| "decrypt_failed"
+			| "missing_cossistant_key";
+	},
 	recordOpenRouterByokFailure: mock(async () => {}),
 	recordOpenRouterByokSuccess: mock(async () => {}),
 }));
@@ -470,6 +489,7 @@ describe("knowledge clarification usage tracking", () => {
 		updateKnowledgeMock.mockReset();
 		createStructuredOutputModelMock.mockReset();
 		createStructuredOutputModelForWebsiteMock.mockReset();
+		isOpenRouterByokFallbackEligibleErrorMock.mockReset();
 		generateEmbeddingMock.mockReset();
 		generateEmbeddingsMock.mockReset();
 		generateTextMock.mockReset();
@@ -510,6 +530,7 @@ describe("knowledge clarification usage tracking", () => {
 				billingSource: "cossistant" as const,
 			})
 		);
+		isOpenRouterByokFallbackEligibleErrorMock.mockReturnValue(false);
 		streamTextMock.mockImplementation((options: unknown) => {
 			const resultPromise = Promise.resolve(generateTextMock(options)).then(
 				(result) => result as { output?: unknown; usage?: unknown }

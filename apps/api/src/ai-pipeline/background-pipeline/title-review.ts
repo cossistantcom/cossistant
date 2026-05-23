@@ -1,12 +1,12 @@
 import type { Database } from "@api/db";
 import type { AiAgentSelect } from "@api/db/schema/ai-agent";
 import type { ConversationSelect } from "@api/db/schema/conversation";
-import { createModelForWebsite, generateText, Output } from "@api/lib/ai";
-import { resolveModelForExecution } from "@api/lib/ai-credits/config";
 import {
-	recordOpenRouterByokFailure,
-	recordOpenRouterByokSuccess,
-} from "@api/lib/openrouter-byok/resolver";
+	generateText,
+	Output,
+	runWithOpenRouterByokFallback,
+} from "@api/lib/ai";
+import { resolveModelForExecution } from "@api/lib/ai-credits/config";
 import { z } from "zod";
 import { logAiPipeline } from "../logger";
 import type {
@@ -331,28 +331,26 @@ export async function runBackgroundTitleReview(
 			organizationId: params.organizationId,
 			websiteId: params.websiteId,
 		};
-		const model = await createModelForWebsite(modelResolution.modelIdResolved, {
-			context: openRouterContext,
-		});
 		try {
-			const review = await generateText({
-				model: model.model,
-				output: Output.object({
-					schema: TITLE_REVIEW_OUTPUT_SCHEMA,
-				}),
-				system:
-					"You generate concise internal conversation titles for support teams. Always return a usable title. Use honest fallback titles for greetings, thanks, or generic help requests.",
-				prompt: buildTitleReviewPrompt({
-					conversation,
-					websiteDefaultLanguage: params.websiteDefaultLanguage,
-					transcript,
-				}),
-				temperature: 0,
-				maxOutputTokens: 180,
-			});
-			await recordOpenRouterByokSuccess({
-				context: openRouterContext,
-				billingSource: model.billingSource,
+			const { result: review } = await runWithOpenRouterByokFallback({
+				modelId: modelResolution.modelIdResolved,
+				options: { context: openRouterContext },
+				operation: ({ model }) =>
+					generateText({
+						model,
+						output: Output.object({
+							schema: TITLE_REVIEW_OUTPUT_SCHEMA,
+						}),
+						system:
+							"You generate concise internal conversation titles for support teams. Always return a usable title. Use honest fallback titles for greetings, thanks, or generic help requests.",
+						prompt: buildTitleReviewPrompt({
+							conversation,
+							websiteDefaultLanguage: params.websiteDefaultLanguage,
+							transcript,
+						}),
+						temperature: 0,
+						maxOutputTokens: 180,
+					}),
 			});
 
 			const output = review.output;
@@ -380,11 +378,6 @@ export async function runBackgroundTitleReview(
 				});
 			}
 		} catch (error) {
-			await recordOpenRouterByokFailure({
-				context: openRouterContext,
-				billingSource: model.billingSource,
-				error,
-			});
 			title = deriveFallbackTitle({
 				conversationHistory: params.conversationHistory,
 				triggerMessage: params.triggerMessage,

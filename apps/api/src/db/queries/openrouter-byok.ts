@@ -14,6 +14,7 @@ export type OpenRouterByokPublicState = {
 	lastConnectionStatus: OpenRouterByokConnectionStatus;
 	lastErrorCode: string | null;
 	lastCheckedAt: string | null;
+	fallbackPausedUntil: string | null;
 	updatedAt: string | null;
 };
 
@@ -52,6 +53,7 @@ export function toOpenRouterByokPublicState(
 		lastConnectionStatus: record?.lastConnectionStatus ?? "unchecked",
 		lastErrorCode: record?.lastErrorCode ?? null,
 		lastCheckedAt: record?.lastCheckedAt ?? null,
+		fallbackPausedUntil: record?.fallbackPausedUntil ?? null,
 		updatedAt: record?.updatedAt ?? null,
 	};
 }
@@ -172,6 +174,7 @@ export async function upsertWebsiteOpenRouterKey(
 			lastConnectionStatus: "unchecked",
 			lastErrorCode: null,
 			lastCheckedAt: null,
+			fallbackPausedUntil: null,
 			createdBy: params.userId,
 			updatedBy: params.userId,
 			createdAt: now,
@@ -186,6 +189,7 @@ export async function upsertWebsiteOpenRouterKey(
 				lastConnectionStatus: "unchecked",
 				lastErrorCode: null,
 				lastCheckedAt: null,
+				fallbackPausedUntil: null,
 				updatedBy: params.userId,
 				updatedAt: now,
 			},
@@ -212,6 +216,7 @@ export async function setWebsiteOpenRouterKeyEnabled(
 		.update(websiteOpenRouterKey)
 		.set({
 			enabled: params.enabled,
+			fallbackPausedUntil: params.enabled ? null : undefined,
 			updatedBy: params.userId,
 			updatedAt: new Date().toISOString(),
 		})
@@ -254,6 +259,7 @@ export async function markWebsiteOpenRouterKeyConnectionStatus(
 		status: OpenRouterByokConnectionStatus;
 		errorCode?: string | null;
 		checkedAt?: string;
+		fallbackPausedUntil?: string | null;
 	}
 ): Promise<WebsiteOpenRouterKeySelect | null> {
 	const checkedAt = params.checkedAt ?? new Date().toISOString();
@@ -263,6 +269,12 @@ export async function markWebsiteOpenRouterKeyConnectionStatus(
 			lastConnectionStatus: params.status,
 			lastErrorCode: params.errorCode ?? null,
 			lastCheckedAt: checkedAt,
+			fallbackPausedUntil:
+				params.fallbackPausedUntil === undefined
+					? params.status === "valid"
+						? null
+						: undefined
+					: params.fallbackPausedUntil,
 			updatedAt: checkedAt,
 		})
 		.where(

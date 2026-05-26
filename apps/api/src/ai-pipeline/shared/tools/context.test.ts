@@ -1,6 +1,14 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { PipelineToolContext } from "./contracts";
 
+type SearchKnowledgeToolResult = {
+	data: {
+		articles: Array<{
+			content: string;
+		}>;
+	};
+};
+
 const findSimilarKnowledgeMock = mock(
 	(async () =>
 		[] as Array<{
@@ -41,6 +49,9 @@ mock.module("@api/utils/vector-search", () => ({
 mock.module("@api/db/queries/knowledge-clarification", () => ({
 	getActiveKnowledgeClarificationForConversation:
 		getActiveKnowledgeClarificationForConversationMock,
+	listActiveKnowledgeClarificationSummariesForConversations: mock(
+		async () => new Map()
+	),
 }));
 mock.module("@api/ai-pipeline/primary-pipeline/steps/intake/history", () => ({
 	buildConversationTranscript: buildConversationTranscriptMock,
@@ -215,12 +226,12 @@ describe("createSearchKnowledgeBaseTool", () => {
 
 		const { createSearchKnowledgeBaseTool } = await modulePromise;
 		const tool = createSearchKnowledgeBaseTool(createContext());
-		const result = await tool.execute?.(
+		const result = (await tool.execute?.(
 			{
 				query: "export data",
 			},
 			{} as never
-		);
+		)) as SearchKnowledgeToolResult;
 
 		expect(result).toMatchObject({
 			success: true,
@@ -239,5 +250,38 @@ describe("createSearchKnowledgeBaseTool", () => {
 		expect(
 			getActiveKnowledgeClarificationForConversationMock
 		).not.toHaveBeenCalled();
+	});
+
+	it("limits and clips knowledge result content before returning it to the model", async () => {
+		const longContent = "A".repeat(1300);
+		findSimilarKnowledgeMock.mockResolvedValueOnce(
+			Array.from({ length: 5 }, (_, index) => ({
+				content: `${longContent}${index}`,
+				knowledgeId: `kb-${index}`,
+				similarity: 0.82,
+				metadata: {
+					title: `Result ${index}`,
+					url: `https://example.com/${index}`,
+					sourceType: "faq",
+				},
+			})) as never
+		);
+
+		const { createSearchKnowledgeBaseTool } = await modulePromise;
+		const tool = createSearchKnowledgeBaseTool(createContext());
+		const result = (await tool.execute?.(
+			{
+				query: "export data",
+			},
+			{} as never
+		)) as SearchKnowledgeToolResult | undefined;
+
+		expect(findSimilarKnowledgeMock.mock.calls[0]?.[3]).toMatchObject({
+			limit: 4,
+			minSimilarity: 0.3,
+		});
+		expect(result?.data.articles).toHaveLength(4);
+		expect(result?.data.articles[0]?.content.length).toBeLessThanOrEqual(1203);
+		expect(result?.data.articles[0]?.content.endsWith("...")).toBe(true);
 	});
 });

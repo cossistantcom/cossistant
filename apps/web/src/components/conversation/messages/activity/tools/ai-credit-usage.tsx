@@ -8,6 +8,7 @@ import type { ToolActivityProps } from "../types";
 type CreditPayload = {
 	baseCredits: number;
 	modelCredits: number;
+	thinkingCredits: number;
 	toolCredits: number;
 	totalCredits: number;
 	billableToolCount: number;
@@ -24,6 +25,7 @@ type CreditPayload = {
 	inputTokens?: number;
 	outputTokens?: number;
 	totalTokens?: number;
+	reasoningTokens?: number;
 	tokenSource?: "provider" | "fallback_constant";
 	source?: "primary_pipeline" | "knowledge_clarification";
 	phase?:
@@ -111,6 +113,7 @@ function normalizeCreditPayload(
 	return {
 		baseCredits: toNumber(payload.baseCredits),
 		modelCredits: toNumber(payload.modelCredits),
+		thinkingCredits: toNumber(payload.thinkingCredits),
 		toolCredits: toNumber(payload.toolCredits),
 		totalCredits: toNumber(payload.totalCredits),
 		billableToolCount: toNumber(payload.billableToolCount),
@@ -141,6 +144,10 @@ function normalizeCreditPayload(
 				: undefined,
 		totalTokens:
 			typeof payload.totalTokens === "number" ? payload.totalTokens : undefined,
+		reasoningTokens:
+			typeof payload.reasoningTokens === "number"
+				? payload.reasoningTokens
+				: undefined,
 		tokenSource:
 			payload.tokenSource === "fallback_constant"
 				? "fallback_constant"
@@ -191,6 +198,10 @@ function parsePayload(output: unknown): CreditPayload | null {
 			typeof tokens.outputTokens === "number" ? tokens.outputTokens : undefined,
 		totalTokens:
 			typeof tokens.totalTokens === "number" ? tokens.totalTokens : undefined,
+		reasoningTokens:
+			typeof tokens.reasoningTokens === "number"
+				? tokens.reasoningTokens
+				: normalizedCredits.reasoningTokens,
 		tokenSource:
 			tokens.source === "fallback_constant" ? "fallback_constant" : "provider",
 	};
@@ -333,6 +344,9 @@ export function AiCreditUsageActivity({
 				<div className="mt-1.5 space-y-1 rounded-md border border-border/50 bg-background/70 p-2.5 text-xs">
 					<DetailRow label="Base">{payload.baseCredits}</DetailRow>
 					<DetailRow label="Model surcharge">{payload.modelCredits}</DetailRow>
+					{payload.thinkingCredits > 0 ? (
+						<DetailRow label="AI Thinking">{payload.thinkingCredits}</DetailRow>
+					) : null}
 					<DetailRow label="Tool costs">
 						{payload.toolCredits}
 						<span className="ml-1 font-normal text-muted-foreground">
@@ -349,6 +363,11 @@ export function AiCreditUsageActivity({
 							typeof payload.outputTokens === "number" ? (
 								<span className="ml-1 font-normal text-muted-foreground">
 									({payload.inputTokens} in / {payload.outputTokens} out)
+								</span>
+							) : null}
+							{typeof payload.reasoningTokens === "number" ? (
+								<span className="ml-1 font-normal text-muted-foreground">
+									/{payload.reasoningTokens} reasoning
 								</span>
 							) : null}
 						</DetailRow>

@@ -13,6 +13,7 @@ import { useWebsite } from "@/contexts/website";
 import { useTRPC } from "@/lib/trpc/client";
 import { AIAgentForm } from "../ai-agent-form";
 import { DeleteAgentDialog } from "../delete-agent-dialog";
+import { AiThinkingForm } from "./behavior/ai-thinking-form";
 import { ToolInvocationBudgetForm } from "./behavior/tool-invocation-budget-form";
 
 export default function GeneralSettingsPage() {
@@ -22,6 +23,11 @@ export default function GeneralSettingsPage() {
 
 	const { data: aiAgent } = useQuery(
 		trpc.aiAgent.get.queryOptions({
+			websiteSlug: website.slug,
+		})
+	);
+	const { data: planInfo } = useQuery(
+		trpc.plan.getPlanInfo.queryOptions({
 			websiteSlug: website.slug,
 		})
 	);
@@ -74,6 +80,32 @@ export default function GeneralSettingsPage() {
 						<ToolInvocationBudgetForm
 							aiAgentId={aiAgent.id}
 							initialData={behaviorSettings}
+							websiteSlug={website.slug}
+						/>
+					</SettingsRow>
+				)}
+
+				{isBehaviorSettingsError || !behaviorSettings ? (
+					<SettingsRow
+						description="Let supported models use provider-side reasoning for primary AI answers."
+						title="AI Thinking"
+					>
+						<div className="p-4">
+							<p className="text-destructive text-sm">
+								Failed to load behavior settings.
+							</p>
+						</div>
+					</SettingsRow>
+				) : (
+					<SettingsRow
+						description="Let supported models use provider-side reasoning for primary AI answers."
+						title="AI Thinking"
+					>
+						<AiThinkingForm
+							aiAgentId={aiAgent.id}
+							initialData={behaviorSettings}
+							modelId={aiAgent.model}
+							planInfo={planInfo}
 							websiteSlug={website.slug}
 						/>
 					</SettingsRow>

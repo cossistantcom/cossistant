@@ -140,10 +140,12 @@ export function createAiAgentWorker({
 			return;
 		}
 
+		const { openRouterByokRetry: _openRouterByokRetry, ...baseJobData } =
+			params.job.data;
 		await enqueueConversationScopedAiJob({
 			queue: schedulerQueue,
 			data: {
-				...params.job.data,
+				...baseJobData,
 				messageId: nextMessage.id,
 				messageCreatedAt: nextMessage.createdAt,
 				runAttempt: 0,
@@ -246,7 +248,7 @@ export function createAiAgentWorker({
 			};
 		}
 
-		const runResult = await runPipelineForMessage({
+		const pipelineParams: Parameters<typeof runPipelineForMessage>[0] = {
 			db,
 			conversation: {
 				id: conversation.id,
@@ -257,7 +259,12 @@ export function createAiAgentWorker({
 			aiAgentId,
 			jobId: String(job.id ?? `job-${Date.now()}`),
 			message: targetMessage,
-		});
+		};
+		if (job.data.openRouterByokRetry) {
+			pipelineParams.openRouterByokRetry = job.data.openRouterByokRetry;
+		}
+
+		const runResult = await runPipelineForMessage(pipelineParams);
 
 		return {
 			processedMessageId: runResult.processedMessageId,
@@ -349,15 +356,23 @@ export function createAiAgentWorker({
 						id: job.data.messageId,
 						createdAt: job.data.messageCreatedAt,
 					};
+		const openRouterByokRetry =
+			error instanceof PipelineMessageError
+				? error.openRouterByokRetry
+				: job.data.openRouterByokRetry;
+		const retryData = {
+			...job.data,
+			messageId: failedMessage.id,
+			messageCreatedAt: failedMessage.createdAt,
+			runAttempt: runAttempt + 1,
+		};
+		if (openRouterByokRetry) {
+			retryData.openRouterByokRetry = openRouterByokRetry;
+		}
 
 		await enqueueConversationScopedAiJob({
 			queue: schedulerQueue,
-			data: {
-				...job.data,
-				messageId: failedMessage.id,
-				messageCreatedAt: failedMessage.createdAt,
-				runAttempt: runAttempt + 1,
-			},
+			data: retryData,
 			delayMs: AI_AGENT_RETRY_DELAY_MS,
 		});
 	}

@@ -135,6 +135,11 @@ export const websiteOpenRouterByokSettingsSchema = z
 			description: "Timestamp for the latest status check.",
 			example: null,
 		}),
+		fallbackPausedUntil: nullableApiTimestampSchema.openapi({
+			description:
+				"Timestamp until which Cossistant bypasses this saved key after confirmed BYOK failures.",
+			example: null,
+		}),
 		updatedAt: nullableApiTimestampSchema.openapi({
 			description: "Timestamp for the latest BYOK config update.",
 			example: "2024-01-10T12:00:00.000Z",

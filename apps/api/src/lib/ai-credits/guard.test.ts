@@ -73,6 +73,33 @@ describe("guardAiCreditRun", () => {
 		expect(result.minimumCharge.totalCredits).toBe(2);
 	});
 
+	it("includes thinking credits in the minimum charge", async () => {
+		getAiCreditMeterStateMock.mockResolvedValue({
+			organizationId: "org-1",
+			meterId: "meter-1",
+			balance: 7,
+			consumedUnits: 0,
+			creditedUnits: 7,
+			meterBacked: true,
+			source: "live",
+			lastSyncedAt: new Date().toISOString(),
+			outage: false,
+		});
+
+		const { guardAiCreditRun } = await guardModulePromise;
+		const result = await guardAiCreditRun({
+			organizationId: "org-1",
+			modelId: "openai/gpt-5.5",
+			aiThinkingEnabled: true,
+		});
+
+		expect(result.allowed).toBe(false);
+		expect(result.blockedReason).toBe("insufficient_credits");
+		expect(result.minimumCharge.modelCredits).toBe(3.5);
+		expect(result.minimumCharge.thinkingCredits).toBe(3);
+		expect(result.minimumCharge.totalCredits).toBe(7.5);
+	});
+
 	it("allows outage fallback for allowed models", async () => {
 		getAiCreditMeterStateMock.mockResolvedValue({
 			organizationId: "org-1",

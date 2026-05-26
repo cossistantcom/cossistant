@@ -32,6 +32,8 @@ export type AiAgentBehaviorSettings = {
 	canEscalate: boolean;
 	/** Can the AI start a private knowledge clarification flow for teammates */
 	canRequestKnowledgeClarification: boolean;
+	/** Can the AI request provider-side reasoning for primary answer generation */
+	aiThinkingEnabled: boolean;
 
 	// Escalation config
 	/** Default user to assign when escalating (null = no default) */

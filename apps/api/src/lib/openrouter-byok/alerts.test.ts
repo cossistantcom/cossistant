@@ -89,7 +89,7 @@ describe("maybeSendOpenRouterByokProblemAlert", () => {
 		console.warn = originalConsoleWarn;
 	});
 
-	it("sends the first failure alert and throttles the same website and error code", async () => {
+	it("sends the first failure alert and throttles the same website and recipient", async () => {
 		const { deps, set, sendBatchEmail } = createDeps();
 
 		const firstResult = await maybeSendOpenRouterByokProblemAlert({
@@ -111,7 +111,7 @@ describe("maybeSendOpenRouterByokProblemAlert", () => {
 		expect(set).toHaveBeenCalledWith(
 			buildOpenRouterByokAlertKey({
 				websiteId: WEBSITE_ID,
-				errorCode: "APICallError",
+				recipientEmail: "owner@example.com",
 			}),
 			CHECKED_AT,
 			"EX",
@@ -120,7 +120,7 @@ describe("maybeSendOpenRouterByokProblemAlert", () => {
 		);
 	});
 
-	it("allows a separate daily alert for a different error code", async () => {
+	it("throttles different error codes for the same website and recipient", async () => {
 		const { deps, sendBatchEmail } = createDeps();
 
 		await maybeSendOpenRouterByokProblemAlert({
@@ -132,6 +132,35 @@ describe("maybeSendOpenRouterByokProblemAlert", () => {
 			context: createContext(),
 			errorCode: "RateLimitError",
 			deps,
+		});
+
+		expect(sendBatchEmail).toHaveBeenCalledTimes(1);
+	});
+
+	it("allows separate daily alerts for different websites", async () => {
+		const { deps, sendBatchEmail } = createDeps();
+
+		await maybeSendOpenRouterByokProblemAlert({
+			context: createContext(),
+			errorCode: "APICallError",
+			deps,
+		});
+		await maybeSendOpenRouterByokProblemAlert({
+			context: { ...createContext(), websiteId: "site_2" },
+			errorCode: "APICallError",
+			deps: {
+				...deps,
+				getAlertConfig: mock(async () => ({
+					enabled: true,
+					maskedKey: "sk-or-v1...abcdef",
+					website: {
+						id: "site_2",
+						name: "Docs 2",
+						slug: "docs-2",
+						domain: "docs-2.example.com",
+					},
+				})),
+			},
 		});
 
 		expect(sendBatchEmail).toHaveBeenCalledTimes(2);

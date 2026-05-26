@@ -620,7 +620,7 @@ export async function runGenerationRuntime(
 			attempts,
 		});
 
-		if (repairResult.status === "error") {
+		if (repairResult.status === "error" || repairResult.status === "blocked") {
 			return {
 				...repairResult,
 				attempts,

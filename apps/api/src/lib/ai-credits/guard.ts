@@ -27,8 +27,11 @@ export type AiCreditGuardResult = {
 export async function guardAiCreditRun(params: {
 	organizationId: string;
 	modelId: string;
+	aiThinkingEnabled?: boolean | null;
 }): Promise<AiCreditGuardResult> {
-	const minimumCharge = getMinimumAiCreditCharge(params.modelId);
+	const minimumCharge = getMinimumAiCreditCharge(params.modelId, {
+		aiThinkingEnabled: params.aiThinkingEnabled,
+	});
 	let meterState: Awaited<ReturnType<typeof getAiCreditMeterState>>;
 
 	try {

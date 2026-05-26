@@ -11,6 +11,7 @@ type ResultParams = {
 	publicMessagesSent?: number;
 	usageTokens?: PrimaryPipelineResult["usageTokens"];
 	creditUsage?: PrimaryPipelineResult["creditUsage"];
+	openRouterByokRetry?: PrimaryPipelineResult["openRouterByokRetry"];
 };
 
 type FinalizedResultParams =
@@ -47,6 +48,7 @@ export function buildPrimaryPipelineResult(
 		retryable,
 		usageTokens: params.usageTokens,
 		creditUsage: params.creditUsage,
+		openRouterByokRetry: params.openRouterByokRetry,
 		metrics: finalizeStageMetrics({
 			metrics: params.metrics,
 			pipelineStartedAt: params.pipelineStartedAt,

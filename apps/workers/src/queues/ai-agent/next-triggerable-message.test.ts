@@ -5,7 +5,9 @@ const getConversationMessagesAfterCursorMock = mock(
 );
 
 mock.module("@api/db/queries/conversation", () => ({
+	getConversationById: mock(async () => null),
 	getConversationMessagesAfterCursor: getConversationMessagesAfterCursorMock,
+	getMessageMetadata: mock(async () => null),
 }));
 
 const modulePromise = import("./next-triggerable-message");

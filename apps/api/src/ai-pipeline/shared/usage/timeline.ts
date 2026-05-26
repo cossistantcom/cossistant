@@ -34,9 +34,11 @@ export type GenerationUsageTimelinePayload = {
 	inputTokens: number;
 	outputTokens: number;
 	totalTokens: number;
+	reasoningTokens?: number;
 	tokenSource: "provider" | "fallback_constant";
 	baseCredits: number;
 	modelCredits: number;
+	thinkingCredits: number;
 	toolCredits: number;
 	totalCredits: number;
 	billableToolCount: number;
@@ -48,9 +50,11 @@ export type GenerationUsageTimelinePayload = {
 		| "failed"
 		| "skipped"
 		| "skipped_customer_openrouter"
+		| "skipped_cossistant_platform"
 		| "skipped_zero";
 	balanceBefore: number | null;
 	balanceAfterEstimate: number | null;
+	blockedReason?: string;
 	source?: GenerationUsageSource;
 	phase?: GenerationUsagePhase;
 	knowledgeClarificationRequestId?: string;
@@ -144,6 +148,7 @@ function buildToolPart(payload: GenerationUsageTimelinePayload) {
 			workflowRunId,
 			triggerMessageId,
 			modelId: payload.modelId,
+			blockedReason: payload.blockedReason ?? null,
 			source: payload.source ?? "primary_pipeline",
 			phase: payload.phase ?? "primary_generation",
 			knowledgeClarificationRequestId:
@@ -158,6 +163,10 @@ function buildToolPart(payload: GenerationUsageTimelinePayload) {
 }
 
 function buildTimelineText(payload: GenerationUsageTimelinePayload): string {
+	if (payload.blockedReason) {
+		return `AI credits blocked (${payload.blockedReason}): ${payload.totalCredits} credits required`;
+	}
+
 	if (payload.source === "knowledge_clarification") {
 		const label =
 			payload.phase === "faq_draft_generation"

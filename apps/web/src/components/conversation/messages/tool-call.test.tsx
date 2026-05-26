@@ -362,6 +362,51 @@ describe("ToolCall", () => {
 		expect(html).toContain("Log");
 	});
 
+	it("renders AI thinking traces with developer details", () => {
+		const html = renderWithIcon(
+			createToolTimelineItem({
+				text: "AI thinking trace captured",
+				parts: [
+					{
+						type: "tool-aiThinkingTrace",
+						toolCallId: "ai-thinking-trace-1",
+						toolName: "aiThinkingTrace",
+						input: {
+							modelId: "openai/gpt-5.5",
+							attempt: 1,
+							reasoningMaxTokens: 512,
+						},
+						state: "result",
+						output: {
+							modelId: "openai/gpt-5.5",
+							workflowRunId: "wf-1",
+							attempt: 1,
+							thinkingCredits: 3,
+							reasoningMaxTokens: 512,
+							captureStatus: "captured",
+							tokens: {
+								inputTokens: 100,
+								outputTokens: 40,
+								totalTokens: 140,
+								reasoningTokens: 12,
+							},
+							reasoningText: "Checked the evidence before answering.",
+						},
+					},
+				],
+				tool: "aiThinkingTrace",
+			}),
+			"developer"
+		);
+
+		expect(html).toContain('data-activity-icon="aiThinkingTrace"');
+		expect(html).toContain("AI thinking trace captured");
+		expect(html).toContain("openai/gpt-5.5");
+		expect(html).toContain("12 reasoning");
+		expect(html).toContain("Checked the evidence before answering.");
+		expect(html).toContain("Dev payload");
+	});
+
 	it("renders developer-mode fallback through the dev log shell", () => {
 		const html = render(
 			createToolTimelineItem({

@@ -1,7 +1,9 @@
 import type { Database } from "@api/db";
 import type { AiAgentSelect } from "@api/db/schema/ai-agent";
 import type { ConversationSelect } from "@api/db/schema/conversation";
+import type { AiCreditGuardResult } from "@api/lib/ai-credits/guard";
 import type { OpenRouterBillingSource } from "@api/lib/openrouter-byok/resolver";
+import type { OpenRouterByokRetryState } from "@cossistant/jobs";
 import type { AiAgentToolId } from "@cossistant/types";
 import type {
 	ConversationState,
@@ -43,6 +45,7 @@ export type GenerationTokenUsage = {
 	inputTokens: number;
 	outputTokens: number;
 	totalTokens: number;
+	reasoningTokens?: number;
 	source: "provider" | "fallback_constant";
 };
 
@@ -75,10 +78,11 @@ export type GenerationRuntimeInput = {
 	deepTraceEnabled?: boolean;
 	tracePayloadMode?: ToolTracePayloadMode;
 	toolAllowlist?: AiAgentToolId[];
+	openRouterByokRetry?: OpenRouterByokRetryState;
 };
 
 export type GenerationRuntimeResult = {
-	status: "completed" | "error";
+	status: "completed" | "error" | "blocked";
 	action: CapturedFinalAction;
 	publicMessagesSent: number;
 	toolCallsByName: Record<string, number>;
@@ -90,13 +94,32 @@ export type GenerationRuntimeResult = {
 		inputTokens?: number;
 		outputTokens?: number;
 		totalTokens?: number;
+		reasoningTokens?: number;
+	};
+	thinking?: {
+		requested: boolean;
+		enabled: boolean;
+		supported: boolean;
+		thinkingCredits: number;
+		reasoningMaxTokens: number | null;
+		captureStatus?: "captured" | "not_returned" | "not_requested";
 	};
 	billingSource?: OpenRouterBillingSource;
+	creditGuard?: AiCreditGuardResult;
+	creditGuardMode?: AiCreditGuardResult["mode"];
+	openRouterByokRetry?: OpenRouterByokRetryState;
+	openRouterByokFailure?: {
+		errorCode: string;
+		billingSource: "customer_openrouter";
+		fallbackEligible: boolean;
+		localAbort: boolean;
+	};
 	error?: string;
 	aborted?: boolean;
 	failureCode?:
 		| "timeout"
 		| "abort_signal"
+		| "openrouter_byok_retry_required"
 		| "missing_finish_action"
 		| "runtime_error";
 	attempts?: Array<{

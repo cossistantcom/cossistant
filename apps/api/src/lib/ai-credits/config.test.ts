@@ -2,11 +2,14 @@ import { describe, expect, it } from "bun:test";
 import {
 	calculateAiCreditCharge,
 	getAiModelsForPlan,
+	getAiThinkingReasoningMaxTokens,
+	getAiThinkingSurchargeCredits,
 	getDefaultModelId,
 	getMinimumAiCreditCharge,
 	getModelSurchargeCredits,
 	getToolCallStats,
 	getToolCredits,
+	isAiThinkingSupported,
 	isExcludedToolName,
 	isHighEndModel,
 	isKnownModel,
@@ -22,6 +25,7 @@ describe("ai credit pricing config", () => {
 
 		expect(charge.baseCredits).toBe(1);
 		expect(charge.modelCredits).toBe(0);
+		expect(charge.thinkingCredits).toBe(0);
 		expect(charge.totalCredits).toBe(1);
 	});
 
@@ -33,7 +37,41 @@ describe("ai credit pricing config", () => {
 
 		expect(charge.baseCredits).toBe(1);
 		expect(charge.modelCredits).toBe(1);
+		expect(charge.thinkingCredits).toBe(0);
 		expect(charge.totalCredits).toBe(2);
+	});
+
+	it("adds new model catalog entries with model-aware thinking metadata", () => {
+		expect(isKnownModel("openai/gpt-5.5")).toBe(true);
+		expect(isKnownModel("moonshotai/kimi-k2.6")).toBe(true);
+		expect(getModelSurchargeCredits("openai/gpt-5.5")).toBe(3.5);
+		expect(getModelSurchargeCredits("moonshotai/kimi-k2.6")).toBe(0.5);
+		expect(isAiThinkingSupported("openai/gpt-5.5")).toBe(true);
+		expect(isAiThinkingSupported("moonshotai/kimi-k2.6")).toBe(true);
+		expect(isAiThinkingSupported("openai/gpt-5.2-chat")).toBe(false);
+		expect(getAiThinkingSurchargeCredits("openai/gpt-5.5")).toBe(3);
+		expect(getAiThinkingSurchargeCredits("moonshotai/kimi-k2.6")).toBe(0.5);
+		expect(getAiThinkingReasoningMaxTokens("openai/gpt-5.5")).toBe(512);
+		expect(getAiThinkingReasoningMaxTokens("openai/gpt-5.2-chat")).toBeNull();
+	});
+
+	it("charges thinking only when enabled and supported", () => {
+		const premiumThinkingCharge = getMinimumAiCreditCharge("openai/gpt-5.5", {
+			aiThinkingEnabled: true,
+		});
+		expect(premiumThinkingCharge.baseCredits).toBe(1);
+		expect(premiumThinkingCharge.modelCredits).toBe(3.5);
+		expect(premiumThinkingCharge.thinkingCredits).toBe(3);
+		expect(premiumThinkingCharge.totalCredits).toBe(7.5);
+
+		const unsupportedThinkingCharge = getMinimumAiCreditCharge(
+			"openai/gpt-5.2-chat",
+			{
+				aiThinkingEnabled: true,
+			}
+		);
+		expect(unsupportedThinkingCharge.thinkingCredits).toBe(0);
+		expect(unsupportedThinkingCharge.totalCredits).toBe(2);
 	});
 
 	it("counts excluded tools and billable tools correctly", () => {
@@ -75,6 +113,7 @@ describe("ai credit pricing config", () => {
 
 		expect(charge.baseCredits).toBe(1);
 		expect(charge.modelCredits).toBe(1);
+		expect(charge.thinkingCredits).toBe(0);
 		expect(charge.billableToolCount).toBe(3);
 		expect(charge.excludedToolCount).toBe(2);
 		expect(charge.toolCredits).toBe(0.5);
@@ -123,8 +162,10 @@ describe("ai credit pricing config", () => {
 
 	it("knows outage allowlist and plan entitlement from the same catalog", () => {
 		expect(isKnownModel("moonshotai/kimi-k2.5")).toBe(true);
+		expect(isKnownModel("moonshotai/kimi-k2.6")).toBe(true);
 		expect(isKnownModel("unknown/model")).toBe(false);
 		expect(isOutageAllowedModel("moonshotai/kimi-k2.5")).toBe(true);
+		expect(isOutageAllowedModel("moonshotai/kimi-k2.6")).toBe(true);
 		expect(isOutageAllowedModel("openai/gpt-5.1-chat")).toBe(false);
 
 		expect(
@@ -155,13 +196,29 @@ describe("ai credit pricing config", () => {
 				?.selectableForCurrentPlan
 		).toBe(false);
 		expect(
+			freeView.items.find((model) => model.id === "openai/gpt-5.5")
+				?.selectableForCurrentPlan
+		).toBe(false);
+		expect(
 			freeView.items.find((model) => model.id === "moonshotai/kimi-k2-0905")
 				?.selectableForCurrentPlan
 		).toBe(true);
+		expect(
+			freeView.items.find((model) => model.id === "moonshotai/kimi-k2.6")
+				?.thinkingSupported
+		).toBe(true);
+		expect(
+			freeView.items.find((model) => model.id === "moonshotai/kimi-k2.6")
+				?.thinkingSurchargeCredits
+		).toBe(0.5);
 
 		const paidView = getAiModelsForPlan(true);
 		expect(
 			paidView.items.find((model) => model.id === "openai/gpt-5.2-chat")
+				?.selectableForCurrentPlan
+		).toBe(true);
+		expect(
+			paidView.items.find((model) => model.id === "openai/gpt-5.5")
 				?.selectableForCurrentPlan
 		).toBe(true);
 	});

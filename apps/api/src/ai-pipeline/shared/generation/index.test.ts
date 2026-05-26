@@ -3,34 +3,142 @@ import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 const createModelMock = mock((modelId: string) => modelId);
+let mockOpenRouterBillingSource: "cossistant" | "customer_openrouter" =
+	"cossistant";
+let mockOpenRouterFallbackAfterError = false;
+class OpenRouterByokFallbackRequiredErrorMock extends Error {
+	readonly billingSource = "customer_openrouter" as const;
+	readonly errorCode: string;
+	readonly fallbackEligible = true;
+	readonly alreadyRecorded: boolean;
+
+	constructor(params: { errorCode: string; alreadyRecorded?: boolean }) {
+		super("Customer OpenRouter key failed and requires fallback.");
+		this.name = "OpenRouterByokFallbackRequiredError";
+		this.errorCode = params.errorCode;
+		this.alreadyRecorded = params.alreadyRecorded === true;
+	}
+}
 const runWithOpenRouterByokFallbackMock = mock(
 	async (params: {
 		modelId: string;
+		options?: {
+			openRouterByokMode?: "auto" | "customer" | "cossistant_platform";
+		};
+		fallbackStrategy?: "inline" | "throw";
 		operation: (resolution: {
 			model: string;
-			billingSource: "cossistant";
+			billingSource:
+				| "cossistant"
+				| "customer_openrouter"
+				| "cossistant_platform";
+			fallbackFromBillingSource?: "customer_openrouter";
+			fallbackErrorCode?: string;
+			usedOpenRouterByokFallback?: boolean;
 		}) => Promise<unknown>;
 		onResolution?: (resolution: {
 			model: string;
-			billingSource: "cossistant";
+			billingSource:
+				| "cossistant"
+				| "customer_openrouter"
+				| "cossistant_platform";
+			fallbackFromBillingSource?: "customer_openrouter";
+			fallbackErrorCode?: string;
+			usedOpenRouterByokFallback?: boolean;
 		}) => void;
+		beforeOperation?: (resolution: {
+			model: string;
+			billingSource:
+				| "cossistant"
+				| "customer_openrouter"
+				| "cossistant_platform";
+			fallbackFromBillingSource?: "customer_openrouter";
+			fallbackErrorCode?: string;
+			usedOpenRouterByokFallback?: boolean;
+		}) => Promise<void> | void;
 	}) => {
+		const billingSource =
+			params.options?.openRouterByokMode === "cossistant_platform"
+				? ("cossistant_platform" as const)
+				: mockOpenRouterBillingSource;
 		const resolution = {
 			model: createModelMock(params.modelId),
-			billingSource: "cossistant" as const,
+			billingSource,
 		};
 		params.onResolution?.(resolution);
-		return {
-			result: await params.operation(resolution),
-			billingSource: "cossistant" as const,
-		};
+		await params.beforeOperation?.(resolution);
+		try {
+			return {
+				result: await params.operation(resolution),
+				billingSource: resolution.billingSource,
+			};
+		} catch (error) {
+			if (
+				params.fallbackStrategy === "throw" &&
+				resolution.billingSource === "customer_openrouter"
+			) {
+				throw new OpenRouterByokFallbackRequiredErrorMock({
+					errorCode:
+						error instanceof Error && error.name === "AbortError"
+							? "AbortError"
+							: "provider_error",
+				});
+			}
+
+			if (
+				!mockOpenRouterFallbackAfterError ||
+				resolution.billingSource !== "customer_openrouter"
+			) {
+				throw error;
+			}
+
+			const fallbackResolution = {
+				model: createModelMock(params.modelId),
+				billingSource: "cossistant" as const,
+				fallbackFromBillingSource: "customer_openrouter" as const,
+				fallbackErrorCode: "provider_error",
+				usedOpenRouterByokFallback: true,
+			};
+			params.onResolution?.(fallbackResolution);
+			await params.beforeOperation?.(fallbackResolution);
+			return {
+				result: await params.operation(fallbackResolution),
+				billingSource: "cossistant" as const,
+				fallbackFromBillingSource: "customer_openrouter" as const,
+				fallbackErrorCode: "provider_error",
+				usedOpenRouterByokFallback: true,
+			};
+		}
 	}
 );
 const hasToolCallMock = mock((_toolName: string) => () => false);
 const stepCountIsMock = mock((_count: number) => () => false);
 const getBehaviorSettingsMock = mock(() => ({
 	maxToolInvocationsPerRun: 15,
+	aiThinkingEnabled: false,
 }));
+const baseGuardResult = {
+	allowed: true,
+	mode: "normal" as const,
+	reason: "Sufficient AI credits",
+	blockedReason: null as string | null,
+	minimumCharge: {
+		baseCredits: 1,
+		modelCredits: 0,
+		thinkingCredits: 0,
+		toolCredits: 0,
+		totalCredits: 1,
+		billableToolCount: 0,
+		excludedToolCount: 0,
+		totalToolCount: 0,
+	},
+	balance: 10,
+	meterBacked: true,
+	meterSource: "polar",
+	lastSyncedAt: "2026-05-25T00:00:00.000Z",
+};
+const guardAiCreditRunMock = mock(async () => baseGuardResult);
+const recordOpenRouterByokFailureMock = mock(async () => {});
 const buildGenerationMessagesMock = mock(() => [
 	{ role: "user" as const, content: "hello" },
 ]);
@@ -44,6 +152,8 @@ type MockAgentOptions = {
 	model: string;
 	instructions: string;
 	tools: Record<string, { execute: (input: unknown) => Promise<unknown> }>;
+	maxOutputTokens?: number;
+	providerOptions?: unknown;
 	prepareStep?: (params: {
 		steps: Array<{ toolCalls?: Array<{ toolName?: string }> }>;
 	}) => {
@@ -284,9 +394,13 @@ const buildPipelineToolsetMock = mock(
 	}
 );
 
+const createTimelineItemMock = mock(async () => ({ id: "thinking-trace-1" }));
+const updateTimelineItemMock = mock(async () => ({ id: "thinking-trace-1" }));
+
 mock.module("@api/lib/ai", () => ({
 	createModel: createModelMock,
 	hasToolCall: hasToolCallMock,
+	OpenRouterByokFallbackRequiredError: OpenRouterByokFallbackRequiredErrorMock,
 	runWithOpenRouterByokFallback: runWithOpenRouterByokFallbackMock,
 	stepCountIs: stepCountIsMock,
 	ToolLoopAgent: ToolLoopAgentMock,
@@ -294,6 +408,14 @@ mock.module("@api/lib/ai", () => ({
 
 mock.module("../settings", () => ({
 	getBehaviorSettings: getBehaviorSettingsMock,
+}));
+
+mock.module("@api/lib/ai-credits/guard", () => ({
+	guardAiCreditRun: guardAiCreditRunMock,
+}));
+
+mock.module("@api/lib/openrouter-byok/resolver", () => ({
+	recordOpenRouterByokFailure: recordOpenRouterByokFailureMock,
 }));
 
 mock.module("../tools", () => ({
@@ -366,6 +488,11 @@ mock.module("../../logger", () => ({
 
 mock.module("../events", () => ({
 	emitPipelineGenerationProgress: emitPipelineGenerationProgressMock,
+}));
+
+mock.module("@api/utils/timeline-item", () => ({
+	createTimelineItem: createTimelineItemMock,
+	updateTimelineItem: updateTimelineItemMock,
 }));
 
 const modulePromise = import("./index");
@@ -472,6 +599,8 @@ function createInput(overrides: Partial<Record<string, unknown>> = {}) {
 describe("runGenerationRuntime", () => {
 	beforeEach(() => {
 		queuedGenerateHandlers.length = 0;
+		mockOpenRouterBillingSource = "cossistant";
+		mockOpenRouterFallbackAfterError = false;
 		process.env.NODE_ENV = "test";
 		mockSearchKnowledgeResult = createSearchKnowledgeResult();
 		createModelMock.mockClear();
@@ -479,10 +608,19 @@ describe("runGenerationRuntime", () => {
 		hasToolCallMock.mockClear();
 		stepCountIsMock.mockClear();
 		getBehaviorSettingsMock.mockClear();
+		getBehaviorSettingsMock.mockReturnValue({
+			maxToolInvocationsPerRun: 15,
+			aiThinkingEnabled: false,
+		});
+		guardAiCreditRunMock.mockClear();
+		guardAiCreditRunMock.mockResolvedValue(baseGuardResult);
+		recordOpenRouterByokFailureMock.mockClear();
 		buildGenerationMessagesMock.mockClear();
 		buildPipelineToolsetMock.mockClear();
 		logAiPipelineMock.mockClear();
 		emitPipelineGenerationProgressMock.mockClear();
+		createTimelineItemMock.mockClear();
+		updateTimelineItemMock.mockClear();
 	});
 
 	afterEach(async () => {
@@ -602,7 +740,7 @@ ${secondPrompt}`);
 		}
 	});
 
-	it("returns error on timeout before any public message without fallback retry", async () => {
+	it("returns runtime error on provider AbortError before any public message without customer BYOK", async () => {
 		queuedGenerateHandlers.push(async () => {
 			throw createAbortError();
 		});
@@ -611,20 +749,20 @@ ${secondPrompt}`);
 		const result = await runGenerationRuntime(createInput() as never);
 
 		expect(result.status).toBe("error");
-		expect(result.failureCode).toBe("timeout");
+		expect(result.failureCode).toBe("runtime_error");
 		expect(result.publicMessagesSent).toBe(0);
 		expect(result.attempts).toHaveLength(1);
 		expect(result.attempts?.[0]).toMatchObject({
 			modelId: "moonshotai/kimi-k2.5",
 			attempt: 1,
-			outcome: "timeout",
+			outcome: "error",
 		});
 		expect(createModelMock.mock.calls.map((call) => call[0])).toEqual([
 			"moonshotai/kimi-k2.5",
 		]);
 	});
 
-	it("completes without retry when timeout happens after a public message", async () => {
+	it("does not schedule BYOK retry when provider AbortError happens after a public message", async () => {
 		queuedGenerateHandlers.push(async ({ options }) => {
 			await options.tools.sendMessage.execute({ message: "First message" });
 			throw createAbortError();
@@ -633,9 +771,9 @@ ${secondPrompt}`);
 		const { runGenerationRuntime } = await modulePromise;
 		const result = await runGenerationRuntime(createInput() as never);
 
-		expect(result.status).toBe("completed");
+		expect(result.status).toBe("error");
 		expect(result.action.action).toBe("skip");
-		expect(result.failureCode).toBe("timeout");
+		expect(result.failureCode).toBe("runtime_error");
 		expect(result.publicMessagesSent).toBe(1);
 		expect(result.attempts).toHaveLength(1);
 		expect(createModelMock).toHaveBeenCalledTimes(1);
@@ -668,6 +806,351 @@ ${secondPrompt}`);
 		expect(result.failureCode).toBeUndefined();
 		expect(result.attempts).toHaveLength(1);
 		expect(result.attempts?.[0]?.outcome).toBe("completed");
+	});
+
+	it("passes the agent max output token setting to ToolLoopAgent", async () => {
+		let capturedMaxOutputTokens: number | undefined;
+		queuedGenerateHandlers.push(async ({ options }) => {
+			capturedMaxOutputTokens = options.maxOutputTokens;
+			await options.tools.skip.execute({ reasoning: "Nothing to do" });
+			return { usage: {} };
+		});
+
+		const { runGenerationRuntime } = await modulePromise;
+		const result = await runGenerationRuntime(
+			createInput({
+				aiAgent: {
+					id: "ai-1",
+					name: "Agent",
+					model: "moonshotai/kimi-k2.5",
+					basePrompt: "You are a helpful support assistant.",
+					maxOutputTokens: 777,
+					behaviorSettings: {},
+				},
+			}) as never
+		);
+
+		expect(result.status).toBe("completed");
+		expect(capturedMaxOutputTokens).toBe(777);
+	});
+
+	it("passes OpenRouter reasoning options and logs a private thinking trace when supported thinking is enabled", async () => {
+		getBehaviorSettingsMock.mockReturnValue({
+			maxToolInvocationsPerRun: 15,
+			aiThinkingEnabled: true,
+		});
+		let capturedProviderOptions: unknown;
+		queuedGenerateHandlers.push(async ({ options }) => {
+			capturedProviderOptions = options.providerOptions;
+			await options.tools.skip.execute({ reasoning: "Nothing to do" });
+			return {
+				reasoningText: "Checked the retrieved evidence before answering.",
+				usage: {
+					inputTokens: 100,
+					outputTokens: 40,
+					totalTokens: 140,
+					outputTokenDetails: {
+						reasoningTokens: 12,
+					},
+				},
+			};
+		});
+
+		const { runGenerationRuntime } = await modulePromise;
+		const result = await runGenerationRuntime(
+			createInput({
+				aiAgent: {
+					id: "ai-1",
+					name: "Agent",
+					model: "openai/gpt-5.5",
+					basePrompt: "You are a helpful support assistant.",
+					maxOutputTokens: 1024,
+					behaviorSettings: { aiThinkingEnabled: true },
+				},
+			}) as never
+		);
+
+		expect(result.status).toBe("completed");
+		expect(capturedProviderOptions).toEqual({
+			openrouter: {
+				reasoning: {
+					max_tokens: 512,
+					exclude: false,
+				},
+			},
+		});
+		expect(result.usage?.reasoningTokens).toBe(12);
+		expect(result.thinking).toMatchObject({
+			requested: true,
+			enabled: true,
+			supported: true,
+			thinkingCredits: 3,
+			captureStatus: "captured",
+		});
+		expect(createTimelineItemMock).toHaveBeenCalledTimes(1);
+		const thinkingTraceCalls = createTimelineItemMock.mock.calls as unknown as [
+			Record<string, unknown>,
+		][];
+		const thinkingTraceCall = thinkingTraceCalls[0]?.[0];
+		expect(thinkingTraceCall).toMatchObject({
+			item: {
+				tool: "aiThinkingTrace",
+				visibility: "private",
+				parts: [
+					{
+						toolName: "aiThinkingTrace",
+						output: {
+							captureStatus: "captured",
+							tokens: {
+								reasoningTokens: 12,
+							},
+						},
+					},
+					{
+						type: "reasoning",
+						text: "Checked the retrieved evidence before answering.",
+					},
+				],
+			},
+		});
+	});
+
+	it("does not pass reasoning options when thinking is requested for an unsupported model", async () => {
+		getBehaviorSettingsMock.mockReturnValue({
+			maxToolInvocationsPerRun: 15,
+			aiThinkingEnabled: true,
+		});
+		let capturedProviderOptions: unknown = "unset";
+		queuedGenerateHandlers.push(async ({ options }) => {
+			capturedProviderOptions = options.providerOptions;
+			await options.tools.skip.execute({ reasoning: "Nothing to do" });
+			return { usage: {} };
+		});
+
+		const { runGenerationRuntime } = await modulePromise;
+		const result = await runGenerationRuntime(
+			createInput({
+				aiAgent: {
+					id: "ai-1",
+					name: "Agent",
+					model: "openai/gpt-5.2-chat",
+					basePrompt: "You are a helpful support assistant.",
+					behaviorSettings: { aiThinkingEnabled: true },
+				},
+			}) as never
+		);
+
+		expect(result.status).toBe("completed");
+		expect(capturedProviderOptions).toBeUndefined();
+		expect(createTimelineItemMock).not.toHaveBeenCalled();
+		expect(result.thinking).toMatchObject({
+			requested: true,
+			enabled: false,
+			supported: false,
+			thinkingCredits: 0,
+			captureStatus: "not_requested",
+		});
+	});
+
+	it("does not run the Cossistant credit guard for customer OpenRouter BYOK", async () => {
+		mockOpenRouterBillingSource = "customer_openrouter";
+		queuedGenerateHandlers.push(async ({ options }) => {
+			await options.tools.skip.execute({ reasoning: "Nothing to do" });
+			return { usage: {} };
+		});
+
+		const { runGenerationRuntime } = await modulePromise;
+		const result = await runGenerationRuntime(createInput() as never);
+
+		expect(result.status).toBe("completed");
+		expect(result.billingSource).toBe("customer_openrouter");
+		expect(guardAiCreditRunMock).not.toHaveBeenCalled();
+	});
+
+	it("returns BYOK retry metadata after the first customer-key provider failure", async () => {
+		mockOpenRouterBillingSource = "customer_openrouter";
+		queuedGenerateHandlers.push(async () => {
+			throw new Error("customer key failed");
+		});
+
+		const { runGenerationRuntime } = await modulePromise;
+		const result = await runGenerationRuntime(createInput() as never);
+
+		expect(result.status).toBe("error");
+		expect(result.failureCode).toBe("openrouter_byok_retry_required");
+		expect(result.openRouterByokRetry).toMatchObject({
+			mode: "customer",
+			customerFailureCount: 1,
+			lastErrorCode: "provider_error",
+		});
+		expect(result.openRouterByokFailure).toMatchObject({
+			errorCode: "provider_error",
+			billingSource: "customer_openrouter",
+			fallbackEligible: true,
+			localAbort: false,
+		});
+		expect(guardAiCreditRunMock).not.toHaveBeenCalled();
+		expect(recordOpenRouterByokFailureMock).not.toHaveBeenCalled();
+	});
+
+	it("treats provider AbortError as BYOK retryable when the local signal did not abort", async () => {
+		mockOpenRouterBillingSource = "customer_openrouter";
+		queuedGenerateHandlers.push(async () => {
+			throw createAbortError();
+		});
+
+		const { runGenerationRuntime } = await modulePromise;
+		const result = await runGenerationRuntime(createInput() as never);
+
+		expect(result.status).toBe("error");
+		expect(result.failureCode).toBe("openrouter_byok_retry_required");
+		expect(result.openRouterByokRetry).toMatchObject({
+			mode: "customer",
+			customerFailureCount: 1,
+			lastErrorCode: "AbortError",
+		});
+		expect(result.openRouterByokFailure).toMatchObject({
+			errorCode: "AbortError",
+			localAbort: false,
+		});
+	});
+
+	it("records the exhausted customer-key failure before scheduling Cossistant fallback", async () => {
+		mockOpenRouterBillingSource = "customer_openrouter";
+		queuedGenerateHandlers.push(async () => {
+			throw new Error("customer key failed");
+		});
+
+		const { runGenerationRuntime } = await modulePromise;
+		const result = await runGenerationRuntime(
+			createInput({
+				openRouterByokRetry: {
+					mode: "customer",
+					customerFailureCount: 1,
+					lastErrorCode: "provider_error",
+					lastFailedAt: "2026-05-26T10:00:00.000Z",
+				},
+			}) as never
+		);
+
+		expect(result.status).toBe("error");
+		expect(result.failureCode).toBe("openrouter_byok_retry_required");
+		expect(result.openRouterByokRetry).toMatchObject({
+			mode: "cossistant",
+			customerFailureCount: 2,
+			lastErrorCode: "provider_error",
+		});
+		expect(recordOpenRouterByokFailureMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				billingSource: "customer_openrouter",
+				errorCode: "provider_error",
+				sendAlert: true,
+				pauseFallback: true,
+			})
+		);
+		expect(guardAiCreditRunMock).not.toHaveBeenCalled();
+	});
+
+	it("uses platform-covered Cossistant fallback without the customer credit guard", async () => {
+		queuedGenerateHandlers.push(async ({ options }) => {
+			await options.tools.skip.execute({ reasoning: "Fallback answered" });
+			return { usage: {} };
+		});
+
+		const { runGenerationRuntime } = await modulePromise;
+		const result = await runGenerationRuntime(
+			createInput({
+				openRouterByokRetry: {
+					mode: "cossistant",
+					customerFailureCount: 2,
+					lastErrorCode: "provider_error",
+					lastFailedAt: "2026-05-26T10:00:00.000Z",
+				},
+			}) as never
+		);
+
+		expect(result.status).toBe("completed");
+		expect(result.billingSource).toBe("cossistant_platform");
+		expect(guardAiCreditRunMock).not.toHaveBeenCalled();
+	});
+
+	it("does not pass reasoning options or create a second trace on repair attempts", async () => {
+		getBehaviorSettingsMock.mockReturnValue({
+			maxToolInvocationsPerRun: 15,
+			aiThinkingEnabled: true,
+		});
+		const providerOptions: unknown[] = [];
+		queuedGenerateHandlers.push(async ({ options }) => {
+			providerOptions.push(options.providerOptions);
+			await options.tools.respond.execute({
+				reasoning: "No public reply sent",
+				confidence: 1,
+			});
+			return {
+				reasoningText: "Reasoned before the first attempt.",
+				usage: {
+					inputTokens: 100,
+					outputTokens: 40,
+					totalTokens: 140,
+					outputTokenDetails: { reasoningTokens: 12 },
+				},
+			};
+		});
+		queuedGenerateHandlers.push(async ({ options }) => {
+			providerOptions.push(options.providerOptions);
+			await options.tools.sendMessage.execute({
+				message: "Here's the reply the visitor should have received.",
+			});
+			await options.tools.respond.execute({
+				reasoning: "Repaired missing public reply",
+				confidence: 1,
+			});
+			return { usage: {} };
+		});
+
+		const { runGenerationRuntime } = await modulePromise;
+		const result = await runGenerationRuntime(
+			createInput({
+				aiAgent: {
+					id: "ai-1",
+					name: "Agent",
+					model: "openai/gpt-5.5",
+					basePrompt: "You are a helpful support assistant.",
+					behaviorSettings: { aiThinkingEnabled: true },
+				},
+			}) as never
+		);
+
+		expect(result.status).toBe("completed");
+		expect(result.attempts).toHaveLength(2);
+		expect(providerOptions[0]).toEqual({
+			openrouter: {
+				reasoning: {
+					max_tokens: 512,
+					exclude: false,
+				},
+			},
+		});
+		expect(providerOptions[1]).toBeUndefined();
+		expect(createTimelineItemMock).toHaveBeenCalledTimes(1);
+	});
+
+	it("redacts and truncates thinking trace reasoning text", async () => {
+		const { sanitizeReasoningText } = await import("./internal/thinking-trace");
+		const sanitized = sanitizeReasoningText(
+			`Bearer abc.def.ghi sk-testsecret123456 password=supersecret ${"x".repeat(
+				5000
+			)}`
+		);
+
+		expect(sanitized).not.toContain("abc.def.ghi");
+		expect(sanitized).not.toContain("sk-testsecret123456");
+		expect(sanitized).not.toContain("supersecret");
+		expect(sanitized).toContain("Bearer [redacted]");
+		expect(sanitized).toContain("sk-[redacted]");
+		expect(sanitized).toContain("password: [redacted]");
+		expect(sanitized?.endsWith("... [truncated]")).toBe(true);
+		expect(sanitized?.length).toBeLessThanOrEqual(4016);
 	});
 
 	it("repairs visitor-facing completion when main sendMessage was not called", async () => {

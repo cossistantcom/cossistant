@@ -25,6 +25,9 @@ export type AiAgentModelCatalogItem = {
 	requiresLatestModels: boolean;
 	modelSurchargeCredits: number;
 	outageAllowed: boolean;
+	thinkingSupported: boolean;
+	thinkingSurchargeCredits: number;
+	thinkingReasoningMaxTokens: number | null;
 	isDefault?: boolean;
 };
 
@@ -41,6 +44,9 @@ export const AI_AGENT_MODEL_CATALOG: readonly AiAgentModelCatalogItem[] = [
 		requiresLatestModels: false,
 		modelSurchargeCredits: 0,
 		outageAllowed: true,
+		thinkingSupported: false,
+		thinkingSurchargeCredits: 0,
+		thinkingReasoningMaxTokens: null,
 		isDefault: true,
 	},
 	{
@@ -51,6 +57,33 @@ export const AI_AGENT_MODEL_CATALOG: readonly AiAgentModelCatalogItem[] = [
 		requiresLatestModels: false,
 		modelSurchargeCredits: 0,
 		outageAllowed: true,
+		thinkingSupported: true,
+		thinkingSurchargeCredits: 0.5,
+		thinkingReasoningMaxTokens: 512,
+	},
+	{
+		id: "moonshotai/kimi-k2.6",
+		label: "Kimi K2.6",
+		provider: "Moonshot AI",
+		icon: "agent",
+		requiresLatestModels: false,
+		modelSurchargeCredits: 0.5,
+		outageAllowed: true,
+		thinkingSupported: true,
+		thinkingSurchargeCredits: 0.5,
+		thinkingReasoningMaxTokens: 512,
+	},
+	{
+		id: "openai/gpt-5.5",
+		label: "GPT-5.5",
+		provider: "OpenAI",
+		icon: "star",
+		requiresLatestModels: true,
+		modelSurchargeCredits: 3.5,
+		outageAllowed: false,
+		thinkingSupported: true,
+		thinkingSurchargeCredits: 3,
+		thinkingReasoningMaxTokens: 512,
 	},
 	{
 		id: "openai/gpt-5.2-chat",
@@ -60,6 +93,9 @@ export const AI_AGENT_MODEL_CATALOG: readonly AiAgentModelCatalogItem[] = [
 		requiresLatestModels: true,
 		modelSurchargeCredits: 1,
 		outageAllowed: false,
+		thinkingSupported: false,
+		thinkingSurchargeCredits: 0,
+		thinkingReasoningMaxTokens: null,
 	},
 	{
 		id: "openai/gpt-5.1-chat",
@@ -69,6 +105,9 @@ export const AI_AGENT_MODEL_CATALOG: readonly AiAgentModelCatalogItem[] = [
 		requiresLatestModels: true,
 		modelSurchargeCredits: 1,
 		outageAllowed: false,
+		thinkingSupported: false,
+		thinkingSurchargeCredits: 0,
+		thinkingReasoningMaxTokens: null,
 	},
 	{
 		id: "openai/gpt-5-mini",
@@ -78,6 +117,9 @@ export const AI_AGENT_MODEL_CATALOG: readonly AiAgentModelCatalogItem[] = [
 		requiresLatestModels: true,
 		modelSurchargeCredits: 1,
 		outageAllowed: false,
+		thinkingSupported: true,
+		thinkingSurchargeCredits: 0.5,
+		thinkingReasoningMaxTokens: 512,
 	},
 	{
 		id: "google/gemini-3-flash-preview",
@@ -87,6 +129,9 @@ export const AI_AGENT_MODEL_CATALOG: readonly AiAgentModelCatalogItem[] = [
 		requiresLatestModels: true,
 		modelSurchargeCredits: 1,
 		outageAllowed: false,
+		thinkingSupported: true,
+		thinkingSurchargeCredits: 0.5,
+		thinkingReasoningMaxTokens: 512,
 	},
 ] as const;
 
@@ -95,6 +140,7 @@ type ToolCallsByName = Record<string, number>;
 export type AiCreditChargeBreakdown = {
 	baseCredits: number;
 	modelCredits: number;
+	thinkingCredits: number;
 	toolCredits: number;
 	totalCredits: number;
 	billableToolCount: number;
@@ -110,6 +156,9 @@ export type AiPlanModelItem = {
 	requiresLatestModels: boolean;
 	modelSurchargeCredits: number;
 	outageAllowed: boolean;
+	thinkingSupported: boolean;
+	thinkingSurchargeCredits: number;
+	thinkingReasoningMaxTokens: number | null;
 	selectableForCurrentPlan: boolean;
 };
 
@@ -157,6 +206,14 @@ function toModelSurcharge(value: number): number {
 	return Math.max(0, value);
 }
 
+function toThinkingSurcharge(value: number): number {
+	if (!Number.isFinite(value) || value <= 0) {
+		return 0;
+	}
+
+	return Math.max(0, value);
+}
+
 function getModelCatalogEntry(
 	modelId: string
 ): AiAgentModelCatalogItem | undefined {
@@ -188,6 +245,47 @@ export function getModelSurchargeCredits(modelId: string): number {
 
 export function getModelSurcharge(modelId: string): number {
 	return getModelSurchargeCredits(modelId);
+}
+
+export function isAiThinkingSupported(modelId: string): boolean {
+	const model = getModelCatalogEntry(modelId);
+	return model?.thinkingSupported === true;
+}
+
+export function getAiThinkingSurchargeCredits(modelId: string): number {
+	const model = getModelCatalogEntry(modelId);
+	if (!model?.thinkingSupported) {
+		return 0;
+	}
+
+	return toThinkingSurcharge(model.thinkingSurchargeCredits);
+}
+
+export function getAiThinkingReasoningMaxTokens(
+	modelId: string
+): number | null {
+	const model = getModelCatalogEntry(modelId);
+	if (!model?.thinkingSupported) {
+		return null;
+	}
+
+	const value = model.thinkingReasoningMaxTokens;
+	if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+		return null;
+	}
+
+	return Math.floor(value);
+}
+
+export function getAiThinkingCredits(params: {
+	modelId: string;
+	aiThinkingEnabled?: boolean | null;
+}): number {
+	if (params.aiThinkingEnabled !== true) {
+		return 0;
+	}
+
+	return getAiThinkingSurchargeCredits(params.modelId);
 }
 
 export function isHighEndModel(modelId: string): boolean {
@@ -260,6 +358,13 @@ export function getAiModelsForPlan(
 			requiresLatestModels: model.requiresLatestModels,
 			modelSurchargeCredits: toModelSurcharge(model.modelSurchargeCredits),
 			outageAllowed: model.outageAllowed,
+			thinkingSupported: model.thinkingSupported,
+			thinkingSurchargeCredits: model.thinkingSupported
+				? toThinkingSurcharge(model.thinkingSurchargeCredits)
+				: 0,
+			thinkingReasoningMaxTokens: model.thinkingSupported
+				? getAiThinkingReasoningMaxTokens(model.id)
+				: null,
 			selectableForCurrentPlan: isModelAllowedForPlan({
 				modelId: model.id,
 				latestModelsFeature,
@@ -273,16 +378,24 @@ export function isExcludedToolName(toolName: string): boolean {
 }
 
 export function getMinimumAiCreditCharge(
-	modelId: string
+	modelId: string,
+	options?: {
+		aiThinkingEnabled?: boolean | null;
+	}
 ): AiCreditChargeBreakdown {
 	const baseCredits = AI_CREDIT_PRICING_CONFIG.baseRunCredits;
 	const modelCredits = getModelSurchargeCredits(modelId);
+	const thinkingCredits = getAiThinkingCredits({
+		modelId,
+		aiThinkingEnabled: options?.aiThinkingEnabled,
+	});
 
 	return {
 		baseCredits,
 		modelCredits,
+		thinkingCredits,
 		toolCredits: 0,
-		totalCredits: roundCredits(baseCredits + modelCredits),
+		totalCredits: roundCredits(baseCredits + modelCredits + thinkingCredits),
 		billableToolCount: 0,
 		excludedToolCount: 0,
 		totalToolCount: 0,
@@ -340,8 +453,11 @@ export function getToolCredits(billableToolCount: number): number {
 export function calculateAiCreditCharge(params: {
 	modelId: string;
 	toolCallsByName?: ToolCallsByName | null;
+	aiThinkingEnabled?: boolean | null;
 }): AiCreditChargeBreakdown {
-	const minimumCharge = getMinimumAiCreditCharge(params.modelId);
+	const minimumCharge = getMinimumAiCreditCharge(params.modelId, {
+		aiThinkingEnabled: params.aiThinkingEnabled,
+	});
 	const { billableToolCount, excludedToolCount, totalToolCount } =
 		getToolCallStats(params.toolCallsByName);
 	const toolCredits = getToolCredits(billableToolCount);
@@ -349,6 +465,7 @@ export function calculateAiCreditCharge(params: {
 	return {
 		baseCredits: minimumCharge.baseCredits,
 		modelCredits: minimumCharge.modelCredits,
+		thinkingCredits: minimumCharge.thinkingCredits,
 		toolCredits,
 		totalCredits: roundCredits(minimumCharge.totalCredits + toolCredits),
 		billableToolCount,

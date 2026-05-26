@@ -55,6 +55,16 @@ export type AiAgentJobData = {
 	messageId: string;
 	messageCreatedAt: string;
 	runAttempt?: number;
+	openRouterByokRetry?: OpenRouterByokRetryState;
+};
+
+export type OpenRouterByokRetryMode = "customer" | "cossistant";
+
+export type OpenRouterByokRetryState = {
+	mode: OpenRouterByokRetryMode;
+	customerFailureCount: number;
+	lastErrorCode?: string;
+	lastFailedAt?: string;
 };
 
 export function generateAiAgentJobId(conversationId: string): string {

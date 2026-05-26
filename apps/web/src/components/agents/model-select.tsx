@@ -51,6 +51,9 @@ export function ModelSelect({
 							label: value,
 							provider: "",
 							icon: "agent",
+							thinkingSupported: false,
+							thinkingSurchargeCredits: 0,
+							thinkingReasoningMaxTokens: null,
 							selectableForCurrentPlan: true,
 						},
 					]
@@ -104,6 +107,11 @@ export function ModelSelect({
 												Upgrade
 											</span>
 										)}
+										{model.thinkingSupported && !showUpgradeBadge ? (
+											<span className="rounded bg-cossistant-blue/10 px-1.5 py-0.5 font-medium text-[10px] text-cossistant-blue">
+												Thinking
+											</span>
+										) : null}
 									</span>
 								</SelectItem>
 							);

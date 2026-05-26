@@ -7,17 +7,17 @@ import {
 	revokeApiKey,
 } from "@api/db/queries/api-keys";
 import {
+	getWebsiteMemberById,
+	getWebsiteMembers,
+	type WebsiteMember,
+} from "@api/db/queries/member";
+import {
 	deleteWebsiteOpenRouterKey,
 	getWebsiteOpenRouterKey,
 	setWebsiteOpenRouterKeyEnabled,
 	toOpenRouterByokPublicState,
 	upsertWebsiteOpenRouterKey,
 } from "@api/db/queries/openrouter-byok";
-import {
-	getWebsiteMemberById,
-	getWebsiteMembers,
-	type WebsiteMember,
-} from "@api/db/queries/member";
 import { createDefaultWebsiteViews } from "@api/db/queries/view";
 import {
 	createWebsite,
@@ -36,19 +36,19 @@ import {
 } from "@api/db/schema";
 import { env } from "@api/env";
 import {
+	encryptOpenRouterApiKey,
+	maskOpenRouterApiKey,
+} from "@api/lib/openrouter-byok/encryption";
+import { getPlanForWebsite } from "@api/lib/plans/access";
+import {
 	ensureFreeSubscriptionForWebsite,
 	getCustomerByOrganizationId,
 	getCustomerState,
 	PolarCustomerInvariantViolationError,
 	partitionWebsiteSubscriptionsForDeletion,
 } from "@api/lib/plans/polar";
-import { getPlanForWebsite } from "@api/lib/plans/access";
 import polarClient from "@api/lib/polar";
 import { generateTinybirdJWT } from "@api/lib/tinybird-jwt";
-import {
-	encryptOpenRouterApiKey,
-	maskOpenRouterApiKey,
-} from "@api/lib/openrouter-byok/encryption";
 import {
 	isOrganizationAdminOrOwner,
 	isOrganizationOwner,
@@ -73,8 +73,8 @@ import {
 	upsertWebsiteOpenRouterApiKeyRequestSchema,
 	websiteApiKeySchema,
 	websiteDeveloperSettingsResponseSchema,
-	websiteOpenRouterByokSettingsSchema,
 	websiteListItemSchema,
+	websiteOpenRouterByokSettingsSchema,
 	websiteSummarySchema,
 } from "@cossistant/types";
 import { TRPCError } from "@trpc/server";

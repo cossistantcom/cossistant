@@ -12,9 +12,9 @@ describe("OpenRouter BYOK encryption", () => {
 	it("round trips an API key", () => {
 		const encryptedApiKey = encryptOpenRouterApiKey({ apiKey, secret });
 
-		expect(
-			decryptOpenRouterApiKey({ encryptedApiKey, secret })
-		).toEqual(apiKey);
+		expect(decryptOpenRouterApiKey({ encryptedApiKey, secret })).toEqual(
+			apiKey
+		);
 	});
 
 	it("uses random ciphertext for the same plaintext", () => {
@@ -25,9 +25,9 @@ describe("OpenRouter BYOK encryption", () => {
 		expect(decryptOpenRouterApiKey({ encryptedApiKey: first, secret })).toEqual(
 			apiKey
 		);
-		expect(decryptOpenRouterApiKey({ encryptedApiKey: second, secret })).toEqual(
-			apiKey
-		);
+		expect(
+			decryptOpenRouterApiKey({ encryptedApiKey: second, secret })
+		).toEqual(apiKey);
 	});
 
 	it("fails with the wrong secret", () => {

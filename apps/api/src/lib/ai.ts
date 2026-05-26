@@ -22,6 +22,7 @@ import {
 	normalizeOpenRouterByokErrorCode,
 	type OpenRouterBillingSource,
 	OpenRouterByokError,
+	type OpenRouterCredentialMode,
 	recordOpenRouterByokFailure,
 	recordOpenRouterByokSuccess,
 	resolveOpenRouterCredentialsForWebsite,
@@ -103,6 +104,7 @@ export type ModelOptions = {
 
 export type WebsiteModelOptions = ModelOptions & {
 	context: WebsiteOpenRouterContext;
+	openRouterByokMode?: OpenRouterCredentialMode;
 };
 
 export type WebsiteLanguageModelResolution = {
@@ -123,6 +125,29 @@ export type WebsiteLanguageModelOperationResult<TResult> = Omit<
 export type WebsiteModelKind = "chat" | "structured" | "raw";
 
 type WrappableLanguageModel = Parameters<typeof wrapLanguageModel>[0]["model"];
+
+export class OpenRouterByokFallbackRequiredError extends Error {
+	constructor(params: {
+		errorCode: string;
+		message?: string;
+		cause?: unknown;
+		alreadyRecorded?: boolean;
+	}) {
+		super(
+			params.message ??
+				"Customer OpenRouter key failed and requires a retry or fallback.",
+			{ cause: params.cause }
+		);
+		this.name = "OpenRouterByokFallbackRequiredError";
+		this.errorCode = params.errorCode;
+		this.alreadyRecorded = params.alreadyRecorded === true;
+	}
+
+	readonly billingSource = "customer_openrouter" as const;
+	readonly errorCode: string;
+	readonly fallbackEligible = true;
+	readonly alreadyRecorded: boolean;
+}
 
 function wrapWithOptionalDevTools(
 	model: WrappableLanguageModel,
@@ -164,7 +189,10 @@ function isLikelyTransportError(error: Error): boolean {
 	].some((needle) => payload.includes(needle));
 }
 
-export function isOpenRouterByokFallbackEligibleError(error: unknown): boolean {
+export function isOpenRouterByokFallbackEligibleError(
+	error: unknown,
+	options: { localAbort?: boolean } = {}
+): boolean {
 	if (error instanceof OpenRouterByokError) {
 		return error.code === "decrypt_failed";
 	}
@@ -189,7 +217,11 @@ export function isOpenRouterByokFallbackEligibleError(error: unknown): boolean {
 		return false;
 	}
 
-	if (isAbortError(error) || isAppTimeoutError(error)) {
+	if (isAbortError(error)) {
+		return options.localAbort === false;
+	}
+
+	if (isAppTimeoutError(error)) {
 		return false;
 	}
 
@@ -245,9 +277,11 @@ async function createWebsiteModelResolution(params: {
 	context: WebsiteOpenRouterContext;
 	kind: WebsiteModelKind;
 	devTools: boolean;
+	mode?: OpenRouterCredentialMode;
 }): Promise<WebsiteLanguageModelResolution> {
 	const credentials = await resolveOpenRouterCredentialsForWebsite(
-		params.context
+		params.context,
+		{ mode: params.mode }
 	);
 	const openrouter = createOpenRouterForApiKey(credentials.apiKey);
 
@@ -266,14 +300,24 @@ export async function runWithOpenRouterByokFallback<TResult>(params: {
 	modelId: string;
 	options: WebsiteModelOptions;
 	kind?: WebsiteModelKind;
+	fallbackStrategy?: "inline" | "throw";
 	operation: (
 		resolution: WebsiteLanguageModelResolution
 	) => Promise<TResult> | TResult;
+	beforeOperation?: (
+		resolution: WebsiteLanguageModelResolution
+	) => Promise<void> | void;
 	canFallback?: (error: unknown) => boolean | Promise<boolean>;
+	isLocalAbort?: (error: unknown) => boolean;
 	onResolution?: (resolution: WebsiteLanguageModelResolution) => void;
 }): Promise<WebsiteLanguageModelOperationResult<TResult>> {
-	const { devTools = isDevToolsEnabled, context } = params.options;
+	const {
+		devTools = isDevToolsEnabled,
+		context,
+		openRouterByokMode,
+	} = params.options;
 	const kind = params.kind ?? "chat";
+	const fallbackStrategy = params.fallbackStrategy ?? "inline";
 	let initialResolution: WebsiteLanguageModelResolution;
 
 	try {
@@ -282,6 +326,7 @@ export async function runWithOpenRouterByokFallback<TResult>(params: {
 			context,
 			kind,
 			devTools,
+			mode: openRouterByokMode,
 		});
 		params.onResolution?.(initialResolution);
 	} catch (error) {
@@ -292,6 +337,13 @@ export async function runWithOpenRouterByokFallback<TResult>(params: {
 		}
 
 		const fallbackErrorCode = normalizeOpenRouterByokErrorCode(error);
+		if (fallbackStrategy === "throw") {
+			throw new OpenRouterByokFallbackRequiredError({
+				errorCode: fallbackErrorCode,
+				cause: error,
+				alreadyRecorded: true,
+			});
+		}
 		const fallbackResolution = createCossistantModelResolution({
 			modelId: params.modelId,
 			kind,
@@ -299,6 +351,7 @@ export async function runWithOpenRouterByokFallback<TResult>(params: {
 			fallbackErrorCode,
 		});
 		params.onResolution?.(fallbackResolution);
+		await params.beforeOperation?.(fallbackResolution);
 		return {
 			result: await params.operation(fallbackResolution),
 			billingSource: fallbackResolution.billingSource,
@@ -309,6 +362,7 @@ export async function runWithOpenRouterByokFallback<TResult>(params: {
 	}
 
 	try {
+		await params.beforeOperation?.(initialResolution);
 		const result = await params.operation(initialResolution);
 		await recordOpenRouterByokSuccess({
 			context,
@@ -322,7 +376,9 @@ export async function runWithOpenRouterByokFallback<TResult>(params: {
 	} catch (error) {
 		const canFallback =
 			initialResolution.billingSource === "customer_openrouter" &&
-			isOpenRouterByokFallbackEligibleError(error) &&
+			isOpenRouterByokFallbackEligibleError(error, {
+				localAbort: params.isLocalAbort?.(error),
+			}) &&
 			(await (params.canFallback?.(error) ?? true));
 
 		if (!canFallback) {
@@ -330,6 +386,12 @@ export async function runWithOpenRouterByokFallback<TResult>(params: {
 		}
 
 		const fallbackErrorCode = normalizeOpenRouterByokErrorCode(error);
+		if (fallbackStrategy === "throw") {
+			throw new OpenRouterByokFallbackRequiredError({
+				errorCode: fallbackErrorCode,
+				cause: error,
+			});
+		}
 		await recordOpenRouterByokFailure({
 			context,
 			billingSource: initialResolution.billingSource,
@@ -343,6 +405,7 @@ export async function runWithOpenRouterByokFallback<TResult>(params: {
 			fallbackErrorCode,
 		});
 		params.onResolution?.(fallbackResolution);
+		await params.beforeOperation?.(fallbackResolution);
 
 		return {
 			result: await params.operation(fallbackResolution),
@@ -385,12 +448,13 @@ export async function createModelForWebsite(
 	modelId: string,
 	options: WebsiteModelOptions
 ): Promise<WebsiteLanguageModelResolution> {
-	const { devTools = isDevToolsEnabled, context } = options;
+	const { devTools = isDevToolsEnabled, context, openRouterByokMode } = options;
 	return createWebsiteModelResolution({
 		modelId,
 		context,
 		kind: "chat",
 		devTools,
+		mode: openRouterByokMode,
 	});
 }
 
@@ -419,12 +483,13 @@ export async function createStructuredOutputModelForWebsite(
 	modelId: string,
 	options: WebsiteModelOptions
 ): Promise<WebsiteLanguageModelResolution> {
-	const { devTools = isDevToolsEnabled, context } = options;
+	const { devTools = isDevToolsEnabled, context, openRouterByokMode } = options;
 	return createWebsiteModelResolution({
 		modelId,
 		context,
 		kind: "structured",
 		devTools,
+		mode: openRouterByokMode,
 	});
 }
 

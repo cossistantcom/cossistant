@@ -201,8 +201,8 @@ export function OpenRouterByokSection({
 							</p>
 							<p className="text-muted-foreground text-xs">
 								If the saved key fails while enabled, organization owners
-								receive at most one email alert per error every 24 hours, and
-								the request may retry with normal Cossistant AI credit billing.
+								receive at most one email alert per website every 24 hours, and
+								the request may retry with Cossistant fallback credits.
 							</p>
 						</div>
 						<Switch

@@ -34,6 +34,11 @@ describe("isOpenRouterByokFallbackEligibleError", () => {
 
 		expect(isOpenRouterByokFallbackEligibleError(abortError)).toBe(false);
 		expect(
+			isOpenRouterByokFallbackEligibleError(abortError, {
+				localAbort: true,
+			})
+		).toBe(false);
+		expect(
 			isOpenRouterByokFallbackEligibleError(new Error("translation_timeout"))
 		).toBe(false);
 		expect(
@@ -42,5 +47,16 @@ describe("isOpenRouterByokFallbackEligibleError", () => {
 		expect(
 			isOpenRouterByokFallbackEligibleError(new Error("tool execution failed"))
 		).toBe(false);
+	});
+
+	it("allows fallback for provider AbortError when the local signal did not abort", () => {
+		const abortError = new Error("The provider aborted the request");
+		abortError.name = "AbortError";
+
+		expect(
+			isOpenRouterByokFallbackEligibleError(abortError, {
+				localAbort: false,
+			})
+		).toBe(true);
 	});
 });

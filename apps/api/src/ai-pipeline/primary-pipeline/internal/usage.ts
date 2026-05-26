@@ -1,5 +1,6 @@
 import { logAiPipeline } from "../../logger";
 import type { GenerationRuntimeResult } from "../../shared/generation";
+import { getBehaviorSettings } from "../../shared/settings";
 import { trackGenerationUsage } from "../../shared/usage";
 import type { PrimaryPipelineResult } from "../contracts";
 import type { IntakeReadyContext } from "../steps/intake/types";
@@ -19,8 +20,11 @@ export async function trackPrimaryGenerationUsage(params: {
 	triggerMessageId: string;
 	intake: IntakeReadyContext;
 	generationResult: GenerationRuntimeResult;
+	mode?: "normal" | "outage";
 }): Promise<PrimaryUsageTelemetry | undefined> {
 	try {
+		const behaviorSettings = getBehaviorSettings(params.intake.aiAgent);
+
 		return await trackGenerationUsage({
 			db: params.db,
 			organizationId: params.organizationId,
@@ -35,11 +39,13 @@ export async function trackPrimaryGenerationUsage(params: {
 			modelIdOriginal: params.intake.modelResolution.modelIdOriginal,
 			modelMigrationApplied:
 				params.intake.modelResolution.modelMigrationApplied,
+			mode: params.mode,
 			providerUsage: params.generationResult.usage,
 			billingSource: params.generationResult.billingSource,
 			toolCallsByName: params.generationResult.toolCallsByName,
 			chargeableToolCallsByName:
 				params.generationResult.chargeableToolCallsByName,
+			aiThinkingEnabled: behaviorSettings.aiThinkingEnabled,
 		});
 	} catch (error) {
 		logAiPipeline({

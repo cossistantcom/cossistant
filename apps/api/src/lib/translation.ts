@@ -639,8 +639,9 @@ export async function activateConversationTranslation(params: {
 	const normalizedVisitorLanguage = normalizeLanguageTag(
 		params.visitorLanguage
 	);
+	const billingSource = params.billingSource ?? "cossistant";
 	const shouldChargeCredits =
-		params.chargeCredits && params.billingSource !== "customer_openrouter";
+		params.chargeCredits && billingSource === "cossistant";
 
 	const [updated] = await params.db
 		.update(conversation)
@@ -674,6 +675,7 @@ export async function activateConversationTranslation(params: {
 				mode: "normal",
 				baseCredits: 1,
 				modelCredits: 0,
+				thinkingCredits: 0,
 				toolCredits: 0,
 				billableToolCount: 0,
 				excludedToolCount: 0,

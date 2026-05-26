@@ -21,6 +21,9 @@ import type {
 } from "./contracts";
 import { isRecord } from "./internal/guards";
 
+const SEARCH_KNOWLEDGE_RESULT_LIMIT = 4;
+const SEARCH_KNOWLEDGE_CONTENT_MAX_LENGTH = 1200;
+
 const searchKnowledgeInputSchema = z.object({
 	query: z
 		.string()
@@ -76,6 +79,14 @@ function resolveSearchClarificationSignal(
 		default:
 			return "none";
 	}
+}
+
+function clipKnowledgeContent(value: string): string {
+	if (value.length <= SEARCH_KNOWLEDGE_CONTENT_MAX_LENGTH) {
+		return value;
+	}
+
+	return `${value.slice(0, SEARCH_KNOWLEDGE_CONTENT_MAX_LENGTH).trimEnd()}...`;
 }
 
 const identifyVisitorInputSchema = z
@@ -148,33 +159,35 @@ export function createSearchKnowledgeBaseTool(ctx: PipelineToolContext) {
 				searchQuery,
 				ctx.websiteId,
 				{
-					limit: 5,
+					limit: SEARCH_KNOWLEDGE_RESULT_LIMIT,
 					minSimilarity: 0.3,
 				}
 			);
-			const articles = results.map((item) => {
-				const metadata =
-					typeof item.metadata === "object" && item.metadata !== null
-						? (item.metadata as Record<string, unknown>)
-						: null;
+			const articles = results
+				.slice(0, SEARCH_KNOWLEDGE_RESULT_LIMIT)
+				.map((item) => {
+					const metadata =
+						typeof item.metadata === "object" && item.metadata !== null
+							? (item.metadata as Record<string, unknown>)
+							: null;
 
-				return {
-					content: item.content,
-					knowledgeId: item.knowledgeId,
-					similarity: Math.round(item.similarity * 100) / 100,
-					title:
-						typeof metadata?.title === "string"
-							? metadata.title
-							: typeof metadata?.question === "string"
-								? metadata.question
+					return {
+						content: clipKnowledgeContent(item.content),
+						knowledgeId: item.knowledgeId,
+						similarity: Math.round(item.similarity * 100) / 100,
+						title:
+							typeof metadata?.title === "string"
+								? metadata.title
+								: typeof metadata?.question === "string"
+									? metadata.question
+									: null,
+						sourceUrl: typeof metadata?.url === "string" ? metadata.url : null,
+						sourceType:
+							typeof metadata?.sourceType === "string"
+								? metadata.sourceType
 								: null,
-					sourceUrl: typeof metadata?.url === "string" ? metadata.url : null,
-					sourceType:
-						typeof metadata?.sourceType === "string"
-							? metadata.sourceType
-							: null,
-				};
-			});
+					};
+				});
 			const totalFound = articles.length;
 			const maxSimilarity =
 				totalFound > 0
@@ -352,25 +365,28 @@ function summarizeSearchKnowledgeBaseOutput(output: unknown): unknown {
 	const data = isRecord(output.data) ? output.data : null;
 	const articles = Array.isArray(data?.articles) ? data.articles : [];
 
-	const summarizedArticles = articles.slice(0, 5).map((article, index) => {
-		if (!isRecord(article)) {
-			return { index };
-		}
+	const summarizedArticles = articles
+		.slice(0, SEARCH_KNOWLEDGE_RESULT_LIMIT)
+		.map((article, index) => {
+			if (!isRecord(article)) {
+				return { index };
+			}
 
-		const content = typeof article.content === "string" ? article.content : "";
+			const content =
+				typeof article.content === "string" ? article.content : "";
 
-		return {
-			index,
-			title: typeof article.title === "string" ? article.title : null,
-			sourceUrl:
-				typeof article.sourceUrl === "string" ? article.sourceUrl : null,
-			sourceType:
-				typeof article.sourceType === "string" ? article.sourceType : null,
-			similarity:
-				typeof article.similarity === "number" ? article.similarity : null,
-			snippet: content.length > 220 ? `${content.slice(0, 220)}...` : content,
-		};
-	});
+			return {
+				index,
+				title: typeof article.title === "string" ? article.title : null,
+				sourceUrl:
+					typeof article.sourceUrl === "string" ? article.sourceUrl : null,
+				sourceType:
+					typeof article.sourceType === "string" ? article.sourceType : null,
+				similarity:
+					typeof article.similarity === "number" ? article.similarity : null,
+				snippet: content.length > 220 ? `${content.slice(0, 220)}...` : content,
+			};
+		});
 
 	return {
 		success: output.success === true,

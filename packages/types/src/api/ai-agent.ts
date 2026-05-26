@@ -1029,6 +1029,11 @@ export const aiAgentBehaviorSettingsSchema = z
 				"Whether the AI can open private knowledge clarification flows for teammates.",
 			example: true,
 		}),
+		aiThinkingEnabled: z.boolean().openapi({
+			description:
+				"Whether the AI should request provider-side reasoning for primary answer generation when the selected model supports it.",
+			example: false,
+		}),
 
 		// Escalation config
 		defaultEscalationUserId: z.string().nullable().openapi({

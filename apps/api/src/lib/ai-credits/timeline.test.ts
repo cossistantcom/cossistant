@@ -38,6 +38,7 @@ describe("AI credit timeline logging", () => {
 			payload: {
 				baseCredits: 1,
 				modelCredits: 1,
+				thinkingCredits: 0,
 				toolCredits: 0.5,
 				totalCredits: 2.5,
 				billableToolCount: 3,

@@ -33,6 +33,7 @@ import {
 	isDashboardMessageLimitReached,
 	resolveDashboardHardLimitPolicy,
 } from "@api/lib/hard-limits/dashboard";
+import type { OpenRouterBillingSource } from "@api/lib/openrouter-byok/resolver";
 import { getPlanForWebsite } from "@api/lib/plans/access";
 import {
 	finalizeConversationTranslation,
@@ -41,7 +42,6 @@ import {
 	prepareOutboundVisitorTranslation,
 	syncConversationVisitorTitle,
 } from "@api/lib/translation";
-import type { OpenRouterBillingSource } from "@api/lib/openrouter-byok/resolver";
 import { realtime } from "@api/realtime/emitter";
 import { getRedis } from "@api/redis";
 import { createConversationEvent } from "@api/utils/conversation-event";

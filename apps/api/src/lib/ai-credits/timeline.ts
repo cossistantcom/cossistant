@@ -16,6 +16,7 @@ export const AI_CREDIT_TIMELINE_TOOL_NAME = "aiCreditUsage";
 export type AiCreditTimelinePayload = {
 	baseCredits: number;
 	modelCredits: number;
+	thinkingCredits?: number;
 	toolCredits: number;
 	totalCredits: number;
 	billableToolCount: number;
@@ -48,7 +49,7 @@ function buildTimelineText(payload: AiCreditTimelinePayload): string {
 		return `AI credits blocked (${payload.blockedReason})`;
 	}
 
-	return `AI credits charged ${payload.totalCredits} (base ${payload.baseCredits}, model ${payload.modelCredits}, tools ${payload.toolCredits})`;
+	return `AI credits charged ${payload.totalCredits} (base ${payload.baseCredits}, model ${payload.modelCredits}, thinking ${payload.thinkingCredits ?? 0}, tools ${payload.toolCredits})`;
 }
 
 function buildProviderMetadata(params: {

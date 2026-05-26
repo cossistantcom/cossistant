@@ -78,6 +78,10 @@ export function toUsage(
 				inputTokens?: number;
 				outputTokens?: number;
 				totalTokens?: number;
+				reasoningTokens?: number;
+				outputTokenDetails?: {
+					reasoningTokens?: number;
+				};
 		  }
 		| undefined
 ): GenerationRuntimeResult["usage"] {
@@ -91,11 +95,18 @@ export function toUsage(
 		typeof value.outputTokens === "number" ? value.outputTokens : undefined;
 	const totalTokens =
 		typeof value.totalTokens === "number" ? value.totalTokens : undefined;
+	const reasoningTokens =
+		typeof value.outputTokenDetails?.reasoningTokens === "number"
+			? value.outputTokenDetails.reasoningTokens
+			: typeof value.reasoningTokens === "number"
+				? value.reasoningTokens
+				: undefined;
 
 	if (
 		inputTokens === undefined &&
 		outputTokens === undefined &&
-		totalTokens === undefined
+		totalTokens === undefined &&
+		reasoningTokens === undefined
 	) {
 		return;
 	}
@@ -104,6 +115,7 @@ export function toUsage(
 		inputTokens,
 		outputTokens,
 		totalTokens,
+		reasoningTokens,
 	};
 }
 

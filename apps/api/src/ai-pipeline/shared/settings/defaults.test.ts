@@ -7,6 +7,10 @@ describe("getDefaultBehaviorSettings", () => {
 			true
 		);
 	});
+
+	it("disables AI Thinking by default", () => {
+		expect(getDefaultBehaviorSettings().aiThinkingEnabled).toBe(false);
+	});
 });
 
 describe("getBehaviorSettings", () => {
@@ -26,5 +30,15 @@ describe("getBehaviorSettings", () => {
 				},
 			} as never).canRequestKnowledgeClarification
 		).toBe(false);
+	});
+
+	it("preserves explicit AI Thinking opt-ins", () => {
+		expect(
+			getBehaviorSettings({
+				behaviorSettings: {
+					aiThinkingEnabled: true,
+				},
+			} as never).aiThinkingEnabled
+		).toBe(true);
 	});
 });

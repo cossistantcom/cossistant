@@ -42,10 +42,12 @@ export type IngestAiCreditUsageInput = {
 	mode: "normal" | "outage";
 	baseCredits: number;
 	modelCredits: number;
+	thinkingCredits: number;
 	toolCredits: number;
 	billableToolCount: number;
 	excludedToolCount: number;
 	totalToolCount: number;
+	reasoningTokens?: number;
 };
 
 export type GrantAiCreditUsageInput = {
@@ -550,10 +552,14 @@ export async function ingestAiCreditUsage(
 						mode: input.mode,
 						baseCredits: input.baseCredits,
 						modelCredits: input.modelCredits,
+						thinkingCredits: input.thinkingCredits,
 						toolCredits: input.toolCredits,
 						billableToolCount: input.billableToolCount,
 						excludedToolCount: input.excludedToolCount,
 						totalToolCount: input.totalToolCount,
+						...(typeof input.reasoningTokens === "number"
+							? { reasoningTokens: input.reasoningTokens }
+							: {}),
 					},
 				},
 			],

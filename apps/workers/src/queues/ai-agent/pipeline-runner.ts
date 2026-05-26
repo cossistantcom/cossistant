@@ -1,15 +1,22 @@
 import { runPrimaryPipeline } from "@api/ai-pipeline";
 import { updateConversationAiCursor } from "@api/db/mutations/conversation";
+import type { OpenRouterByokRetryState } from "@cossistant/jobs";
 import type { Database } from "@workers/db";
 import type { TriggerableMessage } from "./next-triggerable-message";
 
 export class PipelineMessageError extends Error {
 	failedMessage: TriggerableMessage;
+	openRouterByokRetry?: OpenRouterByokRetryState;
 
-	constructor(message: string, failedMessage: TriggerableMessage) {
+	constructor(
+		message: string,
+		failedMessage: TriggerableMessage,
+		openRouterByokRetry?: OpenRouterByokRetryState
+	) {
 		super(message);
 		this.name = "PipelineMessageError";
 		this.failedMessage = failedMessage;
+		this.openRouterByokRetry = openRouterByokRetry;
 	}
 }
 
@@ -24,6 +31,7 @@ export async function runPipelineForMessage(params: {
 	aiAgentId: string;
 	jobId: string;
 	message: TriggerableMessage;
+	openRouterByokRetry?: OpenRouterByokRetryState;
 }): Promise<{
 	processedMessageId: string;
 	processedMessageCreatedAt: string;
@@ -42,6 +50,7 @@ export async function runPipelineForMessage(params: {
 				aiAgentId: params.aiAgentId,
 				workflowRunId: `ai-msg-${params.message.id}`,
 				jobId: params.jobId,
+				openRouterByokRetry: params.openRouterByokRetry,
 			},
 		});
 	} catch (error) {
@@ -55,7 +64,8 @@ export async function runPipelineForMessage(params: {
 			result.error ??
 				result.reason ??
 				`Pipeline requested retry for message ${params.message.id}`,
-			params.message
+			params.message,
+			result.openRouterByokRetry
 		);
 	}
 

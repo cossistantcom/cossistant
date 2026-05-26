@@ -19,12 +19,14 @@ import { resolveGenerationTokenUsage } from "./token-usage";
 
 export type GenerationCreditUsage = {
 	totalCredits: number;
+	thinkingCredits: number;
 	mode: "normal" | "outage";
 	ingestStatus:
 		| IngestAiCreditUsageStatus
 		| "failed"
 		| "skipped"
 		| "skipped_customer_openrouter"
+		| "skipped_cossistant_platform"
 		| "skipped_zero";
 	billingSource: OpenRouterBillingSource;
 };
@@ -54,10 +56,12 @@ export async function trackGenerationUsage(params: {
 				inputTokens?: number;
 				outputTokens?: number;
 				totalTokens?: number;
+				reasoningTokens?: number;
 		  }
 		| undefined;
 	toolCallsByName?: Record<string, number> | null;
 	chargeableToolCallsByName?: Record<string, number> | null;
+	aiThinkingEnabled?: boolean | null;
 	source?: GenerationUsageSource;
 	phase?: GenerationUsagePhase;
 	knowledgeClarificationRequestId?: string;
@@ -88,14 +92,19 @@ export async function trackGenerationUsage(params: {
 		? calculateAiCreditCharge({
 				modelId: params.modelId,
 				toolCallsByName: effectiveToolCallsByName,
+				aiThinkingEnabled: params.aiThinkingEnabled,
 			})
-		: getMinimumAiCreditCharge(params.modelId);
+		: getMinimumAiCreditCharge(params.modelId, {
+				aiThinkingEnabled: params.aiThinkingEnabled,
+			});
 	const billingSource = params.billingSource ?? "cossistant";
 
 	let ingestStatus: GenerationCreditUsage["ingestStatus"] = "skipped";
 
 	if (billingSource === "customer_openrouter") {
 		ingestStatus = "skipped_customer_openrouter";
+	} else if (billingSource === "cossistant_platform") {
+		ingestStatus = "skipped_cossistant_platform";
 	} else if (charge.totalCredits <= 0) {
 		ingestStatus = "skipped_zero";
 	} else {
@@ -110,10 +119,12 @@ export async function trackGenerationUsage(params: {
 				mode,
 				baseCredits: charge.baseCredits,
 				modelCredits: charge.modelCredits,
+				thinkingCredits: charge.thinkingCredits,
 				toolCredits: charge.toolCredits,
 				billableToolCount: charge.billableToolCount,
 				excludedToolCount: charge.excludedToolCount,
 				totalToolCount: charge.totalToolCount,
+				reasoningTokens: usageTokens.reasoningTokens,
 			});
 			ingestStatus = ingestResult.status;
 		} catch (error) {
@@ -142,9 +153,11 @@ export async function trackGenerationUsage(params: {
 		inputTokens: usageTokens.inputTokens,
 		outputTokens: usageTokens.outputTokens,
 		totalTokens: usageTokens.totalTokens,
+		reasoningTokens: usageTokens.reasoningTokens,
 		tokenSource: usageTokens.source,
 		baseCredits: charge.baseCredits,
 		modelCredits: charge.modelCredits,
+		thinkingCredits: charge.thinkingCredits,
 		toolCredits: charge.toolCredits,
 		totalCredits: charge.totalCredits,
 		billableToolCount: charge.billableToolCount,
@@ -189,6 +202,7 @@ export async function trackGenerationUsage(params: {
 		usageTokens,
 		creditUsage: {
 			totalCredits: charge.totalCredits,
+			thinkingCredits: charge.thinkingCredits,
 			mode,
 			ingestStatus,
 			billingSource,

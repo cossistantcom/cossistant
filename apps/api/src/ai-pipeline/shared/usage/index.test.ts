@@ -15,7 +15,17 @@ const logAiPipelineMock = mock(() => {});
 
 mock.module("@api/lib/ai-credits/config", () => ({
 	calculateAiCreditCharge: calculateAiCreditChargeMock,
+	getAiThinkingCredits: mock(
+		(params: { modelId: string; aiThinkingEnabled?: boolean | null }) =>
+			params.aiThinkingEnabled === true && params.modelId === "openai/gpt-5.5"
+				? 3
+				: 0
+	),
+	getAiThinkingReasoningMaxTokens: mock(() => 512),
 	getMinimumAiCreditCharge: getMinimumAiCreditChargeMock,
+	isAiThinkingSupported: mock(
+		(modelId: string) => modelId === "openai/gpt-5.5"
+	),
 	resolveClarificationModelForExecution:
 		resolveClarificationModelForExecutionMock,
 	resolveModelForExecution: resolveClarificationModelForExecutionMock,
@@ -189,5 +199,35 @@ describe("trackGenerationUsage", () => {
 				],
 			},
 		});
+	});
+
+	it("skips Polar ingestion for platform-covered Cossistant fallback usage", async () => {
+		const { trackGenerationUsage } = await loadUsageModule();
+
+		const result = await trackGenerationUsage({
+			db: {} as never,
+			organizationId: "org_1",
+			websiteId: "site_1",
+			conversationId: "conv_1",
+			visitorId: "visitor_1",
+			aiAgentId: "agent_1",
+			usageEventId: "usage_evt_platform_fallback",
+			modelId: "openai/gpt-5.2-chat",
+			providerUsage: {
+				inputTokens: 40,
+				outputTokens: 10,
+				totalTokens: 50,
+			},
+			source: "primary_pipeline",
+			billingSource: "cossistant_platform",
+		});
+
+		expect(ingestAiCreditUsageMock).not.toHaveBeenCalled();
+		expect(result.creditUsage).toMatchObject({
+			billingSource: "cossistant_platform",
+			ingestStatus: "skipped_cossistant_platform",
+			totalCredits: 1,
+		});
+		expect(createTimelineItemMock).toHaveBeenCalledTimes(1);
 	});
 });

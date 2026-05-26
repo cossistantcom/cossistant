@@ -16,12 +16,14 @@ export function resolveGenerationTokenUsage(params: {
 				inputTokens?: number;
 				outputTokens?: number;
 				totalTokens?: number;
+				reasoningTokens?: number;
 		  }
 		| undefined;
 }): GenerationTokenUsage {
 	const inputTokens = toPositiveInt(params.providerUsage?.inputTokens);
 	const outputTokens = toPositiveInt(params.providerUsage?.outputTokens);
 	const totalFromProvider = toPositiveInt(params.providerUsage?.totalTokens);
+	const reasoningTokens = toPositiveInt(params.providerUsage?.reasoningTokens);
 	const computedTotal = Math.max(totalFromProvider, inputTokens + outputTokens);
 
 	if (computedTotal > 0) {
@@ -36,6 +38,7 @@ export function resolveGenerationTokenUsage(params: {
 			inputTokens: resolvedInput,
 			outputTokens: resolvedOutput,
 			totalTokens: computedTotal,
+			...(reasoningTokens > 0 ? { reasoningTokens } : {}),
 			source: "provider",
 		};
 	}

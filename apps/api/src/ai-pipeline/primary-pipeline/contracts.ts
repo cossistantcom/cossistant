@@ -1,4 +1,5 @@
 import type { Database } from "@api/db";
+import type { OpenRouterByokRetryState } from "@cossistant/jobs";
 import type { GenerationTokenUsage } from "../shared/generation/contracts";
 
 export type PrimaryPipelineInput = {
@@ -11,6 +12,7 @@ export type PrimaryPipelineInput = {
 	aiAgentId: string;
 	workflowRunId: string;
 	jobId: string;
+	openRouterByokRetry?: OpenRouterByokRetryState;
 };
 
 export type PrimaryPipelineMetrics = {
@@ -31,6 +33,7 @@ export type PrimaryPipelineResult = {
 	usageTokens?: GenerationTokenUsage;
 	creditUsage?: {
 		totalCredits: number;
+		thinkingCredits: number;
 		mode: "normal" | "outage";
 		ingestStatus:
 			| "ingested"
@@ -38,10 +41,12 @@ export type PrimaryPipelineResult = {
 			| "skipped_backoff"
 			| "skipped_disabled"
 			| "skipped_customer_openrouter"
+			| "skipped_cossistant_platform"
 			| "skipped_zero"
 			| "skipped";
-		billingSource: "cossistant" | "customer_openrouter";
+		billingSource: "cossistant" | "customer_openrouter" | "cossistant_platform";
 	};
+	openRouterByokRetry?: OpenRouterByokRetryState;
 	metrics: PrimaryPipelineMetrics;
 };
 

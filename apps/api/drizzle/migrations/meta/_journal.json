@@ -456,6 +456,13 @@
       "when": 1778832000000,
       "tag": "0064_openrouter_byok",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1779753600000,
+      "tag": "0065_openrouter_byok_fallback_pause",
+      "breakpoints": true
     }
   ]
 }

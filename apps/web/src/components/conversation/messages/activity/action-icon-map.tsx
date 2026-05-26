@@ -2,6 +2,7 @@ import type { TimelinePartEvent } from "@cossistant/types/api/timeline-item";
 import type { LucideIcon } from "lucide-react";
 import {
 	Bot,
+	Brain,
 	CircleCheck,
 	CircleDot,
 	DollarSign,
@@ -65,6 +66,10 @@ const TOOL_ICON_MAP: Record<string, ActionIconDefinition> = {
 	generationUsage: {
 		key: "aiCreditUsage",
 		Icon: DollarSign,
+	},
+	aiThinkingTrace: {
+		key: "aiThinkingTrace",
+		Icon: Brain,
 	},
 };
 

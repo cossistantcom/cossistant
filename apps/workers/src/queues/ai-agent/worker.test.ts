@@ -147,12 +147,15 @@ const enqueueConversationScopedAiBackgroundJobMock = mock(
 
 class PipelineMessageError extends Error {
 	failedMessage: { id: string; createdAt: string };
+	openRouterByokRetry?: AiAgentJobData["openRouterByokRetry"];
 	constructor(
 		message: string,
-		failedMessage: { id: string; createdAt: string }
+		failedMessage: { id: string; createdAt: string },
+		openRouterByokRetry?: AiAgentJobData["openRouterByokRetry"]
 	) {
 		super(message);
 		this.failedMessage = failedMessage;
+		this.openRouterByokRetry = openRouterByokRetry;
 	}
 }
 
@@ -596,6 +599,61 @@ describe("ai-agent worker single-message orchestration", () => {
 			delayMs: 5000,
 		});
 		expect(enqueueConversationScopedAiBackgroundJobMock).not.toHaveBeenCalled();
+
+		await worker.stop();
+	});
+
+	it("carries OpenRouter BYOK retry state into the next retry job", async () => {
+		const openRouterByokRetry: AiAgentJobData["openRouterByokRetry"] = {
+			mode: "cossistant",
+			customerFailureCount: 2,
+			lastErrorCode: "provider_error",
+			lastFailedAt: "2026-05-26T10:00:00.000Z",
+		};
+		getConversationByIdMock.mockResolvedValueOnce({
+			id: "conv-1",
+			websiteId: "site-1",
+			organizationId: "org-1",
+			visitorId: "visitor-1",
+			aiAgentLastProcessedMessageCreatedAt: null,
+			aiAgentLastProcessedMessageId: null,
+		});
+		runPipelineForMessageMock.mockRejectedValueOnce(
+			new PipelineMessageError(
+				"byok retry",
+				{
+					id: "msg-1",
+					createdAt: "2026-03-04T10:00:00.000Z",
+				},
+				openRouterByokRetry
+			)
+		);
+
+		const { createAiAgentWorker } = await modulePromise;
+		const worker = createAiAgentWorker({
+			connectionOptions: {} as never,
+			redisUrl: "redis://localhost:6379",
+		});
+
+		await worker.start();
+		await expect(runJob(buildJobData({ runAttempt: 1 }))).rejects.toThrow(
+			"byok retry"
+		);
+
+		expect(enqueueConversationScopedAiJobMock).toHaveBeenCalledWith({
+			queue: expect.anything(),
+			data: {
+				conversationId: "conv-1",
+				websiteId: "site-1",
+				organizationId: "org-1",
+				aiAgentId: "ai-1",
+				messageId: "msg-1",
+				messageCreatedAt: "2026-03-04T10:00:00.000Z",
+				runAttempt: 2,
+				openRouterByokRetry,
+			},
+			delayMs: 5000,
+		});
 
 		await worker.stop();
 	});

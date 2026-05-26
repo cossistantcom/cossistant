@@ -82,9 +82,18 @@ function resolveAlertDeps(
 
 export function buildOpenRouterByokAlertKey(params: {
 	websiteId: string;
-	errorCode: string;
+	recipientEmail: string;
 }): string {
-	return `${ALERT_KEY_PREFIX}:${params.websiteId}:${params.errorCode}`;
+	return `${ALERT_KEY_PREFIX}:${params.websiteId}:${params.recipientEmail
+		.trim()
+		.toLowerCase()}`;
+}
+
+function buildOpenRouterByokAlertBatchKey(params: {
+	websiteId: string;
+	checkedAt: string;
+}): string {
+	return `${ALERT_KEY_PREFIX}:batch:${params.websiteId}:${params.checkedAt}`;
 }
 
 function buildDeveloperSettingsUrl(params: {
@@ -165,35 +174,6 @@ export async function maybeSendOpenRouterByokProblemAlert(params: {
 		return { status: "no_enabled_key", recipientCount: 0 };
 	}
 
-	const alertKey = buildOpenRouterByokAlertKey({
-		websiteId: params.context.websiteId,
-		errorCode: params.errorCode,
-	});
-
-	let throttleResult: string | null;
-	try {
-		const redis = deps.redis ?? (await import("@api/redis")).getRedis();
-		throttleResult = await redis.set(
-			alertKey,
-			checkedAt,
-			"EX",
-			ALERT_TTL_SECONDS,
-			"NX"
-		);
-	} catch (error) {
-		console.warn("[openrouter-byok] skipped problem alert after Redis error", {
-			organizationId: params.context.organizationId,
-			websiteId: params.context.websiteId,
-			errorCode: params.errorCode,
-			error,
-		});
-		return { status: "redis_failed", recipientCount: 0 };
-	}
-
-	if (throttleResult !== "OK") {
-		return { status: "throttled", recipientCount: 0 };
-	}
-
 	const recipients = uniqueRecipientsByEmail(
 		await deps.getOwnerRecipients(params.context.db, {
 			organizationId: params.context.organizationId,
@@ -210,6 +190,43 @@ export async function maybeSendOpenRouterByokProblemAlert(params: {
 		return { status: "no_recipients", recipientCount: 0 };
 	}
 
+	let unthrottledRecipients: OpenRouterByokAlertRecipient[];
+	try {
+		const redis = deps.redis ?? (await import("@api/redis")).getRedis();
+		const throttleResults = await Promise.all(
+			deliverableRecipients.map(async (recipient) => {
+				const alertKey = buildOpenRouterByokAlertKey({
+					websiteId: params.context.websiteId,
+					recipientEmail: recipient.email,
+				});
+				const result = await redis.set(
+					alertKey,
+					checkedAt,
+					"EX",
+					ALERT_TTL_SECONDS,
+					"NX"
+				);
+				return result === "OK" ? recipient : null;
+			})
+		);
+		unthrottledRecipients = throttleResults.filter(
+			(recipient): recipient is OpenRouterByokAlertRecipient =>
+				recipient !== null
+		);
+	} catch (error) {
+		console.warn("[openrouter-byok] skipped problem alert after Redis error", {
+			organizationId: params.context.organizationId,
+			websiteId: params.context.websiteId,
+			errorCode: params.errorCode,
+			error,
+		});
+		return { status: "redis_failed", recipientCount: 0 };
+	}
+
+	if (unthrottledRecipients.length === 0) {
+		return { status: "throttled", recipientCount: 0 };
+	}
+
 	const settingsUrl = buildDeveloperSettingsUrl({
 		appUrl: deps.appUrl,
 		websiteSlug: alertConfig.website.slug,
@@ -217,7 +234,7 @@ export async function maybeSendOpenRouterByokProblemAlert(params: {
 
 	try {
 		await deps.sendBatchEmail(
-			deliverableRecipients.map((recipient) => ({
+			unthrottledRecipients.map((recipient) => ({
 				to: recipient.email,
 				subject: `OpenRouter key needs attention - ${alertConfig.website.name}`,
 				variant: "notifications",
@@ -233,7 +250,12 @@ export async function maybeSendOpenRouterByokProblemAlert(params: {
 					{ name: "website_id", value: params.context.websiteId },
 				],
 			})),
-			{ idempotencyKey: alertKey }
+			{
+				idempotencyKey: buildOpenRouterByokAlertBatchKey({
+					websiteId: params.context.websiteId,
+					checkedAt,
+				}),
+			}
 		);
 	} catch (error) {
 		console.warn("[openrouter-byok] failed to send problem alert", {
@@ -244,9 +266,9 @@ export async function maybeSendOpenRouterByokProblemAlert(params: {
 		});
 		return {
 			status: "send_failed",
-			recipientCount: deliverableRecipients.length,
+			recipientCount: unthrottledRecipients.length,
 		};
 	}
 
-	return { status: "sent", recipientCount: deliverableRecipients.length };
+	return { status: "sent", recipientCount: unthrottledRecipients.length };
 }

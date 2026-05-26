@@ -1,15 +1,30 @@
 import {
 	hasToolCall,
 	type ModelMessage,
+	OpenRouterByokFallbackRequiredError,
 	runWithOpenRouterByokFallback,
 	stepCountIs,
 	ToolLoopAgent,
 	type ToolSet,
 } from "@api/lib/ai";
-import type { OpenRouterBillingSource } from "@api/lib/openrouter-byok/resolver";
+import {
+	getAiThinkingCredits,
+	getAiThinkingReasoningMaxTokens,
+	isAiThinkingSupported,
+} from "@api/lib/ai-credits/config";
+import {
+	type AiCreditGuardResult,
+	guardAiCreditRun,
+} from "@api/lib/ai-credits/guard";
+import {
+	type OpenRouterBillingSource,
+	recordOpenRouterByokFailure,
+} from "@api/lib/openrouter-byok/resolver";
+import type { OpenRouterByokRetryState } from "@cossistant/jobs";
 import type { PrepareStepFunction } from "ai";
 import { logAiPipeline } from "../../../logger";
 import { emitPipelineGenerationProgress } from "../../events";
+import { getBehaviorSettings } from "../../settings";
 import type { PipelineToolBuildResult } from "../../tools";
 import { isBackgroundOneShotToolName } from "../../tools/background-one-shot";
 import type { ToolRuntimeState } from "../../tools/contracts";
@@ -28,9 +43,177 @@ import {
 	type ToolStepLike,
 	toUsage,
 } from "./runtime-utils";
+import { logAiThinkingTraceTimeline } from "./thinking-trace";
 
 const GENERATION_TIMEOUT_MS = 200_000;
 const STOP_STEP_BUFFER = 6;
+const DEFAULT_MAX_OUTPUT_TOKENS = 1024;
+const MIN_MAX_OUTPUT_TOKENS = 100;
+const MAX_MAX_OUTPUT_TOKENS = 16_000;
+
+type ReasoningProviderOptions = {
+	openrouter: {
+		reasoning: {
+			max_tokens: number;
+			exclude: false;
+		};
+	};
+};
+
+function resolveMaxOutputTokens(value: number | null | undefined): number {
+	if (typeof value !== "number" || !Number.isFinite(value)) {
+		return DEFAULT_MAX_OUTPUT_TOKENS;
+	}
+
+	return Math.min(
+		MAX_MAX_OUTPUT_TOKENS,
+		Math.max(MIN_MAX_OUTPUT_TOKENS, Math.floor(value))
+	);
+}
+
+function resolveThinkingConfig(params: {
+	input: GenerationRuntimeInput;
+	modelId: string;
+	attempt: number;
+}): {
+	requested: boolean;
+	enabled: boolean;
+	supported: boolean;
+	thinkingCredits: number;
+	reasoningMaxTokens: number | null;
+	providerOptions?: ReasoningProviderOptions;
+} {
+	const behaviorSettings = getBehaviorSettings(params.input.aiAgent);
+	const savedPreferenceRequested =
+		params.input.pipelineKind === "primary" &&
+		behaviorSettings.aiThinkingEnabled === true;
+	const requested = savedPreferenceRequested && params.attempt === 1;
+	const supported = isAiThinkingSupported(params.modelId);
+	const reasoningMaxTokens = requested
+		? getAiThinkingReasoningMaxTokens(params.modelId)
+		: null;
+	const enabled = requested && supported && reasoningMaxTokens !== null;
+	const thinkingCredits = getAiThinkingCredits({
+		modelId: params.modelId,
+		aiThinkingEnabled: requested,
+	});
+
+	return {
+		requested,
+		enabled,
+		supported,
+		thinkingCredits,
+		reasoningMaxTokens,
+		providerOptions: enabled
+			? {
+					openrouter: {
+						reasoning: {
+							max_tokens: reasoningMaxTokens,
+							exclude: false,
+						},
+					},
+				}
+			: undefined,
+	};
+}
+
+class AiCreditGuardBlockedError extends Error {
+	readonly guardResult: AiCreditGuardResult;
+
+	constructor(guardResult: AiCreditGuardResult) {
+		super(guardResult.reason);
+		this.name = "AiCreditGuardBlockedError";
+		this.guardResult = guardResult;
+	}
+}
+
+function getReasoningText(result: unknown): string | null {
+	if (!(typeof result === "object" && result !== null)) {
+		return null;
+	}
+
+	const reasoningText = (result as { reasoningText?: unknown }).reasoningText;
+	if (typeof reasoningText === "string" && reasoningText.trim().length > 0) {
+		return reasoningText;
+	}
+
+	const reasoning = (result as { reasoning?: unknown }).reasoning;
+	if (!Array.isArray(reasoning)) {
+		return null;
+	}
+
+	const text = reasoning
+		.map((part) => {
+			if (
+				typeof part === "object" &&
+				part !== null &&
+				"text" in part &&
+				typeof part.text === "string"
+			) {
+				return part.text;
+			}
+
+			return "";
+		})
+		.join("");
+
+	return text.trim().length > 0 ? text : null;
+}
+
+function toThinkingResult(
+	config: ReturnType<typeof resolveThinkingConfig>,
+	captureStatus: NonNullable<
+		GenerationRuntimeResult["thinking"]
+	>["captureStatus"]
+): NonNullable<GenerationRuntimeResult["thinking"]> {
+	return {
+		requested: config.requested,
+		enabled: config.enabled,
+		supported: config.supported,
+		thinkingCredits: config.thinkingCredits,
+		reasoningMaxTokens: config.reasoningMaxTokens,
+		captureStatus,
+	};
+}
+
+function resolveOpenRouterByokMode(
+	state: GenerationRuntimeInput["openRouterByokRetry"]
+): "auto" | "customer" | "cossistant_platform" {
+	if (state?.mode === "customer") {
+		return "customer";
+	}
+
+	if (state?.mode === "cossistant") {
+		return "cossistant_platform";
+	}
+
+	return "auto";
+}
+
+function getNextOpenRouterByokRetryState(params: {
+	currentState: GenerationRuntimeInput["openRouterByokRetry"];
+	errorCode: string;
+	now: string;
+}): OpenRouterByokRetryState {
+	const currentFailureCount =
+		params.currentState?.mode === "customer"
+			? params.currentState.customerFailureCount
+			: (params.currentState?.customerFailureCount ?? 0);
+	const deterministicFailure = params.errorCode === "decrypt_failed";
+	const customerFailureCount = deterministicFailure
+		? Math.max(1, currentFailureCount)
+		: currentFailureCount + 1;
+
+	return {
+		mode:
+			deterministicFailure || customerFailureCount >= 2
+				? "cossistant"
+				: "customer",
+		customerFailureCount,
+		lastErrorCode: params.errorCode,
+		lastFailedAt: params.now,
+	};
+}
 
 export async function runGenerationAttempt(params: {
 	input: GenerationRuntimeInput;
@@ -47,6 +230,14 @@ export async function runGenerationAttempt(params: {
 		params.toolsetResolution.finishToolNames
 	);
 	const isBackgroundPipeline = params.input.pipelineKind === "background";
+	const thinkingConfig = resolveThinkingConfig({
+		input: params.input,
+		modelId: params.modelId,
+		attempt: params.attempt,
+	});
+	const maxOutputTokens = resolveMaxOutputTokens(
+		params.input.aiAgent.maxOutputTokens
+	);
 
 	const prepareStep: PrepareStepFunction<ToolSet> = ({ steps }) => {
 		const usedNonFinishCalls = countNonFinishToolCalls({
@@ -162,6 +353,7 @@ export async function runGenerationAttempt(params: {
 
 	const deepTraceEnabled = params.input.deepTraceEnabled === true;
 	let billingSource: OpenRouterBillingSource | undefined;
+	let creditGuardMode: AiCreditGuardResult["mode"] | undefined;
 	const openRouterContext = {
 		db: params.input.db,
 		organizationId: params.input.conversation.organizationId,
@@ -198,14 +390,42 @@ export async function runGenerationAttempt(params: {
 
 		const generationResult = await runWithOpenRouterByokFallback({
 			modelId: params.modelId,
-			options: { context: openRouterContext },
+			options: {
+				context: openRouterContext,
+				openRouterByokMode: resolveOpenRouterByokMode(
+					params.input.openRouterByokRetry
+				),
+			},
+			fallbackStrategy:
+				params.input.pipelineKind === "primary" ? "throw" : "inline",
 			onResolution: (resolution) => {
 				billingSource = resolution.billingSource;
+			},
+			beforeOperation: async (resolution) => {
+				if (
+					params.input.pipelineKind !== "primary" ||
+					resolution.billingSource !== "cossistant"
+				) {
+					return;
+				}
+
+				const guardResult = await guardAiCreditRun({
+					organizationId: params.input.conversation.organizationId,
+					modelId: params.modelId,
+					aiThinkingEnabled: thinkingConfig.enabled,
+				});
+
+				if (!guardResult.allowed) {
+					throw new AiCreditGuardBlockedError(guardResult);
+				}
+
+				creditGuardMode = guardResult.mode;
 			},
 			canFallback: () =>
 				!generationAbortController.signal.aborted &&
 				params.runtimeState.publicMessagesSent === 0 &&
 				countTotalToolCalls(params.runtimeState.toolCallCounts) === 0,
+			isLocalAbort: () => generationAbortController.signal.aborted,
 			operation: ({ model }) => {
 				const agent = new ToolLoopAgent({
 					model,
@@ -215,6 +435,8 @@ export async function runGenerationAttempt(params: {
 					toolChoice: "required",
 					stopWhen,
 					temperature: 0,
+					maxOutputTokens,
+					providerOptions: thinkingConfig.providerOptions,
 				});
 
 				return agent.generate({
@@ -225,6 +447,37 @@ export async function runGenerationAttempt(params: {
 		});
 		billingSource = generationResult.billingSource;
 		const result = generationResult.result;
+		const usage = toUsage(result.usage);
+		const reasoningText = getReasoningText(result);
+		const thinkingCaptureStatus = thinkingConfig.enabled
+			? reasoningText
+				? "captured"
+				: "not_returned"
+			: "not_requested";
+		if (thinkingConfig.enabled) {
+			await logAiThinkingTraceTimeline({
+				db: params.input.db,
+				input: params.input,
+				modelId: params.modelId,
+				attempt: params.attempt,
+				thinkingCredits: thinkingConfig.thinkingCredits,
+				reasoningMaxTokens: thinkingConfig.reasoningMaxTokens,
+				reasoningText,
+				usage,
+			}).catch((error) => {
+				logAiPipeline({
+					area: "generation",
+					event: "thinking_trace_failed",
+					level: "warn",
+					conversationId: params.input.conversation.id,
+					fields: {
+						attempt: params.attempt,
+						model: params.modelId,
+					},
+					error,
+				});
+			});
+		}
 
 		await emitPipelineGenerationProgress({
 			conversation: params.input.conversation,
@@ -273,8 +526,10 @@ export async function runGenerationAttempt(params: {
 				chargeableToolCallsByName,
 				toolExecutions,
 				totalToolCalls,
-				usage: toUsage(result.usage),
+				usage,
+				thinking: toThinkingResult(thinkingConfig, thinkingCaptureStatus),
 				billingSource,
+				creditGuardMode,
 			};
 		}
 
@@ -311,8 +566,10 @@ export async function runGenerationAttempt(params: {
 				chargeableToolCallsByName,
 				toolExecutions,
 				totalToolCalls,
-				usage: toUsage(result.usage),
+				usage,
+				thinking: toThinkingResult(thinkingConfig, thinkingCaptureStatus),
 				billingSource,
+				creditGuardMode,
 			};
 		}
 
@@ -333,8 +590,10 @@ export async function runGenerationAttempt(params: {
 			chargeableToolCallsByName,
 			toolExecutions,
 			totalToolCalls,
-			usage: toUsage(result.usage),
+			usage,
+			thinking: toThinkingResult(thinkingConfig, thinkingCaptureStatus),
 			billingSource,
+			creditGuardMode,
 		};
 	} catch (error) {
 		const durationMs = Date.now() - startedAt;
@@ -348,10 +607,123 @@ export async function runGenerationAttempt(params: {
 		const toolExecutions = [...params.runtimeState.toolExecutions];
 		const totalToolCalls = countTotalToolCalls(toolCallsByName);
 
-		if (
-			generationAbortController.signal.aborted ||
-			(error instanceof Error && error.name === "AbortError")
-		) {
+		if (error instanceof AiCreditGuardBlockedError) {
+			recordAttempt({
+				attempts: params.attempts,
+				modelId: params.modelId,
+				attempt: params.attempt,
+				outcome: "error",
+				durationMs,
+			});
+
+			return {
+				status: "blocked",
+				action: buildSafeSkipAction(error.guardResult.reason),
+				publicMessagesSent: params.runtimeState.publicMessagesSent,
+				toolCallsByName,
+				mutationToolCallsByName,
+				chargeableToolCallsByName,
+				toolExecutions,
+				totalToolCalls,
+				billingSource: "cossistant",
+				creditGuard: error.guardResult,
+				creditGuardMode: error.guardResult.mode,
+			};
+		}
+
+		if (error instanceof OpenRouterByokFallbackRequiredError) {
+			const failedAt = new Date().toISOString();
+			const nextRetryState = getNextOpenRouterByokRetryState({
+				currentState: params.input.openRouterByokRetry,
+				errorCode: error.errorCode,
+				now: failedAt,
+			});
+			const canRetryWithoutDuplicates =
+				params.runtimeState.publicMessagesSent === 0 && totalToolCalls === 0;
+
+			recordAttempt({
+				attempts: params.attempts,
+				modelId: params.modelId,
+				attempt: params.attempt,
+				outcome: "error",
+				durationMs,
+			});
+
+			if (!canRetryWithoutDuplicates) {
+				return {
+					status: "error",
+					action: buildSafeSkipAction("Customer OpenRouter key failed"),
+					error:
+						"Customer OpenRouter key failed after generation side effects; not retrying automatically",
+					failureCode: "runtime_error",
+					publicMessagesSent: params.runtimeState.publicMessagesSent,
+					toolCallsByName,
+					mutationToolCallsByName,
+					chargeableToolCallsByName,
+					toolExecutions,
+					totalToolCalls,
+					billingSource: "customer_openrouter",
+					creditGuardMode,
+				};
+			}
+
+			if (
+				nextRetryState.mode === "cossistant" &&
+				error.alreadyRecorded !== true
+			) {
+				await recordOpenRouterByokFailure({
+					context: openRouterContext,
+					billingSource: error.billingSource,
+					errorCode: error.errorCode,
+					sendAlert: true,
+					pauseFallback: true,
+				}).catch((recordError) => {
+					logAiPipeline({
+						area: "generation",
+						event: "byok_failure_record_failed",
+						level: "warn",
+						conversationId: params.input.conversation.id,
+						fields: {
+							attempt: params.attempt,
+							model: params.modelId,
+							errorCode: error.errorCode,
+						},
+						error: recordError,
+					});
+				});
+			}
+
+			return {
+				status: "error",
+				action: buildSafeSkipAction(
+					nextRetryState.mode === "cossistant"
+						? "Customer OpenRouter key failed; retrying with Cossistant fallback"
+						: "Customer OpenRouter key failed; retrying customer key"
+				),
+				error:
+					nextRetryState.mode === "cossistant"
+						? "Customer OpenRouter key failed; retrying with Cossistant fallback"
+						: "Customer OpenRouter key failed; retrying customer key",
+				failureCode: "openrouter_byok_retry_required",
+				publicMessagesSent: params.runtimeState.publicMessagesSent,
+				toolCallsByName,
+				mutationToolCallsByName,
+				chargeableToolCallsByName,
+				toolExecutions,
+				totalToolCalls,
+				billingSource: "customer_openrouter",
+				creditGuardMode,
+				openRouterByokRetry: nextRetryState,
+				openRouterByokFailure: {
+					errorCode: error.errorCode,
+					billingSource: error.billingSource,
+					fallbackEligible: true,
+					localAbort: generationAbortController.signal.aborted,
+				},
+			};
+		}
+
+		if (generationAbortController.signal.aborted) {
 			const failureCode: GenerationFailureCode =
 				abortReason === "signal" ? "abort_signal" : "timeout";
 			recordAttempt({
@@ -396,6 +768,7 @@ export async function runGenerationAttempt(params: {
 					toolExecutions,
 					totalToolCalls,
 					billingSource,
+					creditGuardMode,
 				};
 			}
 
@@ -417,6 +790,7 @@ export async function runGenerationAttempt(params: {
 				toolExecutions,
 				totalToolCalls,
 				billingSource,
+				creditGuardMode,
 			};
 		}
 
@@ -443,6 +817,7 @@ export async function runGenerationAttempt(params: {
 			toolExecutions,
 			totalToolCalls,
 			billingSource,
+			creditGuardMode,
 		};
 	} finally {
 		clearTimeout(timeout);

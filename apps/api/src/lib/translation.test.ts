@@ -12,7 +12,13 @@ const runWithOpenRouterByokFallbackMock = mock(
 			model: { modelId: string; source: "website" };
 			billingSource: "cossistant" | "customer_openrouter";
 		}) => Promise<unknown>;
-	}) => ({
+	}): Promise<{
+		result: unknown;
+		billingSource: "cossistant" | "customer_openrouter";
+		fallbackFromBillingSource?: "customer_openrouter";
+		fallbackErrorCode?: string;
+		usedOpenRouterByokFallback?: boolean;
+	}> => ({
 		result: await params.operation({
 			model: { modelId: params.modelId, source: "website" },
 			billingSource: "customer_openrouter" as const,

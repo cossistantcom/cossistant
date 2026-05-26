@@ -45,6 +45,8 @@ export {
 	generateWebCrawlJobId,
 	type MessageNotificationDirection,
 	type MessageNotificationJobData,
+	type OpenRouterByokRetryMode,
+	type OpenRouterByokRetryState,
 	QUEUE_NAMES,
 	type WebCrawlJobData,
 } from "./types";

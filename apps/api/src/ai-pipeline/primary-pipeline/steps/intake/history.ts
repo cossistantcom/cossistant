@@ -21,9 +21,9 @@ import { isConversationToolAction } from "../../contracts";
 
 const MAX_LEGACY_CONTEXT_MESSAGES = 50;
 const MAX_LEGACY_TRANSCRIPT_ENTRIES = 80;
-const MAX_GENERATION_MESSAGES = 50;
-const MAX_GENERATION_AFTER_MESSAGES = 10;
-const MAX_GENERATION_TOOL_ENTRIES = 12;
+const MAX_GENERATION_MESSAGES = 40;
+const MAX_GENERATION_AFTER_MESSAGES = 6;
+const MAX_GENERATION_TOOL_ENTRIES = 8;
 const MAX_GENERATION_TRANSCRIPT_ENTRIES = 80;
 const MAX_DECISION_BEFORE_MESSAGES = 10;
 const MAX_DECISION_AFTER_MESSAGES = 8;
@@ -32,6 +32,7 @@ const MAX_TIMELINE_PAGES = 12;
 
 const EXCLUDED_TRANSCRIPT_TOOL_NAMES = new Set<string>([
 	"aiCreditUsage",
+	"aiThinkingTrace",
 	"respond",
 	"escalate",
 	"resolve",

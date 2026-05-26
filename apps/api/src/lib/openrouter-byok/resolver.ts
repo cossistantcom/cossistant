@@ -10,7 +10,15 @@ import { and, eq, isNull } from "drizzle-orm";
 import { maybeSendOpenRouterByokProblemAlert } from "./alerts";
 import { decryptOpenRouterApiKey } from "./encryption";
 
-export type OpenRouterBillingSource = "cossistant" | "customer_openrouter";
+export type OpenRouterBillingSource =
+	| "cossistant"
+	| "customer_openrouter"
+	| "cossistant_platform";
+
+export type OpenRouterCredentialMode =
+	| "auto"
+	| "customer"
+	| "cossistant_platform";
 
 export type WebsiteOpenRouterContext = {
 	db: Database;
@@ -22,6 +30,8 @@ export type ResolvedOpenRouterCredentials = {
 	apiKey: string;
 	billingSource: OpenRouterBillingSource;
 };
+
+const BYOK_FALLBACK_PAUSE_MS = 15 * 60 * 1000;
 
 type OpenRouterByokErrorCode =
 	| "website_not_found"
@@ -88,9 +98,30 @@ function getCossistantOpenRouterKey(): string {
 	return env.OPENROUTER_API_KEY;
 }
 
+function isFutureTimestamp(value: string | null | undefined): boolean {
+	if (!value) {
+		return false;
+	}
+
+	const parsed = Date.parse(value);
+	return !Number.isNaN(parsed) && parsed > Date.now();
+}
+
+function getFallbackPausedUntil(): string {
+	return new Date(Date.now() + BYOK_FALLBACK_PAUSE_MS).toISOString();
+}
+
 export async function resolveOpenRouterCredentialsForWebsite(
-	context: WebsiteOpenRouterContext
+	context: WebsiteOpenRouterContext,
+	options: { mode?: OpenRouterCredentialMode } = {}
 ): Promise<ResolvedOpenRouterCredentials> {
+	if (options.mode === "cossistant_platform") {
+		return {
+			apiKey: getCossistantOpenRouterKey(),
+			billingSource: "cossistant_platform",
+		};
+	}
+
 	const site = await context.db.query.website.findFirst({
 		where: and(
 			eq(website.id, context.websiteId),
@@ -122,6 +153,16 @@ export async function resolveOpenRouterCredentialsForWebsite(
 		};
 	}
 
+	if (
+		options.mode !== "customer" &&
+		isFutureTimestamp(keyConfig.fallbackPausedUntil)
+	) {
+		return {
+			apiKey: getCossistantOpenRouterKey(),
+			billingSource: "cossistant_platform",
+		};
+	}
+
 	try {
 		return {
 			apiKey: decryptOpenRouterApiKey({
@@ -131,37 +172,27 @@ export async function resolveOpenRouterCredentialsForWebsite(
 			billingSource: "customer_openrouter",
 		};
 	} catch (error) {
-		const checkedAt = new Date().toISOString();
-		await markWebsiteOpenRouterKeyConnectionStatus(context.db, {
-			organizationId: context.organizationId,
-			websiteId: context.websiteId,
-			status: "invalid",
-			errorCode: "decrypt_failed",
-			checkedAt,
-		}).catch((statusError) => {
-			console.warn("[openrouter-byok] failed to record decrypt failure", {
-				organizationId: context.organizationId,
-				websiteId: context.websiteId,
-				error: statusError,
-			});
-		});
-		await maybeSendOpenRouterByokProblemAlert({
-			context,
-			errorCode: "decrypt_failed",
-			checkedAt,
-		}).catch((alertError) => {
-			console.warn("[openrouter-byok] failed to send decrypt failure alert", {
-				organizationId: context.organizationId,
-				websiteId: context.websiteId,
-				error: alertError,
-			});
-		});
-
-		throw new OpenRouterByokError(
+		const byokError = new OpenRouterByokError(
 			"decrypt_failed",
 			"Saved OpenRouter key could not be decrypted. Replace the key or disable BYOK.",
 			{ cause: error }
 		);
+		await recordOpenRouterByokFailure({
+			context,
+			billingSource: "customer_openrouter",
+			error: byokError,
+			errorCode: "decrypt_failed",
+			sendAlert: true,
+			pauseFallback: true,
+		}).catch((recordError) => {
+			console.warn("[openrouter-byok] failed to record decrypt failure", {
+				organizationId: context.organizationId,
+				websiteId: context.websiteId,
+				error: recordError,
+			});
+		});
+
+		throw byokError;
 	}
 }
 
@@ -190,14 +221,23 @@ export async function recordOpenRouterByokSuccess(params: {
 export async function recordOpenRouterByokFailure(params: {
 	context: WebsiteOpenRouterContext;
 	billingSource: OpenRouterBillingSource | undefined;
-	error: unknown;
+	error?: unknown;
+	errorCode?: string;
+	sendAlert?: boolean;
+	pauseFallback?: boolean;
 }): Promise<void> {
 	if (params.billingSource !== "customer_openrouter") {
 		return;
 	}
 
-	const errorCode = normalizeOpenRouterByokErrorCode(params.error);
+	const errorCode =
+		params.errorCode ??
+		(params.error
+			? normalizeOpenRouterByokErrorCode(params.error)
+			: "provider_error");
 	const checkedAt = new Date().toISOString();
+	const fallbackPausedUntil =
+		params.pauseFallback === false ? undefined : getFallbackPausedUntil();
 
 	await markWebsiteOpenRouterKeyConnectionStatus(params.context.db, {
 		organizationId: params.context.organizationId,
@@ -205,6 +245,7 @@ export async function recordOpenRouterByokFailure(params: {
 		status: "invalid",
 		errorCode,
 		checkedAt,
+		fallbackPausedUntil,
 	}).catch((error) => {
 		console.warn("[openrouter-byok] failed to record failure", {
 			organizationId: params.context.organizationId,
@@ -212,6 +253,11 @@ export async function recordOpenRouterByokFailure(params: {
 			error,
 		});
 	});
+
+	if (params.sendAlert !== true) {
+		return;
+	}
+
 	await maybeSendOpenRouterByokProblemAlert({
 		context: params.context,
 		errorCode,

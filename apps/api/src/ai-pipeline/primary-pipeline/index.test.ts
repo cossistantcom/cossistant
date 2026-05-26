@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
 
 const logAiPipelineMock = mock((_params: unknown) => {});
 const runIntakeStepMock = mock((async () => ({
@@ -55,7 +55,18 @@ const maybeCreateImmediateClarificationFromSearchGapMock = mock((async () => ({
 	status: "skipped" as const,
 	reason: "no_search" as const,
 })) as (...args: unknown[]) => Promise<any>);
+const baseMinimumCharge = {
+	baseCredits: 1,
+	modelCredits: 0,
+	thinkingCredits: 0,
+	toolCredits: 0,
+	totalCredits: 1,
+	billableToolCount: 0,
+	excludedToolCount: 0,
+	totalToolCount: 0,
+};
 const trackGenerationUsageMock = mock(async () => {});
+const logGenerationUsageTimelineMock = mock(async () => {});
 const emitPipelineSeenMock = mock(async () => {});
 const emitPipelineProcessingCompletedMock = mock(async () => {});
 const emitPipelineGenerationProgressMock = mock(async () => {});
@@ -117,6 +128,10 @@ mock.module("../shared/usage", () => ({
 	trackGenerationUsage: trackGenerationUsageMock,
 }));
 
+mock.module("../shared/usage/timeline", () => ({
+	logGenerationUsageTimeline: logGenerationUsageTimelineMock,
+}));
+
 mock.module("../shared/events", () => ({
 	emitPipelineSeen: emitPipelineSeenMock,
 	emitPipelineProcessingCompleted: emitPipelineProcessingCompletedMock,
@@ -143,6 +158,10 @@ const baseInput = {
 };
 
 describe("runPrimaryPipeline generation error/skip behavior", () => {
+	afterAll(() => {
+		mock.restore();
+	});
+
 	beforeEach(() => {
 		logAiPipelineMock.mockClear();
 		runIntakeStepMock.mockClear();
@@ -150,6 +169,7 @@ describe("runPrimaryPipeline generation error/skip behavior", () => {
 		runGenerationRuntimeMock.mockClear();
 		maybeCreateImmediateClarificationFromSearchGapMock.mockClear();
 		trackGenerationUsageMock.mockClear();
+		logGenerationUsageTimelineMock.mockClear();
 		emitPipelineSeenMock.mockClear();
 		emitPipelineProcessingCompletedMock.mockClear();
 		emitPipelineGenerationProgressMock.mockClear();
@@ -354,6 +374,34 @@ describe("runPrimaryPipeline generation error/skip behavior", () => {
 		expect(
 			primaryLogs.some((entry) => entry.event === "generation_error")
 		).toBe(false);
+	});
+
+	it("passes generation credit guard mode to usage tracking", async () => {
+		runGenerationRuntimeMock.mockResolvedValueOnce({
+			status: "completed",
+			action: {
+				action: "respond",
+				reasoning: "ok",
+				confidence: 1,
+			},
+			publicMessagesSent: 1,
+			toolCallsByName: {},
+			totalToolCalls: 0,
+			creditGuardMode: "outage",
+		});
+
+		const { runPrimaryPipeline } = await modulePromise;
+		const result = await runPrimaryPipeline({
+			db: {} as never,
+			input: baseInput,
+		});
+
+		expect(result.status).toBe("completed");
+		expect(trackGenerationUsageMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				mode: "outage",
+			})
+		);
 	});
 
 	it("keeps generation failures retryable when no public messages were sent", async () => {
@@ -595,6 +643,59 @@ describe("runPrimaryPipeline generation error/skip behavior", () => {
 				]),
 				hasLaterHumanMessage: true,
 				hasLaterAiMessage: false,
+			})
+		);
+	});
+
+	it("skips generation when the AI credit guard blocks the run", async () => {
+		const blockedGuardResult = {
+			allowed: false,
+			mode: "normal",
+			reason: "Insufficient AI credits (required=1, balance=0)",
+			blockedReason: "insufficient_credits",
+			minimumCharge: baseMinimumCharge,
+			balance: 0,
+			meterBacked: true,
+			meterSource: "polar",
+			lastSyncedAt: "2026-03-05T00:00:00.000Z",
+		};
+		runGenerationRuntimeMock.mockResolvedValueOnce({
+			status: "blocked",
+			action: {
+				action: "skip",
+				reasoning: blockedGuardResult.reason,
+				confidence: 1,
+			},
+			publicMessagesSent: 0,
+			toolCallsByName: {},
+			totalToolCalls: 0,
+			billingSource: "cossistant",
+			creditGuard: blockedGuardResult,
+			creditGuardMode: "normal",
+		});
+
+		const { runPrimaryPipeline } = await modulePromise;
+		const result = await runPrimaryPipeline({
+			db: {} as never,
+			input: baseInput,
+		});
+
+		expect(result.status).toBe("skipped");
+		expect(result.action).toBe("ai_credit_guard_blocked");
+		expect(runGenerationRuntimeMock).toHaveBeenCalledTimes(1);
+		expect(trackGenerationUsageMock).not.toHaveBeenCalled();
+		expect(logGenerationUsageTimelineMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				payload: expect.objectContaining({
+					blockedReason: "insufficient_credits",
+					totalCredits: 1,
+				}),
+			})
+		);
+		expect(emitPipelineProcessingCompletedMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				status: "skipped",
+				reason: "Insufficient AI credits (required=1, balance=0)",
 			})
 		);
 	});

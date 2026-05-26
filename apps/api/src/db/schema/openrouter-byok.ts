@@ -44,6 +44,7 @@ export const websiteOpenRouterKey = pgTable(
 			.notNull(),
 		lastErrorCode: text("last_error_code"),
 		lastCheckedAt: timestamp("last_checked_at"),
+		fallbackPausedUntil: timestamp("fallback_paused_until"),
 		createdBy: ulidReference("created_by").references(() => user.id, {
 			onDelete: "cascade",
 		}),
@@ -58,7 +59,9 @@ export const websiteOpenRouterKey = pgTable(
 			.notNull(),
 	},
 	(table) => [
-		uniqueIndex("website_openrouter_key_website_unique_idx").on(table.websiteId),
+		uniqueIndex("website_openrouter_key_website_unique_idx").on(
+			table.websiteId
+		),
 		index("website_openrouter_key_org_idx").on(table.organizationId),
 		index("website_openrouter_key_enabled_idx").on(table.enabled),
 	]

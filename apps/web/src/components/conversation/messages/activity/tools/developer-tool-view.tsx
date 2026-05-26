@@ -1,5 +1,6 @@
 import type { ToolTimelineLogType } from "@cossistant/types";
 import type { LucideIcon } from "lucide-react";
+import type React from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Logo } from "@/components/ui/logo";
 import { Spinner } from "@/components/ui/spinner";
@@ -91,6 +92,155 @@ function DebugBlock({
 	);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function toDisplayString(value: unknown): string | null {
+	return typeof value === "string" && value.trim().length > 0
+		? value.trim()
+		: null;
+}
+
+function toDisplayNumber(value: unknown): number | null {
+	return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+type AiThinkingTracePayload = {
+	modelId: string | null;
+	workflowRunId: string | null;
+	attempt: number | null;
+	thinkingCredits: number | null;
+	captureStatus: string | null;
+	reasoningMaxTokens: number | null;
+	reasoningText: string | null;
+	tokens: {
+		inputTokens: number | null;
+		outputTokens: number | null;
+		totalTokens: number | null;
+		reasoningTokens: number | null;
+	};
+};
+
+function parseAiThinkingTracePayload(
+	output: unknown
+): AiThinkingTracePayload | null {
+	if (!isRecord(output)) {
+		return null;
+	}
+
+	const tokens = isRecord(output.tokens) ? output.tokens : {};
+	return {
+		modelId: toDisplayString(output.modelId),
+		workflowRunId: toDisplayString(output.workflowRunId),
+		attempt: toDisplayNumber(output.attempt),
+		thinkingCredits: toDisplayNumber(output.thinkingCredits),
+		captureStatus: toDisplayString(output.captureStatus),
+		reasoningMaxTokens: toDisplayNumber(output.reasoningMaxTokens),
+		reasoningText: toDisplayString(output.reasoningText),
+		tokens: {
+			inputTokens: toDisplayNumber(tokens.inputTokens),
+			outputTokens: toDisplayNumber(tokens.outputTokens),
+			totalTokens: toDisplayNumber(tokens.totalTokens),
+			reasoningTokens: toDisplayNumber(tokens.reasoningTokens),
+		},
+	};
+}
+
+function InlineMetric({
+	label,
+	value,
+}: {
+	label: string;
+	value: React.ReactNode;
+}) {
+	return (
+		<div className="min-w-0">
+			<div className="text-[10px] text-muted-foreground uppercase tracking-wide">
+				{label}
+			</div>
+			<div className="truncate font-mono text-[11px] text-foreground">
+				{value}
+			</div>
+		</div>
+	);
+}
+
+function AiThinkingTraceDetails({
+	toolCall,
+}: {
+	toolCall: NormalizedToolCall;
+}) {
+	const payload = parseAiThinkingTracePayload(toolCall.output);
+	if (!payload) {
+		return null;
+	}
+
+	const tokenText =
+		payload.tokens.totalTokens === null
+			? "unknown"
+			: `${payload.tokens.totalTokens} total`;
+	const ioText =
+		payload.tokens.inputTokens !== null && payload.tokens.outputTokens !== null
+			? `${payload.tokens.inputTokens} in / ${payload.tokens.outputTokens} out`
+			: "input/output unknown";
+	const reasoningText =
+		payload.tokens.reasoningTokens === null
+			? "unknown"
+			: `${payload.tokens.reasoningTokens} reasoning`;
+
+	return (
+		<div className="space-y-2 border-b border-dashed p-2">
+			<div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+				<InlineMetric label="Model" value={payload.modelId ?? "unknown"} />
+				<InlineMetric label="Attempt" value={payload.attempt ?? "unknown"} />
+				<InlineMetric
+					label="Capture"
+					value={payload.captureStatus ?? "unknown"}
+				/>
+				<InlineMetric
+					label="Credits"
+					value={payload.thinkingCredits ?? "unknown"}
+				/>
+				<InlineMetric
+					label="Reasoning cap"
+					value={payload.reasoningMaxTokens ?? "unknown"}
+				/>
+				<InlineMetric label="Tokens" value={tokenText} />
+				<InlineMetric label="I/O" value={ioText} />
+				<InlineMetric label="Reasoning tokens" value={reasoningText} />
+			</div>
+			{payload.workflowRunId ? (
+				<div className="font-mono text-[10px] text-muted-foreground">
+					workflow: {payload.workflowRunId}
+				</div>
+			) : null}
+			{payload.reasoningText ? (
+				<div className="space-y-1">
+					<div className="font-medium text-[11px] text-muted-foreground uppercase tracking-wide">
+						Reasoning
+					</div>
+					<pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-md border border-border/50 bg-background/70 p-2 text-[11px] leading-relaxed">
+						{payload.reasoningText}
+					</pre>
+				</div>
+			) : (
+				<div className="text-[11px] text-muted-foreground">
+					Reasoning was enabled, but no text was captured from the provider.
+				</div>
+			)}
+		</div>
+	);
+}
+
+function DeveloperToolDetails({ toolCall }: { toolCall: NormalizedToolCall }) {
+	if (toolCall.toolName === "aiThinkingTrace") {
+		return <AiThinkingTraceDetails toolCall={toolCall} />;
+	}
+
+	return null;
+}
+
 function StatusBadge({ state }: { state: ToolCallState }) {
 	const config = stateConfig[state];
 	return (
@@ -173,6 +323,8 @@ export function DeveloperToolView({
 	showIcon = true,
 	icon,
 }: ToolActivityProps) {
+	const developerDetails = <DeveloperToolDetails toolCall={toolCall} />;
+
 	return (
 		<div className={cn("flex w-full", showIcon ? "gap-2" : "gap-0")}>
 			{showIcon ? <IconRenderer icon={icon} /> : null}
@@ -202,6 +354,8 @@ export function DeveloperToolView({
 							Fallback rendered from timeline metadata.
 						</div>
 					) : null}
+
+					{developerDetails}
 
 					<details className="group p-2">
 						<summary className="cursor-pointer text-right font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground">

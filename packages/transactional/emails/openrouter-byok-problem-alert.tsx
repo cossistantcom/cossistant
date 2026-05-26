@@ -129,7 +129,7 @@ export function OpenRouterByokProblemAlert({
 
 						<Text className="text-[12px] text-neutral-500 leading-6">
 							This alert is sent to organization owners at most once per website
-							and error code every 24 hours.
+							every 24 hours.
 						</Text>
 					</Container>
 				</Body>

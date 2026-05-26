@@ -1,4 +1,5 @@
 import { env } from "@api/env";
+import type { AiCreditGuardResult } from "@api/lib/ai-credits/guard";
 import { logAiPipeline } from "../logger";
 import { createPipelineDevConversationLog } from "../shared/dev-conversation-log";
 import {
@@ -11,6 +12,7 @@ import {
 } from "../shared/generation";
 import { maybeCreateImmediateClarificationFromSearchGap } from "../shared/knowledge-gap/post-generation-immediate-clarification";
 import type { ToolTracePayloadMode } from "../shared/tools/contracts";
+import { logGenerationUsageTimeline } from "../shared/usage/timeline";
 import type {
 	PrimaryPipelineContext,
 	PrimaryPipelineResult,
@@ -67,6 +69,7 @@ function buildGenerationRuntimeInput(params: {
 		debugLogger: params.debugLogger,
 		deepTraceEnabled: params.deepTraceEnabled,
 		tracePayloadMode: params.tracePayloadMode,
+		openRouterByokRetry: ctx.input.openRouterByokRetry,
 	};
 }
 
@@ -83,6 +86,67 @@ function countRecordedToolCalls(
 		}
 		return sum + Math.floor(value);
 	}, 0);
+}
+
+async function logAiCreditGuardBlockedTimeline(params: {
+	ctx: PrimaryPipelineContext;
+	intake: IntakeReadyContext;
+	blockedReason: string;
+	reason: string;
+	minimumCharge: AiCreditGuardResult["minimumCharge"];
+	balance: number | null;
+	mode: AiCreditGuardResult["mode"];
+}): Promise<void> {
+	try {
+		await logGenerationUsageTimeline({
+			db: params.ctx.db,
+			organizationId: params.ctx.input.organizationId,
+			websiteId: params.ctx.input.websiteId,
+			conversationId: params.ctx.input.conversationId,
+			visitorId: params.ctx.input.visitorId,
+			aiAgentId: params.intake.aiAgent.id,
+			payload: {
+				usageEventId: params.ctx.input.workflowRunId,
+				workflowRunId: params.ctx.input.workflowRunId,
+				triggerMessageId: params.ctx.input.messageId,
+				triggerVisibility: params.intake.triggerMessage?.visibility,
+				modelId: params.intake.modelResolution.modelIdResolved,
+				modelIdOriginal: params.intake.modelResolution.modelIdOriginal,
+				modelMigrationApplied:
+					params.intake.modelResolution.modelMigrationApplied,
+				inputTokens: 0,
+				outputTokens: 0,
+				totalTokens: 0,
+				tokenSource: "provider",
+				baseCredits: params.minimumCharge.baseCredits,
+				modelCredits: params.minimumCharge.modelCredits,
+				thinkingCredits: params.minimumCharge.thinkingCredits,
+				toolCredits: params.minimumCharge.toolCredits,
+				totalCredits: params.minimumCharge.totalCredits,
+				billableToolCount: params.minimumCharge.billableToolCount,
+				excludedToolCount: params.minimumCharge.excludedToolCount,
+				totalToolCount: params.minimumCharge.totalToolCount,
+				mode: params.mode,
+				ingestStatus: "skipped",
+				balanceBefore: params.balance,
+				balanceAfterEstimate: params.balance,
+				blockedReason: params.blockedReason,
+				source: "primary_pipeline",
+				phase: "primary_generation",
+			},
+		});
+	} catch (error) {
+		logAiPipeline({
+			area: "primary",
+			event: "credit_guard_timeline_failed",
+			level: "warn",
+			conversationId: params.ctx.input.conversationId,
+			fields: {
+				reason: params.reason,
+			},
+			error,
+		});
+	}
 }
 
 export async function runPrimaryPipeline(
@@ -277,6 +341,57 @@ export async function runPrimaryPipeline(
 			  }
 			| undefined;
 
+		if (generationResult.status === "blocked") {
+			const creditGuardResult = generationResult.creditGuard;
+			const reason =
+				creditGuardResult?.reason ?? generationResult.action.reasoning;
+			const blockedReason =
+				creditGuardResult?.blockedReason ?? "ai_credit_guard_blocked";
+
+			logAiPipeline({
+				area: "primary",
+				event: "credit_guard_blocked",
+				level: "warn",
+				conversationId: ctx.input.conversationId,
+				fields: {
+					stage: "credit_guard",
+					reason,
+					blockedReason,
+					requiredCredits: creditGuardResult?.minimumCharge.totalCredits,
+					balance: creditGuardResult?.balance,
+				},
+			});
+
+			if (creditGuardResult) {
+				await logAiCreditGuardBlockedTimeline({
+					ctx,
+					intake: intakeResult.data,
+					blockedReason,
+					reason,
+					minimumCharge: creditGuardResult.minimumCharge,
+					balance: creditGuardResult.balance,
+					mode: creditGuardResult.mode,
+				});
+			}
+
+			await emitProcessingCompletedSafe({
+				conversation: intakeResult.data.conversation,
+				aiAgentId: intakeResult.data.aiAgent.id,
+				status: "skipped",
+				reason,
+				audience: allowPublicMessages ? "all" : "dashboard",
+			});
+			return buildPrimaryPipelineResult({
+				status: "skipped",
+				metrics,
+				pipelineStartedAt,
+				reason,
+				action: "ai_credit_guard_blocked",
+				cursorDisposition: "advance",
+				publicMessagesSent: generationResult.publicMessagesSent,
+			});
+		}
+
 		usageTelemetry = await trackPrimaryGenerationUsage({
 			db: ctx.db,
 			organizationId: ctx.input.organizationId,
@@ -287,6 +402,7 @@ export async function runPrimaryPipeline(
 			triggerMessageId: ctx.input.messageId,
 			intake: intakeResult.data,
 			generationResult,
+			mode: generationResult.creditGuardMode ?? "normal",
 		});
 
 		let immediateClarificationResult:
@@ -372,6 +488,7 @@ export async function runPrimaryPipeline(
 				publicMessagesSent: generationResult.publicMessagesSent,
 				usageTokens: usageTelemetry?.usageTokens,
 				creditUsage: usageTelemetry?.creditUsage,
+				openRouterByokRetry: generationResult.openRouterByokRetry,
 			});
 		}
 

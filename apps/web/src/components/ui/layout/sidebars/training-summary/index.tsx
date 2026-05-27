@@ -37,6 +37,33 @@ function getHintDismissedKey(websiteSlug: string): string {
 	return `cossistant:training-hint-dismissed:${websiteSlug}`;
 }
 
+function formatTrainingInterval(intervalMinutes: number): string {
+	if (intervalMinutes % 60 === 0) {
+		const hours = intervalMinutes / 60;
+		return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+	}
+
+	return `${intervalMinutes} ${intervalMinutes === 1 ? "minute" : "minutes"}`;
+}
+
+function getTrainingCooldownTitle(params: {
+	intervalMinutes: number | boolean | null | undefined;
+	planName: string | undefined;
+}): string {
+	if (
+		typeof params.intervalMinutes !== "number" ||
+		!Number.isFinite(params.intervalMinutes) ||
+		params.intervalMinutes <= 0
+	) {
+		return "Training is temporarily on cooldown for your plan";
+	}
+
+	const interval = formatTrainingInterval(Math.round(params.intervalMinutes));
+	const planLabel = params.planName === "free" ? "the free plan" : "your plan";
+
+	return `Training available every ${interval} on ${planLabel}`;
+}
+
 export function TrainingSummarySidebar({
 	aiAgentId,
 }: TrainingSummarySidebarProps) {
@@ -180,6 +207,10 @@ export function TrainingSummarySidebar({
 		isTraining ||
 		startTrainingMutation.isPending ||
 		!needsTraining;
+	const trainingCooldownTitle = getTrainingCooldownTitle({
+		intervalMinutes: planInfo?.plan.features["ai-agent-training-interval"],
+		planName: planInfo?.plan.name,
+	});
 
 	return (
 		<>
@@ -286,7 +317,7 @@ export function TrainingSummarySidebar({
 								!needsTraining && hasCompletedTraining
 									? "No sources have been updated since last training"
 									: isOnCooldown
-										? "Training available once per hour on the free plan"
+										? trainingCooldownTitle
 										: undefined
 							}
 							variant="secondary"

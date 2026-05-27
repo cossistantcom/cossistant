@@ -307,9 +307,9 @@ export const PLAN_CONFIG: Record<PlanName, PlanConfig> = {
 		polarProductId: getPolarProductId("free"),
 		polarProductName: "Free",
 		features: {
-			conversations: 50, // Limited conversations
-			messages: 500, // Limited messages
-			contacts: 50, // Limited contacts
+			conversations: 20, // Limited conversations
+			messages: 200, // Limited messages
+			contacts: 25, // Limited contacts
 			"conversation-retention": 30, // Days - conversations retained for 30 days
 			"team-members": 1, // Limited team members
 			"email-notifications": true, // Included
@@ -330,13 +330,13 @@ export const PLAN_CONFIG: Record<PlanName, PlanConfig> = {
 			"custom-ai-skills": true, // Included
 			"custom-ai-agent-avatar": false, // Pro only
 			"ai-support-agents": 1, // 1 AI agent
-			"ai-agent-training-links": 10, // 10 training links
-			"ai-agent-training-mb": 0.5, // 0.5 MB KB size
-			"ai-agent-crawl-pages-per-source": 10, // 10 pages per crawl
-			"ai-agent-training-pages-total": 10, // 10 pages total across all sources
-			"ai-agent-training-faqs": 10, // 10 FAQs
-			"ai-agent-training-files": 5, // 5 files
-			"ai-agent-training-interval": 120, // Every 2 hours
+			"ai-agent-training-links": 5, // 5 training links
+			"ai-agent-training-mb": 0.25, // 0.25 MB KB size
+			"ai-agent-crawl-pages-per-source": 5, // 5 pages per crawl
+			"ai-agent-training-pages-total": 5, // 5 pages total across all sources
+			"ai-agent-training-faqs": 5, // 5 FAQs
+			"ai-agent-training-files": 2, // 2 files
+			"ai-agent-training-interval": 180, // Every 3 hours
 		},
 	},
 	hobby: {

@@ -100,8 +100,8 @@ describe("dashboard hard-limit helpers", () => {
 
 		expect(policy.enforced).toBe(false);
 		expect(policy.unavailableReason).toBe("billing_provider_unavailable");
-		expect(policy.messageLimit).toBe(500);
-		expect(policy.conversationLimit).toBe(50);
+		expect(policy.messageLimit).toBe(200);
+		expect(policy.conversationLimit).toBe(20);
 		expect(policy.windowStart).toBe("2026-01-19T00:00:00.000Z");
 	});
 });

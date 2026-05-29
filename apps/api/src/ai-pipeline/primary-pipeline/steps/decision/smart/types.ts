@@ -7,7 +7,11 @@ import type {
 	SegmentedConversationMessage,
 } from "../../../contracts";
 
-export type DecisionIntent = "respond" | "observe" | "assist_team";
+export type DecisionIntent =
+	| "respond"
+	| "observe"
+	| "assist_team"
+	| "scope_boundary_redirect";
 
 export type DecisionConfidence = "high" | "medium" | "low";
 

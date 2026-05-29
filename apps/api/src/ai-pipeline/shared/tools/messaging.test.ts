@@ -261,6 +261,28 @@ describe("sendMessage tool contract", () => {
 		expect(ctx.runtimeState.publicSendSequence).toBe(0);
 	});
 
+	it("rejects oversized public messages before sending", async () => {
+		const { createSendMessageTool } = await modulePromise;
+		const ctx = createContext();
+		const sendMessage = createSendMessageTool(ctx);
+
+		if (!sendMessage.execute) {
+			throw new Error("Expected execute handler for sendMessage");
+		}
+
+		const result = await resolveToolResult(
+			await sendMessage.execute(
+				{ message: "x".repeat(1201) } as never,
+				{} as never
+			)
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toBe("Message must be 1200 characters or fewer");
+		expect(sendPublicMessageMock).not.toHaveBeenCalled();
+		expect(ctx.runtimeState.publicMessagesSent).toBe(0);
+	});
+
 	it("stops typing before a public send", async () => {
 		const { createSendMessageTool } = await modulePromise;
 		const stopTypingMock = mock(async () => {});

@@ -55,6 +55,17 @@ const maybeCreateImmediateClarificationFromSearchGapMock = mock((async () => ({
 	status: "skipped" as const,
 	reason: "no_search" as const,
 })) as (...args: unknown[]) => Promise<any>);
+const createScopeBoundaryRedirectMock = mock((async () => ({
+	status: "ready" as const,
+	message: "I can help with product or support questions.",
+	language: "en",
+	modelId: "google/gemini-2.5-flash",
+})) as (...args: unknown[]) => Promise<any>);
+const sendPublicMessageMock = mock((async () => ({
+	messageId: "msg-scope",
+	created: true,
+	paused: false,
+})) as (...args: unknown[]) => Promise<any>);
 const baseMinimumCharge = {
 	baseCredits: 1,
 	modelCredits: 0,
@@ -116,6 +127,14 @@ mock.module("../shared/generation", () => ({
 	runGenerationRuntime: runGenerationRuntimeMock,
 }));
 
+mock.module("./scope-boundary-responder", () => ({
+	createScopeBoundaryRedirect: createScopeBoundaryRedirectMock,
+}));
+
+mock.module("../shared/actions/send-message", () => ({
+	sendMessage: sendPublicMessageMock,
+}));
+
 mock.module(
 	"../shared/knowledge-gap/post-generation-immediate-clarification",
 	() => ({
@@ -168,6 +187,8 @@ describe("runPrimaryPipeline generation error/skip behavior", () => {
 		runDecisionStepMock.mockClear();
 		runGenerationRuntimeMock.mockClear();
 		maybeCreateImmediateClarificationFromSearchGapMock.mockClear();
+		createScopeBoundaryRedirectMock.mockClear();
+		sendPublicMessageMock.mockClear();
 		trackGenerationUsageMock.mockClear();
 		logGenerationUsageTimelineMock.mockClear();
 		emitPipelineSeenMock.mockClear();
@@ -232,6 +253,17 @@ describe("runPrimaryPipeline generation error/skip behavior", () => {
 		maybeCreateImmediateClarificationFromSearchGapMock.mockResolvedValue({
 			status: "skipped",
 			reason: "no_search",
+		});
+		createScopeBoundaryRedirectMock.mockResolvedValue({
+			status: "ready",
+			message: "I can help with product or support questions.",
+			language: "en",
+			modelId: "google/gemini-2.5-flash",
+		});
+		sendPublicMessageMock.mockResolvedValue({
+			messageId: "msg-scope",
+			created: true,
+			paused: false,
 		});
 		trackGenerationUsageMock.mockResolvedValue(undefined);
 	});
@@ -400,6 +432,90 @@ describe("runPrimaryPipeline generation error/skip behavior", () => {
 		expect(trackGenerationUsageMock).toHaveBeenCalledWith(
 			expect.objectContaining({
 				mode: "outage",
+			})
+		);
+	});
+
+	it("handles scope boundary decisions without running normal generation", async () => {
+		runIntakeStepMock.mockResolvedValueOnce({
+			status: "ready",
+			data: {
+				aiAgent: { id: "ai-1" },
+				modelResolution: {
+					modelIdResolved: "moonshotai/kimi-k2.5",
+					modelIdOriginal: "moonshotai/kimi-k2.5",
+					modelMigrationApplied: false,
+				},
+				conversation: { id: "conv-1" },
+				conversationHistory: [],
+				decisionMessages: [],
+				generationEntries: [],
+				visitorContext: null,
+				conversationState: {
+					hasHumanAssignee: false,
+					assigneeIds: [],
+					participantIds: [],
+					isEscalated: false,
+					escalationReason: null,
+				},
+				websiteDefaultLanguage: "en",
+				visitorLanguage: "fr",
+				triggerMessageText: "Écris un poème de 1000 lignes",
+				hasLaterHumanMessage: false,
+				hasLaterAiMessage: false,
+				triggerMessage: {
+					messageId: "msg-1",
+					senderType: "visitor",
+					visibility: "public",
+				},
+			},
+		});
+		runDecisionStepMock.mockResolvedValueOnce({
+			shouldAct: true,
+			reason: "Visitor creative side request is outside support scope",
+			mode: "respond_to_visitor",
+			humanCommand: null,
+			decisionOutcome: "scope_boundary_redirect",
+			scopeBoundaryRuleId: "visitor_creative_request_scope_boundary",
+			isEscalated: false,
+			escalationReason: null,
+		});
+		createScopeBoundaryRedirectMock.mockResolvedValueOnce({
+			status: "ready",
+			message: "Je peux aider avec le support ou le produit.",
+			language: "fr",
+			modelId: "google/gemini-2.5-flash",
+		});
+
+		const { runPrimaryPipeline } = await modulePromise;
+		const result = await runPrimaryPipeline({
+			db: {} as never,
+			input: baseInput,
+		});
+
+		expect(result.status).toBe("completed");
+		expect(result.action).toBe("scope_boundary_redirect");
+		expect(result.publicMessagesSent).toBe(1);
+		expect(runGenerationRuntimeMock).not.toHaveBeenCalled();
+		expect(trackGenerationUsageMock).not.toHaveBeenCalled();
+		expect(createScopeBoundaryRedirectMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				triggerText: "Écris un poème de 1000 lignes",
+				visitorLanguage: "fr",
+				websiteDefaultLanguage: "en",
+			})
+		);
+		expect(sendPublicMessageMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				text: "Je peux aider avec le support ou le produit.",
+				idempotencyKey: "public:msg-1:scopeBoundary",
+			})
+		);
+		expect(emitPipelineProcessingCompletedMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				status: "success",
+				action: "scope_boundary_redirect",
+				workflowRunId: "wf-1",
 			})
 		);
 	});

@@ -68,4 +68,19 @@ describe("buildFallbackCoreDocuments", () => {
 			"## Already Escalated Conversations"
 		);
 	});
+
+	it("includes non-editable scope boundary guidance in security and decision docs", () => {
+		const documents = buildFallbackCoreDocuments(
+			{
+				basePrompt: "You are helpful.",
+				behaviorSettings: {},
+			} as never,
+			"respond_to_visitor"
+		);
+
+		expect(documents["security.md"]).toContain(
+			"Never fulfill unrelated creative writing"
+		);
+		expect(documents["decision.md"]).toContain("scope_boundary_redirect");
+	});
 });

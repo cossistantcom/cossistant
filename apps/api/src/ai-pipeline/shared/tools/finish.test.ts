@@ -191,4 +191,32 @@ describe("createEscalateTool", () => {
 		expect(ctx.runtimeState.publicMessagesSent).toBe(0);
 		expect(ctx.runtimeState.finalAction?.action).toBe("escalate");
 	});
+
+	it("rejects oversized escalation handoffs before mutating the conversation", async () => {
+		const { createEscalateTool } = await modulePromise;
+		const ctx = createContext();
+		const escalate = createEscalateTool(ctx);
+
+		if (!escalate.execute) {
+			throw new Error("Expected execute handler for escalate");
+		}
+
+		const result = await resolveToolResult(
+			await escalate.execute(
+				{
+					reason: "Visitor requested a human",
+					visitorMessage: "x".repeat(1201),
+					reasoning: "Need a teammate",
+					confidence: 1,
+				} as never,
+				{} as never
+			)
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toBe("Message must be 1200 characters or fewer");
+		expect(escalateActionMock).not.toHaveBeenCalled();
+		expect(sendPublicMessageMock).not.toHaveBeenCalled();
+		expect(ctx.runtimeState.finalAction).toBeNull();
+	});
 });

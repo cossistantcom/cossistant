@@ -1,5 +1,6 @@
 import type { ConversationSelect } from "@api/db/schema/conversation";
 import type { ConversationState, RoleAwareMessage } from "../../contracts";
+import { detectScopeBoundaryRequest } from "./scope-boundary";
 import { detectAiTag, stripLeadingTag } from "./tag-detection";
 import type { DecisionResult, DecisionStepInput, ResponseMode } from "./types";
 
@@ -20,6 +21,8 @@ function withConversationState(
 		reason: string;
 		mode: ResponseMode;
 		humanCommand: string | null;
+		decisionOutcome?: DecisionResult["decisionOutcome"];
+		scopeBoundaryRuleId?: string;
 	}
 ): DecisionResult {
 	return {
@@ -92,6 +95,21 @@ export function runDeterministicDecision(
 				reason: "AI is paused for this conversation",
 				mode: "background_only",
 				humanCommand: null,
+			}),
+		};
+	}
+
+	const scopeBoundaryDecision = detectScopeBoundaryRequest(triggerMessage);
+	if (scopeBoundaryDecision) {
+		return {
+			type: "final",
+			result: withConversationState(conversationState, {
+				shouldAct: true,
+				reason: scopeBoundaryDecision.reason,
+				mode: "respond_to_visitor",
+				humanCommand: null,
+				decisionOutcome: "scope_boundary_redirect",
+				scopeBoundaryRuleId: scopeBoundaryDecision.ruleId,
 			}),
 		};
 	}

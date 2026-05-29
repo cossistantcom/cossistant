@@ -82,6 +82,7 @@ describe("buildSmartDecisionPrompt", () => {
 		expect(prompt).toContain("Before Trigger:");
 		expect(prompt).toContain("Current Trigger:");
 		expect(prompt).toContain("Later Context:");
+		expect(prompt).toContain("scope_boundary_redirect");
 		expect(prompt).toContain("- [VISITOR][PUBLIC] My invoice is wrong.");
 		expect(prompt).toContain(
 			"- [TEAM][PUBLIC] I already answered with the seat pricing."

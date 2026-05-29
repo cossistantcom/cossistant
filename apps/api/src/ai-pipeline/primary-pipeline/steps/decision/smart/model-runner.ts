@@ -18,7 +18,12 @@ const DECISION_MODELS: readonly SmartDecisionModelConfig[] = [
 ];
 
 const decisionOutputSchema = z.object({
-	intent: z.enum(["respond", "observe", "assist_team"]),
+	intent: z.enum([
+		"respond",
+		"observe",
+		"assist_team",
+		"scope_boundary_redirect",
+	]),
 	reasoning: z.string(),
 	confidence: z.enum(["high", "medium", "low"]),
 });

@@ -53,6 +53,21 @@ export function mapSmartDecisionToDecisionResult(params: {
 		});
 	}
 
+	if (smartDecision.intent === "scope_boundary_redirect") {
+		return {
+			...buildDecisionResult({
+				input,
+				shouldAct: true,
+				reason: `Smart decision: ${smartDecision.reasoning}`,
+				mode: "respond_to_visitor",
+				humanCommand: null,
+				smartDecision,
+			}),
+			decisionOutcome: "scope_boundary_redirect",
+			scopeBoundaryRuleId: smartDecision.ruleId,
+		};
+	}
+
 	if (triggerMessage?.senderType === "human_agent") {
 		return buildDecisionResult({
 			input,

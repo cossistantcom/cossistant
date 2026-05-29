@@ -2,6 +2,10 @@ import { tool } from "ai";
 import { z } from "zod";
 import { addInternalNote } from "../actions/internal-note";
 import { sendMessage as sendPublicMessage } from "../actions/send-message";
+import {
+	getPublicMessageValidationError,
+	MAX_PUBLIC_MESSAGE_CHARS,
+} from "../public-message-policy";
 import { normalizePublicReplyText } from "../reply-contract";
 import type {
 	PipelineToolContext,
@@ -16,6 +20,7 @@ const publicMessageInputSchema = z.object({
 	message: z
 		.string()
 		.min(1)
+		.max(MAX_PUBLIC_MESSAGE_CHARS)
 		.describe(
 			"Public visitor-facing message. Keep it concise and easy to read in chat."
 		),
@@ -47,10 +52,11 @@ async function executePublicMessageSend(params: {
 	}
 
 	const trimmedMessage = message.trim();
-	if (!trimmedMessage) {
+	const validationError = getPublicMessageValidationError(trimmedMessage);
+	if (validationError) {
 		return {
 			success: false,
-			error: "Message is empty",
+			error: validationError,
 		};
 	}
 

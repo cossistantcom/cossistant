@@ -267,7 +267,8 @@ const AI_AGENT_TOOL_CATALOG_RAW: readonly RawToolCatalogEntry[] = [
 - Use this for every visitor-facing reply.
 - Prefer short chat bubbles over one dense block of text.
 - Use 2 or 3 separate calls when splitting improves readability.
-- Do not exceed 3 public chat messages in one run.`,
+- Do not exceed 3 public chat messages in one run.
+- Stay inside product/support help; do not fulfill unrelated side requests.`,
 		},
 	},
 	{

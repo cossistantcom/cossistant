@@ -19,6 +19,8 @@ export type DecisionResult = {
 	humanCommand: string | null;
 	isEscalated: boolean;
 	escalationReason: string | null;
+	decisionOutcome?: "scope_boundary_redirect";
+	scopeBoundaryRuleId?: string;
 	smartDecision?: SmartDecisionResult;
 };
 

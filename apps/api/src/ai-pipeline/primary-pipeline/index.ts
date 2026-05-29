@@ -1,6 +1,7 @@
 import { env } from "@api/env";
 import type { AiCreditGuardResult } from "@api/lib/ai-credits/guard";
 import { logAiPipeline } from "../logger";
+import { sendMessage as sendPublicMessage } from "../shared/actions/send-message";
 import { createPipelineDevConversationLog } from "../shared/dev-conversation-log";
 import {
 	emitPipelineProcessingCompletedSafely,
@@ -24,6 +25,7 @@ import {
 	type PrimaryTypingControls,
 } from "./internal/typing";
 import { trackPrimaryGenerationUsage } from "./internal/usage";
+import { createScopeBoundaryRedirect } from "./scope-boundary-responder";
 import type { DecisionResult } from "./steps/decision";
 import { runDecisionStep } from "./steps/decision";
 import { runIntakeStep } from "./steps/intake";
@@ -147,6 +149,66 @@ async function logAiCreditGuardBlockedTimeline(params: {
 			error,
 		});
 	}
+}
+
+async function runScopeBoundaryRedirect(params: {
+	ctx: PrimaryPipelineContext;
+	intake: IntakeReadyContext;
+	decision: DecisionResult;
+}): Promise<
+	| {
+			status: "completed";
+			reason: string;
+			publicMessagesSent: number;
+	  }
+	| {
+			status: "skipped";
+			reason: string;
+			publicMessagesSent: number;
+	  }
+> {
+	const redirect = await createScopeBoundaryRedirect({
+		db: params.ctx.db,
+		organizationId: params.ctx.input.organizationId,
+		websiteId: params.ctx.input.websiteId,
+		conversationId: params.ctx.input.conversationId,
+		triggerText: params.intake.triggerMessageText ?? "",
+		visitorLanguage: params.intake.visitorLanguage ?? null,
+		websiteDefaultLanguage: params.intake.websiteDefaultLanguage ?? "en",
+	});
+
+	if (redirect.status === "skipped") {
+		return {
+			status: "skipped",
+			reason: redirect.reason,
+			publicMessagesSent: 0,
+		};
+	}
+
+	const sendResult = await sendPublicMessage({
+		db: params.ctx.db,
+		conversationId: params.ctx.input.conversationId,
+		organizationId: params.ctx.input.organizationId,
+		websiteId: params.ctx.input.websiteId,
+		visitorId: params.ctx.input.visitorId,
+		aiAgentId: params.intake.aiAgent.id,
+		text: redirect.message,
+		idempotencyKey: `public:${params.ctx.input.messageId}:scopeBoundary`,
+	});
+
+	if (sendResult.paused) {
+		return {
+			status: "skipped",
+			reason: "AI is paused for this conversation",
+			publicMessagesSent: 0,
+		};
+	}
+
+	return {
+		status: "completed",
+		reason: params.decision.reason,
+		publicMessagesSent: sendResult.created ? 1 : 0,
+	};
 }
 
 export async function runPrimaryPipeline(
@@ -302,6 +364,54 @@ export async function runPrimaryPipeline(
 				pipelineStartedAt,
 				reason: decisionResult.reason,
 				action: "decision_skipped",
+			});
+		}
+
+		if (decisionResult.decisionOutcome === "scope_boundary_redirect") {
+			const redirectResult = await measureStage(metrics, "generationMs", () =>
+				runScopeBoundaryRedirect({
+					ctx,
+					intake: intakeResult.data,
+					decision: decisionResult,
+				})
+			);
+
+			logAiPipeline({
+				area: "primary",
+				event:
+					redirectResult.status === "completed"
+						? "scope_boundary_redirect"
+						: "skip",
+				conversationId: ctx.input.conversationId,
+				fields: {
+					stage: "decision",
+					reason: redirectResult.reason,
+					ruleId: decisionResult.scopeBoundaryRuleId,
+					publicMessages: redirectResult.publicMessagesSent,
+				},
+			});
+
+			await emitProcessingCompletedSafe({
+				conversation: intakeResult.data.conversation,
+				aiAgentId: intakeResult.data.aiAgent.id,
+				status: redirectResult.status === "completed" ? "success" : "skipped",
+				action:
+					redirectResult.status === "completed"
+						? "scope_boundary_redirect"
+						: "scope_boundary_skipped",
+				reason: redirectResult.reason,
+			});
+
+			return buildPrimaryPipelineResult({
+				status: redirectResult.status,
+				metrics,
+				pipelineStartedAt,
+				action:
+					redirectResult.status === "completed"
+						? "scope_boundary_redirect"
+						: "scope_boundary_skipped",
+				reason: redirectResult.reason,
+				publicMessagesSent: redirectResult.publicMessagesSent,
 			});
 		}
 

@@ -3,6 +3,10 @@ import { z } from "zod";
 import { escalate as escalateAction } from "../actions/escalate";
 import { sendMessage as sendPublicMessage } from "../actions/send-message";
 import { updateStatus } from "../actions/update-status";
+import {
+	getPublicMessageValidationError,
+	MAX_PUBLIC_MESSAGE_CHARS,
+} from "../public-message-policy";
 import { normalizePublicReplyText } from "../reply-contract";
 import type {
 	PipelineToolContext,
@@ -22,6 +26,7 @@ const escalateSchema = z.object({
 		.string()
 		.trim()
 		.min(1)
+		.max(MAX_PUBLIC_MESSAGE_CHARS)
 		.describe(
 			"Visitor-facing handoff message to send while escalating. Follow the Behaviour prompt for wording."
 		),
@@ -150,6 +155,20 @@ export function createEscalateTool(ctx: PipelineToolContext) {
 				changed: boolean;
 			}>
 		> => {
+			const visitorMessageValidationError =
+				getPublicMessageValidationError(visitorMessage);
+			if (visitorMessageValidationError) {
+				setToolError(ctx, {
+					toolName: "escalate",
+					error: visitorMessageValidationError,
+					fatal: true,
+				});
+				return {
+					success: false,
+					error: visitorMessageValidationError,
+				};
+			}
+
 			if (ctx.isEscalated) {
 				setFinalAction(ctx, {
 					action: "respond",

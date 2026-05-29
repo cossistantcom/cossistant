@@ -31,6 +31,7 @@ import {
 	updateAiAgentSkillPromptDocument,
 	upsertAiAgentCorePromptDocument,
 } from "@api/db/queries/ai-agent-prompt-document";
+import { scheduleAiAgentLifecycleEmail } from "@api/db/queries/lifecycle-email";
 import {
 	getWebsiteBySlugWithAccess,
 	updateWebsite,
@@ -693,6 +694,23 @@ export const aiAgentRouter = createTRPCRouter({
 					code: "NOT_FOUND",
 					message: "AI agent not found",
 				});
+			}
+
+			if (input.onboardingCompletedAt && !existingAgent.onboardingCompletedAt) {
+				try {
+					await scheduleAiAgentLifecycleEmail(db, {
+						organizationId: websiteData.organizationId,
+						websiteId: websiteData.id,
+						websiteName: websiteData.name,
+						websiteSlug: websiteData.slug,
+					});
+				} catch (error) {
+					console.error("[lifecycle-email] Failed to schedule AI agent email", {
+						organizationId: websiteData.organizationId,
+						websiteId: websiteData.id,
+						error,
+					});
+				}
 			}
 
 			return toAiAgentResponse(agent);

@@ -32,6 +32,7 @@ export const env = {
 	NODE_ENV: getEnvVariable("NODE_ENV"),
 	PORT: +getEnvVariable("PORT", "8790"),
 	REDIS_URL: getEnvVariable("REDIS_URL"),
+	PUBLIC_APP_URL: getEnvVariable("PUBLIC_APP_URL", "https://cossistant.com"),
 	AI_AGENT_CONCURRENCY: +getEnvVariable("AI_AGENT_CONCURRENCY", "30"),
 	WEB_CRAWL_GLOBAL_ACTIVE_LIMIT: +getEnvVariable(
 		"WEB_CRAWL_GLOBAL_ACTIVE_LIMIT",

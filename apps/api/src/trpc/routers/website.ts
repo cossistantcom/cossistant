@@ -6,6 +6,7 @@ import {
 	getApiKeysByOrganization,
 	revokeApiKey,
 } from "@api/db/queries/api-keys";
+import { scheduleWebsiteLifecycleSequence } from "@api/db/queries/lifecycle-email";
 import {
 	getWebsiteMemberById,
 	getWebsiteMembers,
@@ -504,6 +505,21 @@ export const websiteRouter = createTRPCRouter({
 					websiteId: createdWebsite.id,
 					invariantViolation:
 						error instanceof PolarCustomerInvariantViolationError,
+					error,
+				});
+			}
+
+			try {
+				await scheduleWebsiteLifecycleSequence(db, {
+					organizationId: input.organizationId,
+					websiteId: createdWebsite.id,
+					websiteName: createdWebsite.name,
+					websiteSlug: createdWebsite.slug,
+				});
+			} catch (error) {
+				console.error("[lifecycle-email] Failed to schedule website sequence", {
+					organizationId: input.organizationId,
+					websiteId: createdWebsite.id,
 					error,
 				});
 			}

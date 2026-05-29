@@ -5,6 +5,7 @@ export const QUEUE_NAMES = {
 	AI_AGENT_BACKGROUND: "ai-agent-background",
 	WEB_CRAWL: "web-crawl",
 	AI_TRAINING: "ai-training",
+	LIFECYCLE_EMAIL: "lifecycle-email",
 } as const;
 
 /**
@@ -136,4 +137,19 @@ export type AiTrainingJobData = {
  */
 export function generateAiTrainingJobId(aiAgentId: string): string {
 	return `ai-training-${aiAgentId}`;
+}
+
+export type LifecycleEmailJobData =
+	| { kind: "scan" }
+	| { kind: "weekly_digest_scan" }
+	| { kind: "limit_scan" }
+	| { kind: "send_batch"; eventIds: string[]; batchId: string };
+
+export function generateLifecycleEmailJobId(
+	kind: LifecycleEmailJobData["kind"],
+	suffix?: string
+): string {
+	return suffix
+		? `lifecycle-email-${kind}-${suffix}`
+		: `lifecycle-email-${kind}`;
 }

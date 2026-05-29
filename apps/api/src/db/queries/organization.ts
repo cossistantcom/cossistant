@@ -1,4 +1,5 @@
 import type { Database } from "@api/db";
+import { scheduleWelcomeLifecycleEmail } from "@api/db/queries/lifecycle-email";
 import {
 	member,
 	type OrganizationSelect,
@@ -8,6 +9,7 @@ import {
 } from "@api/db/schema";
 import { auth } from "@api/lib/auth";
 import { generateSlugFromEmailDomain } from "@api/utils/organization";
+import { resolveOrganizationTimezone } from "@api/utils/timezone";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 
 export async function getOrganizationById(
@@ -94,6 +96,7 @@ export async function getOrganizationsForUserOrCreateDefault(
 		userId: string;
 		userEmail: string;
 		userName: string;
+		timezone?: string | null;
 	}
 ): Promise<
 	{
@@ -125,18 +128,40 @@ export async function getOrganizationsForUserOrCreateDefault(
 			throw new Error("Failed to create default organization");
 		}
 
+		const timezone = resolveOrganizationTimezone(params.timezone);
+		const [updatedOrganization] = await db
+			.update(organization)
+			.set({ timezone })
+			.where(eq(organization.id, newOrganization.id))
+			.returning();
+		const organizationRecord = updatedOrganization ?? {
+			id: newOrganization.id,
+			name: newOrganization.name,
+			createdAt: newOrganization.createdAt,
+			slug: newOrganization.slug,
+			logo: newOrganization.logo ?? null,
+			timezone,
+			weeklyDigestEnabled: true,
+			metadata: newOrganization.metadata
+				? JSON.stringify(newOrganization.metadata)
+				: null,
+		};
+
+		try {
+			await scheduleWelcomeLifecycleEmail(db, {
+				organizationId: organizationRecord.id,
+				organizationName: organizationRecord.name,
+			});
+		} catch (error) {
+			console.error("[lifecycle-email] Failed to schedule welcome email", {
+				organizationId: organizationRecord.id,
+				error,
+			});
+		}
+
 		return [
 			{
-				organization: {
-					id: newOrganization.id,
-					name: newOrganization.name,
-					createdAt: newOrganization.createdAt,
-					slug: newOrganization.slug,
-					logo: newOrganization.logo ?? null,
-					metadata: newOrganization.metadata
-						? JSON.stringify(newOrganization.metadata)
-						: null,
-				},
+				organization: organizationRecord,
 				role: "owner",
 				joinedAt: new Date(),
 				websites: [],

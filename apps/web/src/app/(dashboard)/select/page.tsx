@@ -1,7 +1,7 @@
 import { db } from "@api/db";
 import { getOrganizationsForUserOrCreateDefault } from "@api/db/queries/organization";
 import type { OrganizationSelect, WebsiteSelect } from "@api/db/schema";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { ensurePageAuth } from "@/lib/auth/server";
 import SelectClient from "./select-client";
@@ -54,12 +54,16 @@ export default async function Select() {
 	const { user } = await ensurePageAuth();
 
 	const cookieStore = await cookies();
+	const requestHeaders = await headers();
+	const browserTimezone = cookieStore.get("cossistant_timezone")?.value ?? null;
+	const requestTimezone = requestHeaders.get("x-user-timezone");
 
 	// If the user lands on this page and is not a member of any organization, we create a default one for them
 	const orgs = await getOrganizationsForUserOrCreateDefault(db, {
 		userId: user?.id,
 		userEmail: user?.email,
 		userName: user?.name,
+		timezone: browserTimezone ?? requestTimezone,
 	});
 
 	const { availableWebsitesCount, availableWebsites, defaultOrgSlug } =

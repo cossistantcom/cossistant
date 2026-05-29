@@ -5,9 +5,22 @@ const createAiAgentTriggersMock = mock(() => ({
 	enqueueAiAgentJob: mock(async () => "job_1"),
 	close: async () => {},
 }));
+const createAiAgentBackgroundTriggersMock = mock(() => ({
+	enqueueAiAgentBackgroundJob: mock(async () => ({
+		status: "queued",
+	})),
+	close: async () => {},
+}));
 const createAiTrainingTriggersMock = mock(() => ({
 	enqueueAiTraining: mock(async () => "job_2"),
 	cancelAiTraining: mock(async () => true),
+	close: async () => {},
+}));
+const createLifecycleEmailTriggersMock = mock(() => ({
+	enqueueScan: mock(async () => "job_4"),
+	enqueueWeeklyDigestScan: mock(async () => "job_5"),
+	enqueueLimitScan: mock(async () => "job_6"),
+	enqueueSendBatch: mock(async () => "job_7"),
 	close: async () => {},
 }));
 const createMessageNotificationTriggersMock = mock(() => ({
@@ -32,8 +45,10 @@ mock.module("@cossistant/redis", () => ({
 }));
 
 mock.module("@cossistant/jobs", () => ({
+	createAiAgentBackgroundTriggers: createAiAgentBackgroundTriggersMock,
 	createAiAgentTriggers: createAiAgentTriggersMock,
 	createAiTrainingTriggers: createAiTrainingTriggersMock,
+	createLifecycleEmailTriggers: createLifecycleEmailTriggersMock,
 	createMessageNotificationTriggers: createMessageNotificationTriggersMock,
 	createWebCrawlTriggers: createWebCrawlTriggersMock,
 }));
@@ -41,8 +56,10 @@ mock.module("@cossistant/jobs", () => ({
 describe("queue-triggers", () => {
 	beforeEach(() => {
 		getBullConnectionOptionsMock.mockClear();
+		createAiAgentBackgroundTriggersMock.mockClear();
 		createAiAgentTriggersMock.mockClear();
 		createAiTrainingTriggersMock.mockClear();
+		createLifecycleEmailTriggersMock.mockClear();
 		createMessageNotificationTriggersMock.mockClear();
 		createWebCrawlTriggersMock.mockClear();
 	});

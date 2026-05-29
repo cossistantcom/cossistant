@@ -12,6 +12,7 @@ import {
 	createAiAgentBackgroundTriggers,
 	createAiAgentTriggers,
 	createAiTrainingTriggers,
+	createLifecycleEmailTriggers,
 	createMessageNotificationTriggers,
 	createWebCrawlTriggers,
 	type WebCrawlJobData,
@@ -28,6 +29,9 @@ let aiAgentBackgroundTriggers: ReturnType<
 > | null = null;
 let aiTrainingTriggers: ReturnType<typeof createAiTrainingTriggers> | null =
 	null;
+let lifecycleEmailTriggers: ReturnType<
+	typeof createLifecycleEmailTriggers
+> | null = null;
 let webCrawlTriggers: ReturnType<typeof createWebCrawlTriggers> | null = null;
 
 let bullConnectionOptions: ReturnType<typeof getBullConnectionOptions> | null =
@@ -105,6 +109,26 @@ function getWebCrawlTriggers() {
 		});
 	}
 	return webCrawlTriggers;
+}
+
+export function getLifecycleEmailQueueTriggers() {
+	if (!lifecycleEmailTriggers) {
+		const redisUrl = getRedisUrlOrThrow();
+		lifecycleEmailTriggers = createLifecycleEmailTriggers({
+			connection: getBullOptions(),
+			redisUrl,
+		});
+	}
+	return lifecycleEmailTriggers;
+}
+
+export async function triggerLifecycleEmailScan(): Promise<string> {
+	try {
+		return await getLifecycleEmailQueueTriggers().enqueueScan();
+	} catch (error) {
+		console.error("[queue-triggers] triggerLifecycleEmailScan FAILED:", error);
+		throw error;
+	}
 }
 
 export async function triggerMemberMessageNotification(data: {
@@ -295,6 +319,12 @@ export async function closeQueueProducers(): Promise<void> {
 			if (webCrawlTriggers) {
 				await webCrawlTriggers.close();
 				webCrawlTriggers = null;
+			}
+		})(),
+		(async () => {
+			if (lifecycleEmailTriggers) {
+				await lifecycleEmailTriggers.close();
+				lifecycleEmailTriggers = null;
 			}
 		})(),
 	]);

@@ -12,6 +12,7 @@ import {
 	text,
 	timestamp,
 	uniqueIndex,
+	varchar,
 } from "drizzle-orm/pg-core";
 import {
 	ulidNullableReference,
@@ -147,6 +148,10 @@ export const organization = pgTable(
 		name: text("name").notNull(),
 		slug: text("slug").notNull().unique(),
 		logo: text("logo"),
+		timezone: varchar("timezone", { length: 100 }).default("UTC").notNull(),
+		weeklyDigestEnabled: boolean("weekly_digest_enabled")
+			.default(true)
+			.notNull(),
 		createdAt: timestamp("created_at").notNull(),
 		metadata: text("metadata"),
 	},

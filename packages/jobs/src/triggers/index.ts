@@ -13,5 +13,6 @@ export {
 	type EnqueueAiAgentBackgroundResult,
 } from "./ai-agent-background";
 export { createAiTrainingTriggers } from "./ai-training";
+export { createLifecycleEmailTriggers } from "./lifecycle-email";
 export { createMessageNotificationTriggers } from "./message-notification";
 export { createWebCrawlTriggers } from "./web-crawl";

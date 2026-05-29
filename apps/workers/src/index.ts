@@ -4,6 +4,7 @@ import { HonoAdapter } from "@bull-board/hono";
 import {
 	type AiAgentBackgroundJobData,
 	type AiAgentJobData,
+	type LifecycleEmailJobData,
 	type MessageNotificationJobData,
 	QUEUE_NAMES,
 	type WebCrawlJobData,
@@ -81,6 +82,7 @@ type ManagedQueue =
 	| Queue<MessageNotificationJobData>
 	| Queue<AiAgentBackgroundJobData>
 	| Queue<AiAgentJobData>
+	| Queue<LifecycleEmailJobData>
 	| Queue<WebCrawlJobData>;
 
 const bullBoardQueues: ManagedQueue[] = [];
@@ -88,6 +90,12 @@ if (env.BULL_BOARD_ENABLED) {
 	const boardConnection = getBullConnectionOptions(env.REDIS_URL);
 	const messageQueue = new Queue<MessageNotificationJobData>(
 		QUEUE_NAMES.MESSAGE_NOTIFICATION,
+		{
+			connection: boardConnection,
+		}
+	);
+	const lifecycleEmailQueue = new Queue<LifecycleEmailJobData>(
+		QUEUE_NAMES.LIFECYCLE_EMAIL,
 		{
 			connection: boardConnection,
 		}
@@ -106,6 +114,7 @@ if (env.BULL_BOARD_ENABLED) {
 	});
 	bullBoardQueues.push(
 		messageQueue,
+		lifecycleEmailQueue,
 		aiAgentQueue,
 		aiAgentBackgroundQueue,
 		webCrawlQueue
@@ -115,6 +124,7 @@ if (env.BULL_BOARD_ENABLED) {
 	createBullBoard({
 		queues: [
 			new BullMQAdapter(messageQueue),
+			new BullMQAdapter(lifecycleEmailQueue),
 			new BullMQAdapter(aiAgentQueue),
 			new BullMQAdapter(aiAgentBackgroundQueue),
 			new BullMQAdapter(webCrawlQueue),

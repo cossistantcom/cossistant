@@ -3,6 +3,7 @@ import { getBullConnectionOptions } from "@cossistant/redis";
 import { createAiAgentWorker } from "./ai-agent/worker";
 import { createAiAgentBackgroundWorker } from "./ai-agent-background/worker";
 import { createAiTrainingWorker } from "./ai-training/worker";
+import { createLifecycleEmailWorker } from "./lifecycle-email/worker";
 import { createMessageNotificationWorker } from "./message-notification/worker";
 import { createWebCrawlWorker } from "./web-crawl/worker";
 
@@ -43,6 +44,13 @@ export async function startAllWorkers(params: {
 		});
 		await messageNotificationWorker.start();
 		workers.push(messageNotificationWorker);
+
+		const lifecycleEmailWorker = createLifecycleEmailWorker({
+			connectionOptions,
+			redisUrl: params.redisUrl,
+		});
+		await lifecycleEmailWorker.start();
+		workers.push(lifecycleEmailWorker);
 
 		const aiAgentWorker = createAiAgentWorker({
 			connectionOptions,

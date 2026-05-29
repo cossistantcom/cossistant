@@ -13,6 +13,7 @@ import {
 	buildInviteAuthPath,
 	readInviteAuthState,
 } from "@/lib/auth/invite-state";
+import { persistBrowserTimezoneCookie } from "@/lib/timezone";
 import { GithubIcon, GoogleIcon } from "./login-form";
 
 export function SignupForm() {
@@ -59,6 +60,8 @@ export function SignupForm() {
 		setIsLoading(true);
 
 		try {
+			persistBrowserTimezoneCookie();
+
 			const result = await signUp.email({
 				email: email.trim(),
 				password,
@@ -101,6 +104,8 @@ export function SignupForm() {
 
 	const handleSocialSignUp = async (provider: "google" | "github") => {
 		try {
+			persistBrowserTimezoneCookie();
+
 			await signIn.social(
 				{
 					provider,

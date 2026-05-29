@@ -1,0 +1,623 @@
+import { getMemberNotificationSettings } from "@api/db/queries";
+import { isEmailSuppressed } from "@api/db/queries/email-bounce";
+import {
+	claimDueLifecycleEmailEvents,
+	getLifecycleEmailEventsByIds,
+	getOrganizationLifecycleOwnerRecipient,
+	getWeeklyDigestStats,
+	listLifecycleLimitCandidateWebsites,
+	listWeeklyDigestCandidateOrganizations,
+	markLifecycleEmailEventsFailed,
+	markLifecycleEmailEventsSent,
+	markLifecycleEmailEventsSkipped,
+	requeueLifecycleEmailEvents,
+	scheduleLifecycleEmailEvent,
+} from "@api/db/queries/lifecycle-email";
+import {
+	getContactCount,
+	getRollingWindowConversationCount,
+	getRollingWindowMessageCount,
+	HARD_LIMIT_ROLLING_WINDOW_DAYS,
+} from "@api/db/queries/usage";
+import { organization } from "@api/db/schema";
+import { getPlanForWebsite } from "@api/lib/plans/access";
+import { buildLifecycleEmail } from "@api/lifecycle-email/content";
+import {
+	getLocalWeekKey,
+	shouldScanWeeklyDigestForTimezone,
+} from "@api/lifecycle-email/scheduling";
+import { LIFECYCLE_EMAIL_KEYS } from "@api/lifecycle-email/types";
+import { type LifecycleEmailJobData, QUEUE_NAMES } from "@cossistant/jobs";
+import { getSafeRedisUrl, type RedisOptions } from "@cossistant/redis";
+import { sendBatchEmail } from "@cossistant/transactional";
+import type { ResendEmailOptions } from "@cossistant/transactional/send";
+import { MemberNotificationChannel } from "@cossistant/types";
+import { type Job, Queue, QueueEvents, Worker } from "bullmq";
+import { and, eq } from "drizzle-orm";
+import { db } from "../../db";
+import { env } from "../../env";
+
+const BATCH_SIZE = 25;
+const BATCH_DELAY_MS = 10_000;
+const SCAN_CLAIM_LIMIT = 250;
+const WORKER_CONFIG = {
+	concurrency: 2,
+	lockDuration: 60_000,
+	stalledInterval: 30_000,
+	maxStalledCount: 2,
+};
+
+const SEND_BATCH_JOB_OPTIONS = {
+	removeOnComplete: true,
+	removeOnFail: 1000,
+	attempts: 5,
+	backoff: {
+		type: "exponential" as const,
+		delay: 60_000,
+	},
+};
+
+type WorkerConfig = {
+	connectionOptions: RedisOptions;
+	redisUrl: string;
+};
+
+type DeliverableLifecycleEmail = {
+	eventId: string;
+	options: ResendEmailOptions;
+};
+
+function chunk<T>(items: T[], size: number): T[][] {
+	const chunks: T[][] = [];
+
+	for (let index = 0; index < items.length; index += size) {
+		chunks.push(items.slice(index, index + size));
+	}
+
+	return chunks;
+}
+
+function errorMessage(error: unknown) {
+	return error instanceof Error ? error.message : String(error);
+}
+
+function isFinalAttempt(job: Job<LifecycleEmailJobData>) {
+	const attempts = job.opts.attempts ?? 1;
+	return job.attemptsMade + 1 >= attempts;
+}
+
+export function createLifecycleEmailWorker({
+	connectionOptions,
+	redisUrl,
+}: WorkerConfig) {
+	const queueName = QUEUE_NAMES.LIFECYCLE_EMAIL;
+	let queue: Queue<LifecycleEmailJobData> | null = null;
+	let worker: Worker<LifecycleEmailJobData> | null = null;
+	let events: QueueEvents | null = null;
+	const safeRedisUrl = getSafeRedisUrl(redisUrl);
+
+	const buildConnectionOptions = (): RedisOptions => ({
+		...connectionOptions,
+		tls: connectionOptions.tls ? { ...connectionOptions.tls } : undefined,
+	});
+
+	async function getQueue() {
+		if (!queue) {
+			queue = new Queue<LifecycleEmailJobData>(queueName, {
+				connection: buildConnectionOptions(),
+				defaultJobOptions: {
+					removeOnComplete: true,
+					removeOnFail: 1000,
+				},
+			});
+			await queue.waitUntilReady();
+		}
+
+		return queue;
+	}
+
+	async function upsertSchedulers(q: Queue<LifecycleEmailJobData>) {
+		await Promise.all([
+			q.upsertJobScheduler(
+				"lifecycle-email-scan",
+				{ every: 5 * 60 * 1000 },
+				{
+					name: "scan",
+					data: { kind: "scan" },
+					opts: { removeOnComplete: true, removeOnFail: 1000 },
+				}
+			),
+			q.upsertJobScheduler(
+				"weekly-digest-scan",
+				{ every: 15 * 60 * 1000 },
+				{
+					name: "weekly_digest_scan",
+					data: { kind: "weekly_digest_scan" },
+					opts: { removeOnComplete: true, removeOnFail: 1000 },
+				}
+			),
+			q.upsertJobScheduler(
+				"limit-scan",
+				{ every: 60 * 60 * 1000 },
+				{
+					name: "limit_scan",
+					data: { kind: "limit_scan" },
+					opts: { removeOnComplete: true, removeOnFail: 1000 },
+				}
+			),
+		]);
+	}
+
+	return {
+		start: async () => {
+			if (worker) {
+				return;
+			}
+
+			console.log(
+				`[worker:lifecycle-email] Using queue=${queueName} redis=${safeRedisUrl}`
+			);
+
+			const q = await getQueue();
+			await upsertSchedulers(q);
+
+			events = new QueueEvents(queueName, {
+				connection: buildConnectionOptions(),
+			});
+			events.on("failed", ({ jobId, failedReason }) => {
+				console.error(
+					`[worker:lifecycle-email] Job ${jobId} failed: ${failedReason}`
+				);
+			});
+			await events.waitUntilReady();
+
+			worker = new Worker<LifecycleEmailJobData>(
+				queueName,
+				async (job) => {
+					switch (job.data.kind) {
+						case "scan":
+							await processScan(q);
+							return;
+						case "weekly_digest_scan":
+							await processWeeklyDigestScan();
+							return;
+						case "limit_scan":
+							await processLimitScan();
+							return;
+						case "send_batch":
+							await processSendBatch(job);
+							return;
+						default:
+							return;
+					}
+				},
+				{
+					connection: buildConnectionOptions(),
+					concurrency: WORKER_CONFIG.concurrency,
+					lockDuration: WORKER_CONFIG.lockDuration,
+					stalledInterval: WORKER_CONFIG.stalledInterval,
+					maxStalledCount: WORKER_CONFIG.maxStalledCount,
+				}
+			);
+
+			worker.on("failed", (job, err) => {
+				console.error(
+					`[worker:lifecycle-email] Job ${job?.id} failed:`,
+					err.message
+				);
+			});
+
+			worker.on("error", (err) => {
+				console.error("[worker:lifecycle-email] Worker error:", err);
+			});
+
+			await worker.waitUntilReady();
+			console.log("[worker:lifecycle-email] Worker started");
+		},
+
+		stop: async () => {
+			await Promise.all([
+				(async () => {
+					if (worker) {
+						await worker.close();
+						worker = null;
+						console.log("[worker:lifecycle-email] Worker stopped");
+					}
+				})(),
+				(async () => {
+					if (events) {
+						await events.close();
+						events = null;
+					}
+				})(),
+				(async () => {
+					if (queue) {
+						await queue.close();
+						queue = null;
+					}
+				})(),
+			]);
+		},
+	};
+}
+
+async function processScan(queue: Queue<LifecycleEmailJobData>) {
+	const claimed = await claimDueLifecycleEmailEvents(db, {
+		now: new Date(),
+		limit: SCAN_CLAIM_LIMIT,
+	});
+
+	if (claimed.length === 0) {
+		return;
+	}
+
+	const batches = chunk(claimed, BATCH_SIZE);
+
+	try {
+		await Promise.all(
+			batches.map((batch, index) =>
+				queue.add(
+					"send_batch",
+					{
+						kind: "send_batch",
+						eventIds: batch.map((event) => event.id),
+						batchId: `${Date.now()}-${index}`,
+					},
+					{
+						...SEND_BATCH_JOB_OPTIONS,
+						delay: index * BATCH_DELAY_MS,
+						jobId: `lifecycle-email-send-${Date.now()}-${index}`,
+					}
+				)
+			)
+		);
+	} catch (error) {
+		await requeueLifecycleEmailEvents(db, {
+			eventIds: claimed.map((event) => event.id),
+			scheduledAt: new Date(Date.now() + 60_000),
+			error: errorMessage(error),
+		});
+		throw error;
+	}
+}
+
+async function processWeeklyDigestScan() {
+	const now = new Date();
+	const pageSize = 500;
+	let offset = 0;
+
+	while (true) {
+		const organizations = await listWeeklyDigestCandidateOrganizations(db, {
+			limit: pageSize,
+			offset,
+		});
+
+		if (organizations.length === 0) {
+			return;
+		}
+
+		for (const org of organizations) {
+			if (
+				!shouldScanWeeklyDigestForTimezone({
+					now,
+					timezone: org.timezone,
+				})
+			) {
+				continue;
+			}
+
+			const recipient = await getOrganizationLifecycleOwnerRecipient(db, {
+				organizationId: org.id,
+			});
+
+			if (!recipient) {
+				continue;
+			}
+
+			const weekKey = getLocalWeekKey(now, org.timezone);
+			await scheduleLifecycleEmailEvent(db, {
+				dedupeKey: `${LIFECYCLE_EMAIL_KEYS.WEEKLY_DIGEST}:${org.id}:${weekKey}`,
+				emailKey: LIFECYCLE_EMAIL_KEYS.WEEKLY_DIGEST,
+				recipientUserId: recipient.userId,
+				recipientMemberId: recipient.memberId,
+				recipientEmail: recipient.email,
+				organizationId: org.id,
+				scheduledAt: now,
+				metadata: {
+					organizationName: org.name,
+					weekKey,
+				},
+			});
+		}
+
+		offset += organizations.length;
+	}
+}
+
+async function processLimitScan() {
+	const now = new Date();
+	const pageSize = 200;
+	let offset = 0;
+
+	while (true) {
+		const websites = await listLifecycleLimitCandidateWebsites(db, {
+			limit: pageSize,
+			offset,
+		});
+
+		if (websites.length === 0) {
+			return;
+		}
+
+		for (const site of websites) {
+			const plan = await getPlanForWebsite(site);
+			const org = await db.query.organization.findFirst({
+				where: eq(organization.id, site.organizationId),
+				columns: {
+					timezone: true,
+				},
+			});
+			const weekKey = getLocalWeekKey(now, org?.timezone ?? "UTC");
+			const windowStart = new Date(
+				now.getTime() - HARD_LIMIT_ROLLING_WINDOW_DAYS * 24 * 60 * 60 * 1000
+			).toISOString();
+			const [conversationCount, messageCount, contactCount] = await Promise.all(
+				[
+					getRollingWindowConversationCount(db, {
+						websiteId: site.id,
+						organizationId: site.organizationId,
+						windowStart,
+					}),
+					getRollingWindowMessageCount(db, {
+						websiteId: site.id,
+						organizationId: site.organizationId,
+						windowStart,
+					}),
+					getContactCount(db, {
+						websiteId: site.id,
+						organizationId: site.organizationId,
+					}),
+				]
+			);
+
+			await scheduleLimitWarningIfClose({
+				organizationId: site.organizationId,
+				websiteId: site.id,
+				websiteName: site.name,
+				websiteSlug: site.slug,
+				weekKey,
+				limitName: "conversation",
+				limitUnit: "conversations",
+				limitValue: plan.features.conversations,
+				limitUsed: conversationCount,
+			});
+			await scheduleLimitWarningIfClose({
+				organizationId: site.organizationId,
+				websiteId: site.id,
+				websiteName: site.name,
+				websiteSlug: site.slug,
+				weekKey,
+				limitName: "message",
+				limitUnit: "messages",
+				limitValue: plan.features.messages,
+				limitUsed: messageCount,
+			});
+			await scheduleLimitWarningIfClose({
+				organizationId: site.organizationId,
+				websiteId: site.id,
+				websiteName: site.name,
+				websiteSlug: site.slug,
+				weekKey,
+				limitName: "contact",
+				limitUnit: "contacts",
+				limitValue: plan.features.contacts,
+				limitUsed: contactCount,
+			});
+		}
+
+		offset += websites.length;
+	}
+}
+
+async function scheduleLimitWarningIfClose(params: {
+	organizationId: string;
+	websiteId: string;
+	websiteName: string;
+	websiteSlug: string;
+	weekKey: string;
+	limitName: string;
+	limitUnit: string;
+	limitValue: number | boolean | null;
+	limitUsed: number;
+}) {
+	if (typeof params.limitValue !== "number" || params.limitValue <= 0) {
+		return;
+	}
+
+	const usageRatio = params.limitUsed / params.limitValue;
+	if (usageRatio < 0.8) {
+		return;
+	}
+
+	const recipient = await getOrganizationLifecycleOwnerRecipient(db, {
+		organizationId: params.organizationId,
+	});
+
+	if (!recipient) {
+		return;
+	}
+
+	await scheduleLifecycleEmailEvent(db, {
+		dedupeKey: `${LIFECYCLE_EMAIL_KEYS.LIMIT_WARNING}:${params.websiteId}:${params.limitName}:${params.weekKey}`,
+		emailKey: LIFECYCLE_EMAIL_KEYS.LIMIT_WARNING,
+		recipientUserId: recipient.userId,
+		recipientMemberId: recipient.memberId,
+		recipientEmail: recipient.email,
+		organizationId: params.organizationId,
+		websiteId: params.websiteId,
+		scheduledAt: new Date(),
+		metadata: {
+			websiteId: params.websiteId,
+			websiteName: params.websiteName,
+			websiteSlug: params.websiteSlug,
+			limitName: params.limitName,
+			limitUsed: params.limitUsed,
+			limitValue: params.limitValue,
+			limitUnit: params.limitUnit,
+		},
+	});
+}
+
+async function processSendBatch(job: Job<LifecycleEmailJobData>) {
+	if (job.data.kind !== "send_batch") {
+		return;
+	}
+
+	const events = await getLifecycleEmailEventsByIds(db, job.data.eventIds);
+	const queuedEvents = events.filter((event) => event.status === "queued");
+	const deliverable: DeliverableLifecycleEmail[] = [];
+	const skippedByReason = new Map<string, string[]>();
+
+	for (const event of queuedEvents) {
+		const eligibility = await getLifecycleEmailEligibility(event);
+		if (!eligibility.ok) {
+			const ids = skippedByReason.get(eligibility.reason) ?? [];
+			ids.push(event.id);
+			skippedByReason.set(eligibility.reason, ids);
+			continue;
+		}
+
+		const org = await db.query.organization.findFirst({
+			where: eq(organization.id, event.organizationId),
+		});
+
+		if (!org) {
+			const ids = skippedByReason.get("organization_not_found") ?? [];
+			ids.push(event.id);
+			skippedByReason.set("organization_not_found", ids);
+			continue;
+		}
+
+		const stats =
+			event.emailKey === LIFECYCLE_EMAIL_KEYS.WEEKLY_DIGEST
+				? await getWeeklyDigestStats(db, {
+						organizationId: event.organizationId,
+						since: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+					})
+				: undefined;
+
+		const content = buildLifecycleEmail({
+			appUrl: env.PUBLIC_APP_URL,
+			event,
+			organizationName: org.name,
+			recipientName: eligibility.recipientName,
+			weeklyDigestStats: stats,
+		});
+
+		deliverable.push({
+			eventId: event.id,
+			options: {
+				to: event.recipientEmail,
+				subject: content.subject,
+				text: content.text,
+				variant: "marketing",
+				tags: [
+					{ name: "kind", value: "lifecycle" },
+					{ name: "email_key", value: event.emailKey },
+					{ name: "organization_id", value: event.organizationId },
+				],
+			},
+		});
+	}
+
+	await Promise.all(
+		Array.from(skippedByReason.entries()).map(([reason, eventIds]) =>
+			markLifecycleEmailEventsSkipped(db, { eventIds, reason })
+		)
+	);
+
+	if (deliverable.length === 0) {
+		return;
+	}
+
+	try {
+		await sendBatchEmail(deliverable.map((item) => item.options));
+		await markLifecycleEmailEventsSent(
+			db,
+			deliverable.map((item) => item.eventId)
+		);
+	} catch (error) {
+		if (isFinalAttempt(job)) {
+			await markLifecycleEmailEventsFailed(db, {
+				eventIds: deliverable.map((item) => item.eventId),
+				error: errorMessage(error),
+			});
+		}
+
+		throw error;
+	}
+}
+
+async function getLifecycleEmailEligibility(event: {
+	emailKey: string;
+	recipientEmail: string;
+	recipientMemberId: string | null;
+	recipientUserId: string | null;
+	organizationId: string;
+}) {
+	if (!event.recipientEmail.trim()) {
+		return { ok: false as const, reason: "missing_recipient_email" };
+	}
+
+	if (!(event.recipientMemberId && event.recipientUserId)) {
+		return { ok: false as const, reason: "missing_recipient" };
+	}
+
+	const recipientUserId = event.recipientUserId;
+
+	const [suppressed, settings, orgRow, memberRow] = await Promise.all([
+		isEmailSuppressed(db, {
+			email: event.recipientEmail,
+			organizationId: event.organizationId,
+		}),
+		getMemberNotificationSettings(db, {
+			organizationId: event.organizationId,
+			memberId: event.recipientMemberId,
+		}),
+		event.emailKey === LIFECYCLE_EMAIL_KEYS.WEEKLY_DIGEST
+			? db.query.organization.findFirst({
+					where: and(
+						eq(organization.id, event.organizationId),
+						eq(organization.weeklyDigestEnabled, true)
+					),
+				})
+			: Promise.resolve(true),
+		db.query.user.findFirst({
+			where: (user, { eq: eqUser }) => eqUser(user.id, recipientUserId),
+			columns: {
+				name: true,
+			},
+		}),
+	]);
+
+	if (suppressed) {
+		return { ok: false as const, reason: "email_suppressed" };
+	}
+
+	if (!orgRow) {
+		return { ok: false as const, reason: "weekly_digest_disabled" };
+	}
+
+	const marketingSetting = settings.settings.find(
+		(setting) => setting.channel === MemberNotificationChannel.EMAIL_MARKETING
+	);
+
+	if (marketingSetting?.enabled === false) {
+		return { ok: false as const, reason: "marketing_email_disabled" };
+	}
+
+	return {
+		ok: true as const,
+		recipientName: memberRow?.name ?? null,
+	};
+}

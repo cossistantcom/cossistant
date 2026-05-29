@@ -13,6 +13,7 @@ import {
 	buildSessionExpiredLoginPath,
 	getCurrentSafeCallbackPath,
 } from "@/lib/auth/redirect";
+import { getBrowserTimezone } from "@/lib/timezone";
 import { getTRPCUrl } from "../url";
 import { makeQueryClient } from "./query-client";
 
@@ -75,6 +76,11 @@ export function TRPCReactProvider(
 				httpBatchLink({
 					url: getTRPCUrl(),
 					transformer: superjson,
+					headers() {
+						const timezone = getBrowserTimezone();
+
+						return timezone ? { "x-user-timezone": timezone } : {};
+					},
 					fetch(url, options) {
 						return fetch(url, {
 							...options,

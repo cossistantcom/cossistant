@@ -4,10 +4,6 @@ import type { TriggerRenderProps } from "@cossistant/react";
 import { ChevronDown, MessageCircle } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
-/**
- * Example custom trigger content for the Support widget.
- * This demonstrates how to create a custom trigger using the new API.
- */
 export function TriggerContent({ isOpen, unreadCount }: TriggerRenderProps) {
 	return (
 		<>

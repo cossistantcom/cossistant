@@ -3,9 +3,25 @@ title: Cossistant documentation
 description: Cossistant is an open source, developer-first AI/human support infrastructure. Works with your favorite frameworks and AI models.
 ---
 
+## Install with the shadcn registry
+
+Add the Next.js `<Support />` starter with one command:
+
+```bash
+bunx --bun shadcn@latest add cossistantcom/cossistant/support
+```
+
+For React and Vite apps, use the React registry item:
+
+```bash
+bunx --bun shadcn@latest add cossistantcom/cossistant/support-react
+```
+
+The registry installs the Cossistant provider, support trigger, dependencies, CSS import, and API key placeholder into your configured shadcn component directory.
+
 ## Quickstart with your framework
 
-Start by selecting your framework of choice, then follow the instructions to install the dependencies and structure your app. Cossistant currently ships quickstarts for Next.js and React.
+Start by selecting your framework of choice, then follow the instructions to finish mounting the provider, adding your API key, and rendering `<Support />`. Cossistant currently ships quickstarts for Next.js and React.
 
 <div className="mt-8 grid gap-4 sm:grid-cols-2 sm:gap-6">
   <LinkedCard href="/docs/quickstart">

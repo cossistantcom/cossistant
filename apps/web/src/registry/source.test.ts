@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { readFileSync } from "node:fs";
 import { access } from "node:fs/promises";
 import path from "node:path";
 import { Index } from "./__index__";
@@ -71,6 +72,49 @@ describe("resolveRegistrySourceDescriptor", () => {
 				).catch(() => false);
 
 				expect(exists).toBe(true);
+			}
+		}
+	});
+
+	it("exposes the web registry from the repository root", () => {
+		const rootRegistry = JSON.parse(
+			readFileSync(
+				path.resolve(import.meta.dir, "../../../..", "registry.json"),
+				"utf8"
+			)
+		) as { include?: string[] };
+
+		expect(rootRegistry.include).toEqual(["apps/web/registry.json"]);
+	});
+
+	it("registers Next.js and React support items for GitHub registry installs", async () => {
+		const appRegistry = JSON.parse(
+			readFileSync(path.resolve(import.meta.dir, "../../registry.json"), "utf8")
+		) as {
+			items?: Array<{
+				dependencies?: string[];
+				envVars?: Record<string, string>;
+				files?: Array<{ path: string; target?: string }>;
+				name?: string;
+			}>;
+		};
+
+		const support = appRegistry.items?.find((item) => item.name === "support");
+		const supportReact = appRegistry.items?.find(
+			(item) => item.name === "support-react"
+		);
+
+		expect(support?.dependencies).toContain("@cossistant/next");
+		expect(support?.envVars).toHaveProperty("NEXT_PUBLIC_COSSISTANT_API_KEY");
+		expect(supportReact?.dependencies).toContain("@cossistant/react");
+		expect(supportReact?.envVars).toHaveProperty("VITE_COSSISTANT_API_KEY");
+
+		for (const item of [support, supportReact]) {
+			expect(item?.files).toHaveLength(3);
+
+			for (const file of item?.files ?? []) {
+				expect(file.target).toStartWith("@components/cossistant/");
+				await access(path.resolve(import.meta.dir, "../..", file.path));
 			}
 		}
 	});

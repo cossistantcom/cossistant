@@ -1,31 +1,29 @@
 {
-  "name": "@cossistant/example-nextjs-tailwind",
-  "version": "0.1.5",
+  "name": "@cossistant/example-react-vite",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --turbopack --port 3345",
-    "build": "next build",
-    "start": "next start",
+    "dev": "vite --host 127.0.0.1 --port 3346 --strictPort",
+    "build": "tsc --noEmit --project tsconfig.json && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 3346 --strictPort",
     "test:e2e": "playwright test",
     "lint": "biome check .",
     "check-types": "tsc --noEmit --project tsconfig.json"
   },
   "dependencies": {
     "@cossistant/core": "workspace:*",
-    "@cossistant/next": "workspace:*",
-    "next": "16.2.3",
+    "@cossistant/react": "workspace:*",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
   "devDependencies": {
     "@cossistant/typescript-config": "workspace:*",
     "@playwright/test": "^1.60.0",
-    "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^25.0.10",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
-    "tailwindcss": "^4.1.18",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "8.0.14"
   }
 }

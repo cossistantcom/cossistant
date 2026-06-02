@@ -2,6 +2,8 @@ import { describe, expect, it } from "bun:test";
 import {
 	getSupportInstallCommand,
 	getSupportInstallCommands,
+	getSupportRegistryCommands,
+	getSupportRegistryItem,
 } from "./support-integration-guide";
 
 describe("support integration install commands", () => {
@@ -49,5 +51,29 @@ describe("support integration install commands", () => {
 				version: "0.1.2",
 			})
 		).toBe("npm install @cossistant/react@0.1.2");
+	});
+
+	it("returns the Next.js support registry item by default", () => {
+		expect(getSupportRegistryItem("nextjs")).toBe(
+			"cossistantcom/cossistant/support"
+		);
+		expect(getSupportRegistryCommands("nextjs")).toEqual({
+			bun: "bunx --bun shadcn@latest add cossistantcom/cossistant/support",
+			npm: "npx shadcn@latest add cossistantcom/cossistant/support",
+			pnpm: "pnpm dlx shadcn@latest add cossistantcom/cossistant/support",
+			yarn: "yarn dlx shadcn@latest add cossistantcom/cossistant/support",
+		});
+	});
+
+	it("returns the React support registry item explicitly", () => {
+		expect(getSupportRegistryItem("react")).toBe(
+			"cossistantcom/cossistant/support-react"
+		);
+		expect(getSupportRegistryCommands("react")).toEqual({
+			bun: "bunx --bun shadcn@latest add cossistantcom/cossistant/support-react",
+			npm: "npx shadcn@latest add cossistantcom/cossistant/support-react",
+			pnpm: "pnpm dlx shadcn@latest add cossistantcom/cossistant/support-react",
+			yarn: "yarn dlx shadcn@latest add cossistantcom/cossistant/support-react",
+		});
 	});
 });

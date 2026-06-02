@@ -1,5 +1,5 @@
-import { SupportProvider } from "@cossistant/next";
 import type { Metadata } from "next";
+import { ExampleSupportProvider } from "./example-support-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,7 +15,11 @@ export default function RootLayout({
 	return (
 		<html lang="en">
 			<body className="bg-white text-slate-900 antialiased">
-				<SupportProvider>{children}</SupportProvider>
+				<ExampleSupportProvider
+					publicKey={process.env.NEXT_PUBLIC_COSSISTANT_API_KEY}
+				>
+					{children}
+				</ExampleSupportProvider>
 			</body>
 		</html>
 	);

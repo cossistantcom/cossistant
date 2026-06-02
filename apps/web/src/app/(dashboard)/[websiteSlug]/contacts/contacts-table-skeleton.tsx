@@ -23,6 +23,7 @@ export const CONTACTS_TABLE_COLUMN_WIDTHS = {
 	visitorCount: "w-[100px] min-w-[100px]",
 	lastSeenAt: "w-[130px] min-w-[130px]",
 	updatedAt: "w-[130px] min-w-[130px]",
+	actions: "w-[48px] min-w-[48px]",
 } as const;
 
 /**
@@ -66,6 +67,10 @@ export function ContactTableSkeletonRow() {
 			<TableCell className={`py-2 ${CONTACTS_TABLE_COLUMN_WIDTHS.updatedAt}`}>
 				<Skeleton className="h-4 w-[90px]" />
 			</TableCell>
+			{/* Actions */}
+			<TableCell className={`py-2 ${CONTACTS_TABLE_COLUMN_WIDTHS.actions}`}>
+				<Skeleton className="ml-auto size-6 rounded-md" />
+			</TableCell>
 		</TableRow>
 	);
 }
@@ -83,7 +88,7 @@ export function ContactsTableSkeleton({
 }: ContactsTableSkeletonProps) {
 	return (
 		<div className="mt-2 overflow-auto px-2">
-			<Table className="min-w-[1000px]">
+			<Table className="min-w-[1048px]">
 				<TableHeader className="border-transparent border-b-0">
 					<TableRow className="border-transparent border-b-0">
 						<TableHead className={CONTACTS_TABLE_COLUMN_WIDTHS.name}>
@@ -123,6 +128,9 @@ export function ContactsTableSkeleton({
 								Updated
 								<ArrowUpDown className="h-3.5 w-3.5" />
 							</span>
+						</TableHead>
+						<TableHead className={CONTACTS_TABLE_COLUMN_WIDTHS.actions}>
+							<span className="sr-only">Actions</span>
 						</TableHead>
 					</TableRow>
 				</TableHeader>

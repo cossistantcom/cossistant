@@ -6,20 +6,23 @@
     {
       "name": "support",
       "type": "registry:block",
-      "title": "Cossistant Support Widget",
-      "description": "Open source, developer-first support widget for your SaaS.",
+      "title": "Cossistant Support Widget for Next.js",
+      "description": "Open source, developer-first support widget for your Next.js app.",
       "dependencies": ["@cossistant/next", "motion", "lucide-react"],
       "files": [
         {
-          "path": "src/registry/support.tsx",
+          "path": "src/registry/next/support.tsx",
+          "target": "@components/cossistant/support.tsx",
           "type": "registry:component"
         },
         {
-          "path": "src/registry/provider.tsx",
+          "path": "src/registry/next/provider.tsx",
+          "target": "@components/cossistant/provider.tsx",
           "type": "registry:component"
         },
         {
-          "path": "src/registry/bubble.tsx",
+          "path": "src/registry/next/bubble.tsx",
+          "target": "@components/cossistant/bubble.tsx",
           "type": "registry:component"
         }
       ],
@@ -30,6 +33,37 @@
         "NEXT_PUBLIC_COSSISTANT_API_KEY": ""
       },
       "docs": "To get your NEXT_PUBLIC_COSSISTANT_API_KEY, sign up at https://cossistant.com and find your public API key in the settings page. Then wrap your app with <CossistantProvider> from the provider.tsx file. Our documentation is available at https://cossistant.com/docs."
+    },
+    {
+      "name": "support-react",
+      "type": "registry:block",
+      "title": "Cossistant Support Widget for React",
+      "description": "Open source, developer-first support widget for your React app.",
+      "dependencies": ["@cossistant/react", "motion", "lucide-react"],
+      "files": [
+        {
+          "path": "src/registry/react/support.tsx",
+          "target": "@components/cossistant/support.tsx",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/registry/react/provider.tsx",
+          "target": "@components/cossistant/provider.tsx",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/registry/react/bubble.tsx",
+          "target": "@components/cossistant/bubble.tsx",
+          "type": "registry:component"
+        }
+      ],
+      "css": {
+        "@import \"@cossistant/react/support.css\"": {}
+      },
+      "envVars": {
+        "VITE_COSSISTANT_API_KEY": ""
+      },
+      "docs": "To get your VITE_COSSISTANT_API_KEY, sign up at https://cossistant.com and find your public API key in the settings page. Then wrap your app with <CossistantProvider> from the provider.tsx file. Our documentation is available at https://cossistant.com/docs."
     }
   ]
 }

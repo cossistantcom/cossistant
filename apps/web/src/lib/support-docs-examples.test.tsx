@@ -31,7 +31,12 @@ const docsMdxComponentsPath = path.resolve(
 	import.meta.dir,
 	"../app/(lander-docs)/components/docs/mdx-components.tsx"
 );
+const webRoot = path.resolve(import.meta.dir, "../..");
 const roundedClassPattern = /\brounded(?:-\[[^\]]+\]|-[a-z0-9:/[\].]+)?\b/;
+
+function resolveWebPath(registryPath: string) {
+	return path.resolve(webRoot, registryPath);
+}
 
 async function renderWithSuspense(element: React.ReactNode) {
 	const stream = await renderToReadableStream(
@@ -86,14 +91,8 @@ describe("support docs examples", () => {
 			if (!item?.sourcePath) {
 				throw new Error(`Missing docs example registration for ${name}`);
 			}
-			const runtimeCode = readFileSync(
-				path.resolve(process.cwd(), item.path),
-				"utf8"
-			);
-			const sourceCode = readFileSync(
-				path.resolve(process.cwd(), item.sourcePath),
-				"utf8"
-			);
+			const runtimeCode = readFileSync(resolveWebPath(item.path), "utf8");
+			const sourceCode = readFileSync(resolveWebPath(item.sourcePath), "utf8");
 
 			expect(runtimeCode).toContain("SupportDemoStage");
 			expect(sourceCode).toContain("@cossistant/react");
@@ -121,19 +120,16 @@ describe("support docs examples", () => {
 		}
 
 		const classicRuntime = readFileSync(
-			path.resolve(process.cwd(), classicItem.path),
+			resolveWebPath(classicItem.path),
 			"utf8"
 		);
 		const classicSource = readFileSync(
-			path.resolve(process.cwd(), classicItem.sourcePath),
+			resolveWebPath(classicItem.sourcePath),
 			"utf8"
 		);
-		const pillRuntime = readFileSync(
-			path.resolve(process.cwd(), pillItem.path),
-			"utf8"
-		);
+		const pillRuntime = readFileSync(resolveWebPath(pillItem.path), "utf8");
 		const pillSource = readFileSync(
-			path.resolve(process.cwd(), pillItem.sourcePath),
+			resolveWebPath(pillItem.sourcePath),
 			"utf8"
 		);
 
@@ -255,9 +251,17 @@ describe("support docs examples", () => {
 		expect(advancedPrimitivesDoc).toContain("/docs/advanced");
 		expect(quickstartDoc).toContain("## Next in the Support docs");
 		expect(quickstartDoc).toContain(
+			"bunx --bun shadcn@latest add cossistantcom/cossistant/support"
+		);
+		expect(quickstartDoc).toContain("## Manual package install");
+		expect(quickstartDoc).toContain(
 			"[Change One Thing](/docs/support-component/customization)"
 		);
 		expect(reactQuickstartDoc).toContain("## Next in the Support docs");
+		expect(reactQuickstartDoc).toContain(
+			"bunx --bun shadcn@latest add cossistantcom/cossistant/support-react"
+		);
+		expect(reactQuickstartDoc).toContain("## Manual package install");
 		expect(reactQuickstartDoc).toContain(
 			"[Match Your Brand](/docs/support-component/theme)"
 		);
@@ -317,8 +321,8 @@ describe("support docs examples", () => {
 			if (!item?.sourcePath) {
 				throw new Error(`Missing docs example registration for ${name}`);
 			}
-			checkedFiles.add(path.resolve(process.cwd(), item.path));
-			checkedFiles.add(path.resolve(process.cwd(), item.sourcePath));
+			checkedFiles.add(resolveWebPath(item.path));
+			checkedFiles.add(resolveWebPath(item.sourcePath));
 		}
 
 		for (const file of checkedFiles) {

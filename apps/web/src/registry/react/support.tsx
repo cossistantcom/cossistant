@@ -4,7 +4,7 @@ import { Support as CossistantSupport } from "@cossistant/react";
 import { motion } from "motion/react";
 import { TriggerContent } from "./bubble";
 
-export default function Support() {
+export function Support() {
 	return (
 		<CossistantSupport>
 			<CossistantSupport.Trigger asChild>

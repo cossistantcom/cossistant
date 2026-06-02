@@ -128,7 +128,7 @@
   },
   "scripts": {
     "build": "tsdown && bun run rewrite:types && rm -rf dist/node_modules dist/packages && find dist -name '*.map' -delete && bun run build:css && bun run prepare-package",
-    "build:css": "bunx @tailwindcss/cli -i src/support/support.css -o dist/styles.css --content 'src/**/*.{js,ts,jsx,tsx}' --minify && mkdir -p dist/support && cp src/support.css dist/support.css && cp src/support/support.css dist/support/support.css && cp src/support/animations.css dist/support/animations.css",
+    "build:css": "bunx @tailwindcss/cli -i src/styles.css -o dist/styles.css --content 'src/**/*.{js,ts,jsx,tsx}' --minify && mkdir -p dist/support && cp src/support.css dist/support.css && cp src/support/support.css dist/support/support.css && cp src/support/animations.css dist/support/animations.css",
     "check:pack": "bun scripts/check-package-output.ts",
     "prepare-package": "bun ../../scripts/prepare-package.ts",
     "rewrite:types": "bun scripts/rewrite-dist-types.ts",

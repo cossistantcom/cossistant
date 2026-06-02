@@ -57,3 +57,32 @@ export const contactDetailResponseSchema = z.object({
 });
 
 export type ContactDetailResponse = z.infer<typeof contactDetailResponseSchema>;
+
+export const deleteContactRequestSchema = z.object({
+	websiteSlug: z.string(),
+	contactId: z.string(),
+});
+
+export type DeleteContactRequest = z.infer<typeof deleteContactRequestSchema>;
+
+export const deleteContactResponseSchema = z.object({
+	id: z.ulid(),
+});
+
+export type DeleteContactResponse = z.infer<typeof deleteContactResponseSchema>;
+
+export const deleteAllContactsRequestSchema = z.object({
+	websiteSlug: z.string(),
+});
+
+export type DeleteAllContactsRequest = z.infer<
+	typeof deleteAllContactsRequestSchema
+>;
+
+export const deleteAllContactsResponseSchema = z.object({
+	deletedCount: z.number().int().min(0),
+});
+
+export type DeleteAllContactsResponse = z.infer<
+	typeof deleteAllContactsResponseSchema
+>;

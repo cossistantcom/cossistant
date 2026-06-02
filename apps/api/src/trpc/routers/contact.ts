@@ -1,8 +1,17 @@
-import { getContactWithVisitors, listContacts } from "@api/db/queries/contact";
+import {
+	deleteContact,
+	deleteContactsForWebsite,
+	getContactWithVisitors,
+	listContacts,
+} from "@api/db/queries/contact";
 import { getWebsiteBySlugWithAccess } from "@api/db/queries/website";
 import {
 	contactDetailResponseSchema,
 	contactListVisitorStatusSchema,
+	deleteAllContactsRequestSchema,
+	deleteAllContactsResponseSchema,
+	deleteContactRequestSchema,
+	deleteContactResponseSchema,
 	listContactsResponseSchema,
 } from "@cossistant/types";
 import { TRPCError } from "@trpc/server";
@@ -96,5 +105,58 @@ export const contactRouter = createTRPCRouter({
 			}
 
 			return record;
+		}),
+	delete: protectedProcedure
+		.input(deleteContactRequestSchema)
+		.output(deleteContactResponseSchema)
+		.mutation(async ({ ctx: { db, user }, input }) => {
+			const websiteData = await getWebsiteBySlugWithAccess(db, {
+				userId: user.id,
+				websiteSlug: input.websiteSlug,
+			});
+
+			if (!websiteData) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Website not found or access denied",
+				});
+			}
+
+			const deleted = await deleteContact(db, {
+				contactId: input.contactId,
+				websiteId: websiteData.id,
+			});
+
+			if (!deleted) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Contact not found",
+				});
+			}
+
+			return { id: deleted.id };
+		}),
+	deleteAll: protectedProcedure
+		.input(deleteAllContactsRequestSchema)
+		.output(deleteAllContactsResponseSchema)
+		.mutation(async ({ ctx: { db, user }, input }) => {
+			const websiteData = await getWebsiteBySlugWithAccess(db, {
+				userId: user.id,
+				websiteSlug: input.websiteSlug,
+			});
+
+			if (!websiteData) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Website not found or access denied",
+				});
+			}
+
+			const deletedCount = await deleteContactsForWebsite(db, {
+				websiteId: websiteData.id,
+				organizationId: websiteData.organizationId,
+			});
+
+			return { deletedCount };
 		}),
 });

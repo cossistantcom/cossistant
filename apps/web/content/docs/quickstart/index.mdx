@@ -5,11 +5,62 @@ description: Install and launch the Cossistant support widget in Next.js.
 
 If you are contributing to the Cossistant repo itself, start with the [Contributor Setup Guide](/docs/others/contributors) so you boot the full monorepo and local services, not just the widget in an existing app.
 
+## Quick start with shadcn registry
+
+```bash
+bunx --bun shadcn@latest add cossistantcom/cossistant/support
+```
+
+The registry installs a Next.js-ready `<Support />` starter, the `CossistantProvider`, the required dependencies, the widget CSS import, and a `NEXT_PUBLIC_COSSISTANT_API_KEY` placeholder.
+
+### 1. Add your public API key
+
+```bash title=".env.local"
+NEXT_PUBLIC_COSSISTANT_API_KEY=pk_test_xxxx
+```
+
+### 2. Mount `CossistantProvider`
+
+```tsx title="app/layout.tsx"
+import { CossistantProvider } from "@/components/cossistant/provider";
+
+import "./globals.css";
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en">
+      <body>
+        <CossistantProvider>{children}</CossistantProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+### 3. Render `<Support />`
+
+```tsx title="app/page.tsx"
+import { Support } from "@/components/cossistant/support";
+
+export default function Page() {
+  return (
+    <main>
+      <h1>You are ready to chat</h1>
+      <Support />
+    </main>
+  );
+}
+```
+
 ## Quick start with AI prompt
 
 <QuickstartAIPrompt framework="nextjs" />
 
-## Manually
+## Manual package install
 
 ### 1. Install the package
 

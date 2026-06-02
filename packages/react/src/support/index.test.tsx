@@ -300,6 +300,35 @@ describe("Support widget", () => {
 		expect(findByDataSlot("trigger")?.textContent).toContain("Cossistant Logo");
 	});
 
+	it("anchors the default floating trigger to the viewport", async () => {
+		await renderWithSupport(<Support />);
+
+		const trigger = findByDataSlot("trigger");
+
+		expect(trigger?.className).toContain("fixed");
+		expect(trigger?.className).toContain("right-4");
+		expect(trigger?.className).toContain("bottom-4");
+		expect(trigger?.className).toContain("z-[9999]");
+	});
+
+	it("lets classNames.trigger override the default trigger anchor", async () => {
+		await renderWithSupport(
+			<Support
+				classNames={{ trigger: "absolute right-auto bottom-2 left-2" }}
+			/>
+		);
+
+		const trigger = findByDataSlot("trigger");
+
+		expect(trigger?.className).toContain("absolute");
+		expect(trigger?.className).toContain("right-auto");
+		expect(trigger?.className).toContain("bottom-2");
+		expect(trigger?.className).toContain("left-2");
+		expect(trigger?.className).not.toContain("fixed");
+		expect(trigger?.className).not.toContain("right-4");
+		expect(trigger?.className).not.toContain("bottom-4");
+	});
+
 	it("renders floating content as a dialog when the widget is open", async () => {
 		await renderWithSupport(
 			<Support.Root open={true}>

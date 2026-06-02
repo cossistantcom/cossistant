@@ -2,7 +2,7 @@
 "use client";
 
 import type { RouterOutputs } from "@cossistant/api/types";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	type Column,
 	type ColumnDef,
@@ -13,11 +13,34 @@ import {
 	useReactTable,
 } from "@tanstack/react-table";
 import { formatDistanceToNow } from "date-fns";
-import { ArrowDown, ArrowUp, ArrowUpDown, Building2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import {
+	ArrowDown,
+	ArrowUp,
+	ArrowUpDown,
+	Building2,
+	MoreHorizontalIcon,
+	Trash2Icon,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { Page, PageHeader, PageHeaderTitle } from "@/components/ui/layout";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -51,10 +74,35 @@ type ContactsPageContentProps = {
 type ContactRow = RouterOutputs["contact"]["list"]["items"][number];
 
 const ITEM_HEIGHT = 52;
+const BULK_DELETE_CONFIRMATION_TEXT = "delete";
+
+function isContactQueryKey(queryKey: readonly unknown[]) {
+	const first = queryKey[0];
+	const second = queryKey[1];
+
+	if (first === "contact") {
+		return second === "list" || second === "get";
+	}
+
+	if (first === "contact.list" || first === "contact.get") {
+		return true;
+	}
+
+	return (
+		Array.isArray(first) &&
+		first[0] === "contact" &&
+		(first[1] === "list" || first[1] === "get")
+	);
+}
 
 export function ContactsPageContent({ websiteSlug }: ContactsPageContentProps) {
 	const trpc = useTRPC();
+	const queryClient = useQueryClient();
 	const tableContainerRef = useRef<HTMLDivElement>(null);
+	const [contactPendingDeletion, setContactPendingDeletion] =
+		useState<ContactRow | null>(null);
+	const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
+	const [deleteAllConfirmation, setDeleteAllConfirmation] = useState("");
 	const {
 		searchTerm,
 		setSearchTerm,
@@ -74,6 +122,8 @@ export function ContactsPageContent({ websiteSlug }: ContactsPageContentProps) {
 	const activeSort = sorting[0];
 	const sortBy = activeSort?.id as ContactSortField | undefined;
 	const sortOrder = activeSort ? (activeSort.desc ? "desc" : "asc") : undefined;
+	const isDeleteAllConfirmed =
+		deleteAllConfirmation.toLowerCase() === BULK_DELETE_CONFIRMATION_TEXT;
 
 	const listQuery = useQuery({
 		...trpc.contact.list.queryOptions({
@@ -90,6 +140,52 @@ export function ContactsPageContent({ websiteSlug }: ContactsPageContentProps) {
 	const contacts = listQuery.data?.items ?? [];
 	const totalCount = listQuery.data?.totalCount ?? 0;
 	const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+	const invalidateContactQueries = useCallback(() => {
+		void queryClient.invalidateQueries({
+			predicate: (query) => isContactQueryKey(query.queryKey),
+		});
+	}, [queryClient]);
+
+	const deleteContactMutation = useMutation(
+		trpc.contact.delete.mutationOptions({
+			onSuccess: (data) => {
+				toast.success("Contact deleted.");
+				setContactPendingDeletion(null);
+
+				if (selectedContactId === data.id) {
+					setSelectedContactId(null);
+				}
+
+				invalidateContactQueries();
+			},
+			onError: (error) => {
+				toast.error(error.message || "Failed to delete contact.");
+			},
+		})
+	);
+
+	const deleteAllContactsMutation = useMutation(
+		trpc.contact.deleteAll.mutationOptions({
+			onSuccess: (data) => {
+				toast.success(
+					data.deletedCount === 0
+						? "No contacts to delete."
+						: `Deleted ${data.deletedCount} ${
+								data.deletedCount === 1 ? "contact" : "contacts"
+							}.`
+				);
+				setDeleteAllConfirmation("");
+				setIsDeleteAllDialogOpen(false);
+				setSelectedContactId(null);
+				setPage(1);
+				invalidateContactQueries();
+			},
+			onError: (error) => {
+				toast.error(error.message || "Failed to delete contacts.");
+			},
+		})
+	);
 
 	const handleSelectContact = useCallback(
 		(contactId: string) => {
@@ -135,6 +231,38 @@ export function ContactsPageContent({ websiteSlug }: ContactsPageContentProps) {
 		[handleMouseEnter, prefetchDetail]
 	);
 
+	const handleDeleteContactRequest = useCallback((contactRow: ContactRow) => {
+		setContactPendingDeletion(contactRow);
+	}, []);
+
+	const handleDeleteContactConfirm = useCallback(async () => {
+		if (!contactPendingDeletion) {
+			return;
+		}
+
+		await deleteContactMutation.mutateAsync({
+			websiteSlug,
+			contactId: contactPendingDeletion.id,
+		});
+	}, [contactPendingDeletion, deleteContactMutation, websiteSlug]);
+
+	const handleDeleteAllContactsConfirm = useCallback(async () => {
+		if (!isDeleteAllConfirmed) {
+			return;
+		}
+
+		await deleteAllContactsMutation.mutateAsync({
+			websiteSlug,
+		});
+	}, [deleteAllContactsMutation, isDeleteAllConfirmed, websiteSlug]);
+
+	const handleDeleteAllDialogOpenChange = useCallback((open: boolean) => {
+		if (!open) {
+			setDeleteAllConfirmation("");
+		}
+		setIsDeleteAllDialogOpen(open);
+	}, []);
+
 	const handlePageChange = (nextPage: number) => {
 		const cappedPage = Math.min(
 			Math.max(nextPage, 1),
@@ -150,6 +278,10 @@ export function ContactsPageContent({ websiteSlug }: ContactsPageContentProps) {
 		<Page className="relative flex flex-col gap-6">
 			<PageHeader className="bg-transparent dark:bg-transparent">
 				<PageHeaderTitle>Contacts</PageHeaderTitle>
+				<ContactsHeaderActions
+					disabled={totalCount === 0 || deleteAllContactsMutation.isPending}
+					onDeleteAllContacts={() => setIsDeleteAllDialogOpen(true)}
+				/>
 			</PageHeader>
 
 			<ScrollArea
@@ -163,6 +295,7 @@ export function ContactsPageContent({ websiteSlug }: ContactsPageContentProps) {
 					data={contacts}
 					focusedIndex={focusedIndex}
 					isLoading={listQuery.isLoading}
+					onDeleteContact={handleDeleteContactRequest}
 					onRowClick={handleSelectContact}
 					onRowPrefetch={handleRowPrefetch}
 					onSortingChange={handleSortingChange}
@@ -198,6 +331,26 @@ export function ContactsPageContent({ websiteSlug }: ContactsPageContentProps) {
 					</Button>
 				</div>
 			</div>
+			<DeleteContactDialog
+				contact={contactPendingDeletion}
+				isPending={deleteContactMutation.isPending}
+				onConfirm={handleDeleteContactConfirm}
+				onOpenChange={(open) => {
+					if (!(open || deleteContactMutation.isPending)) {
+						setContactPendingDeletion(null);
+					}
+				}}
+			/>
+			<DeleteAllContactsDialog
+				confirmationValue={deleteAllConfirmation}
+				isConfirmed={isDeleteAllConfirmed}
+				isPending={deleteAllContactsMutation.isPending}
+				onConfirm={handleDeleteAllContactsConfirm}
+				onConfirmationChange={setDeleteAllConfirmation}
+				onOpenChange={handleDeleteAllDialogOpenChange}
+				open={isDeleteAllDialogOpen}
+				totalCount={totalCount}
+			/>
 		</Page>
 	);
 }
@@ -209,6 +362,7 @@ type ContactsTableProps = {
 	onSortingChange: OnChangeFn<SortingState>;
 	onRowClick: (contactId: string) => void;
 	onRowPrefetch: (contactId: string, index: number) => void;
+	onDeleteContact: (contact: ContactRow) => void;
 	focusedIndex: number;
 	selectedContactId: string | null;
 };
@@ -222,6 +376,7 @@ export function ContactsTable({
 	onSortingChange,
 	onRowClick,
 	onRowPrefetch,
+	onDeleteContact,
 	focusedIndex,
 	selectedContactId,
 }: ContactsTableProps) {
@@ -411,8 +566,18 @@ export function ContactsTable({
 					</span>
 				),
 			},
+			{
+				id: "actions",
+				header: () => <span className="sr-only">Actions</span>,
+				cell: ({ row }) => (
+					<ContactRowActions
+						contact={row.original}
+						onDeleteContact={onDeleteContact}
+					/>
+				),
+			},
 		],
-		[presenceByContactId]
+		[onDeleteContact, presenceByContactId]
 	);
 
 	const table = useReactTable({
@@ -444,7 +609,7 @@ export function ContactsTable({
 	}
 
 	return (
-		<Table className="min-w-[1000px]">
+		<Table className="min-w-[1048px]">
 			<TableHeader className="border-transparent border-b-0">
 				{headerGroups.map((headerGroup) => (
 					<TableRow
@@ -495,7 +660,7 @@ export function ContactsTable({
 							return (
 								<TableRow
 									className={cn(
-										"cursor-pointer border-transparent border-b-0 transition-colors",
+										"group/contact-row cursor-pointer border-transparent border-b-0 transition-colors",
 										"focus-visible:outline-none focus-visible:ring-0"
 									)}
 									key={row.id}
@@ -545,6 +710,208 @@ export function ContactsTable({
 						})}
 			</TableBody>
 		</Table>
+	);
+}
+
+type ContactsHeaderActionsProps = {
+	disabled: boolean;
+	onDeleteAllContacts: () => void;
+};
+
+export function ContactsHeaderActions({
+	disabled,
+	onDeleteAllContacts,
+}: ContactsHeaderActionsProps) {
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button
+					aria-label="Open contacts actions"
+					disabled={disabled}
+					size="icon-small"
+					type="button"
+					variant="ghost"
+				>
+					<MoreHorizontalIcon className="size-4" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="end">
+				<DropdownMenuItem
+					disabled={disabled}
+					onSelect={onDeleteAllContacts}
+					variant="destructive"
+				>
+					<Trash2Icon className="size-4" />
+					Delete all contacts
+				</DropdownMenuItem>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+}
+
+type ContactRowActionsProps = {
+	contact: ContactRow;
+	onDeleteContact: (contact: ContactRow) => void;
+};
+
+function ContactRowActions({
+	contact,
+	onDeleteContact,
+}: ContactRowActionsProps) {
+	return (
+		<div className="flex items-center justify-end">
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<Button
+						aria-label="Open contact actions"
+						className="size-8 opacity-0 transition-opacity group-focus-within/contact-row:opacity-100 group-hover/contact-row:opacity-100 data-[state=open]:opacity-100"
+						onClick={(event) => event.stopPropagation()}
+						onKeyDown={(event) => event.stopPropagation()}
+						size="icon"
+						type="button"
+						variant="ghost"
+					>
+						<MoreHorizontalIcon className="size-4" />
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end">
+					<DropdownMenuItem
+						onSelect={() => onDeleteContact(contact)}
+						variant="destructive"
+					>
+						<Trash2Icon className="size-4" />
+						Delete
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+		</div>
+	);
+}
+
+type DeleteContactDialogProps = {
+	contact: ContactRow | null;
+	isPending: boolean;
+	onConfirm: () => void;
+	onOpenChange: (open: boolean) => void;
+};
+
+function DeleteContactDialog({
+	contact,
+	isPending,
+	onConfirm,
+	onOpenChange,
+}: DeleteContactDialogProps) {
+	const displayName = contact?.name ?? contact?.email ?? "this contact";
+
+	return (
+		<Dialog onOpenChange={onOpenChange} open={Boolean(contact)}>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Delete contact</DialogTitle>
+					<DialogDescription>
+						Delete {displayName}? This action cannot be undone.
+					</DialogDescription>
+				</DialogHeader>
+				<DialogFooter>
+					<Button
+						disabled={isPending}
+						onClick={() => onOpenChange(false)}
+						type="button"
+						variant="outline"
+					>
+						Cancel
+					</Button>
+					<Button
+						disabled={isPending}
+						onClick={onConfirm}
+						type="button"
+						variant="destructive"
+					>
+						{isPending ? "Deleting..." : "Delete contact"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
+type DeleteAllContactsDialogProps = {
+	confirmationValue: string;
+	isConfirmed: boolean;
+	isPending: boolean;
+	open: boolean;
+	totalCount: number;
+	onConfirm: () => void;
+	onConfirmationChange: (value: string) => void;
+	onOpenChange: (open: boolean) => void;
+};
+
+function DeleteAllContactsDialog({
+	confirmationValue,
+	isConfirmed,
+	isPending,
+	open,
+	totalCount,
+	onConfirm,
+	onConfirmationChange,
+	onOpenChange,
+}: DeleteAllContactsDialogProps) {
+	return (
+		<Dialog onOpenChange={onOpenChange} open={open}>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Delete all contacts</DialogTitle>
+					<DialogDescription>
+						This will delete all {totalCount} contacts for this website. This
+						action cannot be undone.
+					</DialogDescription>
+				</DialogHeader>
+
+				<div className="space-y-4">
+					<div className="rounded-md border border-destructive/30 bg-destructive/5 p-4">
+						<p className="font-medium text-destructive text-sm">
+							Warning: this deletes every contact for the current website,
+							regardless of filters or pagination.
+						</p>
+					</div>
+					<div className="space-y-2">
+						<label
+							className="font-medium text-sm"
+							htmlFor="contacts-delete-all-confirmation"
+						>
+							Type <span className="font-mono">delete</span> to confirm
+						</label>
+						<Input
+							autoComplete="off"
+							disabled={isPending}
+							id="contacts-delete-all-confirmation"
+							onChange={(event) => onConfirmationChange(event.target.value)}
+							placeholder="delete"
+							value={confirmationValue}
+						/>
+					</div>
+				</div>
+
+				<DialogFooter>
+					<Button
+						disabled={isPending}
+						onClick={() => onOpenChange(false)}
+						type="button"
+						variant="outline"
+					>
+						Cancel
+					</Button>
+					<Button
+						disabled={!isConfirmed || isPending}
+						onClick={onConfirm}
+						type="button"
+						variant="destructive"
+					>
+						{isPending ? "Deleting..." : "Delete all contacts"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 }
 

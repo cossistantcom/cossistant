@@ -1,0 +1,6 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "cossistant",
+  "homepage": "https://cossistant.com",
+  "include": ["apps/web/registry.json"]
+}

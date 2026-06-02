@@ -374,6 +374,36 @@ export async function deleteContact(
 }
 
 /**
+ * Soft delete all active contacts scoped to a website and organization.
+ */
+export async function deleteContactsForWebsite(
+	db: Database,
+	params: {
+		websiteId: string;
+		organizationId: string;
+	}
+): Promise<number> {
+	const now = new Date().toISOString();
+
+	const deleted = await db
+		.update(contact)
+		.set({
+			deletedAt: now,
+			updatedAt: now,
+		})
+		.where(
+			and(
+				eq(contact.websiteId, params.websiteId),
+				eq(contact.organizationId, params.organizationId),
+				isNull(contact.deletedAt)
+			)
+		)
+		.returning({ id: contact.id });
+
+	return deleted.length;
+}
+
+/**
  * Link a visitor to a contact
  */
 export async function linkVisitorToContact(

@@ -5,7 +5,11 @@ import {
 
 export type SupportIntegrationFramework = "nextjs" | "react";
 export type SupportPackageManager = "bun" | "npm" | "pnpm" | "yarn";
+export type SupportRegistryRunner = "bun" | "npm" | "pnpm" | "yarn";
 type SupportPackageName = "@cossistant/next" | "@cossistant/react";
+type SupportRegistryItem =
+	| "cossistantcom/cossistant/support"
+	| "cossistantcom/cossistant/support-react";
 
 function getSupportPackageSpecifier(
 	packageName: SupportPackageName,
@@ -39,6 +43,23 @@ const INSTALL_COMMANDS: Record<
 	nextjs: buildSupportInstallCommands("@cossistant/next"),
 	react: buildSupportInstallCommands("@cossistant/react"),
 };
+
+const REGISTRY_ITEMS: Record<SupportIntegrationFramework, SupportRegistryItem> =
+	{
+		nextjs: "cossistantcom/cossistant/support",
+		react: "cossistantcom/cossistant/support-react",
+	};
+
+function buildSupportRegistryCommands(
+	registryItem: SupportRegistryItem
+): Record<SupportRegistryRunner, string> {
+	return {
+		bun: `bunx --bun shadcn@latest add ${registryItem}`,
+		npm: `npx shadcn@latest add ${registryItem}`,
+		pnpm: `pnpm dlx shadcn@latest add ${registryItem}`,
+		yarn: `yarn dlx shadcn@latest add ${registryItem}`,
+	};
+}
 
 export type SupportIntegrationGuide = {
 	framework: SupportIntegrationFramework;
@@ -324,6 +345,21 @@ export function getSupportInstallCommands(
 	return buildSupportInstallCommands(
 		SUPPORT_GUIDES[framework].packageName,
 		version
+	);
+}
+
+export function getSupportRegistryItem(
+	installationTarget: WebsiteInstallationTargetValue | string | undefined
+): SupportRegistryItem {
+	const framework = resolveSupportIntegrationFramework(installationTarget);
+	return REGISTRY_ITEMS[framework];
+}
+
+export function getSupportRegistryCommands(
+	installationTarget: WebsiteInstallationTargetValue | string | undefined
+): Record<SupportRegistryRunner, string> {
+	return buildSupportRegistryCommands(
+		getSupportRegistryItem(installationTarget)
 	);
 }
 

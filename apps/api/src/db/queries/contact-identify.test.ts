@@ -1,6 +1,10 @@
 import { describe, expect, it, mock } from "bun:test";
 import { contact } from "../schema";
-import { identifyContact, upsertContactByExternalId } from "./contact";
+import {
+	deleteContactsForWebsite,
+	identifyContact,
+	upsertContactByExternalId,
+} from "./contact";
 
 describe("upsertContactByExternalId", () => {
 	it("returns created when insert succeeds", async () => {
@@ -166,6 +170,57 @@ describe("upsertContactByExternalId", () => {
 		expect(updateArg.deletedAt).toBeNull();
 		expect(Array.isArray(updateArg.metadata.queryChunks)).toBe(true);
 		expect((updateArg.metadata.queryChunks ?? []).length).toBeGreaterThan(0);
+	});
+});
+
+describe("deleteContactsForWebsite", () => {
+	it("soft deletes active contacts scoped to website and organization", async () => {
+		const returningMock = mock((async () => [
+			{ id: "contact-1" },
+			{ id: "contact-2" },
+		]) as (fields: unknown) => Promise<unknown[]>);
+		const updateWhereMock = mock((() => ({
+			returning: returningMock,
+		})) as (where: unknown) => {
+			returning: (fields: unknown) => Promise<unknown[]>;
+		});
+		const updateSetMock = mock((() => ({
+			where: updateWhereMock,
+		})) as (set: unknown) => {
+			where: (where: unknown) => {
+				returning: (fields: unknown) => Promise<unknown[]>;
+			};
+		});
+		const updateMock = mock((() => ({
+			set: updateSetMock,
+		})) as (table: unknown) => {
+			set: (set: unknown) => {
+				where: (where: unknown) => {
+					returning: (fields: unknown) => Promise<unknown[]>;
+				};
+			};
+		});
+
+		const db = {
+			update: updateMock,
+		};
+
+		const deletedCount = await deleteContactsForWebsite(db as never, {
+			websiteId: "site-1",
+			organizationId: "org-1",
+		});
+
+		expect(deletedCount).toBe(2);
+		expect(updateMock).toHaveBeenCalledWith(contact);
+		expect(updateSetMock).toHaveBeenCalledTimes(1);
+		const updateArg = updateSetMock.mock.calls[0]?.[0] as {
+			deletedAt: string;
+			updatedAt: string;
+		};
+		expect(updateArg.deletedAt).toEqual(expect.any(String));
+		expect(updateArg.updatedAt).toEqual(expect.any(String));
+		expect(updateWhereMock).toHaveBeenCalledTimes(1);
+		expect(returningMock).toHaveBeenCalledWith({ id: contact.id });
 	});
 });
 

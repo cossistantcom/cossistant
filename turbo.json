@@ -143,6 +143,10 @@
       "cache": false,
       "persistent": true
     },
+    "@cossistant/example-react-vite#dev": {
+      "cache": false,
+      "persistent": true
+    },
     "db:migrate": {
       "outputs": []
     },
@@ -158,6 +162,15 @@
     },
     "@cossistant/example-nextjs-tailwind#check-types": {
       "dependsOn": [],
+      "outputs": []
+    },
+    "@cossistant/example-react-vite#check-types": {
+      "dependsOn": [],
+      "outputs": []
+    },
+    "test:e2e": {
+      "cache": false,
+      "dependsOn": ["^build"],
       "outputs": []
     }
   }

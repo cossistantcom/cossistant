@@ -124,25 +124,28 @@ import {
   type SupportHomePageSlotProps,
   type SupportTriggerSlotProps,
 } from "@cossistant/react";
+import * as React from "react";
 
-function CustomBubble({
-  isOpen,
-  unreadCount,
-  toggle,
-  className,
-  ...props
-}: SupportTriggerSlotProps) {
+function mergeClassNames(...classes: Array<string | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
+
+const CustomBubble = React.forwardRef<
+  HTMLButtonElement,
+  SupportTriggerSlotProps
+>(function CustomBubble({ isOpen, unreadCount, toggle, className, ...props }, ref) {
   return (
     <button
       {...props}
-      className={className}
+      className={mergeClassNames("fixed right-4 bottom-4 z-[9999]", className)}
       onClick={toggle}
+      ref={ref}
       type="button"
     >
       {isOpen ? "Close" : "Need help?"} ({unreadCount})
     </button>
   );
-}
+});
 
 function CustomHomePage({
   quickOptions,
@@ -179,7 +182,8 @@ function CustomHomePage({
 
 ## Full Composition with `Support.Root`
 
-Use `Support.Root` when you want a custom shell and explicit page registration.
+Use `Support.Root` when you want a custom shell, explicit page registration, or
+inline placement. In this mode, you own the trigger layout classes.
 
 ```tsx
 import { Support } from "@cossistant/react";
@@ -192,7 +196,9 @@ export function App() {
   return (
     <Support.Root open>
       <Support.Trigger asChild>
-        <button type="button">Compose support</button>
+        <button className="fixed right-4 bottom-4 z-[9999]" type="button">
+          Compose support
+        </button>
       </Support.Trigger>
 
       <Support.Content className="rounded-3xl border shadow-2xl">

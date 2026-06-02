@@ -3,11 +3,58 @@ title: React
 description: Install and launch the Cossistant support widget in React.
 ---
 
+## Quick start with shadcn registry
+
+```bash
+bunx --bun shadcn@latest add cossistantcom/cossistant/support-react
+```
+
+The registry installs a React-ready `<Support />` starter, the `CossistantProvider`, the required dependencies, the widget CSS import, and a `VITE_COSSISTANT_API_KEY` placeholder.
+
+### 1. Add your public API key
+
+```bash title=".env"
+VITE_COSSISTANT_API_KEY=pk_test_xxxx
+```
+
+### 2. Mount `CossistantProvider`
+
+```tsx title="src/main.tsx"
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { CossistantProvider } from "@/components/cossistant/provider";
+import App from "./App";
+import "./index.css";
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <CossistantProvider>
+      <App />
+    </CossistantProvider>
+  </React.StrictMode>,
+);
+```
+
+### 3. Render `<Support />`
+
+```tsx title="src/App.tsx"
+import { Support } from "@/components/cossistant/support";
+
+export default function App() {
+  return (
+    <main>
+      <h1>You are ready to chat</h1>
+      <Support />
+    </main>
+  );
+}
+```
+
 ## Quick start with AI prompt
 
 <QuickstartAIPrompt framework="react" />
 
-## Manually
+## Manual package install
 
 ### 1. Install the package
 

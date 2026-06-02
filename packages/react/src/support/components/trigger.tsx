@@ -128,7 +128,7 @@ export const DefaultTrigger: React.FC<DefaultTriggerProps> = ({
 				return (
 					<button
 						className={cn(
-							"relative z-[9999] flex size-14 cursor-pointer items-center justify-center rounded-full bg-co-primary text-co-primary-foreground transition-colors hover:bg-co-primary/90 active:scale-95 active:transition-transform data-[state=open]:bg-co-primary/90",
+							"fixed right-4 bottom-4 z-[9999] flex size-14 cursor-pointer items-center justify-center rounded-full bg-co-primary text-co-primary-foreground transition-colors hover:bg-co-primary/90 active:scale-95 active:transition-transform data-[state=open]:bg-co-primary/90",
 							sharedClassName
 						)}
 						data-open={isOpen}

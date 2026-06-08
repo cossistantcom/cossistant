@@ -10,6 +10,9 @@ mock.module("@api/env", () => ({
 		POLAR_ENABLED: true,
 		TINYBIRD_HOST: "http://localhost:7181",
 		TINYBIRD_TOKEN: "admin",
+		BETTER_AUTH_URL: "http://localhost:8787",
+		MCP_RESOURCE_URL: "http://localhost:8787/mcp",
+		PUBLIC_APP_URL: "http://localhost:3000",
 		PORT: 8787,
 	},
 }));
@@ -27,8 +30,20 @@ mock.module("@api/lib/auth", () => ({
 mock.module("@api/middleware/rate-limit", () => ({
 	authRateLimiter: noopMiddleware,
 	defaultRateLimiter: noopMiddleware,
+	mcpRateLimiter: noopMiddleware,
 	trpcRateLimiter: noopMiddleware,
 	websocketRateLimiter: noopMiddleware,
+}));
+
+mock.module("@api/mcp", () => ({
+	createCossistantMcpHandler: () => async () =>
+		new Response("missing authorization header", {
+			status: 401,
+			headers: {
+				"WWW-Authenticate":
+					'Bearer resource_metadata="http://localhost:8787/.well-known/oauth-protected-resource/mcp"',
+			},
+		}),
 }));
 
 mock.module("@api/rest/openapi", () => ({
@@ -98,6 +113,45 @@ mock.module("./ws/socket", () => ({
 }));
 
 describe("API app wiring", () => {
+	it("serves MCP protected resource metadata", async () => {
+		const { app } = await import("./index");
+
+		const response = await app.request(
+			new Request("http://localhost/.well-known/oauth-protected-resource")
+		);
+		const body = await response.json();
+
+		expect(response.status).toBe(200);
+		expect(body).toMatchObject({
+			resource: "http://localhost:8787/mcp",
+			authorization_servers: ["http://localhost:8787/api/auth"],
+			scopes_supported: ["support:read"],
+		});
+	});
+
+	it("exposes WWW-Authenticate for unauthenticated MCP requests", async () => {
+		const { app } = await import("./index");
+
+		const response = await app.request(
+			new Request("http://localhost/mcp", {
+				method: "POST",
+				headers: {
+					Origin: "https://agent.example",
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+			})
+		);
+
+		expect(response.status).toBe(401);
+		expect(response.headers.get("WWW-Authenticate")).toContain(
+			"oauth-protected-resource"
+		);
+		expect(response.headers.get("Access-Control-Expose-Headers")).toContain(
+			"WWW-Authenticate"
+		);
+	});
+
 	it("preserves clarification route CORS headers after app.route mounting", async () => {
 		const { app } = await import("./index");
 

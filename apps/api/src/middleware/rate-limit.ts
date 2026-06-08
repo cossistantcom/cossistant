@@ -6,6 +6,37 @@ import { rateLimiter } from "hono-rate-limiter";
 
 const isDevelopment = env.NODE_ENV !== "production";
 
+function getUnverifiedJwtRateLimitSubject(
+	authHeader: string | undefined
+): string {
+	const token = authHeader?.startsWith("Bearer ")
+		? authHeader.slice("Bearer ".length)
+		: null;
+	const payload = token?.split(".")[1];
+
+	if (!payload) {
+		return "anonymous";
+	}
+
+	try {
+		const normalized = payload
+			.replaceAll("-", "+")
+			.replaceAll("_", "/")
+			.padEnd(Math.ceil(payload.length / 4) * 4, "=");
+		const json = JSON.parse(atob(normalized)) as Record<string, unknown>;
+		const userId = typeof json.sub === "string" ? json.sub : "unknown-user";
+		const clientId =
+			typeof json.client_id === "string"
+				? json.client_id
+				: typeof json.azp === "string"
+					? json.azp
+					: "unknown-client";
+		return `${userId}:${clientId}`;
+	} catch {
+		return "invalid-token";
+	}
+}
+
 /**
  * Default rate limiter for general API endpoints
  * Allows 300 requests per minute per IP in development
@@ -79,6 +110,29 @@ export const websocketRateLimiter = rateLimiter({
 	},
 	store: getRateLimitStore(),
 	message: "Too many WebSocket connection attempts, please try again later.",
+});
+
+/**
+ * Rate limiter for remote MCP traffic.
+ * Keeps browser and agent retries bounded before token verification and tool work.
+ */
+export const mcpRateLimiter = rateLimiter({
+	windowMs: 60 * 1000,
+	limit: isDevelopment ? 120 : 60,
+	standardHeaders: "draft-6",
+	keyGenerator: (c: Context) => {
+		const ip = extractClientIpFromRequest(c.req).canonicalIp || "unknown";
+		const subject = getUnverifiedJwtRateLimitSubject(
+			c.req.header("Authorization")
+		);
+		return `mcp:${ip}:${subject}`;
+	},
+	store: getRateLimitStore(),
+	message: {
+		error: "Too many requests",
+		code: "TOO_MANY_REQUESTS",
+		message: "MCP rate limit exceeded. Please try again later.",
+	},
 });
 
 /**

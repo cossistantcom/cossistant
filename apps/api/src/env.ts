@@ -45,6 +45,12 @@ export const env = {
 	REDIS_URL: getEnvVariable("REDIS_URL"),
 	BETTER_AUTH_URL: getEnvVariable("BETTER_AUTH_URL"),
 	BETTER_AUTH_SECRET: getEnvVariable("BETTER_AUTH_SECRET"),
+	MCP_RESOURCE_URL: getEnvVariable(
+		"MCP_RESOURCE_URL",
+		process.env.NODE_ENV === "production"
+			? "https://api.cossistant.com/mcp"
+			: "http://localhost:8787/mcp"
+	),
 	API_KEY_SECRET: getEnvVariable("API_KEY_SECRET"),
 	GOOGLE_CLIENT_ID: getEnvVariable("GOOGLE_CLIENT_ID"),
 	GOOGLE_CLIENT_SECRET: getEnvVariable("GOOGLE_CLIENT_SECRET"),

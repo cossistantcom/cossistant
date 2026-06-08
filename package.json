@@ -49,11 +49,14 @@
   ],
   "dependencies": {
     "@aws-sdk/client-s3": "^3.975.0",
+    "@better-auth/oauth-provider": "1.6.15",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@polar-sh/better-auth": "^1.8.1",
     "@polar-sh/hono": "^0.5.3",
     "@polar-sh/nextjs": "^0.9.3",
     "@polar-sh/sdk": "^0.44.0",
-    "better-auth": "^1.4.17",
+    "better-auth": "1.6.15",
+    "mcp-handler": "1.1.0",
     "rolldown": "^1.0.0-rc.1"
   },
   "lint-staged": {

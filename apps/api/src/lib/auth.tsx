@@ -1,16 +1,23 @@
 import { db } from "@api/db";
 import * as schema from "@api/db/schema";
 import { env } from "@api/env";
+import {
+	MCP_REQUIRED_SCOPE,
+	MCP_RESOURCE_URL,
+	MCP_SUPPORTED_SCOPES,
+} from "@api/lib/mcp-config";
 import { generateULID } from "@api/utils/db/ids";
-import { dash } from "@better-auth/infra";
+import { oauthProvider } from "@better-auth/oauth-provider";
 import { ResetPasswordEmail, sendEmail } from "@cossistant/transactional";
 import { polar, portal, usage } from "@polar-sh/better-auth";
+import type { BetterAuthPlugin } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { betterAuth } from "better-auth/minimal";
 
 import {
 	admin,
 	anonymous,
+	jwt,
 	organization as organizationPlugin,
 } from "better-auth/plugins";
 import React from "react";
@@ -69,6 +76,28 @@ export const auth = betterAuth({
 		},
 	},
 	plugins: [
+		jwt(),
+		oauthProvider({
+			scopes: [...MCP_SUPPORTED_SCOPES],
+			validAudiences: [MCP_RESOURCE_URL],
+			allowDynamicClientRegistration: true,
+			allowUnauthenticatedClientRegistration: true,
+			allowPublicClientPrelogin: true,
+			clientRegistrationDefaultScopes: [
+				"openid",
+				"offline_access",
+				MCP_REQUIRED_SCOPE,
+			],
+			clientRegistrationAllowedScopes: [...MCP_SUPPORTED_SCOPES],
+			accessTokenExpiresIn: 60 * 60,
+			refreshTokenExpiresIn: 60 * 60 * 24 * 30,
+			loginPage: "/login",
+			consentPage: "/oauth/consent",
+			customAccessTokenClaims: async ({ resource, scopes }) => ({
+				resource,
+				scope: scopes.join(" "),
+			}),
+		}),
 		organizationPlugin({
 			teams: {
 				enabled: true,
@@ -77,7 +106,18 @@ export const auth = betterAuth({
 			},
 			organizationCreation: {
 				disabled: false,
-				afterCreate: async ({ organization, member, user }, request) => {
+				afterCreate: async (
+					{
+						organization,
+						member,
+						user,
+					}: {
+						organization: { id: string };
+						member: unknown;
+						user: { email: string; name?: string | null };
+					},
+					_request: unknown
+				) => {
 					console.log("organization created", organization);
 					console.log("member", member);
 					console.log("user", user);
@@ -151,7 +191,7 @@ export const auth = betterAuth({
 						client: polarClient,
 						createCustomerOnSignUp: false,
 						use: [portal(), usage()],
-					}),
+					}) as unknown as BetterAuthPlugin,
 				]
 			: []),
 	],
@@ -206,7 +246,7 @@ export const auth = betterAuth({
 			maxAge: 60,
 		},
 	},
-}) satisfies ReturnType<typeof betterAuth>;
+});
 
 export type AuthType = {
 	Variables: {

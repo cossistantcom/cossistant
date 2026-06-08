@@ -8,8 +8,8 @@ import {
 	updateKnowledge,
 } from "@api/db/queries/knowledge";
 import { syncLinkSourceStatsFromKnowledge } from "@api/db/queries/link-source";
-import { findSimilarKnowledge } from "@api/db/queries/vector-search";
 import { getPlanForWebsite } from "@api/lib/plans/access";
+import { searchSupportKnowledge } from "@api/support-capabilities";
 import {
 	safelyExtractRequestData,
 	safelyExtractRequestQuery,
@@ -75,49 +75,6 @@ function toNumericLimit(value: number | boolean | null): number | null {
 	}
 
 	return value;
-}
-
-function createKnowledgeSearchSnippet(content: string): string {
-	const normalized = content.replace(/\s+/g, " ").trim();
-	const maxLength = 360;
-
-	if (normalized.length <= maxLength) {
-		return normalized;
-	}
-
-	return `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
-}
-
-function getStringMetadataValue(
-	metadata: unknown,
-	keys: string[]
-): string | null {
-	if (!metadata || typeof metadata !== "object") {
-		return null;
-	}
-
-	const record = metadata as Record<string, unknown>;
-	for (const key of keys) {
-		const value = record[key];
-		if (typeof value === "string" && value.trim().length > 0) {
-			return value;
-		}
-	}
-
-	return null;
-}
-
-function getRetrievalQuality(maxSimilarity: number | null) {
-	if (maxSimilarity === null) {
-		return "none" as const;
-	}
-	if (maxSimilarity >= 0.78) {
-		return "high" as const;
-	}
-	if (maxSimilarity >= 0.55) {
-		return "medium" as const;
-	}
-	return "low" as const;
 }
 
 function getErrorCodeForStatus(status: number): string {
@@ -438,40 +395,13 @@ knowledgeRouter.openapi(
 				);
 			}
 
-			const results = await findSimilarKnowledge(db, query.query, website.id, {
+			const response = await searchSupportKnowledge(db, {
+				website,
+				query: query.query,
 				knowledgeId: query.knowledgeId,
 				limit: query.limit,
 				minSimilarity: query.minSimilarity,
 			});
-			const maxSimilarity = results[0]?.similarity ?? null;
-			const response = {
-				query: query.query,
-				results: results.map((result) => ({
-					id: result.id,
-					content: result.content,
-					snippet: createKnowledgeSearchSnippet(result.content),
-					metadata: result.metadata ?? null,
-					similarity: Number(result.similarity),
-					sourceType: result.sourceType,
-					knowledgeId: result.knowledgeId,
-					visitorId: result.visitorId,
-					contactId: result.contactId,
-					chunkIndex: result.chunkIndex,
-					title:
-						result.sourceTitle ??
-						getStringMetadataValue(result.metadata, [
-							"title",
-							"sourceTitle",
-							"question",
-						]),
-					sourceUrl:
-						result.sourceUrl ??
-						getStringMetadataValue(result.metadata, ["sourceUrl", "url"]),
-				})),
-				totalFound: results.length,
-				maxSimilarity,
-				retrievalQuality: getRetrievalQuality(maxSimilarity),
-			};
 
 			return c.json(
 				validateResponse(response, knowledgeSearchResponseSchema),

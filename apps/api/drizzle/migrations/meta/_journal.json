@@ -470,6 +470,13 @@
       "when": 1780012800000,
       "tag": "0066_lifecycle_email_system",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1780945559496,
+      "tag": "0067_eager_maggott",
+      "breakpoints": true
     }
   ]
 }

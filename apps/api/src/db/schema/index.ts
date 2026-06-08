@@ -2,6 +2,7 @@ export * from "./ai-agent";
 export * from "./ai-agent-prompt-document";
 export * from "./api-keys";
 export * from "./auth";
+export * from "./auth-oauth";
 export * from "./chunk";
 export * from "./conversation";
 export * from "./email-bounce";

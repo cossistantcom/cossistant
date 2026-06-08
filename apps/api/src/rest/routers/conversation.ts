@@ -27,11 +27,9 @@ import {
 	getConversationTimelineItemByIdForOrganization,
 	getConversationTimelineItems,
 	listConversations,
-	listConversationsHeaders,
 	upsertConversation,
 } from "@api/db/queries/conversation";
 import { canVisitorAccessConversation } from "@api/db/queries/conversation-access";
-import { listFeedback } from "@api/db/queries/feedback";
 import type {
 	ConversationTimelineItemSelect,
 	conversation,
@@ -61,6 +59,11 @@ import {
 import { realtime } from "@api/realtime/emitter";
 import { getRedis } from "@api/redis";
 import { markVisitorPresence } from "@api/services/presence";
+import {
+	getSupportConversation,
+	listSupportConversations,
+	SupportCapabilityError,
+} from "@api/support-capabilities";
 import { createConversationEvent } from "@api/utils/conversation-event";
 import { createParticipantJoinedEvent } from "@api/utils/conversation-events";
 import { buildConversationExport } from "@api/utils/conversation-export";
@@ -98,7 +101,6 @@ import {
 	type CreateConversationConflictCode,
 	conversationContextRequestSchema,
 	conversationContextResponseSchema,
-	conversationInboxItemSchema,
 	createConversationConflictResponseSchema,
 	createConversationRequestSchema,
 	createConversationResponseSchema,
@@ -147,10 +149,7 @@ import {
 import { resolveRuntimeVisitorIdentity } from "../runtime-visitor";
 import type { RestContext } from "../types";
 import { mapDefaultTimelineItemForCreation } from "./conversation-default-timeline-item";
-import {
-	formatFeedbackResponse,
-	persistFeedbackSubmission,
-} from "./feedback-shared";
+import { persistFeedbackSubmission } from "./feedback-shared";
 
 type ConversationRow = typeof conversation.$inferSelect;
 type ConversationTimelineItemRow = ConversationTimelineItemSelect;
@@ -2577,50 +2576,26 @@ conversationRouter.openapi(
 			required: false,
 		});
 
-		const [planInfo, result] = await Promise.all([
-			getPlanForWebsite(privateContext.website),
-			listConversationsHeaders(extracted.db, {
-				organizationId: privateContext.organization.id,
-				websiteId: privateContext.website.id,
-				userId: actor?.userId ?? null,
-				limit: extracted.query.limit,
-				cursor: extracted.query.cursor ?? null,
-				status: extracted.query.status,
-				priority: extracted.query.priority,
-				sentiment: extracted.query.sentiment,
-				visitorId: extracted.query.visitorId,
-				contactId: extracted.query.contactId,
-				assignedToUserId: extracted.query.assignedToUserId,
-				viewId: extracted.query.viewId,
-				createdAtFrom: extracted.query.createdAtFrom,
-				createdAtTo: extracted.query.createdAtTo,
-				updatedAtFrom: extracted.query.updatedAtFrom,
-				updatedAtTo: extracted.query.updatedAtTo,
-				q: extracted.query.q,
-				orderBy: extracted.query.orderBy,
-				order: extracted.query.order,
-			}),
-		]);
-
-		const hardLimitPolicy = resolveDashboardHardLimitPolicy(planInfo);
-		const lockCutoff = await getDashboardConversationLockCutoff(extracted.db, {
-			websiteId: privateContext.website.id,
-			organizationId: privateContext.organization.id,
-			policy: hardLimitPolicy,
+		const response = await listSupportConversations(extracted.db, {
+			website: privateContext.website,
+			actorUserId: actor?.userId ?? null,
+			limit: extracted.query.limit,
+			cursor: extracted.query.cursor ?? null,
+			status: extracted.query.status,
+			priority: extracted.query.priority,
+			sentiment: extracted.query.sentiment,
+			visitorId: extracted.query.visitorId,
+			contactId: extracted.query.contactId,
+			assignedToUserId: extracted.query.assignedToUserId,
+			viewId: extracted.query.viewId,
+			createdAtFrom: extracted.query.createdAtFrom,
+			createdAtTo: extracted.query.createdAtTo,
+			updatedAtFrom: extracted.query.updatedAtFrom,
+			updatedAtTo: extracted.query.updatedAtTo,
+			q: extracted.query.q,
+			orderBy: extracted.query.orderBy,
+			order: extracted.query.order,
 		});
-
-		const response = {
-			items: result.items.map((item) =>
-				conversationInboxItemSchema.parse(
-					applyDashboardConversationHardLimit({
-						conversation: item,
-						policy: hardLimitPolicy,
-						cutoff: lockCutoff,
-					})
-				)
-			),
-			nextCursor: result.nextCursor,
-		};
 
 		return c.json(
 			validateResponse(response, listInboxConversationsResponseSchema),
@@ -2684,46 +2659,23 @@ conversationRouter.openapi(
 			required: false,
 		});
 
-		const [conversationHeader, timeline, feedbackResult] = await Promise.all([
-			getConversationHeader(extracted.db, {
-				organizationId: privateContext.organization.id,
-				websiteId: privateContext.website.id,
+		let response: Awaited<ReturnType<typeof getSupportConversation>>;
+		try {
+			response = await getSupportConversation(extracted.db, {
+				website: privateContext.website,
+				actorUserId: actor?.userId ?? null,
 				conversationId,
-				userId: actor?.userId ?? null,
-			}),
-			getConversationTimelineItems(extracted.db, {
-				organizationId: privateContext.organization.id,
-				websiteId: privateContext.website.id,
-				conversationId,
-				limit: extracted.query.timelineLimit,
-				cursor: extracted.query.timelineCursor ?? null,
-			}),
-			listFeedback(extracted.db, {
-				organizationId: privateContext.organization.id,
-				websiteId: privateContext.website.id,
-				conversationId,
-				page: 1,
-				limit: extracted.query.feedbackLimit,
-				order: "desc",
-			}),
-		]);
-
-		if (!conversationHeader) {
-			return restError(c, 404, "NOT_FOUND", "Conversation not found");
+				timelineLimit: extracted.query.timelineLimit,
+				timelineCursor: extracted.query.timelineCursor ?? null,
+				feedbackLimit: extracted.query.feedbackLimit,
+			});
+		} catch (error) {
+			if (error instanceof SupportCapabilityError) {
+				const status = error.status === 409 ? 400 : error.status;
+				return restError(c, status, error.code, error.message);
+			}
+			throw error;
 		}
-
-		const conversationContext =
-			conversationInboxItemSchema.parse(conversationHeader);
-		const response = {
-			conversation: conversationContext,
-			visitor: conversationContext.visitor,
-			timeline: {
-				items: timeline.items,
-				nextCursor: timeline.nextCursor ?? null,
-				hasNextPage: timeline.hasNextPage,
-			},
-			feedback: feedbackResult.items.map(formatFeedbackResponse),
-		};
 
 		return c.json(
 			validateResponse(response, conversationContextResponseSchema),

@@ -1,9 +1,12 @@
 import { env } from "@api/env";
 import { auth } from "@api/lib/auth";
 import { createApiBrowserCorsMiddleware } from "@api/lib/browser-cors";
+import { getMcpProtectedResourceMetadata } from "@api/lib/mcp-config";
+import { createCossistantMcpHandler } from "@api/mcp";
 import {
 	authRateLimiter,
 	defaultRateLimiter,
+	mcpRateLimiter,
 	trpcRateLimiter,
 	websocketRateLimiter,
 } from "@api/middleware/rate-limit";
@@ -13,10 +16,14 @@ import { knowledgeClarificationStreamRouter } from "@api/routes/knowledge-clarif
 import { createTRPCContext } from "@api/trpc/init";
 import { origamiTRPCRouter } from "@api/trpc/routers/_app";
 import { checkHealth } from "@api/utils/health";
+import {
+	oauthProviderAuthServerMetadata,
+	oauthProviderOpenIdConfigMetadata,
+} from "@better-auth/oauth-provider";
 import { swaggerUI } from "@hono/swagger-ui";
 import { trpcServer } from "@hono/trpc-server";
 import { OpenAPIHono } from "@hono/zod-openapi";
-import type { MiddlewareHandler } from "hono";
+import type { Context, MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
@@ -45,6 +52,34 @@ const stripSetCookie: MiddlewareHandler = async (c, next) => {
 };
 
 const apiBrowserCors = createApiBrowserCorsMiddleware();
+const cossistantMcpHandler = createCossistantMcpHandler();
+
+const mcpCors = cors({
+	origin: "*",
+	allowHeaders: [
+		"Authorization",
+		"Content-Type",
+		"Mcp-Session-Id",
+		"MCP-Protocol-Version",
+	],
+	allowMethods: ["GET", "POST", "OPTIONS"],
+	exposeHeaders: ["WWW-Authenticate", "Mcp-Session-Id"],
+	maxAge: 86_400,
+	credentials: false,
+});
+
+function redirectToPublicApp(path: `/${string}`) {
+	return (c: Context) => {
+		const target = new URL(path, env.PUBLIC_APP_URL);
+		const incomingUrl = new URL(c.req.url);
+
+		for (const [key, value] of incomingUrl.searchParams.entries()) {
+			target.searchParams.append(key, value);
+		}
+
+		return c.redirect(target.toString(), 302);
+	};
+}
 
 // Logger middleware
 app.use(logger());
@@ -80,8 +115,28 @@ app.get("/health", async (c) => {
 // Robots.txt to prevent search engine indexing
 app.get("/robots.txt", (c) => c.text("User-agent: *\nDisallow: /\n"));
 
+app.get("/login", redirectToPublicApp("/login"));
+app.get("/oauth/consent", redirectToPublicApp("/oauth/consent"));
+
+app.use("/.well-known/*", mcpCors);
+app.get("/.well-known/oauth-protected-resource", (c) =>
+	c.json(getMcpProtectedResourceMetadata())
+);
+app.get("/.well-known/oauth-protected-resource/mcp", (c) =>
+	c.json(getMcpProtectedResourceMetadata())
+);
+app.get("/.well-known/oauth-authorization-server/api/auth", async (c) =>
+	oauthProviderAuthServerMetadata(auth)(c.req.raw)
+);
+app.get("/.well-known/openid-configuration/api/auth", async (c) =>
+	oauthProviderOpenIdConfigMetadata(auth)(c.req.raw)
+);
+
 // CORS middleware for auth and TRPC endpoints (trusted domains only)
 app.use("/api/auth/*", apiBrowserCors);
+
+app.use("/mcp", mcpCors);
+app.use("/mcp/*", mcpCors);
 
 app.use("/trpc/*", apiBrowserCors);
 
@@ -140,6 +195,12 @@ app.use("/api/knowledge-clarification/*", async (c, next) => {
 // Auth routes with strict rate limiting
 app.use("/api/auth/*", authRateLimiter);
 app.all("/api/auth/*", async (c) => await auth.handler(c.req.raw));
+
+// MCP endpoint for signed-in AI agents
+app.use("/mcp", mcpRateLimiter);
+app.use("/mcp/*", mcpRateLimiter);
+app.all("/mcp", async (c) => cossistantMcpHandler(c.req.raw));
+app.all("/mcp/*", async (c) => cossistantMcpHandler(c.req.raw));
 
 // TRPC routes
 app.use(

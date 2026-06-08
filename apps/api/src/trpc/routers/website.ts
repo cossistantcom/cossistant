@@ -6,8 +6,11 @@ import {
 	getApiKeysByOrganization,
 	revokeApiKey,
 } from "@api/db/queries/api-keys";
+import { getConversationSentimentSatisfactionAggregate } from "@api/db/queries/conversation";
+import { getWebsiteFeedbackSatisfactionAggregate } from "@api/db/queries/feedback";
 import { scheduleWebsiteLifecycleSequence } from "@api/db/queries/lifecycle-email";
 import {
+	getOrganizationMemberByUserId,
 	getWebsiteMemberById,
 	getWebsiteMembers,
 	type WebsiteMember,
@@ -22,19 +25,17 @@ import {
 import { createDefaultWebsiteViews } from "@api/db/queries/view";
 import {
 	createWebsite,
+	findVerifiedWebsiteByDomain,
+	getActiveWebsiteBySlug,
+	getWebsiteApiKeyScope,
+	getWebsiteById,
 	getWebsiteBySlugWithAccess,
+	listWebsiteListItemsForOrganization,
 	permanentlyDeleteWebsite,
 	updateWebsite,
 	WebsiteSlugConflictError,
 } from "@api/db/queries/website";
-import {
-	conversation,
-	feedback,
-	member,
-	session as sessionTable,
-	type WebsiteInsert,
-	website,
-} from "@api/db/schema";
+import { session as sessionTable, type WebsiteInsert } from "@api/db/schema";
 import { env } from "@api/env";
 import {
 	encryptOpenRouterApiKey,
@@ -79,7 +80,7 @@ import {
 	websiteSummarySchema,
 } from "@cossistant/types";
 import { TRPCError } from "@trpc/server";
-import { and, eq, gte, isNotNull, isNull, lt, ne, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../init";
 
@@ -150,12 +151,9 @@ async function getWebsiteForOpenRouterByokMutation(params: {
 	organizationId: string;
 	websiteId: string;
 }) {
-	const site = await params.ctx.db.query.website.findFirst({
-		where: and(
-			eq(website.id, params.websiteId),
-			eq(website.organizationId, params.organizationId),
-			isNull(website.deletedAt)
-		),
+	const site = await getWebsiteById(params.ctx.db, {
+		websiteId: params.websiteId,
+		orgId: params.organizationId,
 	});
 
 	if (!site) {
@@ -261,16 +259,10 @@ export const websiteRouter = createTRPCRouter({
 		.output(z.array(websiteListItemSchema))
 		.query(async ({ ctx: { db, user }, input }) => {
 			// Verify user has access to this organization
-			const [membership] = await db
-				.select()
-				.from(member)
-				.where(
-					and(
-						eq(member.userId, user.id),
-						eq(member.organizationId, input.organizationId)
-					)
-				)
-				.limit(1);
+			const membership = await getOrganizationMemberByUserId(db, {
+				userId: user.id,
+				organizationId: input.organizationId,
+			});
 
 			if (!membership) {
 				throw new TRPCError({
@@ -280,24 +272,9 @@ export const websiteRouter = createTRPCRouter({
 			}
 
 			// Get all websites for this organization
-			const websites = await db
-				.select({
-					id: website.id,
-					name: website.name,
-					slug: website.slug,
-					logoUrl: website.logoUrl,
-					domain: website.domain,
-					defaultLanguage: website.defaultLanguage,
-					organizationId: website.organizationId,
-				})
-				.from(website)
-				.where(
-					and(
-						eq(website.organizationId, input.organizationId),
-						isNull(website.deletedAt)
-					)
-				)
-				.orderBy(website.createdAt);
+			const websites = await listWebsiteListItemsForOrganization(db, {
+				organizationId: input.organizationId,
+			});
 
 			return websites;
 		}),
@@ -305,8 +282,8 @@ export const websiteRouter = createTRPCRouter({
 		.input(z.object({ slug: z.string() }))
 		.output(websiteDeveloperSettingsResponseSchema)
 		.query(async ({ ctx, input }) => {
-			const site = await ctx.db.query.website.findFirst({
-				where: and(eq(website.slug, input.slug), isNull(website.deletedAt)),
+			const site = await getActiveWebsiteBySlug(ctx.db, {
+				websiteSlug: input.slug,
 			});
 
 			if (!site) {
@@ -394,11 +371,8 @@ export const websiteRouter = createTRPCRouter({
 				});
 			}
 
-			const existingDomainWebsite = await db.query.website.findFirst({
-				where: and(
-					eq(website.domain, normalizedDomain),
-					eq(website.isDomainOwnershipVerified, true)
-				),
+			const existingDomainWebsite = await findVerifiedWebsiteByDomain(db, {
+				domain: normalizedDomain,
 			});
 
 			if (existingDomainWebsite) {
@@ -539,13 +513,9 @@ export const websiteRouter = createTRPCRouter({
 		.input(createWebsiteApiKeyRequestSchema)
 		.output(websiteApiKeySchema)
 		.mutation(async ({ ctx, input }) => {
-			const site = await ctx.db.query.website.findFirst({
-				where: and(
-					eq(website.id, input.websiteId),
-					eq(website.organizationId, input.organizationId),
-					isNull(website.deletedAt)
-				),
-				columns: { id: true, organizationId: true, teamId: true },
+			const site = await getWebsiteApiKeyScope(ctx.db, {
+				websiteId: input.websiteId,
+				organizationId: input.organizationId,
 			});
 
 			if (!site) {
@@ -622,13 +592,9 @@ export const websiteRouter = createTRPCRouter({
 		.input(revokeWebsiteApiKeyRequestSchema)
 		.output(websiteApiKeySchema)
 		.mutation(async ({ ctx, input }) => {
-			const site = await ctx.db.query.website.findFirst({
-				where: and(
-					eq(website.id, input.websiteId),
-					eq(website.organizationId, input.organizationId),
-					isNull(website.deletedAt)
-				),
-				columns: { id: true, organizationId: true, teamId: true },
+			const site = await getWebsiteApiKeyScope(ctx.db, {
+				websiteId: input.websiteId,
+				organizationId: input.organizationId,
 			});
 
 			if (!site) {
@@ -786,11 +752,8 @@ export const websiteRouter = createTRPCRouter({
 				});
 			}
 
-			const existingWebsite = await db.query.website.findFirst({
-				where: and(
-					eq(website.domain, normalizedDomain),
-					eq(website.isDomainOwnershipVerified, true)
-				),
+			const existingWebsite = await findVerifiedWebsiteByDomain(db, {
+				domain: normalizedDomain,
 			});
 
 			return !!existingWebsite;
@@ -864,59 +827,27 @@ export const websiteRouter = createTRPCRouter({
 			}
 
 			const [ratingResult, sentimentResult] = await Promise.all([
-				db
-					.select({
-						average: sql<
-							number | null
-						>`AVG(((${feedback.rating} - 1) / 4.0) * 100)`,
-						count: sql<number>`COUNT(*)`,
-					})
-					.from(feedback)
-					.where(
-						and(
-							eq(feedback.organizationId, websiteData.organizationId),
-							eq(feedback.websiteId, websiteData.id),
-							isNull(feedback.deletedAt),
-							gte(feedback.createdAt, input.dateFrom),
-							lt(feedback.createdAt, input.dateTo)
-						)
-					),
-
-				db
-					.select({
-						average: sql<number | null>`
-							AVG(
-								50 + (
-									CASE
-										WHEN ${conversation.sentiment} = 'positive' THEN 50
-										WHEN ${conversation.sentiment} = 'negative' THEN -50
-										ELSE 0
-									END
-								) * COALESCE(${conversation.sentimentConfidence}, 1)
-							)
-						`,
-						count: sql<number>`COUNT(*)`,
-					})
-					.from(conversation)
-					.where(
-						and(
-							eq(conversation.organizationId, websiteData.organizationId),
-							eq(conversation.websiteId, websiteData.id),
-							isNull(conversation.deletedAt),
-							isNotNull(conversation.sentiment),
-							gte(conversation.startedAt, input.dateFrom),
-							lt(conversation.startedAt, input.dateTo)
-						)
-					),
+				getWebsiteFeedbackSatisfactionAggregate(db, {
+					organizationId: websiteData.organizationId,
+					websiteId: websiteData.id,
+					dateFrom: input.dateFrom,
+					dateTo: input.dateTo,
+				}),
+				getConversationSentimentSatisfactionAggregate(db, {
+					organizationId: websiteData.organizationId,
+					websiteId: websiteData.id,
+					dateFrom: input.dateFrom,
+					dateTo: input.dateTo,
+				}),
 			]);
 
-			const ratingCount = Number(ratingResult[0]?.count ?? 0);
+			const ratingCount = ratingResult.count;
 			const ratingScore =
-				ratingCount > 0 ? toNumberOrNull(ratingResult[0]?.average) : null;
+				ratingCount > 0 ? toNumberOrNull(ratingResult.average) : null;
 
-			const sentimentCount = Number(sentimentResult[0]?.count ?? 0);
+			const sentimentCount = sentimentResult.count;
 			const sentimentScore =
-				sentimentCount > 0 ? toNumberOrNull(sentimentResult[0]?.average) : null;
+				sentimentCount > 0 ? toNumberOrNull(sentimentResult.average) : null;
 
 			return { ratingScore, sentimentScore };
 		}),
@@ -1034,24 +965,9 @@ export const websiteRouter = createTRPCRouter({
 		.input(updateWebsiteRequestSchema)
 		.output(websiteSummarySchema)
 		.mutation(async ({ ctx, input }) => {
-			const site = await ctx.db.query.website.findFirst({
-				where: and(
-					eq(website.id, input.websiteId),
-					eq(website.organizationId, input.organizationId),
-					isNull(website.deletedAt)
-				),
-				columns: {
-					id: true,
-					slug: true,
-					name: true,
-					domain: true,
-					defaultLanguage: true,
-					autoTranslateEnabled: true,
-					contactEmail: true,
-					logoUrl: true,
-					organizationId: true,
-					whitelistedDomains: true,
-				},
+			const site = await getWebsiteById(ctx.db, {
+				websiteId: input.websiteId,
+				orgId: input.organizationId,
 			});
 
 			if (!site) {
@@ -1133,12 +1049,9 @@ export const websiteRouter = createTRPCRouter({
 				}
 
 				if (normalizedDomain !== site.domain) {
-					const existingDomain = await ctx.db.query.website.findFirst({
-						where: and(
-							eq(website.domain, normalizedDomain),
-							eq(website.isDomainOwnershipVerified, true),
-							ne(website.id, site.id)
-						),
+					const existingDomain = await findVerifiedWebsiteByDomain(ctx.db, {
+						domain: normalizedDomain,
+						excludeWebsiteId: site.id,
 					});
 
 					if (existingDomain) {

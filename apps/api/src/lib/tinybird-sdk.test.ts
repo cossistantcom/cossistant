@@ -4,10 +4,23 @@ import { flattenVisitorTrackingContext } from "./visitor-attribution";
 const findVisitorForWebsiteMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
 );
+const tinybirdIngestMock = mock(async () => undefined);
+const tinybirdQueryMock = mock(
+	async (_pipe: string, _params: Record<string, string>) => ({
+		data: [] as unknown[],
+	})
+);
 
 mock.module("@api/db/queries/visitor", () => ({
 	findVisitorForWebsite: findVisitorForWebsiteMock,
 	updateVisitorForWebsite: async () => null,
+}));
+
+mock.module("@tinybirdco/sdk", () => ({
+	createTinybirdApi: () => ({
+		ingest: tinybirdIngestMock,
+		query: tinybirdQueryMock,
+	}),
 }));
 
 const mockEnv = {
@@ -74,6 +87,9 @@ function createTrackingContext() {
 
 beforeEach(() => {
 	findVisitorForWebsiteMock.mockReset();
+	tinybirdIngestMock.mockReset();
+	tinybirdQueryMock.mockReset();
+	tinybirdQueryMock.mockResolvedValue({ data: [] });
 });
 
 afterEach(async () => {
@@ -83,6 +99,136 @@ afterEach(async () => {
 	await flushAllEvents();
 	globalThis.fetch = originalFetch;
 	mockEnv.TINYBIRD_ENABLED = true;
+});
+
+describe("tinybird analytics queries", () => {
+	it("queries unique visitors with an explicit website_id", async () => {
+		tinybirdQueryMock.mockResolvedValue({
+			data: [
+				{ period: "current", unique_visitors: 42 },
+				{ period: "previous", unique_visitors: 21 },
+			],
+		});
+		const { queryUniqueVisitors } = await importTinybirdSdk(
+			`unique-visitors=${Math.random()}`
+		);
+
+		const params = {
+			website_id: "site-1",
+			date_from: "2026-05-25T00:00:00.000Z",
+			date_to: "2026-06-01T00:00:00.000Z",
+			prev_date_from: "2026-05-18T00:00:00.000Z",
+			prev_date_to: "2026-05-25T00:00:00.000Z",
+		};
+		const result = await queryUniqueVisitors(params);
+
+		expect(result.data).toEqual([
+			{ period: "current", unique_visitors: 42 },
+			{ period: "previous", unique_visitors: 21 },
+		]);
+		expect(tinybirdQueryMock).toHaveBeenCalledWith("unique_visitors", params);
+	});
+
+	it("aggregates weekly digest stats from inbox analytics and unique visitors", async () => {
+		tinybirdQueryMock.mockImplementation(
+			async (pipe: string, _params: Record<string, string>) => {
+				if (pipe === "inbox_analytics") {
+					return {
+						data: [
+							{
+								event_type: "conversation_started",
+								median_duration: null,
+								event_count: 12,
+								period: "current",
+							},
+							{
+								event_type: "conversation_resolved",
+								median_duration: 300,
+								event_count: 10,
+								period: "current",
+							},
+							{
+								event_type: "ai_resolved",
+								median_duration: null,
+								event_count: 5,
+								period: "current",
+							},
+							{
+								event_type: "first_response",
+								median_duration: 120,
+								event_count: 7,
+								period: "current",
+							},
+							{
+								event_type: "conversation_started",
+								median_duration: null,
+								event_count: 8,
+								period: "previous",
+							},
+							{
+								event_type: "conversation_resolved",
+								median_duration: 600,
+								event_count: 4,
+								period: "previous",
+							},
+							{
+								event_type: "ai_resolved",
+								median_duration: null,
+								event_count: 1,
+								period: "previous",
+							},
+							{
+								event_type: "first_response",
+								median_duration: 240,
+								event_count: 3,
+								period: "previous",
+							},
+						],
+					};
+				}
+
+				return {
+					data: [
+						{ period: "current", unique_visitors: 75 },
+						{ period: "previous", unique_visitors: 50 },
+					],
+				};
+			}
+		);
+		const { queryWeeklyDigestStats } = await importTinybirdSdk(
+			`weekly-digest=${Math.random()}`
+		);
+		const params = {
+			website_id: "site-1",
+			date_from: "2026-05-25T00:00:00.000Z",
+			date_to: "2026-06-01T00:00:00.000Z",
+			prev_date_from: "2026-05-18T00:00:00.000Z",
+			prev_date_to: "2026-05-25T00:00:00.000Z",
+		};
+
+		const result = await queryWeeklyDigestStats(params);
+
+		expect(tinybirdQueryMock.mock.calls).toEqual([
+			["inbox_analytics", params],
+			["unique_visitors", params],
+		]);
+		expect(result).toEqual({
+			current: {
+				conversations: 12,
+				uniqueVisitors: 75,
+				aiHandledRate: 50,
+				medianFirstResponseSeconds: 120,
+				medianResolutionSeconds: 300,
+			},
+			previous: {
+				conversations: 8,
+				uniqueVisitors: 50,
+				aiHandledRate: 25,
+				medianFirstResponseSeconds: 240,
+				medianResolutionSeconds: 600,
+			},
+		});
+	});
 });
 
 describe("tinybird visitor tracking", () => {

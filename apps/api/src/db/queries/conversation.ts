@@ -7,6 +7,7 @@ import { listActiveKnowledgeClarificationSummariesForConversations } from "@api/
 import {
 	contact,
 	conversation,
+	conversationAssignee,
 	conversationSeen,
 	conversationTimelineItem,
 	conversationView,
@@ -35,6 +36,8 @@ import {
 	desc,
 	eq,
 	gt,
+	gte,
+	ilike,
 	inArray,
 	isNotNull,
 	isNull,
@@ -58,6 +61,153 @@ function isConversationTimelineType(
 }
 
 type ConversationTimelineItemRow = typeof conversationTimelineItem.$inferSelect;
+
+export async function getConversationTimelineItemByIdForOrganization(
+	db: Database,
+	params: {
+		timelineItemId: string;
+		organizationId: string;
+	}
+): Promise<ConversationTimelineItemRow | null> {
+	const [timelineItem] = await db
+		.select()
+		.from(conversationTimelineItem)
+		.where(
+			and(
+				eq(conversationTimelineItem.id, params.timelineItemId),
+				eq(conversationTimelineItem.organizationId, params.organizationId)
+			)
+		)
+		.limit(1);
+
+	return timelineItem ?? null;
+}
+
+export type ConversationMessageTranslationRow = {
+	id: string;
+	text: string | null;
+	parts: unknown;
+	userId: string | null;
+	visitorId: string | null;
+	aiAgentId: string | null;
+};
+
+export async function getConversationMessageTimelineItemForTranslation(
+	db: Database,
+	params: {
+		timelineItemId: string;
+		organizationId: string;
+		conversationId: string;
+	}
+): Promise<ConversationMessageTranslationRow | null> {
+	const [row] = await db
+		.select({
+			id: conversationTimelineItem.id,
+			text: conversationTimelineItem.text,
+			parts: conversationTimelineItem.parts,
+			userId: conversationTimelineItem.userId,
+			visitorId: conversationTimelineItem.visitorId,
+			aiAgentId: conversationTimelineItem.aiAgentId,
+		})
+		.from(conversationTimelineItem)
+		.where(
+			and(
+				eq(conversationTimelineItem.id, params.timelineItemId),
+				eq(conversationTimelineItem.organizationId, params.organizationId),
+				eq(conversationTimelineItem.conversationId, params.conversationId),
+				eq(conversationTimelineItem.type, "message"),
+				isNull(conversationTimelineItem.deletedAt)
+			)
+		)
+		.limit(1);
+
+	return row ?? null;
+}
+
+export async function listConversationMessageTimelineItemsForTranslation(
+	db: Database,
+	params: {
+		timelineItemIds: string[];
+		organizationId: string;
+		conversationId: string;
+	}
+): Promise<ConversationMessageTranslationRow[]> {
+	if (params.timelineItemIds.length === 0) {
+		return [];
+	}
+
+	const orderById = new Map(
+		params.timelineItemIds.map((id, index) => [id, index] as const)
+	);
+
+	const rows = await db
+		.select({
+			id: conversationTimelineItem.id,
+			text: conversationTimelineItem.text,
+			parts: conversationTimelineItem.parts,
+			userId: conversationTimelineItem.userId,
+			visitorId: conversationTimelineItem.visitorId,
+			aiAgentId: conversationTimelineItem.aiAgentId,
+		})
+		.from(conversationTimelineItem)
+		.where(
+			and(
+				inArray(conversationTimelineItem.id, params.timelineItemIds),
+				eq(conversationTimelineItem.organizationId, params.organizationId),
+				eq(conversationTimelineItem.conversationId, params.conversationId),
+				eq(conversationTimelineItem.type, "message"),
+				isNull(conversationTimelineItem.deletedAt)
+			)
+		);
+
+	return rows.sort((left, right) => {
+		const leftIndex = orderById.get(left.id) ?? Number.MAX_SAFE_INTEGER;
+		const rightIndex = orderById.get(right.id) ?? Number.MAX_SAFE_INTEGER;
+		return leftIndex - rightIndex;
+	});
+}
+
+export async function getConversationSentimentSatisfactionAggregate(
+	db: Database,
+	params: {
+		organizationId: string;
+		websiteId: string;
+		dateFrom: string;
+		dateTo: string;
+	}
+): Promise<{ average: number | null; count: number }> {
+	const [result] = await db
+		.select({
+			average: sql<number | null>`
+				AVG(
+					50 + (
+						CASE
+							WHEN ${conversation.sentiment} = 'positive' THEN 50
+							WHEN ${conversation.sentiment} = 'negative' THEN -50
+							ELSE 0
+						END
+					) * COALESCE(${conversation.sentimentConfidence}, 1)
+				)
+			`,
+			count: sql<number>`COUNT(*)`,
+		})
+		.from(conversation)
+		.where(
+			and(
+				eq(conversation.organizationId, params.organizationId),
+				eq(conversation.websiteId, params.websiteId),
+				isNull(conversation.deletedAt),
+				isNotNull(conversation.sentiment),
+				gte(conversation.startedAt, params.dateFrom),
+				lt(conversation.startedAt, params.dateTo)
+			)
+		);
+
+	return {
+		average: result?.average ?? null,
+		count: Number(result?.count ?? 0),
+	};
+}
 
 function extractToolNameFromParts(parts: unknown[]): string | null {
 	for (const part of parts) {
@@ -398,16 +548,95 @@ export async function listConversationsHeaders(
 		limit?: number;
 		cursor?: string | null;
 		orderBy?: "createdAt" | "updatedAt";
+		order?: "asc" | "desc";
+		status?: ConversationStatus;
+		priority?: import("@cossistant/types").ConversationPriority;
+		sentiment?: import("@cossistant/types").ConversationSentiment;
+		visitorId?: string;
+		contactId?: string;
+		assignedToUserId?: string;
+		viewId?: string;
+		createdAtFrom?: string;
+		createdAtTo?: string;
+		updatedAtFrom?: string;
+		updatedAtTo?: string;
+		q?: string;
 	}
 ) {
 	const limit = params.limit ?? DEFAULT_PAGE_LIMIT;
 	const orderBy = params.orderBy ?? "updatedAt";
+	const order = params.order ?? "desc";
 
 	// Build where conditions
 	const whereConditions = [
 		eq(conversation.organizationId, params.organizationId),
 		eq(conversation.websiteId, params.websiteId),
 	];
+
+	if (params.status) {
+		whereConditions.push(eq(conversation.status, params.status));
+	}
+	if (params.priority) {
+		whereConditions.push(eq(conversation.priority, params.priority));
+	}
+	if (params.sentiment) {
+		whereConditions.push(eq(conversation.sentiment, params.sentiment));
+	}
+	if (params.visitorId) {
+		whereConditions.push(eq(conversation.visitorId, params.visitorId));
+	}
+	if (params.contactId) {
+		whereConditions.push(eq(contact.id, params.contactId));
+	}
+	if (params.createdAtFrom) {
+		whereConditions.push(gte(conversation.createdAt, params.createdAtFrom));
+	}
+	if (params.createdAtTo) {
+		whereConditions.push(lt(conversation.createdAt, params.createdAtTo));
+	}
+	if (params.updatedAtFrom) {
+		whereConditions.push(gte(conversation.updatedAt, params.updatedAtFrom));
+	}
+	if (params.updatedAtTo) {
+		whereConditions.push(lt(conversation.updatedAt, params.updatedAtTo));
+	}
+	if (params.assignedToUserId) {
+		whereConditions.push(
+			sql`exists (
+				select 1
+				from ${conversationAssignee}
+				where ${conversationAssignee.organizationId} = ${params.organizationId}
+				and ${conversationAssignee.conversationId} = ${conversation.id}
+				and ${conversationAssignee.userId} = ${params.assignedToUserId}
+				and ${conversationAssignee.unassignedAt} is null
+			)`
+		);
+	}
+	if (params.viewId) {
+		whereConditions.push(
+			sql`exists (
+				select 1
+				from ${conversationView}
+				where ${conversationView.organizationId} = ${params.organizationId}
+				and ${conversationView.conversationId} = ${conversation.id}
+				and ${conversationView.viewId} = ${params.viewId}
+				and ${conversationView.deletedAt} is null
+			)`
+		);
+	}
+	if (params.q?.trim()) {
+		const searchPattern = `%${params.q.trim().replaceAll("%", "\\%").replaceAll("_", "\\_")}%`;
+		const searchCondition = or(
+			ilike(conversation.title, searchPattern),
+			ilike(conversation.visitorTitle, searchPattern),
+			ilike(contact.name, searchPattern),
+			ilike(contact.email, searchPattern)
+		);
+
+		if (searchCondition) {
+			whereConditions.push(searchCondition);
+		}
+	}
 
 	// Handle cursor-based pagination more efficiently
 	if (params.cursor) {
@@ -421,12 +650,17 @@ export async function listConversationsHeaders(
 				const cursorDate = new Date(cursorTimestamp).toISOString();
 
 				// Use composite cursor for stable pagination
+				const timestampCursorCondition =
+					order === "asc"
+						? gt(conversation[orderBy], cursorDate)
+						: lt(conversation[orderBy], cursorDate);
+				const idCursorCondition =
+					order === "asc"
+						? gt(conversation.id, cursorId)
+						: lt(conversation.id, cursorId);
 				const cursorCondition = or(
-					lt(conversation[orderBy], cursorDate),
-					and(
-						eq(conversation[orderBy], cursorDate),
-						lt(conversation.id, cursorId)
-					)
+					timestampCursorCondition,
+					and(eq(conversation[orderBy], cursorDate), idCursorCondition)
 				);
 				if (cursorCondition) {
 					whereConditions.push(cursorCondition);
@@ -442,7 +676,9 @@ export async function listConversationsHeaders(
 
 			if (cursorConversation) {
 				whereConditions.push(
-					lt(conversation[orderBy], cursorConversation[orderBy])
+					order === "asc"
+						? gt(conversation[orderBy], cursorConversation[orderBy])
+						: lt(conversation[orderBy], cursorConversation[orderBy])
 				);
 			}
 		}
@@ -466,8 +702,10 @@ export async function listConversationsHeaders(
 		.leftJoin(contact, eq(visitor.contactId, contact.id))
 		.where(and(...whereConditions))
 		.orderBy(
-			desc(conversation[orderBy]),
-			desc(conversation.id) // Secondary sort for stable pagination
+			order === "asc"
+				? asc(conversation[orderBy])
+				: desc(conversation[orderBy]),
+			order === "asc" ? asc(conversation.id) : desc(conversation.id) // Secondary sort for stable pagination
 		)
 		.limit(limit + 1);
 

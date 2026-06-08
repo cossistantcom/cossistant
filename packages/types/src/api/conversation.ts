@@ -9,8 +9,10 @@ import { conversationSchema, conversationSeenSchema } from "../schemas";
 import { conversationRecordSchema } from "../trpc/conversation";
 import { apiTimestampSchema, nullableApiTimestampSchema } from "./common";
 import { conversationMetadataSchema } from "./conversation-metadata";
+import { feedbackSchema } from "./feedback";
 import { conversationClarificationSummarySchema } from "./knowledge-clarification";
 import {
+	getConversationTimelineItemsResponseSchema,
 	timelineItemCreateInputSchema,
 	timelineItemSchema,
 } from "./timeline-item";
@@ -147,6 +149,73 @@ export const listInboxConversationsRequestSchema = z
 		cursor: z.string().nullable().optional().openapi({
 			description:
 				"Opaque cursor returned by the previous inbox response, or null for the first page.",
+		}),
+		status: z
+			.enum([
+				ConversationStatus.OPEN,
+				ConversationStatus.RESOLVED,
+				ConversationStatus.SPAM,
+			])
+			.optional()
+			.openapi({
+				description: "Filter by conversation status.",
+			}),
+		priority: z
+			.enum([
+				ConversationPriority.LOW,
+				ConversationPriority.NORMAL,
+				ConversationPriority.HIGH,
+				ConversationPriority.URGENT,
+			])
+			.optional()
+			.openapi({
+				description: "Filter by conversation priority.",
+			}),
+		sentiment: z
+			.enum([
+				ConversationSentiment.POSITIVE,
+				ConversationSentiment.NEGATIVE,
+				ConversationSentiment.NEUTRAL,
+			])
+			.optional()
+			.openapi({
+				description: "Filter by inferred or user-set sentiment.",
+			}),
+		visitorId: z.string().optional().openapi({
+			description: "Filter by visitor ID.",
+		}),
+		contactId: z.string().optional().openapi({
+			description: "Filter by linked contact ID.",
+		}),
+		assignedToUserId: z.string().optional().openapi({
+			description: "Filter to conversations actively assigned to this user.",
+		}),
+		viewId: z.string().optional().openapi({
+			description: "Filter to conversations associated with this view.",
+		}),
+		createdAtFrom: z.string().datetime().optional().openapi({
+			description: "Only include conversations created at or after this time.",
+		}),
+		createdAtTo: z.string().datetime().optional().openapi({
+			description: "Only include conversations created before this time.",
+		}),
+		updatedAtFrom: z.string().datetime().optional().openapi({
+			description: "Only include conversations updated at or after this time.",
+		}),
+		updatedAtTo: z.string().datetime().optional().openapi({
+			description: "Only include conversations updated before this time.",
+		}),
+		q: z.string().trim().min(1).max(200).optional().openapi({
+			description:
+				"Case-insensitive text search across title, visitor title, contact name, and contact email.",
+		}),
+		orderBy: z.enum(["createdAt", "updatedAt"]).default("updatedAt").openapi({
+			description: "Field to order conversations by.",
+			default: "updatedAt",
+		}),
+		order: z.enum(["asc", "desc"]).default("desc").openapi({
+			description: "Order direction.",
+			default: "desc",
 		}),
 	})
 	.openapi({
@@ -370,6 +439,53 @@ export const listInboxConversationsResponseSchema = z
 
 export type ListInboxConversationsResponse = z.infer<
 	typeof listInboxConversationsResponseSchema
+>;
+
+export const conversationContextRequestSchema = z
+	.object({
+		timelineLimit: z.coerce.number().int().min(1).max(100).default(50).openapi({
+			description: "Number of private timeline items to return.",
+			default: 50,
+		}),
+		timelineCursor: z.string().nullable().optional().openapi({
+			description:
+				"Cursor for paginating the private timeline page, using the same format as the timeline endpoint.",
+		}),
+		feedbackLimit: z.coerce.number().int().min(1).max(100).default(20).openapi({
+			description: "Maximum linked feedback records to return.",
+			default: 20,
+		}),
+	})
+	.openapi({
+		description: "Query parameters for fetching rich conversation context.",
+	});
+
+export type ConversationContextRequest = z.infer<
+	typeof conversationContextRequestSchema
+>;
+
+export const conversationContextResponseSchema = z
+	.object({
+		conversation: conversationInboxItemSchema.openapi({
+			description: "Rich conversation summary and current state.",
+		}),
+		visitor: visitorProfileSchema.openapi({
+			description: "Visitor profile linked to the conversation.",
+		}),
+		timeline: getConversationTimelineItemsResponseSchema.openapi({
+			description: "Private timeline page for the conversation.",
+		}),
+		feedback: z.array(feedbackSchema).openapi({
+			description: "Feedback records linked to the conversation.",
+		}),
+	})
+	.openapi({
+		description:
+			"Agent-ready conversation context including private timeline, visitor/contact profile, and linked feedback.",
+	});
+
+export type ConversationContextResponse = z.infer<
+	typeof conversationContextResponseSchema
 >;
 
 export const getConversationRequestSchema = z

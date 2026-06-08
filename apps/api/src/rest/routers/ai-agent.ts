@@ -2,7 +2,7 @@ import {
 	getAiAgentForWebsiteById,
 	updateAiAgentTrainingStatus,
 } from "@api/db/queries/ai-agent";
-import { knowledge } from "@api/db/schema/knowledge";
+import { countIncludedKnowledgeSources } from "@api/db/queries/knowledge";
 import { AuthValidationError } from "@api/lib/auth-validation";
 import { getPlanForWebsite } from "@api/lib/plans/access";
 import {
@@ -21,7 +21,6 @@ import {
 	aiAgentTrainingStatusResponseSchema,
 } from "@cossistant/types";
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { and, count, eq, gt, isNull } from "drizzle-orm";
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { protectedPrivateApiKeyMiddleware } from "../middleware";
@@ -187,29 +186,6 @@ async function requirePrivateAiAgentActor(params: {
 	}
 }
 
-async function countIncludedKnowledgeSources(params: {
-	db: RestContext["Variables"]["db"];
-	websiteId: string;
-	lastTrainedAt: string | null;
-}) {
-	const conditions = [
-		eq(knowledge.websiteId, params.websiteId),
-		eq(knowledge.isIncluded, true),
-		isNull(knowledge.deletedAt),
-	];
-
-	if (params.lastTrainedAt) {
-		conditions.push(gt(knowledge.updatedAt, params.lastTrainedAt));
-	}
-
-	const [result] = await params.db
-		.select({ count: count() })
-		.from(knowledge)
-		.where(and(...conditions));
-
-	return Number(result?.count ?? 0);
-}
-
 async function buildTrainingStatusResponse(params: {
 	db: RestContext["Variables"]["db"];
 	website: RestContext["Variables"]["website"];
@@ -217,8 +193,7 @@ async function buildTrainingStatusResponse(params: {
 }) {
 	const internalStatus = (params.agent.trainingStatus ??
 		"idle") as InternalTrainingStatus;
-	const updatedSourcesCount = await countIncludedKnowledgeSources({
-		db: params.db,
+	const updatedSourcesCount = await countIncludedKnowledgeSources(params.db, {
 		websiteId: params.website.id,
 		lastTrainedAt: params.agent.lastTrainedAt ?? null,
 	});

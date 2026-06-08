@@ -45,6 +45,9 @@ const getPlanForWebsiteMock = mock((async () => ({
 		"ai-agent-training-mb": null,
 	},
 })) as (...args: unknown[]) => Promise<unknown>);
+const findSimilarKnowledgeMock = mock((async () => []) as (
+	...args: unknown[]
+) => Promise<unknown[]>);
 
 mock.module("@api/utils/validate", () => ({
 	safelyExtractRequestData: safelyExtractRequestDataMock,
@@ -68,6 +71,10 @@ mock.module("@api/db/queries/link-source", () => ({
 
 mock.module("@api/lib/plans/access", () => ({
 	getPlanForWebsite: getPlanForWebsiteMock,
+}));
+
+mock.module("@api/db/queries/vector-search", () => ({
+	findSimilarKnowledge: findSimilarKnowledgeMock,
 }));
 
 mock.module("../middleware", () => ({
@@ -121,6 +128,7 @@ describe("knowledge REST router", () => {
 		updateKnowledgeMock.mockReset();
 		syncLinkSourceStatsFromKnowledgeMock.mockReset();
 		getPlanForWebsiteMock.mockReset();
+		findSimilarKnowledgeMock.mockReset();
 
 		validateResponseMock.mockImplementation((value) => value);
 		createKnowledgeMock.mockResolvedValue(createKnowledgeEntry());
@@ -156,6 +164,7 @@ describe("knowledge REST router", () => {
 				"ai-agent-training-mb": null,
 			},
 		});
+		findSimilarKnowledgeMock.mockResolvedValue([]);
 	});
 
 	it("lists knowledge entries with normalized AI agent and inclusion filters", async () => {
@@ -219,6 +228,72 @@ describe("knowledge REST router", () => {
 				websiteId: "site-1",
 			}
 		);
+	});
+
+	it("searches knowledge with retrieval provenance", async () => {
+		safelyExtractRequestQueryMock.mockResolvedValue({
+			db: {},
+			website: { id: "site-1", organizationId: "org-1" },
+			query: {
+				query: "billing setup",
+				limit: 4,
+				minSimilarity: 0.4,
+				knowledgeId: "01JG00000000000000000000A",
+			},
+		});
+		findSimilarKnowledgeMock.mockResolvedValue([
+			{
+				id: "chunk-1",
+				content:
+					"Billing details can be updated from Settings, then Billing, then Payment method.",
+				metadata: {
+					title: "Billing FAQ",
+					sourceUrl: "https://docs.test/billing",
+				},
+				similarity: 0.82,
+				sourceType: "knowledge",
+				knowledgeId: "01JG00000000000000000000A",
+				visitorId: null,
+				contactId: null,
+				chunkIndex: 0,
+				sourceTitle: "Billing guide",
+				sourceUrl: "https://docs.test/billing",
+			},
+		]);
+
+		const { knowledgeRouter } = await knowledgeRouterModulePromise;
+		const response = await knowledgeRouter.request(
+			new Request("http://localhost/search?query=billing%20setup", {
+				method: "GET",
+			})
+		);
+		const payload = (await response.json()) as {
+			query: string;
+			results: Array<{ title: string | null; sourceUrl: string | null }>;
+			totalFound: number;
+			retrievalQuality: string;
+		};
+
+		expect(response.status).toBe(200);
+		expect(findSimilarKnowledgeMock).toHaveBeenCalledWith(
+			{},
+			"billing setup",
+			"site-1",
+			{
+				knowledgeId: "01JG00000000000000000000A",
+				limit: 4,
+				minSimilarity: 0.4,
+			}
+		);
+		expect(payload).toMatchObject({
+			query: "billing setup",
+			totalFound: 1,
+			retrievalQuality: "high",
+		});
+		expect(payload.results[0]).toMatchObject({
+			title: "Billing guide",
+			sourceUrl: "https://docs.test/billing",
+		});
 	});
 
 	it("creates a knowledge entry through the private API", async () => {

@@ -31,12 +31,12 @@ import {
 	updateAiAgentSkillPromptDocument,
 	upsertAiAgentCorePromptDocument,
 } from "@api/db/queries/ai-agent-prompt-document";
+import { countIncludedKnowledgeSources } from "@api/db/queries/knowledge";
 import { scheduleAiAgentLifecycleEmail } from "@api/db/queries/lifecycle-email";
 import {
 	getWebsiteBySlugWithAccess,
 	updateWebsite,
 } from "@api/db/queries/website";
-import { knowledge } from "@api/db/schema/knowledge";
 import {
 	isKnownModel,
 	resolveModelForExecution,
@@ -85,7 +85,6 @@ import {
 	upsertToolSkillOverrideRequestSchema,
 } from "@cossistant/types";
 import { TRPCError } from "@trpc/server";
-import { and, count, eq, gt, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../init";
 
@@ -1678,42 +1677,20 @@ export const aiAgentRouter = createTRPCRouter({
 				};
 			}
 
-			// Count knowledge items updated since last training
-			const conditions = [
-				eq(knowledge.websiteId, websiteData.id),
-				eq(knowledge.isIncluded, true),
-				isNull(knowledge.deletedAt),
-			];
-
-			if (agent.lastTrainedAt) {
-				// Compare directly using raw DB strings to avoid
-				// timezone shift from Date object round-trip
-				conditions.push(gt(knowledge.updatedAt, agent.lastTrainedAt));
-			}
-
-			const [result] = await db
-				.select({ count: count() })
-				.from(knowledge)
-				.where(and(...conditions));
-
-			const updatedSourcesCount = result?.count ?? 0;
+			const updatedSourcesCount = await countIncludedKnowledgeSources(db, {
+				websiteId: websiteData.id,
+				lastTrainedAt: agent.lastTrainedAt,
+			});
 
 			// If never trained, check if there are any sources at all
 			let needsTraining: boolean;
 			if (agent.lastTrainedAt) {
 				needsTraining = updatedSourcesCount > 0;
 			} else {
-				const [totalResult] = await db
-					.select({ count: count() })
-					.from(knowledge)
-					.where(
-						and(
-							eq(knowledge.websiteId, websiteData.id),
-							eq(knowledge.isIncluded, true),
-							isNull(knowledge.deletedAt)
-						)
-					);
-				needsTraining = (totalResult?.count ?? 0) > 0;
+				const totalSourcesCount = await countIncludedKnowledgeSources(db, {
+					websiteId: websiteData.id,
+				});
+				needsTraining = totalSourcesCount > 0;
 			}
 
 			// Check plan and training interval cooldown

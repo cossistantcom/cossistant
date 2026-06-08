@@ -464,7 +464,7 @@ contactControlRouter.openapi(
 contactControlRouter.openapi(
 	{
 		method: "get",
-		path: "/:id",
+		path: "/{id}",
 		summary: "Get a contact",
 		description: "Retrieves a contact by ID.",
 		responses: {
@@ -534,7 +534,7 @@ contactControlRouter.openapi(
 contactControlRouter.openapi(
 	{
 		method: "patch",
-		path: "/:id",
+		path: "/{id}",
 		summary: "Update a contact",
 		description: "Updates an existing contact.",
 		request: {
@@ -621,7 +621,7 @@ contactControlRouter.openapi(
 contactControlRouter.openapi(
 	{
 		method: "patch",
-		path: "/:id/metadata",
+		path: "/{id}/metadata",
 		summary: "Update contact metadata",
 		description: "Merges the provided metadata into the contact profile.",
 		request: {
@@ -708,7 +708,7 @@ contactControlRouter.openapi(
 contactControlRouter.openapi(
 	{
 		method: "delete",
-		path: "/:id",
+		path: "/{id}",
 		summary: "Delete a contact",
 		description: "Soft deletes a contact.",
 		responses: {
@@ -841,7 +841,7 @@ contactControlRouter.openapi(
 contactControlRouter.openapi(
 	{
 		method: "get",
-		path: "/organizations/:id",
+		path: "/organizations/{id}",
 		summary: "Get a contact organization",
 		description: "Retrieves a contact organization by ID.",
 		responses: {
@@ -923,7 +923,7 @@ contactControlRouter.openapi(
 contactControlRouter.openapi(
 	{
 		method: "patch",
-		path: "/organizations/:id",
+		path: "/organizations/{id}",
 		summary: "Update a contact organization",
 		description: "Updates an existing contact organization.",
 		request: {
@@ -1016,7 +1016,7 @@ contactControlRouter.openapi(
 contactControlRouter.openapi(
 	{
 		method: "delete",
-		path: "/organizations/:id",
+		path: "/organizations/{id}",
 		summary: "Delete a contact organization",
 		description: "Soft deletes a contact organization.",
 		responses: {

@@ -1,7 +1,7 @@
 import { upsertVisitor } from "@api/db/queries";
+import { listActiveAiAgentSummariesForWebsite } from "@api/db/queries/ai-agent";
 import { getContactForVisitor } from "@api/db/queries/contact";
 import { getWebsiteMembers as getWebsiteMembersForApi } from "@api/db/queries/member";
-import { aiAgent } from "@api/db/schema/ai-agent";
 import { visitor as visitorTable } from "@api/db/schema/website";
 import { listWebsiteAccessUsers } from "@api/lib/team-seats";
 import { generateULID } from "@api/utils/db/ids";
@@ -17,7 +17,6 @@ import {
 	websiteTeamMembersResponseSchema,
 } from "@cossistant/types";
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { and, eq, isNull } from "drizzle-orm";
 import { protectedPublicApiKeyMiddleware } from "../middleware";
 import {
 	errorJsonResponse,
@@ -82,18 +81,8 @@ websiteRouter.openapi(
 					visitorId,
 					websiteId: website.id,
 				}),
-				// Query active AI agents for this website
-				db.query.aiAgent.findMany({
-					where: and(
-						eq(aiAgent.websiteId, website.id),
-						eq(aiAgent.isActive, true),
-						isNull(aiAgent.deletedAt)
-					),
-					columns: {
-						id: true,
-						name: true,
-						image: true,
-					},
+				listActiveAiAgentSummariesForWebsite(db, {
+					websiteId: website.id,
 				}),
 			]);
 

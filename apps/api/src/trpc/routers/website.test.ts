@@ -23,9 +23,24 @@ const createDefaultWebsiteViewsMock = mock((async () => []) as (
 const createWebsiteMock = mock((async () => ({})) as (
 	...args: unknown[]
 ) => Promise<unknown>);
+const findVerifiedWebsiteByDomainMock = mock(
+	(async () => null) as (...args: unknown[]) => Promise<unknown>
+);
+const getActiveWebsiteBySlugMock = mock(
+	(async () => null) as (...args: unknown[]) => Promise<unknown>
+);
+const getWebsiteApiKeyScopeMock = mock(
+	(async () => null) as (...args: unknown[]) => Promise<unknown>
+);
+const getWebsiteByIdMock = mock(
+	(async () => null) as (...args: unknown[]) => Promise<unknown>
+);
 const getWebsiteBySlugWithAccessMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
 );
+const listWebsiteListItemsForOrganizationMock = mock((async () => []) as (
+	...args: unknown[]
+) => Promise<unknown[]>);
 const permanentlyDeleteWebsiteMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
 );
@@ -58,6 +73,14 @@ const generateTinybirdJWTMock = mock(
 		...args: unknown[]
 	) => Promise<string | null>
 );
+const getConversationSentimentSatisfactionAggregateMock = mock((async () => ({
+	average: null,
+	count: 0,
+})) as (...args: unknown[]) => Promise<unknown>);
+const getWebsiteFeedbackSatisfactionAggregateMock = mock((async () => ({
+	average: null,
+	count: 0,
+})) as (...args: unknown[]) => Promise<unknown>);
 
 class WebsiteSlugConflictError extends Error {
 	constructor() {
@@ -85,9 +108,24 @@ mock.module("@api/db/queries/view", () => ({
 	createDefaultWebsiteViews: createDefaultWebsiteViewsMock,
 }));
 
+mock.module("@api/db/queries/conversation", () => ({
+	getConversationSentimentSatisfactionAggregate:
+		getConversationSentimentSatisfactionAggregateMock,
+}));
+
+mock.module("@api/db/queries/feedback", () => ({
+	getWebsiteFeedbackSatisfactionAggregate:
+		getWebsiteFeedbackSatisfactionAggregateMock,
+}));
+
 mock.module("@api/db/queries/website", () => ({
 	createWebsite: createWebsiteMock,
+	findVerifiedWebsiteByDomain: findVerifiedWebsiteByDomainMock,
+	getActiveWebsiteBySlug: getActiveWebsiteBySlugMock,
+	getWebsiteApiKeyScope: getWebsiteApiKeyScopeMock,
+	getWebsiteById: getWebsiteByIdMock,
 	getWebsiteBySlugWithAccess: getWebsiteBySlugWithAccessMock,
+	listWebsiteListItemsForOrganization: listWebsiteListItemsForOrganizationMock,
 	permanentlyDeleteWebsite: permanentlyDeleteWebsiteMock,
 	updateWebsite: updateWebsiteMock,
 	WebsiteSlugConflictError,
@@ -204,7 +242,12 @@ describe("website router create", () => {
 		revokeApiKeyMock.mockReset();
 		createDefaultWebsiteViewsMock.mockReset();
 		createWebsiteMock.mockReset();
+		findVerifiedWebsiteByDomainMock.mockReset();
+		getActiveWebsiteBySlugMock.mockReset();
+		getWebsiteApiKeyScopeMock.mockReset();
+		getWebsiteByIdMock.mockReset();
 		getWebsiteBySlugWithAccessMock.mockReset();
+		listWebsiteListItemsForOrganizationMock.mockReset();
 		permanentlyDeleteWebsiteMock.mockReset();
 		updateWebsiteMock.mockReset();
 		ensureFreeSubscriptionForWebsiteMock.mockReset();
@@ -214,9 +257,12 @@ describe("website router create", () => {
 		getSubscriptionForWebsiteMock.mockReset();
 		partitionWebsiteSubscriptionsForDeletionMock.mockReset();
 		generateTinybirdJWTMock.mockReset();
+		getConversationSentimentSatisfactionAggregateMock.mockReset();
+		getWebsiteFeedbackSatisfactionAggregateMock.mockReset();
 
 		createDefaultWebsiteKeysMock.mockResolvedValue([createApiKeyRecord()]);
 		createDefaultWebsiteViewsMock.mockResolvedValue([]);
+		findVerifiedWebsiteByDomainMock.mockResolvedValue(null);
 		createWebsiteMock.mockImplementation(async (_db, params) =>
 			createWebsiteRecord((params as { data: { slug: string } }).data.slug)
 		);
@@ -260,7 +306,6 @@ describe("website router create", () => {
 		const findFirstMock = mock(
 			(async () => null) as (...args: unknown[]) => Promise<unknown>
 		);
-		findFirstMock.mockResolvedValueOnce(null);
 		findFirstMock.mockResolvedValueOnce({ id: "01ARYZ6S41TSV4RRFFQ69G5FB0" });
 		findFirstMock.mockResolvedValueOnce(null);
 

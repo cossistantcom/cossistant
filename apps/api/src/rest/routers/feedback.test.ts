@@ -4,6 +4,9 @@ import { APIKeyType } from "@cossistant/types";
 const safelyExtractRequestDataMock = mock((async () => ({})) as (
 	...args: unknown[]
 ) => Promise<unknown>);
+const safelyExtractRequestQueryMock = mock((async () => ({})) as (
+	...args: unknown[]
+) => Promise<unknown>);
 const validateResponseMock = mock(<T>(value: T) => value);
 const getVisitorMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
@@ -30,6 +33,13 @@ const listFeedbackMock = mock((async () => ({
 const getFeedbackByIdMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
 );
+const getFeedbackSummaryMock = mock((async () => ({
+	total: 0,
+	averageRating: null,
+	byRating: [],
+	byTopic: [],
+	byTrigger: [],
+})) as (...args: unknown[]) => Promise<unknown>);
 const persistFeedbackSubmissionMock = mock((async () => ({
 	entry: null,
 	ratedAt: "2026-03-11T03:00:00.000Z",
@@ -38,6 +48,7 @@ const persistFeedbackSubmissionMock = mock((async () => ({
 function installFeedbackRouterMocks() {
 	mock.module("@api/utils/validate", () => ({
 		safelyExtractRequestData: safelyExtractRequestDataMock,
+		safelyExtractRequestQuery: safelyExtractRequestQueryMock,
 		validateResponse: validateResponseMock,
 	}));
 
@@ -59,10 +70,26 @@ function installFeedbackRouterMocks() {
 
 	mock.module("@api/db/queries/feedback", () => ({
 		getFeedbackById: getFeedbackByIdMock,
+		getFeedbackSummary: getFeedbackSummaryMock,
 		listFeedback: listFeedbackMock,
 	}));
 
 	mock.module("./feedback-shared", () => ({
+		formatFeedbackResponse: (entry: Record<string, unknown>) => ({
+			id: entry.id,
+			organizationId: entry.organizationId,
+			websiteId: entry.websiteId,
+			conversationId: entry.conversationId,
+			visitorId: entry.visitorId,
+			contactId: entry.contactId,
+			rating: entry.rating,
+			topic: entry.topic,
+			comment: entry.comment,
+			trigger: entry.trigger,
+			source: entry.source,
+			createdAt: entry.createdAt,
+			updatedAt: entry.updatedAt,
+		}),
 		persistFeedbackSubmission: persistFeedbackSubmissionMock,
 	}));
 
@@ -100,6 +127,7 @@ function createFeedbackEntry() {
 describe("feedback router", () => {
 	beforeEach(() => {
 		safelyExtractRequestDataMock.mockReset();
+		safelyExtractRequestQueryMock.mockReset();
 		validateResponseMock.mockReset();
 		getVisitorMock.mockReset();
 		getActiveVisitorForWebsiteMock.mockReset();
@@ -107,6 +135,7 @@ describe("feedback router", () => {
 		canVisitorAccessConversationMock.mockReset();
 		listFeedbackMock.mockReset();
 		getFeedbackByIdMock.mockReset();
+		getFeedbackSummaryMock.mockReset();
 		persistFeedbackSubmissionMock.mockReset();
 
 		validateResponseMock.mockImplementation((value) => value);
@@ -136,6 +165,13 @@ describe("feedback router", () => {
 				totalPages: 0,
 				hasMore: false,
 			},
+		});
+		getFeedbackSummaryMock.mockResolvedValue({
+			total: 0,
+			averageRating: null,
+			byRating: [],
+			byTopic: [],
+			byTrigger: [],
 		});
 		persistFeedbackSubmissionMock.mockResolvedValue({
 			entry: createFeedbackEntry(),
@@ -487,9 +523,23 @@ describe("feedback router", () => {
 	});
 
 	it("lists feedback including topic data on the private read route", async () => {
-		safelyExtractRequestDataMock.mockResolvedValue({
+		safelyExtractRequestQueryMock.mockResolvedValue({
 			db: {},
 			website: { id: "site-1", organizationId: "org-1" },
+			query: {
+				trigger: "billing_page",
+				source: "widget",
+				conversationId: "conv-1",
+				visitorId: "visitor-1",
+				contactId: "contact-1",
+				topic: "Bug",
+				rating: 5,
+				createdAtFrom: "2026-03-01T00:00:00.000Z",
+				createdAtTo: "2026-04-01T00:00:00.000Z",
+				order: "asc",
+				page: 2,
+				limit: 1,
+			},
 		});
 		listFeedbackMock.mockResolvedValue({
 			items: [createFeedbackEntry()],
@@ -515,6 +565,25 @@ describe("feedback router", () => {
 		};
 
 		expect(response.status).toBe(200);
+		expect(listFeedbackMock).toHaveBeenCalledWith(
+			{},
+			{
+				organizationId: "org-1",
+				websiteId: "site-1",
+				trigger: "billing_page",
+				source: "widget",
+				conversationId: "conv-1",
+				visitorId: "visitor-1",
+				contactId: "contact-1",
+				topic: "Bug",
+				rating: 5,
+				createdAtFrom: "2026-03-01T00:00:00.000Z",
+				createdAtTo: "2026-04-01T00:00:00.000Z",
+				order: "asc",
+				page: 2,
+				limit: 1,
+			}
+		);
 		expect(payload.feedback[0]?.topic).toBe("Bug");
 		expect(payload.pagination).toMatchObject({
 			page: 2,
@@ -523,6 +592,58 @@ describe("feedback router", () => {
 			totalPages: 1,
 			hasMore: false,
 		});
+	});
+
+	it("summarizes feedback with private filters", async () => {
+		safelyExtractRequestQueryMock.mockResolvedValue({
+			db: {},
+			website: { id: "site-1", organizationId: "org-1" },
+			query: {
+				contactId: "contact-1",
+				topic: "Bug",
+				rating: 5,
+				createdAtFrom: "2026-03-01T00:00:00.000Z",
+				createdAtTo: "2026-04-01T00:00:00.000Z",
+			},
+		});
+		getFeedbackSummaryMock.mockResolvedValue({
+			total: 3,
+			averageRating: 4.33,
+			byRating: [{ rating: 5, count: 2 }],
+			byTopic: [{ topic: "Bug", count: 3 }],
+			byTrigger: [{ trigger: "billing_page", count: 3 }],
+		});
+
+		const { feedbackRouter } = await loadFeedbackRouterModule();
+		const response = await feedbackRouter.request(
+			new Request("http://localhost/summary", {
+				method: "GET",
+			})
+		);
+		const payload = (await response.json()) as {
+			total: number;
+			averageRating: number;
+		};
+
+		expect(response.status).toBe(200);
+		expect(getFeedbackSummaryMock).toHaveBeenCalledWith(
+			{},
+			{
+				organizationId: "org-1",
+				websiteId: "site-1",
+				trigger: undefined,
+				source: undefined,
+				conversationId: undefined,
+				visitorId: undefined,
+				contactId: "contact-1",
+				topic: "Bug",
+				rating: 5,
+				createdAtFrom: "2026-03-01T00:00:00.000Z",
+				createdAtTo: "2026-04-01T00:00:00.000Z",
+			}
+		);
+		expect(payload.total).toBe(3);
+		expect(payload.averageRating).toBe(4.33);
 	});
 });
 

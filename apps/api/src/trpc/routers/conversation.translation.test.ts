@@ -13,6 +13,12 @@ const listConversationsHeadersMock = mock((async () => ({
 	items: [],
 	nextCursor: null,
 })) as (...args: unknown[]) => Promise<unknown>);
+const getConversationMessageTimelineItemForTranslationMock = mock(
+	(async () => null) as (...args: unknown[]) => Promise<unknown>
+);
+const listConversationMessageTimelineItemsForTranslationMock = mock(
+	(async () => []) as (...args: unknown[]) => Promise<unknown>
+);
 const getWebsiteBySlugWithAccessMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
 );
@@ -98,7 +104,15 @@ mock.module("@api/db/mutations/conversation", () => ({
 
 mock.module("@api/db/queries/conversation", () => ({
 	getConversationById: getConversationByIdMock,
+	getConversationMessageTimelineItemForTranslation:
+		getConversationMessageTimelineItemForTranslationMock,
+	getConversationSentimentSatisfactionAggregate: mock(async () => ({
+		average: null,
+		count: 0,
+	})),
 	getConversationTimelineItems: getConversationTimelineItemsMock,
+	listConversationMessageTimelineItemsForTranslation:
+		listConversationMessageTimelineItemsForTranslationMock,
 	listConversationsHeaders: listConversationsHeadersMock,
 }));
 
@@ -107,7 +121,17 @@ mock.module("@api/db/queries/visitor", () => ({
 }));
 
 mock.module("@api/db/queries/website", () => ({
+	createWebsite: mock(async () => null),
+	findVerifiedWebsiteByDomain: mock(async () => null),
+	getActiveWebsiteBySlug: mock(async () => null),
+	getWebsiteApiKeyScope: mock(async () => null),
+	getWebsiteById: mock(async () => null),
+	getWebsiteByIdWithAccess: mock(async () => null),
 	getWebsiteBySlugWithAccess: getWebsiteBySlugWithAccessMock,
+	listWebsiteListItemsForOrganization: mock(async () => []),
+	permanentlyDeleteWebsite: mock(async () => null),
+	updateWebsite: mock(async () => null),
+	WebsiteSlugConflictError: class WebsiteSlugConflictError extends Error {},
 }));
 
 mock.module("@api/lib/hard-limits/dashboard", () => ({
@@ -199,18 +223,8 @@ const baseConversation = {
 	visitorRatingAt: null,
 };
 
-function createDb(rows: unknown[]): Database {
-	const whereMock = mock(async () => rows);
-	const fromMock = mock(() => ({
-		where: whereMock,
-	}));
-	const selectMock = mock(() => ({
-		from: fromMock,
-	}));
-
-	return {
-		select: selectMock,
-	} as unknown as Database;
+function createDb(): Database {
+	return {} as Database;
 }
 
 async function createCaller(db: Database) {
@@ -233,7 +247,9 @@ async function createCaller(db: Database) {
 describe("conversation router translateMessageGroup", () => {
 	beforeEach(() => {
 		getConversationByIdMock.mockReset();
+		getConversationMessageTimelineItemForTranslationMock.mockReset();
 		getConversationTimelineItemsMock.mockReset();
+		listConversationMessageTimelineItemsForTranslationMock.mockReset();
 		listConversationsHeadersMock.mockReset();
 		getWebsiteBySlugWithAccessMock.mockReset();
 		getPlanForWebsiteMock.mockReset();
@@ -243,11 +259,17 @@ describe("conversation router translateMessageGroup", () => {
 		updateTimelineItemMock.mockReset();
 
 		getConversationByIdMock.mockResolvedValue(baseConversation);
+		getConversationMessageTimelineItemForTranslationMock.mockResolvedValue(
+			null
+		);
 		getConversationTimelineItemsMock.mockResolvedValue({
 			items: [],
 			nextCursor: null,
 			hasNextPage: false,
 		});
+		listConversationMessageTimelineItemsForTranslationMock.mockResolvedValue(
+			[]
+		);
 		listConversationsHeadersMock.mockResolvedValue({
 			items: [],
 			nextCursor: null,
@@ -312,7 +334,7 @@ describe("conversation router translateMessageGroup", () => {
 	});
 
 	it("translates multiple rows and replaces only the matching audience part", async () => {
-		const db = createDb([
+		const rows = [
 			{
 				id: "msg-visitor",
 				text: "Hola equipo",
@@ -359,7 +381,10 @@ describe("conversation router translateMessageGroup", () => {
 				visitorId: null,
 				aiAgentId: "ai-1",
 			},
-		]);
+		];
+		listConversationMessageTimelineItemsForTranslationMock.mockResolvedValue(
+			rows
+		);
 		prepareInboundVisitorTranslationMock.mockResolvedValue({
 			visitorLanguage: "es",
 			translationPart: {
@@ -399,7 +424,7 @@ describe("conversation router translateMessageGroup", () => {
 			},
 		});
 
-		const caller = await createCaller(db);
+		const caller = await createCaller(createDb());
 		const result = await caller.translateMessageGroup({
 			conversationId: "conv-1",
 			websiteSlug: "acme",
@@ -440,7 +465,7 @@ describe("conversation router translateMessageGroup", () => {
 	});
 
 	it("returns partial success when some selected rows cannot be translated", async () => {
-		const db = createDb([
+		const rows = [
 			{
 				id: "msg-visitor-skip",
 				text: "ok",
@@ -457,7 +482,10 @@ describe("conversation router translateMessageGroup", () => {
 				visitorId: "visitor-1",
 				aiAgentId: null,
 			},
-		]);
+		];
+		listConversationMessageTimelineItemsForTranslationMock.mockResolvedValue(
+			rows
+		);
 		prepareInboundVisitorTranslationMock
 			.mockResolvedValueOnce({
 				visitorLanguage: "es",
@@ -489,7 +517,7 @@ describe("conversation router translateMessageGroup", () => {
 				},
 			});
 
-		const caller = await createCaller(db);
+		const caller = await createCaller(createDb());
 		const result = await caller.translateMessageGroup({
 			conversationId: "conv-1",
 			websiteSlug: "acme",

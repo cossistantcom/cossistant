@@ -8,7 +8,7 @@ import {
 } from "@api/db/schema/knowledge";
 import { generateULID } from "@api/utils/db/ids";
 import type { KnowledgeType } from "@cossistant/types";
-import { and, count, eq, isNull, sum } from "drizzle-orm";
+import { and, count, eq, gt, isNull, sum } from "drizzle-orm";
 
 /**
  * Generate a content hash for deduplication
@@ -544,6 +544,35 @@ export async function getKnowledgeCountByType(
 		.where(and(...whereConditions));
 
 	return Number(result?.total ?? 0);
+}
+
+/**
+ * Count included knowledge sources for a website, optionally since the last
+ * training run. Used by training status read models.
+ */
+export async function countIncludedKnowledgeSources(
+	db: Database,
+	params: {
+		websiteId: string;
+		lastTrainedAt?: string | null;
+	}
+): Promise<number> {
+	const conditions = [
+		eq(knowledge.websiteId, params.websiteId),
+		eq(knowledge.isIncluded, true),
+		isNull(knowledge.deletedAt),
+	];
+
+	if (params.lastTrainedAt) {
+		conditions.push(gt(knowledge.updatedAt, params.lastTrainedAt));
+	}
+
+	const [result] = await db
+		.select({ count: count() })
+		.from(knowledge)
+		.where(and(...conditions));
+
+	return Number(result?.count ?? 0);
 }
 
 /**

@@ -117,6 +117,25 @@ export const listFeedbackRequestSchema = z
 		visitorId: z.string().optional().openapi({
 			description: "Filter by visitor ID",
 		}),
+		contactId: z.string().optional().openapi({
+			description: "Filter by contact ID",
+		}),
+		topic: z.string().optional().openapi({
+			description: "Filter by structured topic",
+		}),
+		rating: z.coerce.number().int().min(1).max(5).optional().openapi({
+			description: "Filter by rating from 1 to 5",
+		}),
+		createdAtFrom: z.string().datetime().optional().openapi({
+			description: "Only include feedback created at or after this timestamp",
+		}),
+		createdAtTo: z.string().datetime().optional().openapi({
+			description: "Only include feedback created before this timestamp",
+		}),
+		order: z.enum(["asc", "desc"]).default("desc").openapi({
+			description: "Sort order by creation time",
+			default: "desc",
+		}),
 		page: z.coerce.number().min(1).default(1).openapi({
 			description: "Page number for pagination",
 			default: 1,
@@ -148,6 +167,55 @@ export const listFeedbackResponseSchema = z
 	});
 
 export type ListFeedbackResponse = z.infer<typeof listFeedbackResponseSchema>;
+
+export const feedbackSummaryRequestSchema = listFeedbackRequestSchema
+	.omit({
+		limit: true,
+		order: true,
+		page: true,
+	})
+	.openapi({
+		description: "Query parameters for summarizing feedback",
+	});
+
+export type FeedbackSummaryRequest = z.infer<
+	typeof feedbackSummaryRequestSchema
+>;
+
+export const feedbackSummaryResponseSchema = z
+	.object({
+		total: z.number().int().openapi({
+			description: "Total feedback items matching the filters",
+		}),
+		averageRating: z.number().nullable().openapi({
+			description: "Average rating for matching feedback",
+		}),
+		byRating: z.array(
+			z.object({
+				rating: z.number().int().min(1).max(5),
+				count: z.number().int(),
+			})
+		),
+		byTopic: z.array(
+			z.object({
+				topic: z.string().nullable(),
+				count: z.number().int(),
+			})
+		),
+		byTrigger: z.array(
+			z.object({
+				trigger: z.string().nullable(),
+				count: z.number().int(),
+			})
+		),
+	})
+	.openapi({
+		description: "Aggregated feedback metrics for matching filters",
+	});
+
+export type FeedbackSummaryResponse = z.infer<
+	typeof feedbackSummaryResponseSchema
+>;
 
 // Get feedback by ID
 export const getFeedbackResponseSchema = z

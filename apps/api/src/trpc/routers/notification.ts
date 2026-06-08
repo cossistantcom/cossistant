@@ -3,8 +3,8 @@ import {
 	getMemberNotificationSettings,
 	updateMemberNotificationSettings,
 } from "@api/db/queries";
+import { getOrganizationMemberByUserId } from "@api/db/queries/member";
 import { getWebsiteBySlugWithAccess } from "@api/db/queries/website";
-import { member } from "@api/db/schema";
 import { isValidPushSubscription } from "@api/utils/web-push";
 import {
 	MemberNotificationChannel,
@@ -12,7 +12,6 @@ import {
 	updateMemberNotificationSettingsRequestSchema,
 } from "@cossistant/types";
 import { TRPCError } from "@trpc/server";
-import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 const pushSubscriptionSchema = z.object({
@@ -29,11 +28,9 @@ async function getMemberForOrganization(
 	db: Database,
 	params: { userId: string; organizationId: string }
 ) {
-	const membership = await db.query.member.findFirst({
-		where: and(
-			eq(member.userId, params.userId),
-			eq(member.organizationId, params.organizationId)
-		),
+	const membership = await getOrganizationMemberByUserId(db, {
+		userId: params.userId,
+		organizationId: params.organizationId,
 	});
 
 	if (!membership) {

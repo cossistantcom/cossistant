@@ -101,6 +101,14 @@ const markUserPresenceMock = mock(
 const markVisitorPresenceMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
 );
+const resolvePrivateApiKeyActorUserMock = mock((async () => ({
+	userId: "user-1",
+	member: {
+		id: "member-1",
+		userId: "user-1",
+	},
+	source: "linked_key",
+})) as (...args: unknown[]) => Promise<unknown>);
 
 mock.module("@api/utils/validate", () => ({
 	safelyExtractRequestData: safelyExtractRequestDataMock,
@@ -126,6 +134,10 @@ mock.module("@api/db/queries", () => ({
 
 mock.module("@api/lib/plans/access", () => ({
 	getPlanForWebsite: getPlanForWebsiteMock,
+}));
+
+mock.module("@api/lib/private-api-key-actor", () => ({
+	resolvePrivateApiKeyActorUser: resolvePrivateApiKeyActorUserMock,
 }));
 
 mock.module("@api/lib/translation", () => ({
@@ -241,6 +253,7 @@ describe("messages router POST /", () => {
 		emitConversationSeenEventMock.mockReset();
 		markUserPresenceMock.mockReset();
 		markVisitorPresenceMock.mockReset();
+		resolvePrivateApiKeyActorUserMock.mockReset();
 
 		validateResponseMock.mockImplementation((value) => value);
 		getConversationByIdMock.mockResolvedValue(baseConversation);
@@ -326,6 +339,14 @@ describe("messages router POST /", () => {
 			tool: null,
 		});
 		isUserParticipantMock.mockResolvedValue(true);
+		resolvePrivateApiKeyActorUserMock.mockResolvedValue({
+			userId: "user-1",
+			member: {
+				id: "member-1",
+				userId: "user-1",
+			},
+			source: "linked_key",
+		});
 	});
 
 	it("returns 400 when item.createdAt is more than 5 minutes in the future", async () => {
@@ -479,6 +500,66 @@ describe("messages router POST /", () => {
 				createdAt: new Date("2026-04-10T08:00:00.000Z"),
 			})
 		);
+	});
+
+	it("rejects private user messages when body userId mismatches the resolved actor", async () => {
+		safelyExtractRequestDataMock.mockResolvedValue({
+			apiKey: { keyType: APIKeyType.PRIVATE, linkedUserId: "user-1" },
+			db: {},
+			website: {
+				id: "site-1",
+				teamId: "team-1",
+				defaultLanguage: "en",
+				autoTranslateEnabled: false,
+			},
+			organization: { id: "org-1" },
+			visitorIdHeader: null,
+			body: {
+				conversationId: "conv-1",
+				item: {
+					type: "message",
+					text: "hello",
+					parts: [{ type: "text", text: "hello" }],
+					visibility: "public",
+					userId: "user-2",
+					aiAgentId: null,
+				},
+			},
+		});
+
+		const { messagesRouter } = await messagesRouterModulePromise;
+		const response = await messagesRouter.request(
+			createMessagesPostRequest({
+				conversationId: "conv-1",
+				item: {
+					type: "message",
+					text: "hello",
+					parts: [{ type: "text", text: "hello" }],
+					visibility: "public",
+					userId: "user-2",
+					aiAgentId: null,
+				},
+			})
+		);
+		const payload = (await response.json()) as {
+			error: string;
+			message: string;
+		};
+
+		expect(response.status).toBe(403);
+		expect(payload).toEqual({
+			error: "FORBIDDEN",
+			message: "Body item.userId must match the resolved private API actor",
+		});
+		expect(resolvePrivateApiKeyActorUserMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				organizationId: "org-1",
+				websiteTeamId: "team-1",
+				required: true,
+			})
+		);
+		expect(isUserParticipantMock).not.toHaveBeenCalled();
+		expect(createMessageTimelineItemMock).not.toHaveBeenCalled();
 	});
 
 	it("allows a same-contact public visitor to reply to an old conversation", async () => {

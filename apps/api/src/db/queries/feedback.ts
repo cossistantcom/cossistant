@@ -1,5 +1,5 @@
 import type { Database } from "@api/db";
-import { and, count, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { generateULID } from "../../utils/db/ids";
 import { feedback } from "../schema";
 
@@ -23,9 +23,20 @@ export type FeedbackListParams = {
 	source?: string;
 	conversationId?: string;
 	visitorId?: string;
+	contactId?: string;
+	topic?: string;
+	rating?: number;
+	createdAtFrom?: string;
+	createdAtTo?: string;
+	order?: "asc" | "desc";
 	page: number;
 	limit: number;
 };
+
+export type FeedbackSummaryParams = Omit<
+	FeedbackListParams,
+	"limit" | "order" | "page"
+>;
 
 export async function createFeedback(
 	db: Database,
@@ -118,6 +129,21 @@ export async function listFeedback(
 	if (params.visitorId) {
 		conditions.push(eq(feedback.visitorId, params.visitorId));
 	}
+	if (params.contactId) {
+		conditions.push(eq(feedback.contactId, params.contactId));
+	}
+	if (params.topic) {
+		conditions.push(eq(feedback.topic, params.topic));
+	}
+	if (params.rating) {
+		conditions.push(eq(feedback.rating, params.rating));
+	}
+	if (params.createdAtFrom) {
+		conditions.push(gte(feedback.createdAt, params.createdAtFrom));
+	}
+	if (params.createdAtTo) {
+		conditions.push(lt(feedback.createdAt, params.createdAtTo));
+	}
 
 	const whereClause = and(...conditions);
 
@@ -134,7 +160,11 @@ export async function listFeedback(
 		.select()
 		.from(feedback)
 		.where(whereClause)
-		.orderBy(desc(feedback.createdAt))
+		.orderBy(
+			params.order === "asc"
+				? asc(feedback.createdAt)
+				: desc(feedback.createdAt)
+		)
 		.limit(limit)
 		.offset(offset);
 
@@ -149,6 +179,142 @@ export async function listFeedback(
 			totalPages,
 			hasMore: page < totalPages,
 		},
+	};
+}
+
+export async function getFeedbackSummary(
+	db: Database,
+	params: FeedbackSummaryParams
+): Promise<{
+	total: number;
+	averageRating: number | null;
+	byRating: Array<{ rating: number; count: number }>;
+	byTopic: Array<{ topic: string | null; count: number }>;
+	byTrigger: Array<{ trigger: string | null; count: number }>;
+}> {
+	const conditions = [
+		eq(feedback.organizationId, params.organizationId),
+		eq(feedback.websiteId, params.websiteId),
+		isNull(feedback.deletedAt),
+	];
+
+	if (params.trigger) {
+		conditions.push(eq(feedback.trigger, params.trigger));
+	}
+	if (params.source) {
+		conditions.push(eq(feedback.source, params.source));
+	}
+	if (params.conversationId) {
+		conditions.push(eq(feedback.conversationId, params.conversationId));
+	}
+	if (params.visitorId) {
+		conditions.push(eq(feedback.visitorId, params.visitorId));
+	}
+	if (params.contactId) {
+		conditions.push(eq(feedback.contactId, params.contactId));
+	}
+	if (params.topic) {
+		conditions.push(eq(feedback.topic, params.topic));
+	}
+	if (params.rating) {
+		conditions.push(eq(feedback.rating, params.rating));
+	}
+	if (params.createdAtFrom) {
+		conditions.push(gte(feedback.createdAt, params.createdAtFrom));
+	}
+	if (params.createdAtTo) {
+		conditions.push(lt(feedback.createdAt, params.createdAtTo));
+	}
+
+	const whereClause = and(...conditions);
+
+	const [summary] = await db
+		.select({
+			total: count(),
+			averageRating: sql<number | null>`avg(${feedback.rating})`,
+		})
+		.from(feedback)
+		.where(whereClause);
+
+	const byRating = await db
+		.select({
+			rating: feedback.rating,
+			count: count(),
+		})
+		.from(feedback)
+		.where(whereClause)
+		.groupBy(feedback.rating)
+		.orderBy(asc(feedback.rating));
+
+	const byTopic = await db
+		.select({
+			topic: feedback.topic,
+			count: count(),
+		})
+		.from(feedback)
+		.where(whereClause)
+		.groupBy(feedback.topic)
+		.orderBy(desc(count()));
+
+	const byTrigger = await db
+		.select({
+			trigger: feedback.trigger,
+			count: count(),
+		})
+		.from(feedback)
+		.where(whereClause)
+		.groupBy(feedback.trigger)
+		.orderBy(desc(count()));
+
+	return {
+		total: Number(summary?.total ?? 0),
+		averageRating:
+			summary?.averageRating === null || summary?.averageRating === undefined
+				? null
+				: Number(summary.averageRating),
+		byRating: byRating.map((row) => ({
+			rating: row.rating,
+			count: Number(row.count),
+		})),
+		byTopic: byTopic.map((row) => ({
+			topic: row.topic,
+			count: Number(row.count),
+		})),
+		byTrigger: byTrigger.map((row) => ({
+			trigger: row.trigger,
+			count: Number(row.count),
+		})),
+	};
+}
+
+export async function getWebsiteFeedbackSatisfactionAggregate(
+	db: Database,
+	params: {
+		organizationId: string;
+		websiteId: string;
+		dateFrom: string;
+		dateTo: string;
+	}
+): Promise<{ average: number | null; count: number }> {
+	const [result] = await db
+		.select({
+			average: sql<number | null>`AVG(((${feedback.rating} - 1) / 4.0) * 100)`,
+			count: sql<number>`COUNT(*)`,
+		})
+		.from(feedback)
+		.where(
+			and(
+				eq(feedback.organizationId, params.organizationId),
+				eq(feedback.websiteId, params.websiteId),
+				isNull(feedback.deletedAt),
+				gte(feedback.createdAt, params.dateFrom),
+				lt(feedback.createdAt, params.dateTo)
+			)
+		);
+
+	return {
+		average: result?.average ?? null,
+		count: Number(result?.count ?? 0),
 	};
 }
 

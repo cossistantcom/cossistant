@@ -4,7 +4,9 @@ import {
 } from "@api/db/mutations/conversation";
 import { getConversationById } from "@api/db/queries/conversation";
 import { canVisitorAccessConversation } from "@api/db/queries/conversation-access";
+import { AuthValidationError } from "@api/lib/auth-validation";
 import { getPlanForWebsite } from "@api/lib/plans/access";
+import { resolvePrivateApiKeyActorUser } from "@api/lib/private-api-key-actor";
 import {
 	finalizeConversationTranslation,
 	isAutomaticTranslationEnabled,
@@ -33,6 +35,7 @@ import {
 	type TimelineItem,
 } from "@cossistant/types/api/timeline-item";
 import {
+	APIKeyType,
 	ConversationStatus,
 	ConversationTimelineType,
 } from "@cossistant/types/enums";
@@ -120,14 +123,17 @@ messagesRouter.openapi(
 			),
 			404: errorJsonResponse("Conversation not found"),
 		},
-		...runtimeDualAuth({ includeVisitorIdHeader: true }),
+		...runtimeDualAuth({
+			includeActorUserIdHeader: true,
+			includeVisitorIdHeader: true,
+		}),
 	},
 	async (c) => {
 		const { db, website, organization, body, visitorIdHeader, apiKey } =
 			await safelyExtractRequestData(c, sendTimelineItemRequestSchema);
 
 		let visitorId = body.item.visitorId || visitorIdHeader || null;
-		const isPublic = apiKey?.keyType === "public";
+		const isPublic = apiKey?.keyType === APIKeyType.PUBLIC;
 		const publicVisitorIdentity = await resolveRuntimeVisitorIdentity({
 			c,
 			db,
@@ -236,18 +242,70 @@ messagesRouter.openapi(
 			);
 		}
 
+		const timelineItemType = body.item.type ?? ConversationTimelineType.MESSAGE;
+		const shouldResolvePrivateUserActor =
+			!isPublic &&
+			(body.item.userId ||
+				(timelineItemType === ConversationTimelineType.MESSAGE &&
+					!body.item.aiAgentId &&
+					!visitorId));
+		let privateActorUserId: string | null = null;
+
+		if (shouldResolvePrivateUserActor) {
+			if (!apiKey) {
+				return restError(c, 401, "UNAUTHORIZED", "Invalid API key");
+			}
+
+			try {
+				const privateActor = await resolvePrivateApiKeyActorUser({
+					db,
+					apiKey,
+					organizationId: organization.id,
+					websiteTeamId: website.teamId,
+					explicitActorUserId: c.req.header("X-Actor-User-Id") ?? null,
+					required: true,
+				});
+				privateActorUserId = privateActor?.userId ?? null;
+			} catch (error) {
+				if (error instanceof AuthValidationError) {
+					const status = error.statusCode === 400 ? 400 : 403;
+					return restError(
+						c,
+						status,
+						status === 400 ? "BAD_REQUEST" : "FORBIDDEN",
+						error.message
+					);
+				}
+				throw error;
+			}
+
+			if (body.item.userId && body.item.userId !== privateActorUserId) {
+				return restError(
+					c,
+					403,
+					"FORBIDDEN",
+					"Body item.userId must match the resolved private API actor"
+				);
+			}
+		}
+
+		const resolvedUserId = isPublic
+			? null
+			: (privateActorUserId ?? body.item.userId ?? null);
+		const resolvedAiAgentId = isPublic ? null : (body.item.aiAgentId ?? null);
+
 		// Check if user needs to be added as participant
-		if (body.item.userId && !isPublic) {
+		if (resolvedUserId && !isPublic) {
 			const isParticipant = await isUserParticipant(db, {
 				conversationId: body.conversationId,
-				userId: body.item.userId,
+				userId: resolvedUserId,
 			});
 
 			if (!isParticipant) {
 				// Add user as participant
 				await addConversationParticipant(db, {
 					conversationId: body.conversationId,
-					userId: body.item.userId,
+					userId: resolvedUserId,
 					organizationId: organization.id,
 					reason: "Sent message",
 				});
@@ -258,21 +316,18 @@ messagesRouter.openapi(
 					organizationId: organization.id,
 					websiteId: website.id,
 					visitorId: conversation.visitorId,
-					targetUserId: body.item.userId,
+					targetUserId: resolvedUserId,
 					isAutoAdded: true,
 				});
 			}
 		}
 
-		const timelineItemType = body.item.type ?? ConversationTimelineType.MESSAGE;
 		const planInfo = await getPlanForWebsite(website);
 		const autoTranslateEnabled = isAutomaticTranslationEnabled({
 			planAllowsAutoTranslate: planInfo.features["auto-translate"] === true,
 			websiteAutoTranslateEnabled: website.autoTranslateEnabled,
 		});
 
-		const resolvedUserId = isPublic ? null : (body.item.userId ?? null);
-		const resolvedAiAgentId = isPublic ? null : (body.item.aiAgentId ?? null);
 		const aiContext = {
 			db,
 			organizationId: organization.id,

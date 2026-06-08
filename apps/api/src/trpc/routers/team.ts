@@ -1,12 +1,19 @@
 import { getOrganizationBySlug } from "@api/db/queries/organization";
-import { getWebsiteBySlugWithAccess } from "@api/db/queries/website";
-import { website } from "@api/db/schema";
 import {
-	user as authUser,
-	invitation,
-	member,
-	organization,
-} from "@api/db/schema/auth";
+	getAuthUserIdByEmail,
+	getFirstWebsiteForTeamIds,
+	getInvitationForResend,
+	getInvitationWebsiteScope,
+	getJoinInvitation,
+	getOrganizationMembershipIdByUser,
+	getTeamInvitationForJoinRoute,
+	getTeamOrganizationSummary,
+	getTeamViewerMembershipRole,
+	listOrganizationInvitations,
+	listOrganizationInvitationsWithInviter,
+	listOrganizationMembersWithEmails,
+} from "@api/db/queries/team";
+import { getWebsiteBySlugWithAccess } from "@api/db/queries/website";
 import { auth } from "@api/lib/auth";
 import { sendTeamInvitationEmail } from "@api/lib/team-invitation-mailer";
 import {
@@ -23,7 +30,6 @@ import {
 	logTeamInviteEvent,
 } from "@api/utils/team-invitation-monitoring";
 import { TRPCError } from "@trpc/server";
-import { and, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../init";
 
@@ -277,22 +283,10 @@ export const teamRouter = createTRPCRouter({
 					? normalizeEmail(currentUser.email)
 					: null;
 
-			const [invitationRecord] = await db
-				.select({
-					id: invitation.id,
-					email: invitation.email,
-					status: invitation.status,
-					expiresAt: invitation.expiresAt,
-					teamId: invitation.teamId,
-				})
-				.from(invitation)
-				.where(
-					and(
-						eq(invitation.id, input.invitationId),
-						eq(invitation.organizationId, foundOrganization.id)
-					)
-				)
-				.limit(1);
+			const invitationRecord = await getTeamInvitationForJoinRoute(db, {
+				invitationId: input.invitationId,
+				organizationId: foundOrganization.id,
+			});
 
 			if (!invitationRecord) {
 				return {
@@ -334,52 +328,27 @@ export const teamRouter = createTRPCRouter({
 						.filter(Boolean)
 				: [];
 
-			const [targetWebsite] =
-				invitationTeamIds.length > 0
-					? await db
-							.select({
-								name: website.name,
-								logoUrl: website.logoUrl,
-							})
-							.from(website)
-							.where(
-								and(
-									eq(website.organizationId, foundOrganization.id),
-									inArray(website.teamId, invitationTeamIds),
-									isNull(website.deletedAt)
-								)
-							)
-							.limit(1)
-					: [];
+			const targetWebsite = await getFirstWebsiteForTeamIds(db, {
+				organizationId: foundOrganization.id,
+				teamIds: invitationTeamIds,
+			});
 
 			const isSignedInEmailMatchingInvitation = signedInEmail
 				? signedInEmail === invitedEmail
 				: null;
-			const [matchingUser] =
+			const matchingUser =
 				!isAuthenticated && isInvitationValid
-					? await db
-							.select({
-								id: authUser.id,
-							})
-							.from(authUser)
-							.where(eq(authUser.email, invitedEmail))
-							.limit(1)
-					: [];
-			const [existingMembership] =
+					? await getAuthUserIdByEmail(db, {
+							email: invitedEmail,
+						})
+					: null;
+			const existingMembership =
 				isAuthenticated && currentUser
-					? await db
-							.select({
-								id: member.id,
-							})
-							.from(member)
-							.where(
-								and(
-									eq(member.organizationId, foundOrganization.id),
-									eq(member.userId, currentUser.id)
-								)
-							)
-							.limit(1)
-					: [];
+					? await getOrganizationMembershipIdByUser(db, {
+							organizationId: foundOrganization.id,
+							userId: currentUser.id,
+						})
+					: null;
 
 			return {
 				organizationId: foundOrganization.id,
@@ -426,18 +395,10 @@ export const teamRouter = createTRPCRouter({
 
 			const [viewerMembership, accessUsers, seatUsage, invitationsRows] =
 				await Promise.all([
-					db
-						.select({
-							role: member.role,
-						})
-						.from(member)
-						.where(
-							and(
-								eq(member.organizationId, websiteData.organizationId),
-								eq(member.userId, user.id)
-							)
-						)
-						.limit(1),
+					getTeamViewerMembershipRole(db, {
+						organizationId: websiteData.organizationId,
+						userId: user.id,
+					}),
 					listWebsiteAccessUsers(db, {
 						organizationId: websiteData.organizationId,
 						teamId: websiteData.teamId,
@@ -445,22 +406,12 @@ export const teamRouter = createTRPCRouter({
 					calculateWebsiteSeatUsage(db, {
 						website: websiteData,
 					}),
-					db
-						.select({
-							id: invitation.id,
-							email: invitation.email,
-							role: invitation.role,
-							status: invitation.status,
-							expiresAt: invitation.expiresAt,
-							teamId: invitation.teamId,
-							inviterName: authUser.name,
-						})
-						.from(invitation)
-						.leftJoin(authUser, eq(invitation.inviterId, authUser.id))
-						.where(eq(invitation.organizationId, websiteData.organizationId)),
+					listOrganizationInvitationsWithInviter(db, {
+						organizationId: websiteData.organizationId,
+					}),
 				]);
 
-			const viewerRole = viewerMembership[0]?.role ?? null;
+			const viewerRole = viewerMembership?.role ?? null;
 			const canManageTeam = hasPrivilegedRole(viewerRole);
 
 			const relevantInvitations = invitationsRows
@@ -539,18 +490,10 @@ export const teamRouter = createTRPCRouter({
 				});
 			}
 
-			const [viewerMembership] = await db
-				.select({
-					role: member.role,
-				})
-				.from(member)
-				.where(
-					and(
-						eq(member.organizationId, websiteData.organizationId),
-						eq(member.userId, user.id)
-					)
-				)
-				.limit(1);
+			const viewerMembership = await getTeamViewerMembershipRole(db, {
+				organizationId: websiteData.organizationId,
+				userId: user.id,
+			});
 
 			if (!hasPrivilegedRole(viewerMembership?.role)) {
 				throw new TRPCError({
@@ -563,15 +506,9 @@ export const teamRouter = createTRPCRouter({
 				.filter(Boolean)
 				.slice(0, 50);
 
-			const [organizationRecord] = await db
-				.select({
-					id: organization.id,
-					name: organization.name,
-					slug: organization.slug,
-				})
-				.from(organization)
-				.where(eq(organization.id, websiteData.organizationId))
-				.limit(1);
+			const organizationRecord = await getTeamOrganizationSummary(db, {
+				organizationId: websiteData.organizationId,
+			});
 
 			if (!organizationRecord) {
 				throw new TRPCError({
@@ -592,29 +529,12 @@ export const teamRouter = createTRPCRouter({
 							calculateWebsiteSeatUsage(db, {
 								website: websiteData,
 							}),
-							db
-								.select({
-									id: invitation.id,
-									email: invitation.email,
-									role: invitation.role,
-									status: invitation.status,
-									expiresAt: invitation.expiresAt,
-									teamId: invitation.teamId,
-								})
-								.from(invitation)
-								.where(
-									eq(invitation.organizationId, websiteData.organizationId)
-								),
-							db
-								.select({
-									memberId: member.id,
-									userId: member.userId,
-									role: member.role,
-									email: authUser.email,
-								})
-								.from(member)
-								.innerJoin(authUser, eq(member.userId, authUser.id))
-								.where(eq(member.organizationId, websiteData.organizationId)),
+							listOrganizationInvitations(db, {
+								organizationId: websiteData.organizationId,
+							}),
+							listOrganizationMembersWithEmails(db, {
+								organizationId: websiteData.organizationId,
+							}),
 						]);
 
 					const existingAccessEmails = new Set(
@@ -891,18 +811,10 @@ export const teamRouter = createTRPCRouter({
 				});
 			}
 
-			const [viewerMembership] = await db
-				.select({
-					role: member.role,
-				})
-				.from(member)
-				.where(
-					and(
-						eq(member.organizationId, websiteData.organizationId),
-						eq(member.userId, user.id)
-					)
-				)
-				.limit(1);
+			const viewerMembership = await getTeamViewerMembershipRole(db, {
+				organizationId: websiteData.organizationId,
+				userId: user.id,
+			});
 
 			if (!hasPrivilegedRole(viewerMembership?.role)) {
 				throw new TRPCError({
@@ -911,23 +823,10 @@ export const teamRouter = createTRPCRouter({
 				});
 			}
 
-			const [existingInvitation] = await db
-				.select({
-					id: invitation.id,
-					email: invitation.email,
-					role: invitation.role,
-					teamId: invitation.teamId,
-					status: invitation.status,
-					expiresAt: invitation.expiresAt,
-				})
-				.from(invitation)
-				.where(
-					and(
-						eq(invitation.id, input.invitationId),
-						eq(invitation.organizationId, websiteData.organizationId)
-					)
-				)
-				.limit(1);
+			const existingInvitation = await getInvitationForResend(db, {
+				invitationId: input.invitationId,
+				organizationId: websiteData.organizationId,
+			});
 
 			if (
 				!(
@@ -969,14 +868,9 @@ export const teamRouter = createTRPCRouter({
 				},
 			});
 
-			const [organizationRecord] = await db
-				.select({
-					name: organization.name,
-					slug: organization.slug,
-				})
-				.from(organization)
-				.where(eq(organization.id, websiteData.organizationId))
-				.limit(1);
+			const organizationRecord = await getTeamOrganizationSummary(db, {
+				organizationId: websiteData.organizationId,
+			});
 
 			if (!organizationRecord) {
 				throw new TRPCError({
@@ -1066,18 +960,10 @@ export const teamRouter = createTRPCRouter({
 				});
 			}
 
-			const [viewerMembership] = await db
-				.select({
-					role: member.role,
-				})
-				.from(member)
-				.where(
-					and(
-						eq(member.organizationId, websiteData.organizationId),
-						eq(member.userId, user.id)
-					)
-				)
-				.limit(1);
+			const viewerMembership = await getTeamViewerMembershipRole(db, {
+				organizationId: websiteData.organizationId,
+				userId: user.id,
+			});
 
 			if (!hasPrivilegedRole(viewerMembership?.role)) {
 				throw new TRPCError({
@@ -1086,20 +972,10 @@ export const teamRouter = createTRPCRouter({
 				});
 			}
 
-			const [existingInvitation] = await db
-				.select({
-					id: invitation.id,
-					role: invitation.role,
-					teamId: invitation.teamId,
-				})
-				.from(invitation)
-				.where(
-					and(
-						eq(invitation.id, input.invitationId),
-						eq(invitation.organizationId, websiteData.organizationId)
-					)
-				)
-				.limit(1);
+			const existingInvitation = await getInvitationWebsiteScope(db, {
+				invitationId: input.invitationId,
+				organizationId: websiteData.organizationId,
+			});
 
 			if (
 				!(
@@ -1148,25 +1024,17 @@ export const teamRouter = createTRPCRouter({
 			}
 
 			const [viewerMembership, accessUsers] = await Promise.all([
-				db
-					.select({
-						role: member.role,
-					})
-					.from(member)
-					.where(
-						and(
-							eq(member.organizationId, websiteData.organizationId),
-							eq(member.userId, user.id)
-						)
-					)
-					.limit(1),
+				getTeamViewerMembershipRole(db, {
+					organizationId: websiteData.organizationId,
+					userId: user.id,
+				}),
 				listWebsiteAccessUsers(db, {
 					organizationId: websiteData.organizationId,
 					teamId: websiteData.teamId,
 				}),
 			]);
 
-			if (!hasPrivilegedRole(viewerMembership[0]?.role)) {
+			if (!hasPrivilegedRole(viewerMembership?.role)) {
 				throw new TRPCError({
 					code: "FORBIDDEN",
 					message: "Only admins and owners can update member roles.",
@@ -1218,25 +1086,17 @@ export const teamRouter = createTRPCRouter({
 			}
 
 			const [viewerMembership, accessUsers] = await Promise.all([
-				db
-					.select({
-						role: member.role,
-					})
-					.from(member)
-					.where(
-						and(
-							eq(member.organizationId, websiteData.organizationId),
-							eq(member.userId, user.id)
-						)
-					)
-					.limit(1),
+				getTeamViewerMembershipRole(db, {
+					organizationId: websiteData.organizationId,
+					userId: user.id,
+				}),
 				listWebsiteAccessUsers(db, {
 					organizationId: websiteData.organizationId,
 					teamId: websiteData.teamId,
 				}),
 			]);
 
-			if (!hasPrivilegedRole(viewerMembership[0]?.role)) {
+			if (!hasPrivilegedRole(viewerMembership?.role)) {
 				throw new TRPCError({
 					code: "FORBIDDEN",
 					message: "Only admins and owners can remove members.",
@@ -1308,21 +1168,10 @@ export const teamRouter = createTRPCRouter({
 				};
 			}
 
-			const [invitationRecord] = await db
-				.select({
-					id: invitation.id,
-					email: invitation.email,
-					status: invitation.status,
-					expiresAt: invitation.expiresAt,
-				})
-				.from(invitation)
-				.where(
-					and(
-						eq(invitation.id, input.invitationId),
-						eq(invitation.organizationId, organizationRecord.id)
-					)
-				)
-				.limit(1);
+			const invitationRecord = await getJoinInvitation(db, {
+				invitationId: input.invitationId,
+				organizationId: organizationRecord.id,
+			});
 
 			if (
 				!(
@@ -1379,21 +1228,10 @@ export const teamRouter = createTRPCRouter({
 				};
 			}
 
-			const [invitationRecord] = await db
-				.select({
-					id: invitation.id,
-					email: invitation.email,
-					status: invitation.status,
-					expiresAt: invitation.expiresAt,
-				})
-				.from(invitation)
-				.where(
-					and(
-						eq(invitation.id, input.invitationId),
-						eq(invitation.organizationId, organizationRecord.id)
-					)
-				)
-				.limit(1);
+			const invitationRecord = await getJoinInvitation(db, {
+				invitationId: input.invitationId,
+				organizationId: organizationRecord.id,
+			});
 
 			if (!invitationRecord) {
 				return {

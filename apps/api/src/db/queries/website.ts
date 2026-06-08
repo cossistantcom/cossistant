@@ -10,7 +10,7 @@ import {
 } from "@api/utils/access-control";
 import type { WebsiteStatus } from "@cossistant/types/enums";
 
-import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, or } from "drizzle-orm";
 
 export class WebsiteCreationError extends Error {
 	constructor(
@@ -129,6 +129,117 @@ export async function getWebsitesByOrganization(
 		.offset(params.offset ?? 0);
 
 	return websites;
+}
+
+export async function listOrganizationWebsitePlanTargets(
+	db: Database,
+	params: {
+		organizationId: string;
+	}
+): Promise<Array<{ id: string; organizationId: string }>> {
+	return db
+		.select({
+			id: website.id,
+			organizationId: website.organizationId,
+		})
+		.from(website)
+		.where(
+			and(
+				eq(website.organizationId, params.organizationId),
+				isNull(website.deletedAt)
+			)
+		);
+}
+
+export async function listWebsiteListItemsForOrganization(
+	db: Database,
+	params: {
+		organizationId: string;
+	}
+): Promise<
+	Array<{
+		id: string;
+		name: string;
+		slug: string;
+		logoUrl: string | null;
+		domain: string;
+		defaultLanguage: string;
+		organizationId: string;
+	}>
+> {
+	return db
+		.select({
+			id: website.id,
+			name: website.name,
+			slug: website.slug,
+			logoUrl: website.logoUrl,
+			domain: website.domain,
+			defaultLanguage: website.defaultLanguage,
+			organizationId: website.organizationId,
+		})
+		.from(website)
+		.where(
+			and(
+				eq(website.organizationId, params.organizationId),
+				isNull(website.deletedAt)
+			)
+		)
+		.orderBy(website.createdAt);
+}
+
+export async function getWebsiteApiKeyScope(
+	db: Database,
+	params: {
+		websiteId: string;
+		organizationId: string;
+	}
+): Promise<{
+	id: string;
+	organizationId: string;
+	teamId: string | null;
+} | null> {
+	const [site] = await db
+		.select({
+			id: website.id,
+			organizationId: website.organizationId,
+			teamId: website.teamId,
+		})
+		.from(website)
+		.where(
+			and(
+				eq(website.id, params.websiteId),
+				eq(website.organizationId, params.organizationId),
+				isNull(website.deletedAt)
+			)
+		)
+		.limit(1);
+
+	return site ?? null;
+}
+
+export async function findVerifiedWebsiteByDomain(
+	db: Database,
+	params: {
+		domain: string;
+		excludeWebsiteId?: string;
+	}
+): Promise<{ id: string } | null> {
+	const conditions = [
+		eq(website.domain, params.domain),
+		eq(website.isDomainOwnershipVerified, true),
+	];
+
+	if (params.excludeWebsiteId) {
+		conditions.push(ne(website.id, params.excludeWebsiteId));
+	}
+
+	const [site] = await db
+		.select({ id: website.id })
+		.from(website)
+		.where(and(...conditions))
+		.limit(1);
+
+	return site ?? null;
 }
 
 // Update website
@@ -349,7 +460,7 @@ export async function getWebsiteByIdWithAccess(
 	return null;
 }
 
-async function getActiveWebsiteBySlug(
+export async function getActiveWebsiteBySlug(
 	db: Database,
 	params: {
 		websiteSlug: string;

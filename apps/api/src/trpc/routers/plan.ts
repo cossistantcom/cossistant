@@ -1,3 +1,4 @@
+import { getOrganizationMemberByUserId } from "@api/db/queries/member";
 import {
 	getContactCount,
 	getRollingWindowConversationCount,
@@ -5,9 +6,10 @@ import {
 	getTeamMemberCount,
 	HARD_LIMIT_ROLLING_WINDOW_DAYS,
 } from "@api/db/queries/usage";
-import { getWebsiteBySlugWithAccess } from "@api/db/queries/website";
-import { member } from "@api/db/schema/auth";
-import { website } from "@api/db/schema/website";
+import {
+	getWebsiteBySlugWithAccess,
+	listOrganizationWebsitePlanTargets,
+} from "@api/db/queries/website";
 import { env } from "@api/env";
 import { getAiModelsForPlan } from "@api/lib/ai-credits/config";
 import { resolveAiCreditsView } from "@api/lib/ai-credits/plan-view";
@@ -37,7 +39,6 @@ import {
 } from "@api/lib/plans/polar";
 import polarClient from "@api/lib/polar";
 import { TRPCError } from "@trpc/server";
-import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../init";
 
@@ -196,16 +197,10 @@ export const planRouter = createTRPCRouter({
 		)
 		.query(async ({ ctx, input }) => {
 			// Verify user has access to this organization
-			const [membership] = await ctx.db
-				.select()
-				.from(member)
-				.where(
-					and(
-						eq(member.userId, ctx.user.id),
-						eq(member.organizationId, input.organizationId)
-					)
-				)
-				.limit(1);
+			const membership = await getOrganizationMemberByUserId(ctx.db, {
+				userId: ctx.user.id,
+				organizationId: input.organizationId,
+			});
 
 			if (!membership) {
 				throw new TRPCError({
@@ -215,18 +210,9 @@ export const planRouter = createTRPCRouter({
 			}
 
 			// Get all websites for this organization
-			const websites = await ctx.db
-				.select({
-					id: website.id,
-					organizationId: website.organizationId,
-				})
-				.from(website)
-				.where(
-					and(
-						eq(website.organizationId, input.organizationId),
-						isNull(website.deletedAt)
-					)
-				);
+			const websites = await listOrganizationWebsitePlanTargets(ctx.db, {
+				organizationId: input.organizationId,
+			});
 
 			if (websites.length === 0) {
 				return [];

@@ -18,6 +18,27 @@ export type WebsiteMember = {
 	lastSeenAt: string | null;
 };
 
+export async function getOrganizationMemberByUserId(
+	db: Database,
+	params: {
+		organizationId: string;
+		userId: string;
+	}
+): Promise<typeof member.$inferSelect | null> {
+	const [membership] = await db
+		.select()
+		.from(member)
+		.where(
+			and(
+				eq(member.userId, params.userId),
+				eq(member.organizationId, params.organizationId)
+			)
+		)
+		.limit(1);
+
+	return membership ?? null;
+}
+
 // Check if user has access to a website
 export async function getWebsiteMembers(
 	db: Database,

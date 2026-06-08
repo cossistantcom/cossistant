@@ -17,7 +17,7 @@ app.use("/*", ...protectedPrivateApiKeyMiddleware);
 app.openapi(
 	createRoute({
 		method: "get",
-		path: "/:id",
+		path: "/{id}",
 		summary: "Retrieve an organization",
 		description:
 			"Retrieve an organization by its ID for the authenticated organization.",

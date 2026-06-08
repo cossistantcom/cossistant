@@ -1,12 +1,18 @@
 import type { Database } from "@api/db";
 import {
-	member,
-	organization,
-	team,
-	teamMember,
-	user,
-	website,
-} from "@api/db/schema";
+	type AdminWebsiteListRow,
+	getActiveAdminWebsiteById,
+	getAdminUserById,
+	getAdminWebsiteForAiUsageGrant,
+	listAdminOrganizationsByIds,
+	listAdminUserOrganizationMemberships,
+	listAdminUsers,
+	listAdminUserTeamMemberships,
+	listAdminWebsiteAccessRowsForOrganizations,
+	listAdminWebsites,
+	listOrganizationPolarCustomerContactCandidates,
+} from "@api/db/queries/admin";
+import type { UserSelect } from "@api/db/schema";
 import { resolveAiCreditsView } from "@api/lib/ai-credits/plan-view";
 import {
 	getAiCreditMeterState,
@@ -17,9 +23,7 @@ import { isPolarEnabled } from "@api/lib/billing-mode";
 import { getPlanForWebsite } from "@api/lib/plans/access";
 import { getCustomerByOrganizationId } from "@api/lib/plans/polar";
 import polarClient from "@api/lib/polar";
-import { WebsiteStatus } from "@cossistant/types";
 import { TRPCError } from "@trpc/server";
-import { and, asc, desc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 import { adminProcedure, createTRPCRouter, protectedProcedure } from "../init";
 
@@ -50,7 +54,7 @@ function toIsoString(value: Date | string | null | undefined): string | null {
 	return value instanceof Date ? value.toISOString() : value;
 }
 
-function serializeAdminUser(row: typeof user.$inferSelect) {
+function serializeAdminUser(row: UserSelect) {
 	return {
 		id: row.id,
 		name: row.name,
@@ -66,20 +70,7 @@ function serializeAdminUser(row: typeof user.$inferSelect) {
 	};
 }
 
-function serializeAdminWebsite(row: {
-	id: string;
-	name: string;
-	slug: string;
-	domain: string;
-	logoUrl: string | null;
-	status: WebsiteStatus;
-	organizationId: string;
-	organizationName: string;
-	organizationSlug: string;
-	teamId: string;
-	createdAt: string;
-	updatedAt: string;
-}) {
+function serializeAdminWebsite(row: AdminWebsiteListRow) {
 	return {
 		id: row.id,
 		name: row.name,
@@ -161,17 +152,12 @@ async function ensurePolarCustomerForOrganization(params: {
 		};
 	}
 
-	const members = await params.db
-		.select({
-			email: user.email,
-			name: user.name,
-			role: member.role,
-			createdAt: member.createdAt,
-		})
-		.from(member)
-		.innerJoin(user, eq(member.userId, user.id))
-		.where(eq(member.organizationId, params.organizationId))
-		.orderBy(asc(member.createdAt));
+	const members = await listOrganizationPolarCustomerContactCandidates(
+		params.db,
+		{
+			organizationId: params.organizationId,
+		}
+	);
 
 	const customerContact =
 		members.find((row) => hasOwnerRole(row.role)) ?? members[0] ?? null;
@@ -207,18 +193,10 @@ export const adminRouter = createTRPCRouter({
 		)
 		.query(async ({ ctx: { db }, input }) => {
 			const search = input?.search?.trim();
-			const likeTerm = search ? `%${search}%` : null;
-
-			const rows = await db
-				.select()
-				.from(user)
-				.where(
-					likeTerm
-						? or(ilike(user.email, likeTerm), ilike(user.name, likeTerm))
-						: undefined
-				)
-				.orderBy(desc(user.createdAt))
-				.limit(ADMIN_USER_LIMIT);
+			const rows = await listAdminUsers(db, {
+				search,
+				limit: ADMIN_USER_LIMIT,
+			});
 
 			return {
 				users: rows.map(serializeAdminUser),
@@ -236,41 +214,10 @@ export const adminRouter = createTRPCRouter({
 		)
 		.query(async ({ ctx: { db }, input }) => {
 			const search = input?.search?.trim();
-			const likeTerm = search ? `%${search}%` : null;
-
-			const rows = await db
-				.select({
-					id: website.id,
-					name: website.name,
-					slug: website.slug,
-					domain: website.domain,
-					logoUrl: website.logoUrl,
-					status: website.status,
-					organizationId: website.organizationId,
-					organizationName: organization.name,
-					organizationSlug: organization.slug,
-					teamId: website.teamId,
-					createdAt: website.createdAt,
-					updatedAt: website.updatedAt,
-				})
-				.from(website)
-				.innerJoin(organization, eq(website.organizationId, organization.id))
-				.where(
-					and(
-						eq(website.status, WebsiteStatus.ACTIVE),
-						isNull(website.deletedAt),
-						likeTerm
-							? or(
-									ilike(website.name, likeTerm),
-									ilike(website.slug, likeTerm),
-									ilike(website.domain, likeTerm),
-									ilike(organization.name, likeTerm)
-								)
-							: undefined
-					)
-				)
-				.orderBy(desc(website.createdAt))
-				.limit(ADMIN_WEBSITE_LIMIT);
+			const rows = await listAdminWebsites(db, {
+				search,
+				limit: ADMIN_WEBSITE_LIMIT,
+			});
 
 			return {
 				websites: rows.map(serializeAdminWebsite),
@@ -281,11 +228,9 @@ export const adminRouter = createTRPCRouter({
 	getUserWebsites: adminProcedure
 		.input(userIdInput)
 		.query(async ({ ctx: { db }, input }) => {
-			const [selectedUser] = await db
-				.select()
-				.from(user)
-				.where(eq(user.id, input.userId))
-				.limit(1);
+			const selectedUser = await getAdminUserById(db, {
+				userId: input.userId,
+			});
 
 			if (!selectedUser) {
 				throw new TRPCError({
@@ -295,26 +240,12 @@ export const adminRouter = createTRPCRouter({
 			}
 
 			const [organizationMemberships, teamMemberships] = await Promise.all([
-				db
-					.select({
-						organizationId: organization.id,
-						organizationName: organization.name,
-						organizationSlug: organization.slug,
-						role: member.role,
-						joinedAt: member.createdAt,
-					})
-					.from(member)
-					.innerJoin(organization, eq(member.organizationId, organization.id))
-					.where(eq(member.userId, input.userId))
-					.orderBy(desc(member.createdAt)),
-				db
-					.select({
-						teamId: teamMember.teamId,
-						organizationId: team.organizationId,
-					})
-					.from(teamMember)
-					.innerJoin(team, eq(teamMember.teamId, team.id))
-					.where(eq(teamMember.userId, input.userId)),
+				listAdminUserOrganizationMemberships(db, {
+					userId: input.userId,
+				}),
+				listAdminUserTeamMemberships(db, {
+					userId: input.userId,
+				}),
 			]);
 
 			const organizationIds = new Set<string>();
@@ -360,14 +291,9 @@ export const adminRouter = createTRPCRouter({
 			);
 
 			if (missingOrganizationIds.length > 0) {
-				const missingOrganizations = await db
-					.select({
-						id: organization.id,
-						name: organization.name,
-						slug: organization.slug,
-					})
-					.from(organization)
-					.where(inArray(organization.id, missingOrganizationIds));
+				const missingOrganizations = await listAdminOrganizationsByIds(db, {
+					organizationIds: missingOrganizationIds,
+				});
 
 				for (const row of missingOrganizations) {
 					organizationById.set(row.id, {
@@ -380,25 +306,9 @@ export const adminRouter = createTRPCRouter({
 				}
 			}
 
-			const websiteRows = await db
-				.select({
-					id: website.id,
-					name: website.name,
-					slug: website.slug,
-					domain: website.domain,
-					logoUrl: website.logoUrl,
-					organizationId: website.organizationId,
-					teamId: website.teamId,
-					createdAt: website.createdAt,
-				})
-				.from(website)
-				.where(
-					and(
-						inArray(website.organizationId, [...organizationIds]),
-						isNull(website.deletedAt)
-					)
-				)
-				.orderBy(desc(website.createdAt));
+			const websiteRows = await listAdminWebsiteAccessRowsForOrganizations(db, {
+				organizationIds: [...organizationIds],
+			});
 
 			const websitesByOrganizationId = new Map<
 				string,
@@ -451,17 +361,9 @@ export const adminRouter = createTRPCRouter({
 			})
 		)
 		.query(async ({ ctx, input }) => {
-			const [site] = await ctx.db
-				.select()
-				.from(website)
-				.where(
-					and(
-						eq(website.id, input.websiteId),
-						eq(website.status, WebsiteStatus.ACTIVE),
-						isNull(website.deletedAt)
-					)
-				)
-				.limit(1);
+			const site = await getActiveAdminWebsiteById(ctx.db, {
+				websiteId: input.websiteId,
+			});
 
 			if (!site) {
 				throw new TRPCError({
@@ -515,18 +417,9 @@ export const adminRouter = createTRPCRouter({
 				});
 			}
 
-			const [site] = await ctx.db
-				.select({
-					id: website.id,
-					name: website.name,
-					slug: website.slug,
-					organizationId: website.organizationId,
-					organizationName: organization.name,
-				})
-				.from(website)
-				.innerJoin(organization, eq(website.organizationId, organization.id))
-				.where(and(eq(website.id, input.websiteId), isNull(website.deletedAt)))
-				.limit(1);
+			const site = await getAdminWebsiteForAiUsageGrant(ctx.db, {
+				websiteId: input.websiteId,
+			});
 
 			if (!site) {
 				throw new TRPCError({

@@ -80,6 +80,28 @@ export async function getAiAgentForWebsite(
 	return agent ?? null;
 }
 
+export async function listActiveAiAgentSummariesForWebsite(
+	db: Database,
+	params: {
+		websiteId: string;
+	}
+): Promise<Array<{ id: string; name: string; image: string | null }>> {
+	return db
+		.select({
+			id: aiAgent.id,
+			name: aiAgent.name,
+			image: aiAgent.image,
+		})
+		.from(aiAgent)
+		.where(
+			and(
+				eq(aiAgent.websiteId, params.websiteId),
+				eq(aiAgent.isActive, true),
+				isNull(aiAgent.deletedAt)
+			)
+		);
+}
+
 /**
  * Get a specific AI agent for a website by ID.
  * Returns null when the agent does not belong to the provided website/organization.

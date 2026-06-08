@@ -1,13 +1,17 @@
+import { blockVisitor, unblockVisitor } from "@api/db/mutations/visitor";
 import {
 	getContactForVisitor,
 	mergeContactMetadata,
 } from "@api/db/queries/contact";
+import { listConversationsHeaders } from "@api/db/queries/conversation";
 import type { VisitorRecord } from "@api/db/queries/visitor";
 import {
 	findVisitorForWebsite,
 	updateVisitorForWebsite,
 } from "@api/db/queries/visitor";
 import { env } from "@api/env";
+import { AuthValidationError } from "@api/lib/auth-validation";
+import { resolvePrivateApiKeyActorUser } from "@api/lib/private-api-key-actor";
 import { trackVisitorActivity, trackVisitorEvent } from "@api/lib/tinybird-sdk";
 import {
 	flattenVisitorTrackingContext,
@@ -20,11 +24,14 @@ import {
 	applyDevelopmentClientIpOverride,
 	extractClientIpFromRequest,
 } from "@api/utils/client-ip";
+import { createConversationEvent } from "@api/utils/conversation-event";
 import {
 	safelyExtractRequestData,
 	validateResponse,
 } from "@api/utils/validate";
 import {
+	ConversationEventType,
+	TimelineItemVisibility,
 	type UpdateVisitorRequest,
 	updateVisitorMetadataRequestSchema,
 	updateVisitorRequestSchema,
@@ -39,7 +46,13 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Context } from "hono";
 import { z } from "zod";
 import { protectedPublicApiKeyMiddleware } from "../middleware";
-import { errorJsonResponse, runtimeDualAuth } from "../openapi";
+import {
+	errorJsonResponse,
+	privateControlAuth,
+	requirePrivateControlContext,
+	restError,
+	runtimeDualAuth,
+} from "../openapi";
 import type { RestContext } from "../types";
 
 export const visitorRouter = new OpenAPIHono<RestContext>();
@@ -91,6 +104,79 @@ function formatVisitorResponse(record: VisitorRecord): VisitorResponse {
 		currentPage: record.currentPage ?? null,
 		contact: null,
 	};
+}
+
+async function resolvePrivateVisitorActor(params: {
+	c: Context<RestContext>;
+	db: RestContext["Variables"]["db"];
+	apiKey: RestContext["Variables"]["apiKey"];
+	organizationId: string;
+	websiteTeamId: string | null | undefined;
+}) {
+	if (!params.apiKey) {
+		return restError(params.c, 401, "UNAUTHORIZED", "Invalid API key");
+	}
+
+	try {
+		return await resolvePrivateApiKeyActorUser({
+			db: params.db,
+			apiKey: params.apiKey,
+			organizationId: params.organizationId,
+			websiteTeamId: params.websiteTeamId,
+			explicitActorUserId: params.c.req.header("X-Actor-User-Id") ?? null,
+			required: true,
+		});
+	} catch (error) {
+		if (error instanceof AuthValidationError) {
+			const status = error.statusCode === 400 ? 400 : 403;
+			return restError(
+				params.c,
+				status,
+				status === 400 ? "BAD_REQUEST" : "FORBIDDEN",
+				error.message
+			);
+		}
+
+		throw error;
+	}
+}
+
+async function createLatestVisitorModerationEvent(params: {
+	db: RestContext["Variables"]["db"];
+	organizationId: string;
+	websiteId: string;
+	visitorId: string;
+	actorUserId: string;
+	type:
+		| typeof ConversationEventType.VISITOR_BLOCKED
+		| typeof ConversationEventType.VISITOR_UNBLOCKED;
+}) {
+	const result = await listConversationsHeaders(params.db, {
+		organizationId: params.organizationId,
+		websiteId: params.websiteId,
+		visitorId: params.visitorId,
+		limit: 1,
+	});
+	const latestConversation = result.items.at(0);
+
+	if (!latestConversation) {
+		return;
+	}
+
+	await createConversationEvent({
+		db: params.db,
+		context: {
+			conversationId: latestConversation.id,
+			organizationId: params.organizationId,
+			websiteId: params.websiteId,
+			visitorId: params.visitorId,
+		},
+		event: {
+			type: params.type,
+			actorUserId: params.actorUserId,
+			visibility: TimelineItemVisibility.PRIVATE,
+		},
+	});
 }
 
 function getHeaderValue(
@@ -440,7 +526,7 @@ visitorRouter.use("/*", ...protectedPublicApiKeyMiddleware);
 visitorRouter.openapi(
 	{
 		method: "post",
-		path: "/:id/activity",
+		path: "/{id}/activity",
 		summary: "Track live visitor activity",
 		description:
 			"Records live visitor activity for realtime dashboards. This endpoint is the canonical ingestion path for live visitor presence and page activity.",
@@ -596,7 +682,7 @@ visitorRouter.openapi(
 visitorRouter.openapi(
 	{
 		method: "patch",
-		path: "/:id",
+		path: "/{id}",
 		summary: "Update existing visitor information",
 		description:
 			"Updates an existing visitor's browser, device, and location data. The visitor must already exist in the system.",
@@ -797,7 +883,7 @@ visitorRouter.openapi(
 visitorRouter.openapi(
 	{
 		method: "patch",
-		path: "/:id/metadata",
+		path: "/{id}/metadata",
 		summary: "Update contact metadata for a visitor",
 		description:
 			"Merges the provided metadata into the contact profile associated with the visitor. The visitor must be identified first (linked to a contact) via the /contacts/identify endpoint.",
@@ -911,11 +997,261 @@ visitorRouter.openapi(
 	}
 );
 
+visitorRouter.openapi(
+	{
+		method: "post",
+		path: "/{id}/block",
+		summary: "Block a visitor",
+		description:
+			"Blocks a visitor from sending new messages. Requires a private API key and an acting teammate.",
+		operationId: "blockVisitor",
+		responses: {
+			200: {
+				description: "Visitor blocked successfully",
+				content: {
+					"application/json": {
+						schema: visitorResponseSchema,
+					},
+				},
+			},
+			400: errorJsonResponse(
+				"Bad request - Missing actor for an unlinked private API key"
+			),
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			403: errorJsonResponse(
+				"Forbidden - Private API key required or actor user not allowed for this website"
+			),
+			404: errorJsonResponse("Visitor not found"),
+			500: errorJsonResponse("Internal server error"),
+		},
+		tags: ["Visitors"],
+		...privateControlAuth({
+			parameters: [
+				{
+					name: "id",
+					in: "path",
+					required: true,
+					description: "The visitor ID",
+					schema: {
+						type: "string",
+					},
+				},
+			],
+			includeActorUserIdHeader: true,
+		}),
+	},
+	async (c) => {
+		try {
+			const extracted = await safelyExtractRequestData(c);
+			const privateContext = requirePrivateControlContext(c, extracted);
+
+			if (privateContext instanceof Response) {
+				return privateContext;
+			}
+
+			const visitorId = c.req.param("id");
+			if (!visitorId) {
+				return restError(c, 404, "NOT_FOUND", "Visitor not found");
+			}
+
+			const actor = await resolvePrivateVisitorActor({
+				c,
+				db: extracted.db,
+				apiKey: privateContext.apiKey,
+				organizationId: privateContext.organization.id,
+				websiteTeamId: privateContext.website.teamId,
+			});
+
+			if (actor instanceof Response) {
+				return actor;
+			}
+			if (!actor) {
+				return restError(c, 400, "BAD_REQUEST", "Actor user is required");
+			}
+
+			const visitorRecord = await findVisitorForWebsite(extracted.db, {
+				visitorId,
+				websiteId: privateContext.website.id,
+			});
+
+			if (!visitorRecord) {
+				return restError(c, 404, "NOT_FOUND", "Visitor not found");
+			}
+
+			const updatedVisitor = await blockVisitor(extracted.db, {
+				visitor: visitorRecord,
+				actorUserId: actor.userId,
+			});
+
+			if (!updatedVisitor) {
+				return restError(
+					c,
+					500,
+					"INTERNAL_SERVER_ERROR",
+					"Unable to block visitor"
+				);
+			}
+
+			await createLatestVisitorModerationEvent({
+				db: extracted.db,
+				organizationId: privateContext.organization.id,
+				websiteId: privateContext.website.id,
+				visitorId,
+				actorUserId: actor.userId,
+				type: ConversationEventType.VISITOR_BLOCKED,
+			});
+
+			return c.json(
+				validateResponse(
+					formatVisitorResponse(updatedVisitor),
+					visitorResponseSchema
+				),
+				200
+			);
+		} catch (error) {
+			console.error("Error blocking visitor:", error);
+			return restError(
+				c,
+				500,
+				"INTERNAL_SERVER_ERROR",
+				"Failed to block visitor"
+			);
+		}
+	}
+);
+
+visitorRouter.openapi(
+	{
+		method: "post",
+		path: "/{id}/unblock",
+		summary: "Unblock a visitor",
+		description:
+			"Unblocks a visitor so they can send messages again. Requires a private API key and an acting teammate.",
+		operationId: "unblockVisitor",
+		responses: {
+			200: {
+				description: "Visitor unblocked successfully",
+				content: {
+					"application/json": {
+						schema: visitorResponseSchema,
+					},
+				},
+			},
+			400: errorJsonResponse(
+				"Bad request - Missing actor for an unlinked private API key"
+			),
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			403: errorJsonResponse(
+				"Forbidden - Private API key required or actor user not allowed for this website"
+			),
+			404: errorJsonResponse("Visitor not found"),
+			500: errorJsonResponse("Internal server error"),
+		},
+		tags: ["Visitors"],
+		...privateControlAuth({
+			parameters: [
+				{
+					name: "id",
+					in: "path",
+					required: true,
+					description: "The visitor ID",
+					schema: {
+						type: "string",
+					},
+				},
+			],
+			includeActorUserIdHeader: true,
+		}),
+	},
+	async (c) => {
+		try {
+			const extracted = await safelyExtractRequestData(c);
+			const privateContext = requirePrivateControlContext(c, extracted);
+
+			if (privateContext instanceof Response) {
+				return privateContext;
+			}
+
+			const visitorId = c.req.param("id");
+			if (!visitorId) {
+				return restError(c, 404, "NOT_FOUND", "Visitor not found");
+			}
+
+			const actor = await resolvePrivateVisitorActor({
+				c,
+				db: extracted.db,
+				apiKey: privateContext.apiKey,
+				organizationId: privateContext.organization.id,
+				websiteTeamId: privateContext.website.teamId,
+			});
+
+			if (actor instanceof Response) {
+				return actor;
+			}
+			if (!actor) {
+				return restError(c, 400, "BAD_REQUEST", "Actor user is required");
+			}
+
+			const visitorRecord = await findVisitorForWebsite(extracted.db, {
+				visitorId,
+				websiteId: privateContext.website.id,
+			});
+
+			if (!visitorRecord) {
+				return restError(c, 404, "NOT_FOUND", "Visitor not found");
+			}
+
+			const updatedVisitor = await unblockVisitor(extracted.db, {
+				visitor: visitorRecord,
+				actorUserId: actor.userId,
+			});
+
+			if (!updatedVisitor) {
+				return restError(
+					c,
+					500,
+					"INTERNAL_SERVER_ERROR",
+					"Unable to unblock visitor"
+				);
+			}
+
+			await createLatestVisitorModerationEvent({
+				db: extracted.db,
+				organizationId: privateContext.organization.id,
+				websiteId: privateContext.website.id,
+				visitorId,
+				actorUserId: actor.userId,
+				type: ConversationEventType.VISITOR_UNBLOCKED,
+			});
+
+			return c.json(
+				validateResponse(
+					formatVisitorResponse(updatedVisitor),
+					visitorResponseSchema
+				),
+				200
+			);
+		} catch (error) {
+			console.error("Error unblocking visitor:", error);
+			return restError(
+				c,
+				500,
+				"INTERNAL_SERVER_ERROR",
+				"Failed to unblock visitor"
+			);
+		}
+	}
+);
+
 // GET /visitors/:id - Get visitor information by ID
 visitorRouter.openapi(
 	{
 		method: "get",
-		path: "/:id",
+		path: "/{id}",
 		summary: "Get visitor information",
 		description: "Retrieves visitor information by visitor ID",
 		responses: {

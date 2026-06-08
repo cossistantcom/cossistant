@@ -90,3 +90,10 @@ export function shouldScanWeeklyDigestForTimezone(params: {
 		parts.minute < windowMinutes
 	);
 }
+
+export function getWeeklyDigestDedupeKey(params: {
+	websiteId: string;
+	weekKey: string;
+}): string {
+	return `weekly_digest:${params.websiteId}:${params.weekKey}`;
+}

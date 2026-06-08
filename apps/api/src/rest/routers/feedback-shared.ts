@@ -20,6 +20,7 @@ import {
 	createFeedbackTimelinePart,
 	resolveFeedbackTimelineText,
 } from "@cossistant/core";
+import type { Feedback } from "@cossistant/types/api/feedback";
 import { and, eq } from "drizzle-orm";
 
 type FeedbackWebsite = {
@@ -49,6 +50,39 @@ type CreatedFeedbackConversation = Extract<
 	Awaited<ReturnType<typeof upsertConversation>>,
 	{ status: "created" }
 >["conversation"];
+
+export function formatFeedbackResponse(entry: {
+	id: string;
+	organizationId: string;
+	websiteId: string;
+	conversationId: string | null;
+	visitorId: string | null;
+	contactId: string | null;
+	rating: number;
+	topic: string | null;
+	comment: string | null;
+	trigger: string | null;
+	source: string;
+	createdAt: string;
+	updatedAt: string;
+	deletedAt: string | null;
+}): Feedback {
+	return {
+		id: entry.id,
+		organizationId: entry.organizationId,
+		websiteId: entry.websiteId,
+		conversationId: entry.conversationId,
+		visitorId: entry.visitorId,
+		contactId: entry.contactId,
+		rating: entry.rating,
+		topic: entry.topic,
+		comment: entry.comment,
+		trigger: entry.trigger,
+		source: entry.source,
+		createdAt: entry.createdAt,
+		updatedAt: entry.updatedAt,
+	};
+}
 
 async function addDefaultParticipantsForFeedbackConversation({
 	db,

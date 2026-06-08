@@ -417,6 +417,97 @@ export const listKnowledgeResponseSchema = z
 
 export type ListKnowledgeResponse = z.infer<typeof listKnowledgeResponseSchema>;
 
+export const knowledgeSearchRequestSchema = z
+	.object({
+		query: z.string().trim().min(1).max(2000).openapi({
+			description: "Natural-language retrieval query.",
+			example: "How do I update billing details?",
+		}),
+		limit: z.coerce.number().int().min(1).max(20).default(4).openapi({
+			description: "Maximum number of chunks to return.",
+			default: 4,
+		}),
+		minSimilarity: z.coerce.number().min(0).max(1).default(0.3).openapi({
+			description: "Minimum cosine similarity score to include.",
+			default: 0.3,
+		}),
+		knowledgeId: z.ulid().optional().openapi({
+			description: "Optional knowledge entry to restrict retrieval to.",
+			example: "01JG00000000000000000000A",
+		}),
+	})
+	.openapi({
+		description: "Query parameters for private knowledge retrieval.",
+	});
+
+export type KnowledgeSearchRequest = z.infer<
+	typeof knowledgeSearchRequestSchema
+>;
+
+export const knowledgeSearchResponseSchema = z
+	.object({
+		query: z.string().openapi({
+			description: "Normalized query used for retrieval.",
+		}),
+		results: z.array(
+			z.object({
+				id: z.string().openapi({
+					description: "Chunk identifier.",
+				}),
+				content: z.string().openapi({
+					description: "Full chunk content.",
+				}),
+				snippet: z.string().openapi({
+					description: "Short readable excerpt from the chunk.",
+				}),
+				metadata: z.unknown().nullable().openapi({
+					description: "Chunk metadata captured during indexing.",
+				}),
+				similarity: z.number().openapi({
+					description: "Similarity score from 0 to 1.",
+				}),
+				sourceType: z.string().openapi({
+					description: "Chunk source type.",
+					example: "knowledge",
+				}),
+				knowledgeId: z.string().nullable().openapi({
+					description: "Knowledge entry ID that produced the chunk.",
+				}),
+				visitorId: z.string().nullable().openapi({
+					description: "Visitor memory source ID, null for knowledge chunks.",
+				}),
+				contactId: z.string().nullable().openapi({
+					description: "Contact memory source ID, null for knowledge chunks.",
+				}),
+				chunkIndex: z.number().int().nullable().openapi({
+					description: "Chunk index within its source document.",
+				}),
+				title: z.string().nullable().openapi({
+					description: "Readable source title when available.",
+				}),
+				sourceUrl: z.string().url().nullable().openapi({
+					description: "Source URL when available.",
+				}),
+			})
+		),
+		totalFound: z.number().int().openapi({
+			description: "Number of results returned.",
+		}),
+		maxSimilarity: z.number().nullable().openapi({
+			description: "Highest similarity score among returned results.",
+		}),
+		retrievalQuality: z.enum(["none", "low", "medium", "high"]).openapi({
+			description: "Coarse quality band inferred from the best match.",
+		}),
+	})
+	.openapi({
+		description: "Private knowledge retrieval response.",
+	});
+
+export type KnowledgeSearchResponse = z.infer<
+	typeof knowledgeSearchResponseSchema
+>;
+
 /**
  * Get knowledge request schema (TRPC)
  */

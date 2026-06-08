@@ -42,6 +42,19 @@ const getConversationTimelineItemsMock = mock((async () => ({
 	nextCursor: null,
 	hasNextPage: false,
 })) as (...args: unknown[]) => Promise<unknown>);
+const getConversationHeaderMock = mock(
+	(async () => null) as (...args: unknown[]) => Promise<unknown>
+);
+const listFeedbackMock = mock((async () => ({
+	items: [],
+	pagination: {
+		page: 1,
+		limit: 20,
+		total: 0,
+		totalPages: 0,
+		hasMore: false,
+	},
+})) as (...args: unknown[]) => Promise<unknown>);
 const buildConversationExportMock = mock((async () => ({
 	filename: "conversation-conv-1.txt",
 	content: "Conversation Export\nConversation ID: conv-1",
@@ -100,7 +113,7 @@ mock.module("@api/db/queries/conversation-access", () => ({
 mock.module("@api/db/queries/conversation", () => ({
 	getConversationById: getConversationByIdMock,
 	getConversationByIdWithLastMessage: getConversationByIdWithLastMessageMock,
-	getConversationHeader: mock(async () => null),
+	getConversationHeader: getConversationHeaderMock,
 	getConversationSeenData: getConversationSeenDataMock,
 	getConversationTimelineItems: getConversationTimelineItemsMock,
 	listConversations: listConversationsMock,
@@ -120,6 +133,10 @@ mock.module("@api/db/queries/conversation", () => ({
 			deletedAt: null,
 		},
 	})),
+}));
+
+mock.module("@api/db/queries/feedback", () => ({
+	listFeedback: listFeedbackMock,
 }));
 
 mock.module("@api/db/mutations/conversation", () => ({
@@ -228,6 +245,21 @@ mock.module("@api/utils/geo-helpers", () => ({
 }));
 
 mock.module("./feedback-shared", () => ({
+	formatFeedbackResponse: (entry: Record<string, unknown>) => ({
+		id: entry.id,
+		organizationId: entry.organizationId,
+		websiteId: entry.websiteId,
+		conversationId: entry.conversationId,
+		visitorId: entry.visitorId,
+		contactId: entry.contactId,
+		rating: entry.rating,
+		topic: entry.topic,
+		comment: entry.comment,
+		trigger: entry.trigger,
+		source: entry.source,
+		createdAt: entry.createdAt,
+		updatedAt: entry.updatedAt,
+	}),
 	persistFeedbackSubmission: mock(async () => ({
 		ratedAt: "2026-04-07T12:00:00.000Z",
 	})),
@@ -242,6 +274,7 @@ const conversationRouterModulePromise = import("./conversation");
 
 const visitorId = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
 const otherVisitorId = "01ARZ3NDEKTSV4RRFFQ69G5FAW";
+const contactId = "01ARZ3NDEKTSV4RRFFQ69G5FAX";
 const conversationId = "conv-1";
 
 function createConversationRecord(
@@ -334,6 +367,8 @@ describe("conversation auth and inbox routes", () => {
 		canVisitorAccessConversationMock.mockReset();
 		listConversationsMock.mockReset();
 		getConversationTimelineItemsMock.mockReset();
+		getConversationHeaderMock.mockReset();
+		listFeedbackMock.mockReset();
 		buildConversationExportMock.mockReset();
 		getConversationSeenDataMock.mockReset();
 		listConversationsHeadersMock.mockReset();
@@ -382,6 +417,17 @@ describe("conversation auth and inbox routes", () => {
 			items: [],
 			nextCursor: null,
 			hasNextPage: false,
+		});
+		getConversationHeaderMock.mockResolvedValue(createInboxItem());
+		listFeedbackMock.mockResolvedValue({
+			items: [],
+			pagination: {
+				page: 1,
+				limit: 20,
+				total: 0,
+				totalPages: 0,
+				hasMore: false,
+			},
 		});
 		buildConversationExportMock.mockResolvedValue({
 			filename: "conversation-conv-1.txt",
@@ -464,13 +510,13 @@ describe("conversation auth and inbox routes", () => {
 		);
 		expect(listConversationsHeadersMock).toHaveBeenCalledWith(
 			{},
-			{
+			expect.objectContaining({
 				organizationId: "org-1",
 				websiteId: "site-1",
 				userId: "user-1",
 				limit: 20,
 				cursor: null,
-			}
+			})
 		);
 	});
 
@@ -506,12 +552,72 @@ describe("conversation auth and inbox routes", () => {
 		);
 		expect(listConversationsHeadersMock).toHaveBeenCalledWith(
 			{},
-			{
+			expect.objectContaining({
 				organizationId: "org-1",
 				websiteId: "site-1",
 				userId: null,
 				limit: 20,
 				cursor: null,
+			})
+		);
+	});
+
+	it("forwards private inbox filters for agent queries", async () => {
+		safelyExtractRequestQueryMock.mockResolvedValue({
+			db: {},
+			apiKey: { keyType: APIKeyType.PRIVATE, linkedUserId: "user-1" },
+			organization: { id: "org-1" },
+			website: { id: "site-1", organizationId: "org-1", teamId: "team-1" },
+			query: {
+				limit: 25,
+				cursor: "cursor_1",
+				status: "open",
+				priority: "urgent",
+				sentiment: "negative",
+				visitorId,
+				contactId: "contact-1",
+				assignedToUserId: "user-2",
+				viewId: "view-1",
+				createdAtFrom: "2026-04-01T00:00:00.000Z",
+				createdAtTo: "2026-05-01T00:00:00.000Z",
+				updatedAtFrom: "2026-04-02T00:00:00.000Z",
+				updatedAtTo: "2026-05-02T00:00:00.000Z",
+				q: "billing",
+				orderBy: "createdAt",
+				order: "asc",
+			},
+		});
+
+		const { conversationRouter } = await conversationRouterModulePromise;
+		const response = await conversationRouter.request(
+			new Request("http://localhost/inbox", {
+				method: "GET",
+			})
+		);
+
+		expect(response.status).toBe(200);
+		expect(listConversationsHeadersMock).toHaveBeenCalledWith(
+			{},
+			{
+				organizationId: "org-1",
+				websiteId: "site-1",
+				userId: "user-1",
+				limit: 25,
+				cursor: "cursor_1",
+				status: "open",
+				priority: "urgent",
+				sentiment: "negative",
+				visitorId,
+				contactId: "contact-1",
+				assignedToUserId: "user-2",
+				viewId: "view-1",
+				createdAtFrom: "2026-04-01T00:00:00.000Z",
+				createdAtTo: "2026-05-01T00:00:00.000Z",
+				updatedAtFrom: "2026-04-02T00:00:00.000Z",
+				updatedAtTo: "2026-05-02T00:00:00.000Z",
+				q: "billing",
+				orderBy: "createdAt",
+				order: "asc",
 			}
 		);
 	});
@@ -591,6 +697,134 @@ describe("conversation auth and inbox routes", () => {
 			priority: "vip",
 			mrr: 299,
 		});
+	});
+
+	it("returns private conversation context for agent workflows", async () => {
+		const timelineItem = {
+			id: "item-1",
+			conversationId,
+			organizationId: "org-1",
+			visibility: "private",
+			type: "message",
+			text: "Internal note",
+			parts: [],
+			userId: "user-1",
+			visitorId: null,
+			aiAgentId: null,
+			createdAt: "2026-04-07T12:00:00.000Z",
+			deletedAt: null,
+			tool: null,
+		};
+		getConversationHeaderMock.mockResolvedValue(
+			createInboxItem({
+				visitor: {
+					id: visitorId,
+					lastSeenAt: "2026-04-07T11:00:00.000Z",
+					blockedAt: null,
+					blockedByUserId: null,
+					isBlocked: false,
+					contact: {
+						id: contactId,
+						name: "Ada",
+						email: "ada@example.com",
+						image: null,
+					},
+				},
+			})
+		);
+		getConversationTimelineItemsMock.mockResolvedValue({
+			items: [timelineItem],
+			nextCursor: "timeline_cursor",
+			hasNextPage: true,
+		});
+		listFeedbackMock.mockResolvedValue({
+			items: [
+				{
+					id: "feedback-1",
+					organizationId: "org-1",
+					websiteId: "site-1",
+					conversationId,
+					visitorId,
+					contactId,
+					rating: 5,
+					topic: "Bug",
+					comment: "Helpful answer",
+					trigger: "conversation_resolved",
+					source: "widget",
+					createdAt: "2026-04-07T12:30:00.000Z",
+					updatedAt: "2026-04-07T12:30:00.000Z",
+					deletedAt: null,
+				},
+			],
+			pagination: {
+				page: 1,
+				limit: 1,
+				total: 1,
+				totalPages: 1,
+				hasMore: false,
+			},
+		});
+		safelyExtractRequestQueryMock.mockResolvedValue({
+			db: {},
+			apiKey: { keyType: APIKeyType.PRIVATE, linkedUserId: "user-1" },
+			organization: { id: "org-1" },
+			website: { id: "site-1", organizationId: "org-1", teamId: "team-1" },
+			query: {
+				timelineLimit: 2,
+				timelineCursor: "timeline_before",
+				feedbackLimit: 1,
+			},
+		});
+
+		const { conversationRouter } = await conversationRouterModulePromise;
+		const response = await conversationRouter.request(
+			new Request("http://localhost/conv-1/context", {
+				method: "GET",
+			})
+		);
+		const payload = (await response.json()) as {
+			conversation: { id: string };
+			visitor: { contact: { email: string } | null };
+			timeline: { items: unknown[]; nextCursor: string | null };
+			feedback: Array<{ id: string }>;
+		};
+
+		expect(response.status).toBe(200);
+		expect(getConversationHeaderMock).toHaveBeenCalledWith(
+			{},
+			{
+				organizationId: "org-1",
+				websiteId: "site-1",
+				conversationId,
+				userId: "user-1",
+			}
+		);
+		expect(getConversationTimelineItemsMock).toHaveBeenCalledWith(
+			{},
+			{
+				organizationId: "org-1",
+				websiteId: "site-1",
+				conversationId,
+				limit: 2,
+				cursor: "timeline_before",
+			}
+		);
+		expect(listFeedbackMock).toHaveBeenCalledWith(
+			{},
+			{
+				organizationId: "org-1",
+				websiteId: "site-1",
+				conversationId,
+				page: 1,
+				limit: 1,
+				order: "desc",
+			}
+		);
+		expect(payload.conversation.id).toBe(conversationId);
+		expect(payload.visitor.contact?.email).toBe("ada@example.com");
+		expect(payload.timeline.items).toHaveLength(1);
+		expect(payload.timeline.nextCursor).toBe("timeline_cursor");
+		expect(payload.feedback[0]?.id).toBe("feedback-1");
 	});
 
 	it("allows private API keys to read a conversation without a visitor header", async () => {

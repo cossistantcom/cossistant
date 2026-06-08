@@ -19,12 +19,13 @@ import {
 } from "@api/db/mutations/conversation";
 import {
 	getConversationById,
+	getConversationMessageTimelineItemForTranslation,
 	getConversationTimelineItems,
+	listConversationMessageTimelineItemsForTranslation,
 	listConversationsHeaders,
 } from "@api/db/queries/conversation";
 import { getCompleteVisitorWithContact } from "@api/db/queries/visitor";
 import { getWebsiteBySlugWithAccess } from "@api/db/queries/website";
-import { conversationTimelineItem } from "@api/db/schema/conversation";
 import { env } from "@api/env";
 import {
 	applyDashboardConversationHardLimit,
@@ -73,7 +74,7 @@ import {
 } from "@cossistant/types";
 import { timelineItemSchema } from "@cossistant/types/api/timeline-item";
 import { TRPCError } from "@trpc/server";
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../init";
 import { loadConversationContext } from "../utils/conversation";
@@ -1088,22 +1089,11 @@ export const conversationRouter = createTRPCRouter({
 				});
 			}
 
-			const [row] = await db
-				.select()
-				.from(conversationTimelineItem)
-				.where(
-					and(
-						eq(conversationTimelineItem.id, input.timelineItemId),
-						eq(
-							conversationTimelineItem.organizationId,
-							conversation.organizationId
-						),
-						eq(conversationTimelineItem.conversationId, conversation.id),
-						eq(conversationTimelineItem.type, "message"),
-						isNull(conversationTimelineItem.deletedAt)
-					)
-				)
-				.limit(1);
+			const row = await getConversationMessageTimelineItemForTranslation(db, {
+				timelineItemId: input.timelineItemId,
+				organizationId: conversation.organizationId,
+				conversationId: conversation.id,
+			});
 
 			if (!row) {
 				throw new TRPCError({
@@ -1168,37 +1158,12 @@ export const conversationRouter = createTRPCRouter({
 			}
 
 			const uniqueTimelineItemIds = [...new Set(input.timelineItemIds)];
-			const orderById = new Map(
-				uniqueTimelineItemIds.map((id, index) => [id, index] as const)
-			);
-			const rows = await db
-				.select({
-					id: conversationTimelineItem.id,
-					text: conversationTimelineItem.text,
-					parts: conversationTimelineItem.parts,
-					userId: conversationTimelineItem.userId,
-					visitorId: conversationTimelineItem.visitorId,
-					aiAgentId: conversationTimelineItem.aiAgentId,
-				})
-				.from(conversationTimelineItem)
-				.where(
-					and(
-						inArray(conversationTimelineItem.id, uniqueTimelineItemIds),
-						eq(
-							conversationTimelineItem.organizationId,
-							conversation.organizationId
-						),
-						eq(conversationTimelineItem.conversationId, conversation.id),
-						eq(conversationTimelineItem.type, "message"),
-						isNull(conversationTimelineItem.deletedAt)
-					)
-				);
-
-			const orderedRows = rows.sort((left, right) => {
-				const leftIndex = orderById.get(left.id) ?? Number.MAX_SAFE_INTEGER;
-				const rightIndex = orderById.get(right.id) ?? Number.MAX_SAFE_INTEGER;
-				return leftIndex - rightIndex;
-			});
+			const orderedRows =
+				await listConversationMessageTimelineItemsForTranslation(db, {
+					timelineItemIds: uniqueTimelineItemIds,
+					organizationId: conversation.organizationId,
+					conversationId: conversation.id,
+				});
 			const foundIds = new Set(orderedRows.map((row) => row.id));
 			const missingIds = uniqueTimelineItemIds.filter(
 				(id) => !foundIds.has(id)

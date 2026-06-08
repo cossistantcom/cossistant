@@ -59,13 +59,15 @@ const chunkTable = {
 const knowledgeTable = {
 	id: "knowledge.id",
 	deletedAt: "knowledge.deletedAt",
+	sourceTitle: "knowledge.sourceTitle",
+	sourceUrl: "knowledge.sourceUrl",
 };
 
-mock.module("../lib/embedding-client", () => ({
+mock.module("@api/lib/embedding-client", () => ({
 	generateEmbedding: generateEmbeddingMock,
 }));
 
-mock.module("../db/schema", () => ({
+mock.module("../schema", () => ({
 	chunk: chunkTable,
 	knowledge: knowledgeTable,
 }));

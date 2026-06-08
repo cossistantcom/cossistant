@@ -3,13 +3,13 @@ import {
 	linkVisitorToContact,
 	updateContact,
 } from "@api/db/queries/contact";
+import { findSimilarKnowledge } from "@api/db/queries/vector-search";
 import { getCompleteVisitorWithContact } from "@api/db/queries/visitor";
 import {
 	detectMessageLanguage,
 	didTranslationSucceed,
 	maybeTranslateText,
 } from "@api/lib/translation";
-import { findSimilarKnowledge } from "@api/utils/vector-search";
 import { shouldTranslateBetweenLanguages } from "@cossistant/core";
 import { tool } from "ai";
 import { z } from "zod";

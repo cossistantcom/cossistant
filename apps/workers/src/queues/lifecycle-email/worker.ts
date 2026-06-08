@@ -4,9 +4,9 @@ import {
 	claimDueLifecycleEmailEvents,
 	getLifecycleEmailEventsByIds,
 	getOrganizationLifecycleOwnerRecipient,
-	getWeeklyDigestStats,
+	getWeeklyDigestWebsiteForEvent,
 	listLifecycleLimitCandidateWebsites,
-	listWeeklyDigestCandidateOrganizations,
+	listWeeklyDigestCandidateWebsites,
 	markLifecycleEmailEventsFailed,
 	markLifecycleEmailEventsSent,
 	markLifecycleEmailEventsSkipped,
@@ -20,13 +20,18 @@ import {
 	HARD_LIMIT_ROLLING_WINDOW_DAYS,
 } from "@api/db/queries/usage";
 import { organization } from "@api/db/schema";
+import { queryWeeklyDigestStats } from "@api/lib/tinybird-sdk";
 import { getPlanForWebsite } from "@api/lib/plans/access";
 import { buildLifecycleEmail } from "@api/lifecycle-email/content";
 import {
 	getLocalWeekKey,
+	getWeeklyDigestDedupeKey,
 	shouldScanWeeklyDigestForTimezone,
 } from "@api/lifecycle-email/scheduling";
-import { LIFECYCLE_EMAIL_KEYS } from "@api/lifecycle-email/types";
+import {
+	LIFECYCLE_EMAIL_KEYS,
+	type LifecycleEmailMetadata,
+} from "@api/lifecycle-email/types";
 import { type LifecycleEmailJobData, QUEUE_NAMES } from "@cossistant/jobs";
 import { getSafeRedisUrl, type RedisOptions } from "@cossistant/redis";
 import { sendBatchEmail } from "@cossistant/transactional";
@@ -40,6 +45,7 @@ import { env } from "../../env";
 const BATCH_SIZE = 25;
 const BATCH_DELAY_MS = 10_000;
 const SCAN_CLAIM_LIMIT = 250;
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const WORKER_CONFIG = {
 	concurrency: 2,
 	lockDuration: 60_000,
@@ -84,6 +90,20 @@ function errorMessage(error: unknown) {
 function isFinalAttempt(job: Job<LifecycleEmailJobData>) {
 	const attempts = job.opts.attempts ?? 1;
 	return job.attemptsMade + 1 >= attempts;
+}
+
+function getWeeklyDigestDateRanges(now: Date) {
+	const currentEnd = now;
+	const currentStart = new Date(currentEnd.getTime() - WEEK_MS);
+	const previousEnd = currentStart;
+	const previousStart = new Date(previousEnd.getTime() - WEEK_MS);
+
+	return {
+		date_from: currentStart.toISOString(),
+		date_to: currentEnd.toISOString(),
+		prev_date_from: previousStart.toISOString(),
+		prev_date_to: previousEnd.toISOString(),
+	};
 }
 
 export function createLifecycleEmailWorker({
@@ -287,50 +307,57 @@ async function processWeeklyDigestScan() {
 	let offset = 0;
 
 	while (true) {
-		const organizations = await listWeeklyDigestCandidateOrganizations(db, {
+		const websites = await listWeeklyDigestCandidateWebsites(db, {
 			limit: pageSize,
 			offset,
 		});
 
-		if (organizations.length === 0) {
+		if (websites.length === 0) {
 			return;
 		}
 
-		for (const org of organizations) {
+		for (const site of websites) {
 			if (
 				!shouldScanWeeklyDigestForTimezone({
 					now,
-					timezone: org.timezone,
+					timezone: site.timezone,
 				})
 			) {
 				continue;
 			}
 
 			const recipient = await getOrganizationLifecycleOwnerRecipient(db, {
-				organizationId: org.id,
+				organizationId: site.organizationId,
 			});
 
 			if (!recipient) {
 				continue;
 			}
 
-			const weekKey = getLocalWeekKey(now, org.timezone);
+			const weekKey = getLocalWeekKey(now, site.timezone);
 			await scheduleLifecycleEmailEvent(db, {
-				dedupeKey: `${LIFECYCLE_EMAIL_KEYS.WEEKLY_DIGEST}:${org.id}:${weekKey}`,
+				dedupeKey: getWeeklyDigestDedupeKey({
+					websiteId: site.websiteId,
+					weekKey,
+				}),
 				emailKey: LIFECYCLE_EMAIL_KEYS.WEEKLY_DIGEST,
 				recipientUserId: recipient.userId,
 				recipientMemberId: recipient.memberId,
 				recipientEmail: recipient.email,
-				organizationId: org.id,
+				organizationId: site.organizationId,
+				websiteId: site.websiteId,
 				scheduledAt: now,
 				metadata: {
-					organizationName: org.name,
+					organizationName: site.organizationName,
+					websiteId: site.websiteId,
+					websiteName: site.websiteName,
+					websiteSlug: site.websiteSlug,
 					weekKey,
 				},
 			});
 		}
 
-		offset += organizations.length;
+		offset += websites.length;
 	}
 }
 
@@ -477,6 +504,7 @@ async function processSendBatch(job: Job<LifecycleEmailJobData>) {
 	const queuedEvents = events.filter((event) => event.status === "queued");
 	const deliverable: DeliverableLifecycleEmail[] = [];
 	const skippedByReason = new Map<string, string[]>();
+	const now = new Date();
 
 	for (const event of queuedEvents) {
 		const eligibility = await getLifecycleEmailEligibility(event);
@@ -498,20 +526,50 @@ async function processSendBatch(job: Job<LifecycleEmailJobData>) {
 			continue;
 		}
 
-		const stats =
-			event.emailKey === LIFECYCLE_EMAIL_KEYS.WEEKLY_DIGEST
-				? await getWeeklyDigestStats(db, {
-						organizationId: event.organizationId,
-						since: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-					})
-				: undefined;
+		let weeklyDigestStats:
+			| Awaited<ReturnType<typeof queryWeeklyDigestStats>>
+			| undefined;
+		let eventForContent = event;
+
+		if (event.emailKey === LIFECYCLE_EMAIL_KEYS.WEEKLY_DIGEST) {
+			const digestWebsite = await getWeeklyDigestWebsiteForEvent(db, {
+				organizationId: event.organizationId,
+				websiteId: event.websiteId,
+			});
+
+			if (!digestWebsite) {
+				const ids =
+					skippedByReason.get("weekly_digest_website_missing") ?? [];
+				ids.push(event.id);
+				skippedByReason.set("weekly_digest_website_missing", ids);
+				continue;
+			}
+
+			const metadata = (event.metadata ?? {}) as NonNullable<
+				LifecycleEmailMetadata
+			>;
+			eventForContent = {
+				...event,
+				metadata: {
+					...metadata,
+					organizationName: org.name,
+					websiteId: digestWebsite.id,
+					websiteName: digestWebsite.name,
+					websiteSlug: digestWebsite.slug,
+				} satisfies NonNullable<LifecycleEmailMetadata>,
+			};
+			weeklyDigestStats = await queryWeeklyDigestStats({
+				website_id: digestWebsite.id,
+				...getWeeklyDigestDateRanges(now),
+			});
+		}
 
 		const content = buildLifecycleEmail({
 			appUrl: env.PUBLIC_APP_URL,
-			event,
+			event: eventForContent,
 			organizationName: org.name,
 			recipientName: eligibility.recipientName,
-			weeklyDigestStats: stats,
+			weeklyDigestStats,
 		});
 
 		deliverable.push({

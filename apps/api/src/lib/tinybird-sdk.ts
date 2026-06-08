@@ -455,6 +455,47 @@ type InboxAnalyticsResponse = {
 	data: InboxAnalyticsRow[];
 };
 
+type UniqueVisitorsParams = InboxAnalyticsParams;
+
+type UniqueVisitorsRow = {
+	unique_visitors: number;
+	period: "current" | "previous";
+};
+
+type UniqueVisitorsResponse = {
+	data: UniqueVisitorsRow[];
+};
+
+export type WeeklyDigestMetricSnapshot = {
+	conversations: number;
+	uniqueVisitors: number;
+	aiHandledRate: number | null;
+	medianFirstResponseSeconds: number | null;
+	medianResolutionSeconds: number | null;
+};
+
+export type WeeklyDigestStats = {
+	current: WeeklyDigestMetricSnapshot;
+	previous: WeeklyDigestMetricSnapshot;
+};
+
+const EMPTY_WEEKLY_DIGEST_STATS: WeeklyDigestStats = {
+	current: {
+		conversations: 0,
+		uniqueVisitors: 0,
+		aiHandledRate: null,
+		medianFirstResponseSeconds: null,
+		medianResolutionSeconds: null,
+	},
+	previous: {
+		conversations: 0,
+		uniqueVisitors: 0,
+		aiHandledRate: null,
+		medianFirstResponseSeconds: null,
+		medianResolutionSeconds: null,
+	},
+};
+
 export async function queryInboxAnalytics(
 	params: InboxAnalyticsParams
 ): Promise<InboxAnalyticsResponse> {
@@ -476,6 +517,109 @@ export async function queryInboxAnalytics(
 
 		return { data: result.data };
 	});
+}
+
+export async function queryUniqueVisitors(
+	params: UniqueVisitorsParams
+): Promise<UniqueVisitorsResponse> {
+	if (!TINYBIRD_ENABLED || tinybirdClient === null) {
+		return { data: [] };
+	}
+
+	return withRetry(async () => {
+		const result = await tinybirdClient.query<UniqueVisitorsRow>(
+			"unique_visitors",
+			{
+				website_id: params.website_id,
+				date_from: params.date_from,
+				date_to: params.date_to,
+				prev_date_from: params.prev_date_from,
+				prev_date_to: params.prev_date_to,
+			}
+		);
+
+		return { data: result.data };
+	});
+}
+
+function toFiniteNumber(value: unknown): number | null {
+	const parsed = Number(value);
+	return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getAnalyticsRow(
+	rows: InboxAnalyticsRow[],
+	period: "current" | "previous",
+	eventType: string
+) {
+	return rows.find(
+		(row) => row.period === period && row.event_type === eventType
+	);
+}
+
+function buildWeeklyDigestSnapshot(
+	analyticsRows: InboxAnalyticsRow[],
+	visitorRows: UniqueVisitorsRow[],
+	period: "current" | "previous"
+): WeeklyDigestMetricSnapshot {
+	const conversationStartedRow = getAnalyticsRow(
+		analyticsRows,
+		period,
+		"conversation_started"
+	);
+	const firstResponseRow = getAnalyticsRow(
+		analyticsRows,
+		period,
+		"first_response"
+	);
+	const conversationResolvedRow = getAnalyticsRow(
+		analyticsRows,
+		period,
+		"conversation_resolved"
+	);
+	const aiResolvedRow = getAnalyticsRow(analyticsRows, period, "ai_resolved");
+	const resolvedCount = Number(conversationResolvedRow?.event_count ?? 0);
+	const aiResolvedCount = Number(aiResolvedRow?.event_count ?? 0);
+	const visitorsRow = visitorRows.find((row) => row.period === period);
+
+	return {
+		conversations: Number(conversationStartedRow?.event_count ?? 0),
+		uniqueVisitors: Number(visitorsRow?.unique_visitors ?? 0),
+		aiHandledRate:
+			resolvedCount > 0 ? (aiResolvedCount / resolvedCount) * 100 : null,
+		medianFirstResponseSeconds: toFiniteNumber(
+			firstResponseRow?.median_duration
+		),
+		medianResolutionSeconds: toFiniteNumber(
+			conversationResolvedRow?.median_duration
+		),
+	};
+}
+
+export async function queryWeeklyDigestStats(
+	params: InboxAnalyticsParams
+): Promise<WeeklyDigestStats> {
+	if (!TINYBIRD_ENABLED || tinybirdClient === null) {
+		return EMPTY_WEEKLY_DIGEST_STATS;
+	}
+
+	const [analytics, visitors] = await Promise.all([
+		queryInboxAnalytics(params),
+		queryUniqueVisitors(params),
+	]);
+
+	return {
+		current: buildWeeklyDigestSnapshot(
+			analytics.data,
+			visitors.data,
+			"current"
+		),
+		previous: buildWeeklyDigestSnapshot(
+			analytics.data,
+			visitors.data,
+			"previous"
+		),
+	};
 }
 
 // ============================================================================

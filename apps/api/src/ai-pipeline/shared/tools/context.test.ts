@@ -43,7 +43,7 @@ const requestKnowledgeClarificationMock = mock((async () => ({
 	status: "awaiting_answer" as const,
 })) as (...args: unknown[]) => Promise<unknown>);
 
-mock.module("@api/utils/vector-search", () => ({
+mock.module("@api/db/queries/vector-search", () => ({
 	findSimilarKnowledge: findSimilarKnowledgeMock,
 }));
 mock.module("@api/db/queries/knowledge-clarification", () => ({

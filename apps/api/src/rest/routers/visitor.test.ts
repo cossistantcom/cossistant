@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { APIKeyType } from "@cossistant/types";
 
 const safelyExtractRequestDataMock = mock((async () => ({})) as (
 	...args: unknown[]
@@ -9,6 +10,27 @@ const findVisitorForWebsiteMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
 );
 const updateVisitorForWebsiteMock = mock(
+	(async () => null) as (...args: unknown[]) => Promise<unknown>
+);
+const blockVisitorMock = mock(
+	(async () => null) as (...args: unknown[]) => Promise<unknown>
+);
+const unblockVisitorMock = mock(
+	(async () => null) as (...args: unknown[]) => Promise<unknown>
+);
+const listConversationsHeadersMock = mock((async () => ({
+	items: [],
+	nextCursor: null,
+})) as (...args: unknown[]) => Promise<unknown>);
+const resolvePrivateApiKeyActorUserMock = mock((async () => ({
+	userId: "user-1",
+	member: {
+		id: "member-1",
+		userId: "user-1",
+	},
+	source: "linked_key",
+})) as (...args: unknown[]) => Promise<unknown>);
+const createConversationEventMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
 );
 const trackVisitorEventMock = mock((() => {}) as (...args: unknown[]) => void);
@@ -46,9 +68,26 @@ mock.module("@api/db/queries/visitor", () => ({
 	updateVisitorForWebsite: updateVisitorForWebsiteMock,
 }));
 
+mock.module("@api/db/mutations/visitor", () => ({
+	blockVisitor: blockVisitorMock,
+	unblockVisitor: unblockVisitorMock,
+}));
+
+mock.module("@api/db/queries/conversation", () => ({
+	listConversationsHeaders: listConversationsHeadersMock,
+}));
+
 mock.module("@api/db/queries/contact", () => ({
 	getContactForVisitor: getContactForVisitorMock,
 	mergeContactMetadata: mergeContactMetadataMock,
+}));
+
+mock.module("@api/lib/private-api-key-actor", () => ({
+	resolvePrivateApiKeyActorUser: resolvePrivateApiKeyActorUserMock,
+}));
+
+mock.module("@api/utils/conversation-event", () => ({
+	createConversationEvent: createConversationEventMock,
 }));
 
 mock.module("@api/lib/tinybird-sdk", () => ({
@@ -128,6 +167,11 @@ describe("visitor route PATCH /:id countryCode handling", () => {
 		validateResponseMock.mockReset();
 		findVisitorForWebsiteMock.mockReset();
 		updateVisitorForWebsiteMock.mockReset();
+		blockVisitorMock.mockReset();
+		unblockVisitorMock.mockReset();
+		listConversationsHeadersMock.mockReset();
+		resolvePrivateApiKeyActorUserMock.mockReset();
+		createConversationEventMock.mockReset();
 		getContactForVisitorMock.mockReset();
 		mergeContactMetadataMock.mockReset();
 		trackVisitorEventMock.mockReset();
@@ -139,6 +183,30 @@ describe("visitor route PATCH /:id countryCode handling", () => {
 		validateResponseMock.mockImplementation((value) => value);
 		findVisitorForWebsiteMock.mockResolvedValue(createVisitorRecord());
 		updateVisitorForWebsiteMock.mockResolvedValue(createVisitorRecord());
+		blockVisitorMock.mockResolvedValue(
+			createVisitorRecord({
+				blockedAt: "2026-03-03T12:00:00.000Z",
+				blockedByUserId: "user-1",
+			})
+		);
+		unblockVisitorMock.mockResolvedValue(createVisitorRecord());
+		listConversationsHeadersMock.mockResolvedValue({
+			items: [
+				{
+					id: "conv-1",
+				},
+			],
+			nextCursor: null,
+		});
+		resolvePrivateApiKeyActorUserMock.mockResolvedValue({
+			userId: "user-1",
+			member: {
+				id: "member-1",
+				userId: "user-1",
+			},
+			source: "linked_key",
+		});
+		createConversationEventMock.mockResolvedValue(null);
 		getContactForVisitorMock.mockResolvedValue(null);
 		mergeContactMetadataMock.mockResolvedValue();
 		realtimeEmitMock.mockResolvedValue(undefined);
@@ -146,6 +214,67 @@ describe("visitor route PATCH /:id countryCode handling", () => {
 		lookupGeoIpMock.mockResolvedValue(null);
 		mockEnv.NODE_ENV = "development";
 		mockEnv.LOCAL_VISITOR_IP_OVERRIDE = "";
+	});
+
+	it("requires a private actor to block a visitor", async () => {
+		resolvePrivateApiKeyActorUserMock.mockResolvedValueOnce(null);
+		safelyExtractRequestDataMock.mockResolvedValue({
+			db: {},
+			apiKey: { keyType: APIKeyType.PRIVATE, linkedUserId: null },
+			organization: { id: "org-1" },
+			website: { id: "site-1", organizationId: "org-1", teamId: "team-1" },
+			body: null,
+		});
+
+		const { visitorRouter } = await visitorRouterModulePromise;
+		const response = await visitorRouter.request(
+			new Request("http://localhost/visitor-1/block", {
+				method: "POST",
+			})
+		);
+
+		expect(response.status).toBe(400);
+		expect(blockVisitorMock).not.toHaveBeenCalled();
+	});
+
+	it("blocks and unblocks a visitor with a resolved private actor", async () => {
+		safelyExtractRequestDataMock.mockResolvedValue({
+			db: {},
+			apiKey: { keyType: APIKeyType.PRIVATE, linkedUserId: "user-1" },
+			organization: { id: "org-1" },
+			website: { id: "site-1", organizationId: "org-1", teamId: "team-1" },
+			body: null,
+		});
+
+		const { visitorRouter } = await visitorRouterModulePromise;
+		const blockResponse = await visitorRouter.request(
+			new Request("http://localhost/visitor-1/block", {
+				method: "POST",
+			})
+		);
+		const unblockResponse = await visitorRouter.request(
+			new Request("http://localhost/visitor-1/unblock", {
+				method: "POST",
+			})
+		);
+
+		expect(blockResponse.status).toBe(200);
+		expect(unblockResponse.status).toBe(200);
+		expect(blockVisitorMock).toHaveBeenCalledWith(
+			{},
+			{
+				visitor: expect.objectContaining({ id: "visitor-1" }),
+				actorUserId: "user-1",
+			}
+		);
+		expect(unblockVisitorMock).toHaveBeenCalledWith(
+			{},
+			{
+				visitor: expect.objectContaining({ id: "visitor-1" }),
+				actorUserId: "user-1",
+			}
+		);
+		expect(createConversationEventMock).toHaveBeenCalledTimes(2);
 	});
 
 	it("does not persist locale macro-region values like es-419 as countryCode", async () => {

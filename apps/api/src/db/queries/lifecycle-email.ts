@@ -1,9 +1,6 @@
 import type { Database } from "@api/db";
 import { getOrganizationOwnerEmailRecipients } from "@api/db/queries/openrouter-byok";
 import {
-	contact,
-	conversation,
-	conversationTimelineItem,
 	type LifecycleEmailEventInsert,
 	type LifecycleEmailEventSelect,
 	lifecycleEmailEvent,
@@ -15,13 +12,11 @@ import {
 	type LifecycleEmailKey,
 	type LifecycleEmailMetadata,
 } from "@api/lifecycle-email/types";
-import { ConversationTimelineType, WebsiteStatus } from "@cossistant/types";
+import { WebsiteStatus } from "@cossistant/types";
 import {
 	and,
 	asc,
-	count,
 	eq,
-	gte,
 	inArray,
 	isNull,
 	lte,
@@ -339,22 +334,63 @@ export async function requeueLifecycleEmailEvents(
 		.where(inArray(lifecycleEmailEvent.id, params.eventIds));
 }
 
-export async function listWeeklyDigestCandidateOrganizations(
+export async function listWeeklyDigestCandidateWebsites(
 	db: Database,
 	params: { limit: number; offset?: number }
 ) {
 	return db
 		.select({
-			id: organization.id,
-			name: organization.name,
+			organizationId: organization.id,
+			organizationName: organization.name,
 			timezone: organization.timezone,
-			weeklyDigestEnabled: organization.weeklyDigestEnabled,
+			websiteId: website.id,
+			websiteName: website.name,
+			websiteSlug: website.slug,
 		})
-		.from(organization)
-		.where(eq(organization.weeklyDigestEnabled, true))
-		.orderBy(asc(organization.id))
+		.from(website)
+		.innerJoin(organization, eq(website.organizationId, organization.id))
+		.where(
+			and(
+				eq(organization.weeklyDigestEnabled, true),
+				isNull(website.deletedAt),
+				eq(website.status, WebsiteStatus.ACTIVE)
+			)
+		)
+		.orderBy(asc(organization.id), asc(website.id))
 		.limit(params.limit)
 		.offset(params.offset ?? 0);
+}
+
+export async function getWeeklyDigestWebsiteForEvent(
+	db: Database,
+	params: { organizationId: string; websiteId?: string | null }
+) {
+	const [site] = await db
+		.select({
+			id: website.id,
+			name: website.name,
+			slug: website.slug,
+			organizationId: website.organizationId,
+		})
+		.from(website)
+		.where(
+			params.websiteId
+				? and(
+						eq(website.organizationId, params.organizationId),
+						eq(website.id, params.websiteId),
+						isNull(website.deletedAt),
+						eq(website.status, WebsiteStatus.ACTIVE)
+					)
+				: and(
+						eq(website.organizationId, params.organizationId),
+						isNull(website.deletedAt),
+						eq(website.status, WebsiteStatus.ACTIVE)
+					)
+		)
+		.orderBy(asc(website.id))
+		.limit(1);
+
+	return site ?? null;
 }
 
 export async function listLifecycleLimitCandidateWebsites(
@@ -370,50 +406,4 @@ export async function listLifecycleLimitCandidateWebsites(
 		.orderBy(asc(website.id))
 		.limit(params.limit)
 		.offset(params.offset ?? 0);
-}
-
-export async function getWeeklyDigestStats(
-	db: Database,
-	params: { organizationId: string; since: Date }
-) {
-	const sinceIso = params.since.toISOString();
-	const [conversationCount, messageCount, contactCount] = await Promise.all([
-		db
-			.select({ count: count() })
-			.from(conversation)
-			.where(
-				and(
-					eq(conversation.organizationId, params.organizationId),
-					gte(conversation.createdAt, sinceIso),
-					isNull(conversation.deletedAt)
-				)
-			),
-		db
-			.select({ count: count() })
-			.from(conversationTimelineItem)
-			.where(
-				and(
-					eq(conversationTimelineItem.organizationId, params.organizationId),
-					eq(conversationTimelineItem.type, ConversationTimelineType.MESSAGE),
-					gte(conversationTimelineItem.createdAt, sinceIso),
-					isNull(conversationTimelineItem.deletedAt)
-				)
-			),
-		db
-			.select({ count: count() })
-			.from(contact)
-			.where(
-				and(
-					eq(contact.organizationId, params.organizationId),
-					gte(contact.createdAt, sinceIso),
-					isNull(contact.deletedAt)
-				)
-			),
-	]);
-
-	return {
-		conversations: conversationCount[0]?.count ?? 0,
-		messages: messageCount[0]?.count ?? 0,
-		contacts: contactCount[0]?.count ?? 0,
-	};
 }

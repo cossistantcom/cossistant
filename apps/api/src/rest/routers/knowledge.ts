@@ -8,6 +8,7 @@ import {
 	updateKnowledge,
 } from "@api/db/queries/knowledge";
 import { syncLinkSourceStatsFromKnowledge } from "@api/db/queries/link-source";
+import { findSimilarKnowledge } from "@api/db/queries/vector-search";
 import { getPlanForWebsite } from "@api/lib/plans/access";
 import {
 	safelyExtractRequestData,
@@ -19,6 +20,8 @@ import {
 	createKnowledgeRestRequestSchema,
 	type KnowledgeResponse,
 	knowledgeResponseSchema,
+	knowledgeSearchRequestSchema,
+	knowledgeSearchResponseSchema,
 	listKnowledgeResponseSchema,
 	listKnowledgeRestRequestSchema,
 	type UpdateKnowledgeRestRequest,
@@ -72,6 +75,49 @@ function toNumericLimit(value: number | boolean | null): number | null {
 	}
 
 	return value;
+}
+
+function createKnowledgeSearchSnippet(content: string): string {
+	const normalized = content.replace(/\s+/g, " ").trim();
+	const maxLength = 360;
+
+	if (normalized.length <= maxLength) {
+		return normalized;
+	}
+
+	return `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
+}
+
+function getStringMetadataValue(
+	metadata: unknown,
+	keys: string[]
+): string | null {
+	if (!metadata || typeof metadata !== "object") {
+		return null;
+	}
+
+	const record = metadata as Record<string, unknown>;
+	for (const key of keys) {
+		const value = record[key];
+		if (typeof value === "string" && value.trim().length > 0) {
+			return value;
+		}
+	}
+
+	return null;
+}
+
+function getRetrievalQuality(maxSimilarity: number | null) {
+	if (maxSimilarity === null) {
+		return "none" as const;
+	}
+	if (maxSimilarity >= 0.78) {
+		return "high" as const;
+	}
+	if (maxSimilarity >= 0.55) {
+		return "medium" as const;
+	}
+	return "low" as const;
 }
 
 function getErrorCodeForStatus(status: number): string {
@@ -348,11 +394,104 @@ knowledgeRouter.openapi(
 	}
 );
 
+knowledgeRouter.openapi(
+	{
+		method: "get",
+		path: "/search",
+		summary: "Search knowledge",
+		description:
+			"Runs private semantic retrieval against indexed knowledge chunks for the authenticated website. Designed for CLI, MCP, and support-agent tools that need source-backed context.",
+		operationId: "searchKnowledge",
+		request: {
+			query: knowledgeSearchRequestSchema,
+		},
+		responses: {
+			200: {
+				description: "Knowledge search completed successfully",
+				content: {
+					"application/json": {
+						schema: knowledgeSearchResponseSchema,
+					},
+				},
+			},
+			400: errorJsonResponse("Bad request - Invalid query parameters"),
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			403: errorJsonResponse("Forbidden - Private API key required"),
+			500: errorJsonResponse("Internal server error"),
+		},
+		tags: ["Knowledge"],
+		...privateControlAuth(),
+	},
+	async (c) => {
+		try {
+			const { db, website, query } = await safelyExtractRequestQuery(
+				c,
+				knowledgeSearchRequestSchema
+			);
+
+			if (!(website?.id && website.organizationId)) {
+				return c.json(
+					{ error: "UNAUTHORIZED", message: "Invalid API key" },
+					401
+				);
+			}
+
+			const results = await findSimilarKnowledge(db, query.query, website.id, {
+				knowledgeId: query.knowledgeId,
+				limit: query.limit,
+				minSimilarity: query.minSimilarity,
+			});
+			const maxSimilarity = results[0]?.similarity ?? null;
+			const response = {
+				query: query.query,
+				results: results.map((result) => ({
+					id: result.id,
+					content: result.content,
+					snippet: createKnowledgeSearchSnippet(result.content),
+					metadata: result.metadata ?? null,
+					similarity: Number(result.similarity),
+					sourceType: result.sourceType,
+					knowledgeId: result.knowledgeId,
+					visitorId: result.visitorId,
+					contactId: result.contactId,
+					chunkIndex: result.chunkIndex,
+					title:
+						result.sourceTitle ??
+						getStringMetadataValue(result.metadata, [
+							"title",
+							"sourceTitle",
+							"question",
+						]),
+					sourceUrl:
+						result.sourceUrl ??
+						getStringMetadataValue(result.metadata, ["sourceUrl", "url"]),
+				})),
+				totalFound: results.length,
+				maxSimilarity,
+				retrievalQuality: getRetrievalQuality(maxSimilarity),
+			};
+
+			return c.json(
+				validateResponse(response, knowledgeSearchResponseSchema),
+				200
+			);
+		} catch (error) {
+			return handleKnowledgeRouterError(
+				c,
+				error,
+				"Failed to search knowledge"
+			) as never;
+		}
+	}
+);
+
 // GET /knowledge/:id - Get a single knowledge entry
 knowledgeRouter.openapi(
 	{
 		method: "get",
-		path: "/:id",
+		path: "/{id}",
 		summary: "Get a knowledge entry",
 		description: "Retrieves a single knowledge entry by ID",
 		operationId: "getKnowledge",
@@ -525,7 +664,7 @@ knowledgeRouter.openapi(
 knowledgeRouter.openapi(
 	{
 		method: "patch",
-		path: "/:id",
+		path: "/{id}",
 		summary: "Update a knowledge entry",
 		description: "Updates an existing knowledge entry",
 		request: {
@@ -650,7 +789,7 @@ knowledgeRouter.openapi(
 knowledgeRouter.openapi(
 	{
 		method: "delete",
-		path: "/:id",
+		path: "/{id}",
 		summary: "Delete a knowledge entry",
 		description: "Permanently deletes a knowledge entry",
 		responses: {

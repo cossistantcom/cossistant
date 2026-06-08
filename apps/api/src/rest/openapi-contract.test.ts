@@ -38,9 +38,9 @@ mock.module("./middleware", () => ({
 }));
 
 const routersModulePromise = import("./routers");
+const openApiDocumentModulePromise = import("./openapi-document");
 
 const routersDir = path.resolve(import.meta.dir, "routers");
-const apiIndexPath = path.resolve(import.meta.dir, "../index.ts");
 
 type OpenAPIMetadataValueType = {
 	type?: string;
@@ -74,6 +74,22 @@ type OpenAPIJsonContent = {
 	};
 };
 
+type OpenAPIPathRecord = Record<
+	string,
+	Record<string, Record<string, unknown>>
+>;
+
+const OPENAPI_HTTP_METHODS = new Set([
+	"delete",
+	"get",
+	"head",
+	"options",
+	"patch",
+	"post",
+	"put",
+	"trace",
+]);
+
 describe("REST OpenAPI contract guards", () => {
 	it("defines the shared public and private security schemes", () => {
 		expect(openApiSecuritySchemes).toHaveProperty(
@@ -103,20 +119,142 @@ describe("REST OpenAPI contract guards", () => {
 		}
 	});
 
-	it("uses shared security schemes in the OpenAPI root document and no global bearerAuth", () => {
-		const content = readFileSync(apiIndexPath, "utf8");
+	it("builds a canonical served OpenAPI document", async () => {
+		const { buildOpenApiDocument } = await openApiDocumentModulePromise;
+		const doc = buildOpenApiDocument();
+		const paths = doc.paths as unknown as OpenAPIPathRecord;
+		const pathKeys = Object.keys(paths);
 
-		expect(content).toContain("securitySchemes: openApiSecuritySchemes");
-		expect(content).not.toContain("bearerAuth");
+		expect(doc.servers).toEqual([
+			{
+				url: "https://api.cossistant.com/v1",
+			},
+		]);
+		expect(doc.components?.securitySchemes).toEqual(openApiSecuritySchemes);
+		expect(pathKeys.every((apiPath) => !apiPath.includes(":"))).toBe(true);
+		expect(pathKeys.every((apiPath) => !apiPath.startsWith("/v1"))).toBe(true);
+		expect(pathKeys).toContain("/ws");
+		expect(paths["/feedback/summary"]?.get).toBeDefined();
+		expect(paths["/conversations/{conversationId}/context"]?.get).toBeDefined();
+		expect(paths["/knowledge/search"]?.get).toBeDefined();
+		expect(paths["/messages"]?.post).toBeDefined();
+		expect(paths["/visitors/{id}/block"]?.post).toBeDefined();
+		expect(paths["/visitors/{id}/unblock"]?.post).toBeDefined();
 	});
 
-	it("documents the websocket handshake in the root OpenAPI document", () => {
-		const content = readFileSync(apiIndexPath, "utf8");
+	it("serves the canonical OpenAPI document at /openapi", async () => {
+		const { app } = await import("../index");
+		const response = await app.request("/openapi");
+		const doc = (await response.json()) as {
+			paths?: Record<string, unknown>;
+			servers?: Array<{ url: string }>;
+		};
 
-		expect(content).toContain('"/ws"');
-		expect(content).toContain("connectRealtimeWebSocket");
-		expect(content).toContain('name: "actorUserId"');
-		expect(content).toContain("actorUserIdHeader");
+		expect(response.status).toBe(200);
+		expect(doc.servers?.[0]?.url).toBe("https://api.cossistant.com/v1");
+		expect(doc.paths).toHaveProperty("/ws");
+		expect(doc.paths).toHaveProperty("/feedback/summary");
+		expect(doc.paths).toHaveProperty("/conversations/{conversationId}/context");
+	});
+
+	it("has complete and unique operation IDs in the served OpenAPI document", async () => {
+		const { buildOpenApiDocument } = await openApiDocumentModulePromise;
+		const doc = buildOpenApiDocument();
+		const operationIds: string[] = [];
+
+		for (const pathItem of Object.values(
+			doc.paths as unknown as OpenAPIPathRecord
+		)) {
+			if (!pathItem || typeof pathItem !== "object") {
+				continue;
+			}
+
+			for (const [method, operation] of Object.entries(pathItem)) {
+				if (
+					!(OPENAPI_HTTP_METHODS.has(method) && operation) ||
+					typeof operation !== "object"
+				) {
+					continue;
+				}
+
+				const operationId = (operation as { operationId?: unknown })
+					.operationId;
+				expect(typeof operationId).toBe("string");
+				expect(operationId).not.toBe("");
+				operationIds.push(operationId as string);
+			}
+		}
+
+		expect(operationIds.length).toBeGreaterThan(0);
+		expect(new Set(operationIds).size).toBe(operationIds.length);
+	});
+
+	it("defines every referenced security scheme in the served OpenAPI document", async () => {
+		const { buildOpenApiDocument } = await openApiDocumentModulePromise;
+		const doc = buildOpenApiDocument();
+		const definedSchemes = new Set(
+			Object.keys(doc.components?.securitySchemes ?? {})
+		);
+
+		for (const pathItem of Object.values(
+			doc.paths as unknown as OpenAPIPathRecord
+		)) {
+			if (!pathItem || typeof pathItem !== "object") {
+				continue;
+			}
+
+			for (const [method, operation] of Object.entries(pathItem)) {
+				if (
+					!(OPENAPI_HTTP_METHODS.has(method) && operation) ||
+					typeof operation !== "object" ||
+					!("security" in operation)
+				) {
+					continue;
+				}
+
+				const security = operation.security as unknown as Record<
+					string,
+					string[] | undefined
+				>[];
+				for (const requirement of security ?? []) {
+					for (const schemeName of Object.keys(requirement)) {
+						expect(definedSchemes.has(schemeName)).toBe(true);
+					}
+				}
+			}
+		}
+	});
+
+	it("documents the websocket handshake in the served OpenAPI document", async () => {
+		const { buildOpenApiDocument } = await openApiDocumentModulePromise;
+		const doc = buildOpenApiDocument();
+		const paths = doc.paths as unknown as OpenAPIPathRecord;
+		const websocketOperation = paths["/ws"]?.get as
+			| {
+					operationId?: unknown;
+					parameters?: Array<{ name?: string }>;
+					security?: unknown;
+					servers?: unknown;
+			  }
+			| undefined;
+		const parameterNames =
+			websocketOperation?.parameters?.map((parameter) =>
+				"name" in parameter ? parameter.name : null
+			) ?? [];
+
+		expect(websocketOperation).toBeDefined();
+		expect(websocketOperation?.operationId).toBe("connectRealtime");
+		expect(websocketOperation?.servers).toEqual([
+			{
+				url: "wss://api.cossistant.com",
+			},
+		]);
+		expect(websocketOperation?.security).toEqual([
+			{ [PUBLIC_API_KEY_SECURITY_SCHEME]: [] },
+			{ [PRIVATE_API_KEY_SECURITY_SCHEME]: [] },
+		]);
+		expect(parameterNames).toContain("token");
+		expect(parameterNames).toContain("X-Actor-User-Id");
 	});
 
 	it("documents private AI agent routes with shared security and stable response shapes", async () => {

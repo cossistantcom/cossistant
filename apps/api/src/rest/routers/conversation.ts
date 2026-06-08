@@ -24,15 +24,17 @@ import {
 	getConversationByIdWithLastMessage,
 	getConversationHeader,
 	getConversationSeenData,
+	getConversationTimelineItemByIdForOrganization,
 	getConversationTimelineItems,
 	listConversations,
 	listConversationsHeaders,
 	upsertConversation,
 } from "@api/db/queries/conversation";
 import { canVisitorAccessConversation } from "@api/db/queries/conversation-access";
-import {
-	type conversation,
-	conversationTimelineItem,
+import { listFeedback } from "@api/db/queries/feedback";
+import type {
+	ConversationTimelineItemSelect,
+	conversation,
 } from "@api/db/schema/conversation";
 import { env } from "@api/env";
 import { AuthValidationError } from "@api/lib/auth-validation";
@@ -94,6 +96,8 @@ import {
 } from "@cossistant/types";
 import {
 	type CreateConversationConflictCode,
+	conversationContextRequestSchema,
+	conversationContextResponseSchema,
 	conversationInboxItemSchema,
 	createConversationConflictResponseSchema,
 	createConversationRequestSchema,
@@ -127,7 +131,6 @@ import {
 } from "@cossistant/types/api/timeline-item";
 import { conversationSchema } from "@cossistant/types/schemas";
 import { OpenAPIHono, z } from "@hono/zod-openapi";
-import { and, eq } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import {
 	ClientTimelineItemCreatedAtValidationError,
@@ -144,10 +147,13 @@ import {
 import { resolveRuntimeVisitorIdentity } from "../runtime-visitor";
 import type { RestContext } from "../types";
 import { mapDefaultTimelineItemForCreation } from "./conversation-default-timeline-item";
-import { persistFeedbackSubmission } from "./feedback-shared";
+import {
+	formatFeedbackResponse,
+	persistFeedbackSubmission,
+} from "./feedback-shared";
 
 type ConversationRow = typeof conversation.$inferSelect;
-type ConversationTimelineItemRow = typeof conversationTimelineItem.$inferSelect;
+type ConversationTimelineItemRow = ConversationTimelineItemSelect;
 const AI_PAUSE_DURATION_MAX_MINUTES = 60 * 24 * 365 * 100;
 const AI_PAUSE_FURTHER_NOTICE_MINUTES = 60 * 24 * 365 * 99;
 
@@ -920,16 +926,11 @@ conversationRouter.openapi(
 					throw error;
 				}
 
-				const [existingTimelineItem] = await db
-					.select()
-					.from(conversationTimelineItem)
-					.where(
-						and(
-							eq(conversationTimelineItem.id, timelineItemId),
-							eq(conversationTimelineItem.organizationId, organization.id)
-						)
-					)
-					.limit(1);
+				const existingTimelineItem =
+					await getConversationTimelineItemByIdForOrganization(db, {
+						timelineItemId,
+						organizationId: organization.id,
+					});
 
 				if (!existingTimelineItem) {
 					throw new Error(
@@ -2582,6 +2583,20 @@ conversationRouter.openapi(
 				userId: actor?.userId ?? null,
 				limit: extracted.query.limit,
 				cursor: extracted.query.cursor ?? null,
+				status: extracted.query.status,
+				priority: extracted.query.priority,
+				sentiment: extracted.query.sentiment,
+				visitorId: extracted.query.visitorId,
+				contactId: extracted.query.contactId,
+				assignedToUserId: extracted.query.assignedToUserId,
+				viewId: extracted.query.viewId,
+				createdAtFrom: extracted.query.createdAtFrom,
+				createdAtTo: extracted.query.createdAtTo,
+				updatedAtFrom: extracted.query.updatedAtFrom,
+				updatedAtTo: extracted.query.updatedAtTo,
+				q: extracted.query.q,
+				orderBy: extracted.query.orderBy,
+				order: extracted.query.order,
 			}),
 		]);
 
@@ -2607,6 +2622,109 @@ conversationRouter.openapi(
 
 		return c.json(
 			validateResponse(response, listInboxConversationsResponseSchema),
+			200
+		);
+	}
+);
+
+conversationRouter.openapi(
+	{
+		method: "get",
+		path: "/{conversationId}/context",
+		summary: "Get conversation context",
+		description:
+			"Returns agent-ready private context for a conversation, including rich conversation state, visitor/contact profile, a private timeline page, and linked feedback.",
+		tags: ["Conversations"],
+		request: {
+			params: getConversationRequestSchema,
+			query: conversationContextRequestSchema,
+		},
+		responses: {
+			200: {
+				description: "Conversation context retrieved successfully",
+				content: {
+					"application/json": {
+						schema: conversationContextResponseSchema,
+					},
+				},
+			},
+			400: errorJsonResponse("Invalid request"),
+			401: errorJsonResponse(
+				"Unauthorized - Invalid or missing private API key"
+			),
+			403: errorJsonResponse("Forbidden - Private API key required"),
+			404: errorJsonResponse("Conversation not found"),
+			500: errorJsonResponse("Internal server error"),
+		},
+		...privateControlAuth({
+			parameters: [conversationIdPathParameter],
+			includeActorUserIdHeader: true,
+		}),
+	},
+	async (c) => {
+		const extracted = await safelyExtractRequestQuery(
+			c,
+			conversationContextRequestSchema
+		);
+		const privateContext = requirePrivateControlContext(c, extracted);
+
+		if (privateContext instanceof Response) {
+			return privateContext;
+		}
+
+		const { conversationId } = getConversationPathParams(c);
+		const actor = await requirePrivateConversationActor({
+			c,
+			db: extracted.db,
+			apiKey: privateContext.apiKey,
+			organizationId: privateContext.organization.id,
+			websiteTeamId: privateContext.website.teamId,
+			required: false,
+		});
+
+		const [conversationHeader, timeline, feedbackResult] = await Promise.all([
+			getConversationHeader(extracted.db, {
+				organizationId: privateContext.organization.id,
+				websiteId: privateContext.website.id,
+				conversationId,
+				userId: actor?.userId ?? null,
+			}),
+			getConversationTimelineItems(extracted.db, {
+				organizationId: privateContext.organization.id,
+				websiteId: privateContext.website.id,
+				conversationId,
+				limit: extracted.query.timelineLimit,
+				cursor: extracted.query.timelineCursor ?? null,
+			}),
+			listFeedback(extracted.db, {
+				organizationId: privateContext.organization.id,
+				websiteId: privateContext.website.id,
+				conversationId,
+				page: 1,
+				limit: extracted.query.feedbackLimit,
+				order: "desc",
+			}),
+		]);
+
+		if (!conversationHeader) {
+			return restError(c, 404, "NOT_FOUND", "Conversation not found");
+		}
+
+		const conversationContext =
+			conversationInboxItemSchema.parse(conversationHeader);
+		const response = {
+			conversation: conversationContext,
+			visitor: conversationContext.visitor,
+			timeline: {
+				items: timeline.items,
+				nextCursor: timeline.nextCursor ?? null,
+				hasNextPage: timeline.hasNextPage,
+			},
+			feedback: feedbackResult.items.map(formatFeedbackResponse),
+		};
+
+		return c.json(
+			validateResponse(response, conversationContextResponseSchema),
 			200
 		);
 	}

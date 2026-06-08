@@ -61,51 +61,6 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
 	});
 }
 
-function getTargetLanguage(params: {
-	triggerText: string;
-	visitorLanguage: string | null;
-	websiteDefaultLanguage: string;
-}): string | null {
-	const scopeBoundaryLanguage = detectScopeBoundaryLanguage(params.triggerText);
-	if (scopeBoundaryLanguage) {
-		return scopeBoundaryLanguage;
-	}
-
-	return params.visitorLanguage ?? params.websiteDefaultLanguage;
-}
-
-function detectScopeBoundaryLanguage(text: string): string | null {
-	const normalized = text
-		.normalize("NFKC")
-		.replace(/\s+/g, " ")
-		.trim()
-		.toLowerCase();
-
-	if (!normalized) {
-		return null;
-	}
-
-	if (
-		/[¿¡áíóúñ]/iu.test(normalized) ||
-		/\b(escribe|poema|l[ií]neas|palabras|ayuda|hola|gracias)\b/iu.test(
-			normalized
-		)
-	) {
-		return "es";
-	}
-
-	if (
-		/[àâçéèêëîïôùûüÿœ]/iu.test(normalized) ||
-		/\b([eé]cris|[eé]crire|po[eè]me|lignes|mots|aide|bonjour|merci)\b/iu.test(
-			normalized
-		)
-	) {
-		return "fr";
-	}
-
-	return null;
-}
-
 function getFulfillmentLeakReason(message: string): string | null {
 	const normalized = message.replace(/\s+/g, " ").trim().toLowerCase();
 
@@ -142,11 +97,7 @@ export async function createScopeBoundaryRedirect(params: {
 	websiteDefaultLanguage: string;
 }): Promise<ScopeBoundaryRedirectResult> {
 	const triggerText = clipTriggerText(params.triggerText);
-	const targetLanguage = getTargetLanguage({
-		triggerText,
-		visitorLanguage: params.visitorLanguage,
-		websiteDefaultLanguage: params.websiteDefaultLanguage,
-	});
+	const targetLanguage = params.websiteDefaultLanguage;
 
 	if (!(triggerText && targetLanguage)) {
 		return {
@@ -236,7 +187,7 @@ ${triggerText}`,
 		return {
 			status: "ready",
 			message,
-			language: result.output.language ?? targetLanguage,
+			language: targetLanguage,
 			modelId: SCOPE_BOUNDARY_REDIRECT_MODEL,
 		};
 	} catch (error) {

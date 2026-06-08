@@ -346,4 +346,26 @@ Continue helping while the visitor waits.`,
 			"Never localize the internal title yourself. The system derives visitorTitle separately for the visitor-facing language."
 		);
 	});
+
+	it("keeps public AI message originals in the website default language when auto-translate is enabled", () => {
+		const prompt = buildGenerationSystemPrompt({
+			input: createInput() as never,
+			promptBundle,
+			toolset: {
+				sendMessage: { description: "Send the main response" },
+				respond: { description: "Finish respond" },
+			} as never,
+			toolNames: ["sendMessage", "respond"],
+		});
+
+		expect(prompt).toContain(
+			"Use it for internal reasoning, knowledge-base searches, query rewriting, and public sendMessage text."
+		);
+		expect(prompt).toContain(
+			"Write public messages in en. The system translates public AI and human messages for the visitor when needed."
+		);
+		expect(prompt).not.toContain(
+			"Always answer the visitor in the visitor's language when it is known."
+		);
+	});
 });

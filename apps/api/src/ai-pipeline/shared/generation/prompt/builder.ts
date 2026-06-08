@@ -62,7 +62,7 @@ triggerMessageId=${input.triggerMessageId}
 triggerSenderType=${input.triggerSenderType ?? "unknown"}
 triggerVisibility=${input.triggerVisibility ?? "unknown"}
 websiteDefaultLanguage=${input.websiteDefaultLanguage}
-visitorLanguage=${input.visitorLanguage ?? input.visitorContext?.language ?? "unknown"}
+visitorLanguage=${input.visitorLanguage ?? "unknown"}
 autoTranslateEnabled=${input.autoTranslateEnabled !== false ? "yes" : "no"}
 conversationEscalated=${input.conversationState.isEscalated ? "yes" : "no"}
 escalationReason=${input.conversationState.escalationReason ?? "none"}
@@ -102,15 +102,14 @@ Messages are labeled with [BEFORE], [TRIGGER], or [AFTER].
 }
 
 function buildLanguagePolicyStage(input: GenerationRuntimeInput): string {
-	const visitorLanguage =
-		input.visitorLanguage ?? input.visitorContext?.language ?? "unknown";
+	const visitorLanguage = input.visitorLanguage ?? "unknown";
 	const autoTranslateEnabled = input.autoTranslateEnabled !== false;
 
 	return autoTranslateEnabled
 		? `## Language Policy
-- The website default language is ${input.websiteDefaultLanguage}. Use it for internal reasoning, knowledge-base searches, and query rewriting.
-- The visitor's language is ${visitorLanguage}.
-- Always answer the visitor in the visitor's language when it is known.
+- The website default language is ${input.websiteDefaultLanguage}. Use it for internal reasoning, knowledge-base searches, query rewriting, and public sendMessage text.
+- The visitor's detected conversation language is ${visitorLanguage}.
+- Write public messages in ${input.websiteDefaultLanguage}. The system translates public AI and human messages for the visitor when needed.
 - If you call updateConversationTitle, write the saved internal conversation.title in ${input.websiteDefaultLanguage} only.
 - Never localize the internal title yourself. The system derives visitorTitle separately for the visitor-facing language.
 - Never switch knowledge-base search to the visitor language unless the website language search fails and you explicitly need a rewrite.`

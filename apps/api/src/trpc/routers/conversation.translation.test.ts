@@ -80,7 +80,12 @@ const updateTimelineItemMock = mock(
 );
 
 mock.module("@api/ai-pipeline/shared/safety/kill-switch", () => ({
+	isAiPausedForConversation: mock(async () => false),
 	pauseAiForConversation: mock(async () => null),
+	recordOutboundPublicAiMessageAndMaybePause: mock(async () => ({
+		paused: false,
+		messageCount: 1,
+	})),
 	resumeAiForConversation: mock(async () => null),
 }));
 

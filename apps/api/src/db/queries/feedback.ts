@@ -64,6 +64,10 @@ export async function createFeedback(
 		})
 		.returning();
 
+	if (!inserted) {
+		throw new Error("Failed to create feedback");
+	}
+
 	return inserted;
 }
 

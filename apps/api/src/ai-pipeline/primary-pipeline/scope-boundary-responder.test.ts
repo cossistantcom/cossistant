@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, mock } from "bun:test";
 const generateTextMock = mock(async () => ({
 	output: {
 		shouldReply: true,
-		language: "fr",
+		language: "en",
 		message:
-			"Je peux aider uniquement avec les questions de support ou de produit.",
+			"I can help with support or product questions.",
 	},
 }));
 
@@ -44,14 +44,14 @@ describe("createScopeBoundaryRedirect", () => {
 		generateTextMock.mockResolvedValue({
 			output: {
 				shouldReply: true,
-				language: "fr",
+				language: "en",
 				message:
-					"Je peux aider uniquement avec les questions de support ou de produit.",
+					"I can help with support or product questions.",
 			},
 		});
 	});
 
-	it("asks the isolated responder for a redirect in the detected visitor language", async () => {
+	it("asks the isolated responder for a redirect in the website default language", async () => {
 		const { createScopeBoundaryRedirect } = await modulePromise;
 		const result = await createScopeBoundaryRedirect({
 			db: {} as never,
@@ -65,15 +65,14 @@ describe("createScopeBoundaryRedirect", () => {
 
 		expect(result).toEqual({
 			status: "ready",
-			message:
-				"Je peux aider uniquement avec les questions de support ou de produit.",
-			language: "fr",
+			message: "I can help with support or product questions.",
+			language: "en",
 			modelId: "google/gemini-2.5-flash",
 		});
 		expect(generateTextMock).toHaveBeenCalledWith(
 			expect.objectContaining({
 				temperature: 0,
-				prompt: expect.stringContaining("Target language: fr"),
+				prompt: expect.stringContaining("Target language: en"),
 			})
 		);
 	});

@@ -12,7 +12,7 @@ type TranslationPartMock = {
 
 type InboundTranslationResultMock =
 	| {
-			status: "skipped";
+			status: "not_needed" | "skipped";
 			reason: string;
 			sourceLanguage: string | null;
 			targetLanguage: string | null;
@@ -51,11 +51,39 @@ const validateResponseMock = mock(<T>(value: T) => value);
 const getVisitorMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
 );
+const canVisitorAccessConversationMock = mock(
+	(async () => false) as (...args: unknown[]) => Promise<boolean>
+);
+const getActiveVisitorForWebsiteMock = mock(
+	(async () => null) as (...args: unknown[]) => Promise<unknown>
+);
 const upsertConversationMock = mock((async () => ({})) as (
 	...args: unknown[]
 ) => Promise<unknown>);
 const getConversationHeaderMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
+);
+type TimelineLookupHarness = {
+	select?: () => {
+		from: (...args: unknown[]) => {
+			where: (...args: unknown[]) => {
+				limit: (count: number) => Promise<unknown[]>;
+			};
+		};
+	};
+};
+
+async function readTimelineItemFromHarness(db: unknown) {
+	const rows = await (db as TimelineLookupHarness)
+		.select?.()
+		.from({})
+		.where({})
+		.limit(1);
+	return rows?.[0] ?? null;
+}
+
+const getConversationTimelineItemByIdForOrganizationMock = mock(
+	readTimelineItemFromHarness as (...args: unknown[]) => Promise<unknown>
 );
 
 const getDefaultParticipantsMock = mock((async () => []) as (
@@ -100,15 +128,9 @@ const triggerMessageNotificationWorkflowMock = mock((async () => {}) as (
 const emitConversationCreatedEventMock = mock((async () => {}) as (
 	...args: unknown[]
 ) => Promise<void>);
-const detectMessageLanguageMock = mock(
-	(params: { hintLanguage?: string | null; text?: string | null } = {}) => ({
-		language: params.hintLanguage ?? null,
-		confidence: "low" as "low" | "high",
-		source: (params.hintLanguage ? "hint" : "unknown") as
-			| "hint"
-			| "unknown"
-			| "stopword",
-	})
+const detectVisitorMessageLanguageMock = mock(
+	(_params: { hintLanguage?: string | null; text?: string | null } = {}) =>
+		null as string | null
 );
 const isAutomaticTranslationEnabledMock = mock(() => false);
 const prepareInboundVisitorTranslationMock = mock(
@@ -171,9 +193,19 @@ mock.module("@api/db/queries", () => ({
 	getVisitor: getVisitorMock,
 }));
 
+mock.module("@api/db/queries/conversation-access", () => ({
+	canVisitorAccessConversation: canVisitorAccessConversationMock,
+	getActiveVisitorForWebsite: getActiveVisitorForWebsiteMock,
+	getConversationDeliveryVisitorIds: mock(async () => []),
+	getConversationVisibleVisitorIds: mock(async () => []),
+	resolveVisitorConversationScope: mock(async () => null),
+}));
+
 mock.module("@api/db/queries/conversation", () => ({
 	upsertConversation: upsertConversationMock,
 	getConversationById: mock(async () => null),
+	getConversationTimelineItemByIdForOrganization:
+		getConversationTimelineItemByIdForOrganizationMock,
 	getConversationHeader: getConversationHeaderMock,
 	getConversationByIdWithLastMessage: mock(async () => null),
 	getConversationSeenData: mock(async () => []),
@@ -200,6 +232,8 @@ mock.module("@api/db/queries/conversation", () => ({
 
 mock.module("@api/db/queries/feedback", () => ({
 	createFeedback: mock(async () => ({})),
+	listFeedback: mock(async () => []),
+	updateFeedbackConversationId: mock(async () => null),
 }));
 
 mock.module("@api/utils/participant-helpers", () => ({
@@ -216,7 +250,10 @@ mock.module("@api/utils/timeline-item", () => ({
 }));
 
 mock.module("@api/utils/send-message-with-notification", () => ({
+	enqueueAiAgentMessageTrigger: mock(async () => {}),
 	triggerMessageNotificationWorkflow: triggerMessageNotificationWorkflowMock,
+	triggerMemberSentMessageWorkflow: mock(async () => {}),
+	triggerVisitorSentMessageWorkflow: mock(async () => {}),
 }));
 
 mock.module("@api/utils/conversation-realtime", () => ({
@@ -226,7 +263,7 @@ mock.module("@api/utils/conversation-realtime", () => ({
 }));
 
 mock.module("@api/lib/translation", () => ({
-	detectMessageLanguage: detectMessageLanguageMock,
+	detectVisitorMessageLanguage: detectVisitorMessageLanguageMock,
 	finalizeConversationTranslation: finalizeConversationTranslationMock,
 	isAutomaticTranslationEnabled: isAutomaticTranslationEnabledMock,
 	prepareInboundVisitorTranslation: prepareInboundVisitorTranslationMock,
@@ -236,7 +273,12 @@ mock.module("@api/lib/translation", () => ({
 }));
 
 mock.module("@api/ai-pipeline/shared/safety/kill-switch", () => ({
+	isAiPausedForConversation: mock(async () => false),
 	pauseAiForConversation: mock(async () => null),
+	recordOutboundPublicAiMessageAndMaybePause: mock(async () => ({
+		paused: false,
+		messageCount: 1,
+	})),
 	resumeAiForConversation: mock(async () => null),
 }));
 
@@ -370,8 +412,11 @@ describe("POST /v1/conversations", () => {
 		safelyExtractRequestQueryMock.mockReset();
 		validateResponseMock.mockReset();
 		getVisitorMock.mockReset();
+		canVisitorAccessConversationMock.mockReset();
+		getActiveVisitorForWebsiteMock.mockReset();
 		upsertConversationMock.mockReset();
 		getConversationHeaderMock.mockReset();
+		getConversationTimelineItemByIdForOrganizationMock.mockReset();
 		getDefaultParticipantsMock.mockReset();
 		addConversationParticipantsMock.mockReset();
 		createMessageTimelineItemMock.mockReset();
@@ -379,7 +424,7 @@ describe("POST /v1/conversations", () => {
 		resolveMessageTimelineActorMock.mockReset();
 		triggerMessageNotificationWorkflowMock.mockReset();
 		emitConversationCreatedEventMock.mockReset();
-		detectMessageLanguageMock.mockReset();
+		detectVisitorMessageLanguageMock.mockReset();
 		isAutomaticTranslationEnabledMock.mockReset();
 		prepareInboundVisitorTranslationMock.mockReset();
 		prepareOutboundVisitorTranslationMock.mockReset();
@@ -389,7 +434,12 @@ describe("POST /v1/conversations", () => {
 
 		validateResponseMock.mockImplementation((value) => value);
 		getVisitorMock.mockResolvedValue(baseVisitor);
+		canVisitorAccessConversationMock.mockResolvedValue(true);
+		getActiveVisitorForWebsiteMock.mockResolvedValue(baseVisitor);
 		getConversationHeaderMock.mockResolvedValue(null);
+		getConversationTimelineItemByIdForOrganizationMock.mockImplementation(
+			readTimelineItemFromHarness
+		);
 		getDefaultParticipantsMock.mockResolvedValue([]);
 		addConversationParticipantsMock.mockResolvedValue([]);
 		createMessageTimelineItemMock.mockResolvedValue({
@@ -451,13 +501,7 @@ describe("POST /v1/conversations", () => {
 		);
 		triggerMessageNotificationWorkflowMock.mockResolvedValue(undefined);
 		emitConversationCreatedEventMock.mockResolvedValue(undefined);
-		detectMessageLanguageMock.mockImplementation(
-			(params: { hintLanguage?: string | null } = {}) => ({
-				language: params.hintLanguage ?? null,
-				confidence: "low" as const,
-				source: params.hintLanguage ? ("hint" as const) : ("unknown" as const),
-			})
-		);
+		detectVisitorMessageLanguageMock.mockImplementation(() => null);
 		isAutomaticTranslationEnabledMock.mockReturnValue(false);
 		prepareInboundVisitorTranslationMock.mockImplementation(
 			async (params: { visitorLanguageHint?: string | null } = {}) => ({
@@ -1057,14 +1101,10 @@ describe("POST /v1/conversations", () => {
 	it("adds a team translation part to the first visitor bootstrap message", async () => {
 		const dbHarness = createDbHarness({});
 		isAutomaticTranslationEnabledMock.mockReturnValue(true);
-		detectMessageLanguageMock.mockImplementation(
+		detectVisitorMessageLanguageMock.mockImplementation(
 			(
 				params: { hintLanguage?: string | null; text?: string | null } = {}
-			) => ({
-				language: params.text?.includes("Hola") ? "es" : null,
-				confidence: "high" as const,
-				source: "stopword" as const,
-			})
+			) => (params.text?.includes("Hola") ? "es" : null)
 		);
 		prepareInboundVisitorTranslationMock.mockResolvedValue({
 			visitorLanguage: "es",
@@ -1153,14 +1193,10 @@ describe("POST /v1/conversations", () => {
 	it("uses inferred visitor language for earlier AI bootstrap replies", async () => {
 		const dbHarness = createDbHarness({});
 		isAutomaticTranslationEnabledMock.mockReturnValue(true);
-		detectMessageLanguageMock.mockImplementation(
+		detectVisitorMessageLanguageMock.mockImplementation(
 			(
 				params: { hintLanguage?: string | null; text?: string | null } = {}
-			) => ({
-				language: params.text?.includes("Hola") ? "es" : null,
-				confidence: "high" as const,
-				source: "stopword" as const,
-			})
+			) => (params.text?.includes("Hola") ? "es" : null)
 		);
 		prepareOutboundVisitorTranslationMock.mockResolvedValue({
 			sourceLanguage: "en",
@@ -1267,17 +1303,106 @@ describe("POST /v1/conversations", () => {
 		expect(finalizeConversationTranslationMock).toHaveBeenCalledTimes(1);
 	});
 
+	it("lets an English first visitor message override a French browser language during bootstrap", async () => {
+		const dbHarness = createDbHarness({});
+		getVisitorMock.mockResolvedValue({ id: "visitor-1", language: "fr" });
+		isAutomaticTranslationEnabledMock.mockReturnValue(true);
+		detectVisitorMessageLanguageMock.mockImplementation(
+			(
+				params: { hintLanguage?: string | null; text?: string | null } = {}
+			) => (params.text?.includes("Hello, I need help") ? "en" : null)
+		);
+		prepareInboundVisitorTranslationMock.mockImplementation(
+			async (params: { visitorLanguageHint?: string | null } = {}) => ({
+				visitorLanguage: params.visitorLanguageHint ?? null,
+				translationPart: null,
+				translationResult: {
+					status: "not_needed" as const,
+					reason: "same_language" as const,
+					sourceLanguage: params.visitorLanguageHint ?? null,
+					targetLanguage: "en",
+				},
+			})
+		);
+		safelyExtractRequestDataMock.mockResolvedValue({
+			db: dbHarness.db,
+			website: baseWebsite,
+			organization: baseOrganization,
+			visitorIdHeader: "visitor-1",
+			body: {
+				conversationId: "conv-1",
+				visitorId: "visitor-1",
+				defaultTimelineItems: [
+					{
+						type: "message",
+						text: "Welcome to Cossistant",
+						parts: [{ type: "text", text: "Welcome to Cossistant" }],
+						visibility: "public",
+						userId: null,
+						visitorId: null,
+						aiAgentId: "ai-1",
+						createdAt: "2026-02-26T00:00:00.000Z",
+						deletedAt: null,
+					},
+					{
+						type: "message",
+						text: "Hello, I need help",
+						parts: [{ type: "text", text: "Hello, I need help" }],
+						visibility: "public",
+						userId: null,
+						visitorId: "visitor-1",
+						aiAgentId: null,
+						createdAt: "2026-02-26T00:00:01.000Z",
+						deletedAt: null,
+					},
+				],
+				channel: "widget",
+			},
+		});
+		upsertConversationMock.mockResolvedValue({
+			status: "created",
+			conversation: baseConversation,
+		});
+
+		const { conversationRouter } = await conversationRouterModulePromise;
+		const response = await conversationRouter.request(
+			createValidConversationPostRequest()
+		);
+
+		expect(response.status).toBe(200);
+		expect(upsertConversationMock).toHaveBeenCalledWith(
+			expect.anything(),
+			expect.objectContaining({
+				visitorLanguage: null,
+			})
+		);
+		expect(prepareOutboundVisitorTranslationMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				text: "Welcome to Cossistant",
+				visitorLanguage: "en",
+			})
+		);
+		expect(prepareOutboundVisitorTranslationMock).not.toHaveBeenCalledWith(
+			expect.objectContaining({
+				visitorLanguage: "fr",
+			})
+		);
+		expect(finalizeConversationTranslationMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				visitorLanguage: "en",
+				hasTranslationPart: false,
+				emitRealtime: false,
+			})
+		);
+	});
+
 	it("returns finalized translation state in the create response and created event", async () => {
 		const dbHarness = createDbHarness({});
 		isAutomaticTranslationEnabledMock.mockReturnValue(true);
-		detectMessageLanguageMock.mockImplementation(
+		detectVisitorMessageLanguageMock.mockImplementation(
 			(
 				params: { hintLanguage?: string | null; text?: string | null } = {}
-			) => ({
-				language: params.text?.includes("Hola") ? "es" : null,
-				confidence: "high" as const,
-				source: "stopword" as const,
-			})
+			) => (params.text?.includes("Hola") ? "es" : null)
 		);
 		prepareInboundVisitorTranslationMock.mockResolvedValue({
 			visitorLanguage: "es",

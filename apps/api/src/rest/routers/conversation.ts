@@ -50,7 +50,7 @@ import {
 	resolvePrivateApiKeyActorUser,
 } from "@api/lib/private-api-key-actor";
 import {
-	detectMessageLanguage,
+	detectVisitorMessageLanguage,
 	finalizeConversationTranslation,
 	isAutomaticTranslationEnabled,
 	prepareInboundVisitorTranslation,
@@ -311,10 +311,7 @@ function resolveCreateConversationVisitorLanguage(params: {
 	defaultTimelineItems: ReturnType<typeof mapDefaultTimelineItemForCreation>[];
 	visitorLanguage: string | null;
 }) {
-	if (params.visitorLanguage) {
-		return params.visitorLanguage;
-	}
-
+	let hasVisitorMessage = false;
 	for (const item of params.defaultTimelineItems) {
 		if (item.kind !== "message") {
 			continue;
@@ -329,14 +326,19 @@ function resolveCreateConversationVisitorLanguage(params: {
 			continue;
 		}
 
-		const detection = detectMessageLanguage({
+		hasVisitorMessage = true;
+		const detectedLanguage = detectVisitorMessageLanguage({
 			text: item.input.text,
 			hintLanguage: params.visitorLanguage,
 		});
 
-		if (detection.language) {
-			return detection.language;
+		if (detectedLanguage) {
+			return detectedLanguage;
 		}
+	}
+
+	if (hasVisitorMessage) {
+		return null;
 	}
 
 	return params.visitorLanguage;
@@ -736,7 +738,7 @@ conversationRouter.openapi(
 			conversationId: body.conversationId,
 			channel: body.channel,
 			metadata: body.metadata,
-			visitorLanguage: visitor.language ?? null,
+			visitorLanguage: null,
 		});
 		if (upsertResult.status === "conflict") {
 			return c.json(

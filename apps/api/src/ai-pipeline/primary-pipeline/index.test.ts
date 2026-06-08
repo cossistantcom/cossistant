@@ -482,8 +482,8 @@ describe("runPrimaryPipeline generation error/skip behavior", () => {
 		});
 		createScopeBoundaryRedirectMock.mockResolvedValueOnce({
 			status: "ready",
-			message: "Je peux aider avec le support ou le produit.",
-			language: "fr",
+			message: "I can help with support or product questions.",
+			language: "en",
 			modelId: "google/gemini-2.5-flash",
 		});
 
@@ -507,7 +507,7 @@ describe("runPrimaryPipeline generation error/skip behavior", () => {
 		);
 		expect(sendPublicMessageMock).toHaveBeenCalledWith(
 			expect.objectContaining({
-				text: "Je peux aider avec le support ou le produit.",
+				text: "I can help with support or product questions.",
 				idempotencyKey: "public:msg-1:scopeBoundary",
 			})
 		);

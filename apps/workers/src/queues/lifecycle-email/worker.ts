@@ -20,8 +20,8 @@ import {
 	HARD_LIMIT_ROLLING_WINDOW_DAYS,
 } from "@api/db/queries/usage";
 import { organization } from "@api/db/schema";
-import { queryWeeklyDigestStats } from "@api/lib/tinybird-sdk";
 import { getPlanForWebsite } from "@api/lib/plans/access";
+import { queryWeeklyDigestStats } from "@api/lib/tinybird-sdk";
 import { buildLifecycleEmail } from "@api/lifecycle-email/content";
 import {
 	getLocalWeekKey,
@@ -538,16 +538,14 @@ async function processSendBatch(job: Job<LifecycleEmailJobData>) {
 			});
 
 			if (!digestWebsite) {
-				const ids =
-					skippedByReason.get("weekly_digest_website_missing") ?? [];
+				const ids = skippedByReason.get("weekly_digest_website_missing") ?? [];
 				ids.push(event.id);
 				skippedByReason.set("weekly_digest_website_missing", ids);
 				continue;
 			}
 
-			const metadata = (event.metadata ?? {}) as NonNullable<
-				LifecycleEmailMetadata
-			>;
+			const metadata = (event.metadata ??
+				{}) as NonNullable<LifecycleEmailMetadata>;
 			eventForContent = {
 				...event,
 				metadata: {

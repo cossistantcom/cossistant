@@ -13,15 +13,7 @@ import {
 	type LifecycleEmailMetadata,
 } from "@api/lifecycle-email/types";
 import { WebsiteStatus } from "@cossistant/types";
-import {
-	and,
-	asc,
-	eq,
-	inArray,
-	isNull,
-	lte,
-	sql,
-} from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

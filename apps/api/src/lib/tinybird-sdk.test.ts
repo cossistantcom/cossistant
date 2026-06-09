@@ -4,7 +4,7 @@ import { flattenVisitorTrackingContext } from "./visitor-attribution";
 const findVisitorForWebsiteMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
 );
-const tinybirdIngestMock = mock(async () => undefined);
+const tinybirdIngestMock = mock(async () => {});
 const tinybirdQueryMock = mock(
 	async (_pipe: string, _params: Record<string, string>) => ({
 		data: [] as unknown[],

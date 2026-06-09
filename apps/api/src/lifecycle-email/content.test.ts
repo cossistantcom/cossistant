@@ -60,7 +60,9 @@ describe("weekly digest lifecycle email content", () => {
 		expect(email.text).toContain(
 			"Median first response: 4m 12s (-18% vs last week)"
 		);
-		expect(email.text).toContain("Median resolution: 1m 30s (-25% vs last week)");
+		expect(email.text).toContain(
+			"Median resolution: 1m 30s (-25% vs last week)"
+		);
 		expect(email.text).toContain("https://app.cossistant.com/acme-docs/inbox");
 	});
 

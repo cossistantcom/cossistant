@@ -33,7 +33,9 @@ const prepareOutboundVisitorTranslationMock = mock(async () => ({
 		billingSource: "cossistant" as const,
 	},
 }));
-const finalizeConversationTranslationMock = mock(async () => ({ status: "noop" }));
+const finalizeConversationTranslationMock = mock(async () => ({
+	status: "noop",
+}));
 const isAutomaticTranslationEnabledMock = mock(() => true);
 const createMessageTimelineItemMock = mock(async () => ({
 	item: { id: "msg-1" },

@@ -3,11 +3,7 @@
   "name": "support",
   "title": "Cossistant Support Widget for Next.js",
   "description": "Open source, developer-first support widget for your Next.js app.",
-  "dependencies": [
-    "@cossistant/next",
-    "motion",
-    "lucide-react"
-  ],
+  "dependencies": ["@cossistant/next", "motion", "lucide-react"],
   "files": [
     {
       "path": "src/registry/next/support.tsx",

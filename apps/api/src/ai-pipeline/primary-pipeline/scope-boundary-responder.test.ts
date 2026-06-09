@@ -4,8 +4,7 @@ const generateTextMock = mock(async () => ({
 	output: {
 		shouldReply: true,
 		language: "en",
-		message:
-			"I can help with support or product questions.",
+		message: "I can help with support or product questions.",
 	},
 }));
 
@@ -45,8 +44,7 @@ describe("createScopeBoundaryRedirect", () => {
 			output: {
 				shouldReply: true,
 				language: "en",
-				message:
-					"I can help with support or product questions.",
+				message: "I can help with support or product questions.",
 			},
 		});
 	});

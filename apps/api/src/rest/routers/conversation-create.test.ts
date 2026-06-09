@@ -1102,9 +1102,8 @@ describe("POST /v1/conversations", () => {
 		const dbHarness = createDbHarness({});
 		isAutomaticTranslationEnabledMock.mockReturnValue(true);
 		detectVisitorMessageLanguageMock.mockImplementation(
-			(
-				params: { hintLanguage?: string | null; text?: string | null } = {}
-			) => (params.text?.includes("Hola") ? "es" : null)
+			(params: { hintLanguage?: string | null; text?: string | null } = {}) =>
+				params.text?.includes("Hola") ? "es" : null
 		);
 		prepareInboundVisitorTranslationMock.mockResolvedValue({
 			visitorLanguage: "es",
@@ -1194,9 +1193,8 @@ describe("POST /v1/conversations", () => {
 		const dbHarness = createDbHarness({});
 		isAutomaticTranslationEnabledMock.mockReturnValue(true);
 		detectVisitorMessageLanguageMock.mockImplementation(
-			(
-				params: { hintLanguage?: string | null; text?: string | null } = {}
-			) => (params.text?.includes("Hola") ? "es" : null)
+			(params: { hintLanguage?: string | null; text?: string | null } = {}) =>
+				params.text?.includes("Hola") ? "es" : null
 		);
 		prepareOutboundVisitorTranslationMock.mockResolvedValue({
 			sourceLanguage: "en",
@@ -1308,9 +1306,8 @@ describe("POST /v1/conversations", () => {
 		getVisitorMock.mockResolvedValue({ id: "visitor-1", language: "fr" });
 		isAutomaticTranslationEnabledMock.mockReturnValue(true);
 		detectVisitorMessageLanguageMock.mockImplementation(
-			(
-				params: { hintLanguage?: string | null; text?: string | null } = {}
-			) => (params.text?.includes("Hello, I need help") ? "en" : null)
+			(params: { hintLanguage?: string | null; text?: string | null } = {}) =>
+				params.text?.includes("Hello, I need help") ? "en" : null
 		);
 		prepareInboundVisitorTranslationMock.mockImplementation(
 			async (params: { visitorLanguageHint?: string | null } = {}) => ({
@@ -1400,9 +1397,8 @@ describe("POST /v1/conversations", () => {
 		const dbHarness = createDbHarness({});
 		isAutomaticTranslationEnabledMock.mockReturnValue(true);
 		detectVisitorMessageLanguageMock.mockImplementation(
-			(
-				params: { hintLanguage?: string | null; text?: string | null } = {}
-			) => (params.text?.includes("Hola") ? "es" : null)
+			(params: { hintLanguage?: string | null; text?: string | null } = {}) =>
+				params.text?.includes("Hola") ? "es" : null
 		);
 		prepareInboundVisitorTranslationMock.mockResolvedValue({
 			visitorLanguage: "es",

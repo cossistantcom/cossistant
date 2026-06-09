@@ -3,11 +3,7 @@
   "name": "support-react",
   "title": "Cossistant Support Widget for React",
   "description": "Open source, developer-first support widget for your React app.",
-  "dependencies": [
-    "@cossistant/react",
-    "motion",
-    "lucide-react"
-  ],
+  "dependencies": ["@cossistant/react", "motion", "lucide-react"],
   "files": [
     {
       "path": "src/registry/react/support.tsx",

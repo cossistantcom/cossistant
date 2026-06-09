@@ -2,6 +2,7 @@
   "pages": [
     "contributors",
     "mentions",
+    "mcp",
     "third-party-services",
     "[llms.txt](https://cossistant.com/llms-full.txt)"
   ],

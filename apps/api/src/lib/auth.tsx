@@ -97,6 +97,9 @@ export const auth = betterAuth({
 				resource,
 				scope: scopes.join(" "),
 			}),
+			silenceWarnings: {
+				oauthAuthServerConfig: true,
+			},
 		}),
 		organizationPlugin({
 			teams: {

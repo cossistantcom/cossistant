@@ -212,6 +212,9 @@ function SupportProviderInner({
 	);
 	const controller = externalController ?? ownedController;
 	const ownsController = externalController === undefined;
+	const pendingOwnedControllerDisposalsRef = React.useRef(
+		new Map<SupportController, ReturnType<typeof globalThis.setTimeout>>()
+	);
 
 	React.useEffect(() => {
 		controller.updateOptions({
@@ -239,10 +242,30 @@ function SupportProviderInner({
 	]);
 
 	React.useEffect(() => {
+		const pendingDisposal =
+			pendingOwnedControllerDisposalsRef.current.get(controller);
+
+		if (pendingDisposal !== undefined) {
+			globalThis.clearTimeout(pendingDisposal);
+			pendingOwnedControllerDisposalsRef.current.delete(controller);
+		}
+
 		controller.start();
 		return () => {
 			if (ownsController) {
-				controller.destroy();
+				const pendingDisposals = pendingOwnedControllerDisposalsRef.current;
+				const existingDisposal = pendingDisposals.get(controller);
+
+				if (existingDisposal !== undefined) {
+					globalThis.clearTimeout(existingDisposal);
+				}
+
+				const timeoutId = globalThis.setTimeout(() => {
+					pendingDisposals.delete(controller);
+					controller.destroy();
+				}, 0);
+
+				pendingDisposals.set(controller, timeoutId);
 			}
 		};
 	}, [controller, ownsController]);

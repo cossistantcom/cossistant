@@ -168,6 +168,14 @@ function findByDataPage(page: string): HTMLElement | null {
 	return document.querySelector(`[data-page="${page}"]`);
 }
 
+function countHomePageCossistantLogos(): number {
+	const homePage = findByDataSlot("home-page");
+
+	return Array.from(homePage?.querySelectorAll("title") ?? []).filter(
+		(element) => element.textContent === "Cossistant Logo"
+	).length;
+}
+
 async function navigateController(
 	controller: ReturnType<typeof createMockSupportController>,
 	options: Parameters<typeof controller.navigate>[0]
@@ -384,6 +392,46 @@ describe("Support widget", () => {
 
 		expect(document.body.textContent).toContain("Ask us a question");
 		expect(findByDataSlot("home-page")?.getAttribute("data-page")).toBe("HOME");
+	});
+
+	it("does not show the default AI avatar on home when no AI agent is configured", async () => {
+		await renderWithSupport(<Support open={true} />);
+
+		expect(countHomePageCossistantLogos()).toBe(1);
+	});
+
+	it("shows the AI avatar on home when an AI agent is configured", async () => {
+		const controller = createMockSupportController({
+			website: {
+				description: null,
+				domain: "acme.test",
+				defaultLanguage: "en",
+				id: "site_123",
+				lastOnlineAt: null,
+				logoUrl: null,
+				name: "Acme",
+				organizationId: "org_123",
+				status: "online",
+				availableAIAgents: [
+					{
+						id: "ai_123",
+						image: null,
+						name: "Acme AI",
+					},
+				],
+				availableHumanAgents: [],
+				visitor: {
+					contact: null,
+					id: "visitor_123",
+					isBlocked: false,
+					language: "en",
+				},
+			},
+		});
+
+		await renderWithSupport(<Support open={true} />, controller);
+
+		expect(countHomePageCossistantLogos()).toBe(2);
 	});
 
 	it("forwards runtime props through Support", async () => {

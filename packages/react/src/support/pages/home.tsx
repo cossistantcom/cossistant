@@ -22,7 +22,13 @@ type HomePageProps = {
  * Home page with welcome message, quick options, and conversation starter.
  */
 export const HomePage = (_props: HomePageProps = {}): ReactElement => {
-	const { website, availableHumanAgents, visitor, quickOptions } = useSupport();
+	const {
+		website,
+		availableHumanAgents,
+		availableAIAgents,
+		visitor,
+		quickOptions,
+	} = useSupport();
 	const { navigate } = useSupportNavigation();
 	const text = useSupportText();
 	const { slots, slotProps } = useSupportSlotOverrides();
@@ -59,7 +65,7 @@ export const HomePage = (_props: HomePageProps = {}): ReactElement => {
 		return (
 			<HomePageSlot
 				{...homePageSlotProps}
-				availableAIAgents={website?.availableAIAgents || []}
+				availableAIAgents={availableAIAgents}
 				availableConversationsCount={home.availableConversationsCount}
 				availableHumanAgents={availableHumanAgents}
 				className={cn(homePageSlotProps?.className)}
@@ -94,9 +100,9 @@ export const HomePage = (_props: HomePageProps = {}): ReactElement => {
 						style={{ animationDelay: "100ms" }}
 					>
 						<AvatarStack
-							aiAgents={website?.availableAIAgents || []}
+							aiAgents={availableAIAgents}
 							className="mb-4"
-							hideDefaultAIAgent={false}
+							hideDefaultAIAgent={availableAIAgents.length === 0}
 							humanAgents={availableHumanAgents}
 							size={44}
 							spacing={42}

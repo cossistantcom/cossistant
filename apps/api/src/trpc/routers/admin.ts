@@ -1,9 +1,13 @@
 import type { Database } from "@api/db";
 import {
 	type AdminWebsiteListRow,
+	countActiveAdminWebsitesForOrganization,
+	deleteAdminOrganizationById,
 	getActiveAdminWebsiteById,
 	getAdminUserById,
+	getAdminWebsiteDeletionTarget,
 	getAdminWebsiteForAiUsageGrant,
+	listAdminOrganizationMemberEmails,
 	listAdminOrganizationsByIds,
 	listAdminUserOrganizationMemberships,
 	listAdminUsers,
@@ -12,6 +16,7 @@ import {
 	listAdminWebsites,
 	listOrganizationPolarCustomerContactCandidates,
 } from "@api/db/queries/admin";
+import { permanentlyDeleteWebsite } from "@api/db/queries/website";
 import type { UserSelect } from "@api/db/schema";
 import { resolveAiCreditsView } from "@api/lib/ai-credits/plan-view";
 import {
@@ -21,8 +26,18 @@ import {
 import { auth } from "@api/lib/auth";
 import { isPolarEnabled } from "@api/lib/billing-mode";
 import { getPlanForWebsite } from "@api/lib/plans/access";
-import { getCustomerByOrganizationId } from "@api/lib/plans/polar";
+import {
+	getCustomerByOrganizationId,
+	getCustomerState,
+	partitionWebsiteSubscriptionsForDeletion,
+} from "@api/lib/plans/polar";
 import polarClient from "@api/lib/polar";
+import {
+	deleteOrganizationFiles,
+	deleteWebsiteFiles,
+} from "@api/services/upload";
+import { invalidateApiKeyCacheForWebsite } from "@api/utils/cache/api-key-cache";
+import { removeUserFromDefaultAudience } from "@cossistant/transactional";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { adminProcedure, createTRPCRouter, protectedProcedure } from "../init";
@@ -34,6 +49,15 @@ const WEBSITE_WIDE_ROLES = ["owner", "admin"];
 
 const userIdInput = z.object({
 	userId: z.string().min(1),
+});
+
+const websiteIdInput = z.object({
+	websiteId: z.string().min(1),
+});
+
+const deleteWebsiteForeverInput = websiteIdInput.extend({
+	confirmationSlug: z.string().min(1),
+	deleteOrganization: z.boolean().default(false),
 });
 
 const grantAmountInput = z
@@ -182,6 +206,93 @@ async function ensurePolarCustomerForOrganization(params: {
 	};
 }
 
+async function revokeDeletableWebsiteSubscriptions(params: {
+	organizationId: string;
+	websiteId: string;
+	websiteSlug: string;
+}) {
+	const customer = await getCustomerByOrganizationId(params.organizationId);
+	let freeSubscriptionsToRevoke: Array<{ id: string }> = [];
+
+	if (!customer) {
+		return;
+	}
+
+	const customerState = await getCustomerState(customer.id);
+
+	if (!customerState) {
+		throw new TRPCError({
+			code: "INTERNAL_SERVER_ERROR",
+			message:
+				"Unable to verify billing subscriptions. Please try again later.",
+		});
+	}
+
+	const subscriptionPartition = partitionWebsiteSubscriptionsForDeletion(
+		customerState,
+		params.websiteId
+	);
+
+	if (subscriptionPartition.blockingPaidOrUnknown.length > 0) {
+		throw new TRPCError({
+			code: "BAD_REQUEST",
+			message: `This website has an active paid subscription. Please unsubscribe first in /${params.websiteSlug}/billing.`,
+		});
+	}
+
+	freeSubscriptionsToRevoke = subscriptionPartition.freeToRevoke.map(
+		(subscription) => ({ id: subscription.id })
+	);
+
+	for (const subscription of freeSubscriptionsToRevoke) {
+		try {
+			await polarClient.subscriptions.revoke({
+				id: subscription.id,
+			});
+		} catch (error) {
+			console.error(
+				`[plans] Failed to revoke free subscription id=${subscription.id} for website=${params.websiteId}:`,
+				error
+			);
+			throw new TRPCError({
+				code: "INTERNAL_SERVER_ERROR",
+				message:
+					"Failed to revoke free subscription before deletion. Please try again.",
+			});
+		}
+	}
+}
+
+async function removeOrganizationMembersFromResend(
+	memberEmails: Array<{ email: string }>
+): Promise<number> {
+	const uniqueEmails = [
+		...new Set(
+			memberEmails
+				.map((row) => row.email.trim())
+				.filter((email) => email.length > 0)
+		),
+	];
+	const failedEmails: string[] = [];
+
+	for (const email of uniqueEmails) {
+		const success = await removeUserFromDefaultAudience(email);
+		if (!success) {
+			failedEmails.push(email);
+		}
+	}
+
+	if (failedEmails.length > 0) {
+		throw new TRPCError({
+			code: "INTERNAL_SERVER_ERROR",
+			message:
+				"Failed to remove one or more organization members from Resend. Please try again before deleting.",
+		});
+	}
+
+	return uniqueEmails.length;
+}
+
 export const adminRouter = createTRPCRouter({
 	listUsers: adminProcedure
 		.input(
@@ -222,6 +333,163 @@ export const adminRouter = createTRPCRouter({
 			return {
 				websites: rows.map(serializeAdminWebsite),
 				limit: ADMIN_WEBSITE_LIMIT,
+			};
+		}),
+
+	getWebsiteDeletionPreview: adminProcedure
+		.input(websiteIdInput)
+		.query(async ({ ctx: { db }, input }) => {
+			const site = await getAdminWebsiteDeletionTarget(db, {
+				websiteId: input.websiteId,
+			});
+
+			if (!site) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Website not found",
+				});
+			}
+
+			const [activeWebsiteCount, memberEmails] = await Promise.all([
+				countActiveAdminWebsitesForOrganization(db, {
+					organizationId: site.organizationId,
+				}),
+				listAdminOrganizationMemberEmails(db, {
+					organizationId: site.organizationId,
+				}),
+			]);
+
+			return {
+				website: {
+					id: site.id,
+					name: site.name,
+					slug: site.slug,
+					domain: site.domain,
+				},
+				organization: {
+					id: site.organizationId,
+					name: site.organizationName,
+					slug: site.organizationSlug,
+					activeWebsiteCount,
+					memberEmailCount: new Set(
+						memberEmails.map((row) => row.email.trim()).filter(Boolean)
+					).size,
+				},
+			};
+		}),
+
+	deleteWebsiteForever: adminProcedure
+		.input(deleteWebsiteForeverInput)
+		.mutation(async ({ ctx: { db }, input }) => {
+			const site = await getAdminWebsiteDeletionTarget(db, {
+				websiteId: input.websiteId,
+			});
+
+			if (!site) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Website not found",
+				});
+			}
+
+			if (input.confirmationSlug !== site.slug) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Confirmation slug does not match this website.",
+				});
+			}
+
+			const [activeWebsiteCount, memberEmails] = await Promise.all([
+				countActiveAdminWebsitesForOrganization(db, {
+					organizationId: site.organizationId,
+				}),
+				listAdminOrganizationMemberEmails(db, {
+					organizationId: site.organizationId,
+				}),
+			]);
+
+			if (input.deleteOrganization && activeWebsiteCount > 1) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message:
+						"Cannot delete this organization because it has other active websites.",
+				});
+			}
+
+			await revokeDeletableWebsiteSubscriptions({
+				organizationId: site.organizationId,
+				websiteId: site.id,
+				websiteSlug: site.slug,
+			});
+
+			try {
+				await invalidateApiKeyCacheForWebsite(db, site.id);
+			} catch (error) {
+				console.error(
+					"[api-key-cache] Failed to invalidate website API key cache before admin deletion",
+					{
+						websiteId: site.id,
+						error,
+					}
+				);
+				throw new TRPCError({
+					code: "INTERNAL_SERVER_ERROR",
+					message: "Failed to invalidate API key cache. Please try again.",
+				});
+			}
+
+			const removedResendEmailCount =
+				await removeOrganizationMembersFromResend(memberEmails);
+			const deletedStorageObjectCount = input.deleteOrganization
+				? await deleteOrganizationFiles(site.organizationId)
+				: await deleteWebsiteFiles({
+						organizationId: site.organizationId,
+						websiteId: site.id,
+					});
+
+			if (input.deleteOrganization) {
+				const deletedOrganization = await deleteAdminOrganizationById(db, {
+					organizationId: site.organizationId,
+				});
+
+				if (!deletedOrganization) {
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Organization not found",
+					});
+				}
+
+				return {
+					success: true,
+					websiteId: site.id,
+					websiteSlug: site.slug,
+					organizationId: site.organizationId,
+					organizationDeleted: true,
+					removedResendEmailCount,
+					deletedStorageObjectCount,
+				};
+			}
+
+			const deletedWebsite = await permanentlyDeleteWebsite(db, {
+				orgId: site.organizationId,
+				websiteId: site.id,
+			});
+
+			if (!deletedWebsite) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Website not found",
+				});
+			}
+
+			return {
+				success: true,
+				websiteId: deletedWebsite.id,
+				websiteSlug: deletedWebsite.slug,
+				organizationId: site.organizationId,
+				organizationDeleted: false,
+				removedResendEmailCount,
+				deletedStorageObjectCount,
 			};
 		}),
 

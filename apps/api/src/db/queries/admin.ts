@@ -9,7 +9,17 @@ import {
 	website,
 } from "@api/db/schema";
 import { WebsiteStatus } from "@cossistant/types";
-import { and, asc, desc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
+import {
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	ilike,
+	inArray,
+	isNull,
+	or,
+} from "drizzle-orm";
 
 export async function listOrganizationPolarCustomerContactCandidates(
 	db: Pick<Database, "select">,
@@ -285,4 +295,98 @@ export async function getAdminWebsiteForAiUsageGrant(
 		.limit(1);
 
 	return site ?? null;
+}
+
+export async function getAdminWebsiteDeletionTarget(
+	db: Database,
+	params: {
+		websiteId: string;
+	}
+): Promise<{
+	id: string;
+	name: string;
+	slug: string;
+	domain: string;
+	organizationId: string;
+	organizationName: string;
+	organizationSlug: string;
+	teamId: string;
+} | null> {
+	const [site] = await db
+		.select({
+			id: website.id,
+			name: website.name,
+			slug: website.slug,
+			domain: website.domain,
+			organizationId: website.organizationId,
+			organizationName: organization.name,
+			organizationSlug: organization.slug,
+			teamId: website.teamId,
+		})
+		.from(website)
+		.innerJoin(organization, eq(website.organizationId, organization.id))
+		.where(
+			and(
+				eq(website.id, params.websiteId),
+				eq(website.status, WebsiteStatus.ACTIVE),
+				isNull(website.deletedAt)
+			)
+		)
+		.limit(1);
+
+	return site ?? null;
+}
+
+export async function countActiveAdminWebsitesForOrganization(
+	db: Database,
+	params: {
+		organizationId: string;
+	}
+): Promise<number> {
+	const [row] = await db
+		.select({ value: count() })
+		.from(website)
+		.where(
+			and(
+				eq(website.organizationId, params.organizationId),
+				eq(website.status, WebsiteStatus.ACTIVE),
+				isNull(website.deletedAt)
+			)
+		);
+
+	return Number(row?.value ?? 0);
+}
+
+export async function listAdminOrganizationMemberEmails(
+	db: Database,
+	params: {
+		organizationId: string;
+	}
+): Promise<Array<{ email: string; userId: string }>> {
+	return db
+		.select({
+			email: user.email,
+			userId: user.id,
+		})
+		.from(member)
+		.innerJoin(user, eq(member.userId, user.id))
+		.where(eq(member.organizationId, params.organizationId))
+		.orderBy(asc(member.createdAt));
+}
+
+export async function deleteAdminOrganizationById(
+	db: Database,
+	params: {
+		organizationId: string;
+	}
+): Promise<{ id: string; slug: string } | null> {
+	const [deletedOrganization] = await db
+		.delete(organization)
+		.where(eq(organization.id, params.organizationId))
+		.returning({
+			id: organization.id,
+			slug: organization.slug,
+		});
+
+	return deletedOrganization ?? null;
 }

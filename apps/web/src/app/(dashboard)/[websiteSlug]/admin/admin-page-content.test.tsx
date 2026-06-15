@@ -13,21 +13,29 @@ const authStoreNotifyCalls: string[] = [];
 const toastSuccessCalls: string[] = [];
 const toastErrorCalls: string[] = [];
 const queryDataByKey = new Map<string, unknown>();
+const scrollAreaClassNames: string[] = [];
 
 mock.module("@tanstack/react-query", () => ({
 	useMutation: (
 		options: {
 			mutationKey?: string[];
-			onSuccess?: () => void | Promise<void>;
+			onSuccess?: (data?: {
+				organizationDeleted?: boolean;
+			}) => void | Promise<void>;
 		} = {}
 	) => ({
 		isPending: false,
 		mutate: (input: unknown) => {
+			const key = options.mutationKey?.[0] ?? "unknown";
 			mutationCalls.push({
-				key: options.mutationKey?.[0] ?? "unknown",
+				key,
 				input,
 			});
-			void options.onSuccess?.();
+			void options.onSuccess?.(
+				key === "deleteWebsiteForever"
+					? { organizationDeleted: false }
+					: undefined
+			);
 		},
 	}),
 	useQuery: (options: { queryKey?: unknown[] } = {}) => {
@@ -71,6 +79,11 @@ mock.module("next/navigation", () => ({
 	}),
 }));
 
+mock.module("nuqs", () => ({
+	parseAsString: {},
+	useQueryState: () => [null, () => Promise.resolve(null)] as const,
+}));
+
 mock.module("sonner", () => ({
 	toast: {
 		error: (message: string) => {
@@ -103,6 +116,53 @@ mock.module("@/components/ui/button", () => ({
 		<button onClick={onClick} {...props} type={props.type ?? "button"}>
 			{children}
 		</button>
+	),
+}));
+
+mock.module("@/components/ui/checkbox", () => ({
+	Checkbox: ({
+		checked,
+		disabled,
+		id,
+		onCheckedChange,
+	}: {
+		checked?: boolean;
+		disabled?: boolean;
+		id?: string;
+		onCheckedChange?: (checked: boolean) => void;
+	}) => (
+		<input
+			checked={Boolean(checked)}
+			disabled={disabled}
+			id={id}
+			onChange={(event) => onCheckedChange?.(event.target.checked)}
+			type="checkbox"
+		/>
+	),
+}));
+
+mock.module("@/components/ui/dialog", () => ({
+	Dialog: ({
+		children,
+		open,
+	}: {
+		children: React.ReactNode;
+		open?: boolean;
+	}) => (open ? <div>{children}</div> : null),
+	DialogContent: ({ children }: { children: React.ReactNode }) => (
+		<section>{children}</section>
+	),
+	DialogDescription: ({ children }: { children: React.ReactNode }) => (
+		<p>{children}</p>
+	),
+	DialogFooter: ({ children }: { children: React.ReactNode }) => (
+		<footer>{children}</footer>
+	),
+	DialogHeader: ({ children }: { children: React.ReactNode }) => (
+		<header>{children}</header>
+	),
+	DialogTitle: ({ children }: { children: React.ReactNode }) => (
+		<h2>{children}</h2>
 	),
 }));
 
@@ -145,8 +205,41 @@ mock.module("@/components/ui/layout", () => ({
 }));
 
 mock.module("@/components/ui/scroll-area", () => ({
-	ScrollArea: ({ children }: { children: React.ReactNode }) => (
-		<div>{children}</div>
+	ScrollArea: ({
+		children,
+		className,
+	}: {
+		children: React.ReactNode;
+		className?: string;
+	}) => {
+		scrollAreaClassNames.push(className ?? "");
+		return <div>{children}</div>;
+	},
+}));
+
+mock.module("@/components/ui/input", () => ({
+	Input: ({
+		disabled,
+		id,
+		onChange,
+		placeholder,
+		value,
+	}: {
+		disabled?: boolean;
+		id?: string;
+		onChange?: (event: { target: { value: string } }) => void;
+		placeholder?: string;
+		value?: string;
+	}) => (
+		<input
+			disabled={disabled}
+			id={id}
+			onChange={(event) =>
+				onChange?.({ target: { value: event.target.value } })
+			}
+			placeholder={placeholder}
+			value={value}
+		/>
 	),
 }));
 
@@ -242,9 +335,17 @@ mock.module("@/lib/trpc/client", () => {
 				banUser: {
 					mutationOptions: mutationOptions("banUser"),
 				},
+				deleteWebsiteForever: {
+					mutationOptions: mutationOptions("deleteWebsiteForever"),
+				},
 				getUserWebsites: {
 					queryOptions: (input: unknown) => ({
 						queryKey: ["admin.getUserWebsites", input],
+					}),
+				},
+				getWebsiteDeletionPreview: {
+					queryOptions: (input: unknown) => ({
+						queryKey: ["admin.getWebsiteDeletionPreview", input],
 					}),
 				},
 				impersonateUser: {
@@ -314,6 +415,7 @@ function resetState() {
 	authStoreNotifyCalls.length = 0;
 	toastSuccessCalls.length = 0;
 	toastErrorCalls.length = 0;
+	scrollAreaClassNames.length = 0;
 	queryDataByKey.clear();
 
 	Object.defineProperty(globalThis, "window", {
@@ -408,15 +510,19 @@ describe("admin page content", () => {
 		expect(routerRefreshCalls).toEqual(["refresh"]);
 	});
 
-	it("renders website actions for granting AI usage", async () => {
+	it("renders website actions for granting AI usage and deleting forever", async () => {
 		resetState();
 		const { AdminWebsitesTable } = await modulePromise;
+		const deleteTargets: string[] = [];
 		const grantTargets: string[] = [];
 
 		const html = renderToStaticMarkup(
 			<AdminWebsitesTable
 				data={[createWebsite() as never]}
 				isLoading={false}
+				onDeleteForever={(website) => {
+					deleteTargets.push(website.id);
+				}}
 				onGrantAiUsage={(website) => {
 					grantTargets.push(website.id);
 				}}
@@ -427,10 +533,65 @@ describe("admin page content", () => {
 		expect(html).toContain("cossistant.com");
 		expect(html).toContain('href="/cossistant-site"');
 		expect(html).toContain("Grant AI usage");
+		expect(html).toContain("Delete forever");
 
 		actionHandlers[0]?.();
+		actionHandlers[1]?.();
 
 		expect(grantTargets).toEqual(["site-1"]);
+		expect(deleteTargets).toEqual(["site-1"]);
+	});
+
+	it("renders the delete dialog with slug confirmation and disabled org deletion when blocked", async () => {
+		resetState();
+		queryDataByKey.set("admin.getWebsiteDeletionPreview", {
+			website: {
+				id: "site-1",
+				name: "Cossistant Site",
+				slug: "cossistant-site",
+				domain: "cossistant.com",
+			},
+			organization: {
+				id: "org-1",
+				name: "Cossistant Inc",
+				slug: "cossistant-inc",
+				activeWebsiteCount: 2,
+				memberEmailCount: 3,
+			},
+		});
+		const { AdminDeleteWebsiteDialog } = await modulePromise;
+
+		const html = renderToStaticMarkup(
+			<AdminDeleteWebsiteDialog
+				isPending={false}
+				onConfirm={() => {}}
+				onOpenChange={() => {}}
+				open
+				website={createWebsite() as never}
+			/>
+		);
+
+		expect(html).toContain("Delete website forever");
+		expect(html).toContain("cossistant-site");
+		expect(html).toContain("Also delete organization");
+		expect(html).toContain(
+			"Blocked because Cossistant Inc has 2 active websites."
+		);
+		expect(html).toContain("disabled");
+	});
+
+	it("bounds the admin table scroll area", async () => {
+		resetState();
+		const { AdminPageContent } = await modulePromise;
+
+		renderToStaticMarkup(<AdminPageContent websiteSlug="acme" />);
+
+		expect(scrollAreaClassNames.some((value) => value.includes("flex-1"))).toBe(
+			true
+		);
+		expect(
+			scrollAreaClassNames.some((value) => value.includes("min-h-0"))
+		).toBe(true);
 	});
 
 	it("shows current AI usage inside the grant sheet", async () => {

@@ -9,6 +9,7 @@ import {
 	KeyRound,
 	MoreHorizontal,
 	RotateCcw,
+	Trash2,
 	UserRound,
 } from "lucide-react";
 import Link from "next/link";
@@ -19,6 +20,15 @@ import { toast } from "sonner";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -26,6 +36,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { Page, PageHeader, PageHeaderTitle } from "@/components/ui/layout";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -69,6 +80,7 @@ export function AdminPageContent({ websiteSlug }: AdminPageContentProps) {
 		parseAsString
 	);
 	const [grantTarget, setGrantTarget] = useState<AdminWebsite | null>(null);
+	const [deleteTarget, setDeleteTarget] = useState<AdminWebsite | null>(null);
 
 	const listQuery = useQuery({
 		...trpc.admin.listUsers.queryOptions({
@@ -115,6 +127,24 @@ export function AdminPageContent({ websiteSlug }: AdminPageContentProps) {
 		})
 	);
 
+	const deleteMutation = useMutation(
+		trpc.admin.deleteWebsiteForever.mutationOptions({
+			onSuccess: async (result) => {
+				await queryClient.invalidateQueries({
+					queryKey: trpc.admin.listWebsites.queryKey(),
+				});
+				toast.success(
+					result.organizationDeleted
+						? "Website and organization deleted forever."
+						: "Website deleted forever."
+				);
+				setDeleteTarget(null);
+			},
+			onError: (error) =>
+				toast.error(error.message || "Failed to delete website."),
+		})
+	);
+
 	const users = listQuery.data?.users ?? [];
 	const websites = websitesQuery.data?.websites ?? [];
 	const visibleCount = adminView === "users" ? users.length : websites.length;
@@ -125,9 +155,9 @@ export function AdminPageContent({ websiteSlug }: AdminPageContentProps) {
 				<PageHeaderTitle>Admin</PageHeaderTitle>
 			</PageHeader>
 
-			<div className="min-h-0 flex-1 pt-14">
+			<div className="flex min-h-0 flex-1 flex-col overflow-hidden pt-14">
 				<ScrollArea
-					className="min-h-0 px-4 pb-20"
+					className="min-h-0 flex-1 px-4 pb-20"
 					maskHeight="150px"
 					orientation="both"
 					scrollMask
@@ -146,6 +176,7 @@ export function AdminPageContent({ websiteSlug }: AdminPageContentProps) {
 						<AdminWebsitesTable
 							data={websites}
 							isLoading={websitesQuery.isLoading}
+							onDeleteForever={setDeleteTarget}
 							onGrantAiUsage={setGrantTarget}
 						/>
 					)}
@@ -170,6 +201,19 @@ export function AdminPageContent({ websiteSlug }: AdminPageContentProps) {
 				}}
 				open={grantTarget !== null}
 				website={grantTarget}
+			/>
+			<AdminDeleteWebsiteDialog
+				isPending={deleteMutation.isPending}
+				onConfirm={(input) => {
+					deleteMutation.mutate(input);
+				}}
+				onOpenChange={(open) => {
+					if (!open) {
+						setDeleteTarget(null);
+					}
+				}}
+				open={deleteTarget !== null}
+				website={deleteTarget}
 			/>
 			<div className="absolute right-0 bottom-0 left-0 flex h-14 w-full items-center px-4">
 				<p className="text-muted-foreground text-sm">
@@ -369,12 +413,14 @@ function AdminUsersHeader() {
 type AdminWebsitesTableProps = {
 	data: AdminWebsite[];
 	isLoading: boolean;
+	onDeleteForever: (website: AdminWebsite) => void;
 	onGrantAiUsage: (website: AdminWebsite) => void;
 };
 
 export function AdminWebsitesTable({
 	data,
 	isLoading,
+	onDeleteForever,
 	onGrantAiUsage,
 }: AdminWebsitesTableProps) {
 	if (isLoading) {
@@ -469,6 +515,7 @@ export function AdminWebsitesTable({
 						</TableCell>
 						<TableCell className="rounded-r-lg py-2 text-right">
 							<AdminWebsiteActions
+								onDeleteForever={() => onDeleteForever(site)}
 								onGrantAiUsage={() => onGrantAiUsage(site)}
 							/>
 						</TableCell>
@@ -493,8 +540,10 @@ function AdminWebsitesHeader() {
 }
 
 function AdminWebsiteActions({
+	onDeleteForever,
 	onGrantAiUsage,
 }: {
+	onDeleteForever: () => void;
 	onGrantAiUsage: () => void;
 }) {
 	return (
@@ -510,8 +559,168 @@ function AdminWebsiteActions({
 					<Gift className="size-4" />
 					Grant AI usage
 				</DropdownMenuItem>
+				<DropdownMenuSeparator />
+				<DropdownMenuItem onClick={onDeleteForever} variant="destructive">
+					<Trash2 className="size-4" />
+					Delete forever
+				</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>
+	);
+}
+
+export function AdminDeleteWebsiteDialog({
+	website,
+	open,
+	isPending,
+	onOpenChange,
+	onConfirm,
+}: {
+	website: AdminWebsite | null;
+	open: boolean;
+	isPending: boolean;
+	onOpenChange: (open: boolean) => void;
+	onConfirm: (input: {
+		websiteId: string;
+		confirmationSlug: string;
+		deleteOrganization: boolean;
+	}) => void;
+}) {
+	const trpc = useTRPC();
+	const [confirmationInput, setConfirmationInput] = useState("");
+	const [deleteOrganization, setDeleteOrganization] = useState(false);
+	const previewQuery = useQuery({
+		...trpc.admin.getWebsiteDeletionPreview.queryOptions({
+			websiteId: website?.id ?? "",
+		}),
+		enabled: open && Boolean(website?.id),
+	});
+
+	const preview = previewQuery.data ?? null;
+	const activeWebsiteCount = preview?.organization.activeWebsiteCount ?? null;
+	const hasOtherActiveWebsites =
+		typeof activeWebsiteCount === "number" && activeWebsiteCount > 1;
+	const canDeleteOrganization =
+		Boolean(preview) && !previewQuery.isError && !hasOtherActiveWebsites;
+	const shouldDeleteOrganization = deleteOrganization && canDeleteOrganization;
+	const isConfirmed = Boolean(
+		website && confirmationInput.trim() === website.slug
+	);
+
+	const handleOpenChange = (nextOpen: boolean) => {
+		if (!nextOpen) {
+			setConfirmationInput("");
+			setDeleteOrganization(false);
+		}
+		onOpenChange(nextOpen);
+	};
+
+	const handleDelete = () => {
+		if (!(website && isConfirmed)) {
+			return;
+		}
+
+		onConfirm({
+			websiteId: website.id,
+			confirmationSlug: confirmationInput.trim(),
+			deleteOrganization: shouldDeleteOrganization,
+		});
+	};
+
+	return (
+		<Dialog onOpenChange={handleOpenChange} open={open}>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Delete website forever</DialogTitle>
+					<DialogDescription>
+						This permanently removes the website data and removes organization
+						members from the Resend audience.
+					</DialogDescription>
+				</DialogHeader>
+
+				<div className="space-y-4">
+					<div className="rounded border border-destructive/30 bg-destructive/5 p-4">
+						<p className="font-medium text-destructive text-sm">
+							{website?.name ?? "This website"} will be deleted forever.
+						</p>
+						<p className="mt-1 text-destructive/80 text-sm">
+							This includes conversations, visitors, contacts, knowledge,
+							agents, API keys, and uploaded files scoped to the website.
+						</p>
+					</div>
+
+					<div className="space-y-2">
+						<label
+							className="font-medium text-sm"
+							htmlFor="admin-delete-website-confirmation"
+						>
+							Type{" "}
+							<span className="font-mono">
+								{website?.slug ?? "website-slug"}
+							</span>{" "}
+							to confirm
+						</label>
+						<Input
+							autoComplete="off"
+							disabled={isPending}
+							id="admin-delete-website-confirmation"
+							onChange={(event) => setConfirmationInput(event.target.value)}
+							placeholder={website?.slug ?? "website-slug"}
+							value={confirmationInput}
+						/>
+					</div>
+
+					<div className="flex items-start gap-3 rounded border bg-background-50 p-3">
+						<Checkbox
+							checked={shouldDeleteOrganization}
+							disabled={
+								isPending || previewQuery.isLoading || !canDeleteOrganization
+							}
+							id="admin-delete-organization"
+							onCheckedChange={(checked) => {
+								setDeleteOrganization(checked === true);
+							}}
+						/>
+						<div className="min-w-0 space-y-1">
+							<label
+								className="cursor-pointer font-medium text-sm"
+								htmlFor="admin-delete-organization"
+							>
+								Also delete organization
+							</label>
+							<p className="text-muted-foreground text-xs">
+								{previewQuery.isLoading
+									? "Checking organization websites..."
+									: hasOtherActiveWebsites
+										? `Blocked because ${preview?.organization.name ?? "this organization"} has ${activeWebsiteCount} active websites.`
+										: preview
+											? `${preview.organization.name} has ${preview.organization.memberEmailCount} member emails queued for Resend removal.`
+											: "Organization deletion is checked on the server before deleting."}
+							</p>
+						</div>
+					</div>
+				</div>
+
+				<DialogFooter>
+					<Button
+						disabled={isPending}
+						onClick={() => handleOpenChange(false)}
+						type="button"
+						variant="outline"
+					>
+						Cancel
+					</Button>
+					<Button
+						disabled={!isConfirmed || isPending}
+						onClick={handleDelete}
+						type="button"
+						variant="destructive"
+					>
+						{isPending ? "Deleting..." : "Delete forever"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 }
 

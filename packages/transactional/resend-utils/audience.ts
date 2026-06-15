@@ -8,6 +8,31 @@ export type ContactData = {
 	unsubscribed?: boolean;
 };
 
+function isNotFoundError(error: unknown): boolean {
+	if (!(error && typeof error === "object")) {
+		return false;
+	}
+
+	const maybeStatus = "statusCode" in error ? error.statusCode : undefined;
+	const maybeStatusNumber =
+		typeof maybeStatus === "number"
+			? maybeStatus
+			: typeof maybeStatus === "string"
+				? Number.parseInt(maybeStatus, 10)
+				: null;
+
+	if (maybeStatusNumber === 404) {
+		return true;
+	}
+
+	const message =
+		"message" in error && typeof error.message === "string"
+			? error.message.toLowerCase()
+			: "";
+
+	return message.includes("not found");
+}
+
 /**
  * Add a contact to a Resend audience
  */
@@ -66,6 +91,13 @@ export async function removeContactFromAudience(
 		);
 		return true;
 	} catch (error) {
+		if (isNotFoundError(error)) {
+			console.log(
+				`Contact ${email} was already absent from Resend audience ${audienceId}`
+			);
+			return true;
+		}
+
 		console.error("Failed to remove contact from Resend audience:", error);
 		return false;
 	}
@@ -96,6 +128,13 @@ export async function removeContactFromAudienceById(
 		);
 		return true;
 	} catch (error) {
+		if (isNotFoundError(error)) {
+			console.log(
+				`Contact ${contactId} was already absent from Resend audience ${audienceId}`
+			);
+			return true;
+		}
+
 		console.error("Failed to remove contact from Resend audience:", error);
 		return false;
 	}

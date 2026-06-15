@@ -1,5 +1,3 @@
-import { getMemberNotificationSettings } from "@api/db/queries";
-import { isEmailSuppressed } from "@api/db/queries/email-bounce";
 import {
 	claimDueLifecycleEmailEvents,
 	getLifecycleEmailEventsByIds,
@@ -23,6 +21,7 @@ import { organization } from "@api/db/schema";
 import { getPlanForWebsite } from "@api/lib/plans/access";
 import { queryWeeklyDigestStats } from "@api/lib/tinybird-sdk";
 import { buildLifecycleEmail } from "@api/lifecycle-email/content";
+import { getLifecycleEmailEligibility } from "@api/lifecycle-email/eligibility";
 import {
 	getLocalWeekKey,
 	getWeeklyDigestDedupeKey,
@@ -36,9 +35,8 @@ import { type LifecycleEmailJobData, QUEUE_NAMES } from "@cossistant/jobs";
 import { getSafeRedisUrl, type RedisOptions } from "@cossistant/redis";
 import { sendBatchEmail } from "@cossistant/transactional";
 import type { ResendEmailOptions } from "@cossistant/transactional/send";
-import { MemberNotificationChannel } from "@cossistant/types";
 import { type Job, Queue, QueueEvents, Worker } from "bullmq";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "../../db";
 import { env } from "../../env";
 
@@ -507,7 +505,7 @@ async function processSendBatch(job: Job<LifecycleEmailJobData>) {
 	const now = new Date();
 
 	for (const event of queuedEvents) {
-		const eligibility = await getLifecycleEmailEligibility(event);
+		const eligibility = await getLifecycleEmailEligibility(db, event);
 		if (!eligibility.ok) {
 			const ids = skippedByReason.get(eligibility.reason) ?? [];
 			ids.push(event.id);
@@ -612,68 +610,4 @@ async function processSendBatch(job: Job<LifecycleEmailJobData>) {
 
 		throw error;
 	}
-}
-
-async function getLifecycleEmailEligibility(event: {
-	emailKey: string;
-	recipientEmail: string;
-	recipientMemberId: string | null;
-	recipientUserId: string | null;
-	organizationId: string;
-}) {
-	if (!event.recipientEmail.trim()) {
-		return { ok: false as const, reason: "missing_recipient_email" };
-	}
-
-	if (!(event.recipientMemberId && event.recipientUserId)) {
-		return { ok: false as const, reason: "missing_recipient" };
-	}
-
-	const recipientUserId = event.recipientUserId;
-
-	const [suppressed, settings, orgRow, memberRow] = await Promise.all([
-		isEmailSuppressed(db, {
-			email: event.recipientEmail,
-			organizationId: event.organizationId,
-		}),
-		getMemberNotificationSettings(db, {
-			organizationId: event.organizationId,
-			memberId: event.recipientMemberId,
-		}),
-		event.emailKey === LIFECYCLE_EMAIL_KEYS.WEEKLY_DIGEST
-			? db.query.organization.findFirst({
-					where: and(
-						eq(organization.id, event.organizationId),
-						eq(organization.weeklyDigestEnabled, true)
-					),
-				})
-			: Promise.resolve(true),
-		db.query.user.findFirst({
-			where: (user, { eq: eqUser }) => eqUser(user.id, recipientUserId),
-			columns: {
-				name: true,
-			},
-		}),
-	]);
-
-	if (suppressed) {
-		return { ok: false as const, reason: "email_suppressed" };
-	}
-
-	if (!orgRow) {
-		return { ok: false as const, reason: "weekly_digest_disabled" };
-	}
-
-	const marketingSetting = settings.settings.find(
-		(setting) => setting.channel === MemberNotificationChannel.EMAIL_MARKETING
-	);
-
-	if (marketingSetting?.enabled === false) {
-		return { ok: false as const, reason: "marketing_email_disabled" };
-	}
-
-	return {
-		ok: true as const,
-		recipientName: memberRow?.name ?? null,
-	};
 }

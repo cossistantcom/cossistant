@@ -26,7 +26,23 @@ const getCustomerByOrganizationIdMock = mock(
 			id: string;
 		} | null
 );
+const getPolarCustomerStateMock = mock(async () => ({
+	customerId: "customer-1",
+}));
+const partitionWebsiteSubscriptionsForDeletionMock = mock(() => ({
+	freeToRevoke: [],
+	blockingPaidOrUnknown: [],
+}));
 const polarCustomerCreateMock = mock(async () => ({ id: "customer-created" }));
+const polarSubscriptionRevokeMock = mock(async () => ({}));
+const permanentlyDeleteWebsiteMock = mock(async () => ({
+	id: "site-1",
+	slug: "cossistant",
+}));
+const deleteOrganizationFilesMock = mock(async () => 3);
+const deleteWebsiteFilesMock = mock(async () => 2);
+const invalidateApiKeyCacheForWebsiteMock = mock(async () => {});
+const removeUserFromDefaultAudienceMock = mock(async () => true);
 const grantAiCreditUsageMock = mock(async () => ({ status: "ingested" }));
 const getAiCreditMeterStateMock = mock(async () => ({
 	balance: 875,
@@ -80,6 +96,9 @@ mock.module("@api/lib/plans/access", () => ({
 
 mock.module("@api/lib/plans/polar", () => ({
 	getCustomerByOrganizationId: getCustomerByOrganizationIdMock,
+	getCustomerState: getPolarCustomerStateMock,
+	partitionWebsiteSubscriptionsForDeletion:
+		partitionWebsiteSubscriptionsForDeletionMock,
 }));
 
 mock.module("@api/lib/polar", () => ({
@@ -87,7 +106,27 @@ mock.module("@api/lib/polar", () => ({
 		customers: {
 			create: polarCustomerCreateMock,
 		},
+		subscriptions: {
+			revoke: polarSubscriptionRevokeMock,
+		},
 	},
+}));
+
+mock.module("@api/db/queries/website", () => ({
+	permanentlyDeleteWebsite: permanentlyDeleteWebsiteMock,
+}));
+
+mock.module("@api/services/upload", () => ({
+	deleteOrganizationFiles: deleteOrganizationFilesMock,
+	deleteWebsiteFiles: deleteWebsiteFilesMock,
+}));
+
+mock.module("@api/utils/cache/api-key-cache", () => ({
+	invalidateApiKeyCacheForWebsite: invalidateApiKeyCacheForWebsiteMock,
+}));
+
+mock.module("@cossistant/transactional", () => ({
+	removeUserFromDefaultAudience: removeUserFromDefaultAudienceMock,
 }));
 
 const modulePromise = Promise.all([import("../init"), import("./admin")]);
@@ -100,6 +139,7 @@ function createThenableBuilder(result: unknown) {
 		orderBy: () => builder,
 		limit: () => Promise.resolve(result),
 		offset: () => Promise.resolve(result),
+		returning: () => Promise.resolve(result),
 		// biome-ignore lint/suspicious/noThenProperty: Drizzle query builders are thenable, and these tests fake that contract.
 		then: (
 			resolve: (value: unknown) => unknown,
@@ -110,10 +150,16 @@ function createThenableBuilder(result: unknown) {
 	return builder;
 }
 
-function createDb(selectResults: unknown[]) {
+function createDb(selectResults: unknown[], deleteResults: unknown[] = []) {
 	let selectIndex = 0;
+	let deleteIndex = 0;
 
 	return {
+		delete: mock(() => {
+			const result = deleteResults[deleteIndex] ?? [];
+			deleteIndex += 1;
+			return createThenableBuilder(result);
+		}),
 		select: mock(() => {
 			const result = selectResults[selectIndex] ?? [];
 			selectIndex += 1;
@@ -170,6 +216,20 @@ function createUser(overrides: Record<string, unknown> = {}) {
 	};
 }
 
+function createWebsiteDeletionTarget(overrides: Record<string, unknown> = {}) {
+	return {
+		id: "site-1",
+		name: "Cossistant",
+		slug: "cossistant",
+		domain: "cossistant.com",
+		organizationId: "org-1",
+		organizationName: "Cossistant Inc",
+		organizationSlug: "cossistant-inc",
+		teamId: "team-1",
+		...overrides,
+	};
+}
+
 describe("admin router", () => {
 	beforeEach(() => {
 		banUserMock.mockClear();
@@ -181,7 +241,30 @@ describe("admin router", () => {
 		getCustomerByOrganizationIdMock.mockImplementation(
 			async () => ({ id: "customer-existing" }) as { id: string } | null
 		);
+		getPolarCustomerStateMock.mockClear();
+		getPolarCustomerStateMock.mockImplementation(async () => ({
+			customerId: "customer-1",
+		}));
+		partitionWebsiteSubscriptionsForDeletionMock.mockClear();
+		partitionWebsiteSubscriptionsForDeletionMock.mockImplementation(() => ({
+			freeToRevoke: [],
+			blockingPaidOrUnknown: [],
+		}));
 		polarCustomerCreateMock.mockClear();
+		polarSubscriptionRevokeMock.mockClear();
+		permanentlyDeleteWebsiteMock.mockClear();
+		permanentlyDeleteWebsiteMock.mockImplementation(async () => ({
+			id: "site-1",
+			slug: "cossistant",
+		}));
+		deleteOrganizationFilesMock.mockClear();
+		deleteOrganizationFilesMock.mockImplementation(async () => 3);
+		deleteWebsiteFilesMock.mockClear();
+		deleteWebsiteFilesMock.mockImplementation(async () => 2);
+		invalidateApiKeyCacheForWebsiteMock.mockClear();
+		invalidateApiKeyCacheForWebsiteMock.mockImplementation(async () => {});
+		removeUserFromDefaultAudienceMock.mockClear();
+		removeUserFromDefaultAudienceMock.mockImplementation(async () => true);
 		grantAiCreditUsageMock.mockClear();
 		grantAiCreditUsageMock.mockImplementation(async () => ({
 			status: "ingested",
@@ -238,6 +321,20 @@ describe("admin router", () => {
 			code: "FORBIDDEN",
 		});
 		await expect(caller.listWebsites({})).rejects.toMatchObject({
+			code: "FORBIDDEN",
+		});
+		await expect(
+			caller.getWebsiteDeletionPreview({ websiteId: "site-1" })
+		).rejects.toMatchObject({
+			code: "FORBIDDEN",
+		});
+		await expect(
+			caller.deleteWebsiteForever({
+				websiteId: "site-1",
+				confirmationSlug: "cossistant",
+				deleteOrganization: false,
+			})
+		).rejects.toMatchObject({
 			code: "FORBIDDEN",
 		});
 		await expect(
@@ -422,6 +519,187 @@ describe("admin router", () => {
 				updatedAt: "2026-04-03T10:00:00.000Z",
 			},
 		]);
+	});
+
+	it("returns a website deletion preview for admins", async () => {
+		const db = createDb([
+			[createWebsiteDeletionTarget()],
+			[{ value: 1 }],
+			[
+				{ email: "owner@example.com", userId: "user-owner" },
+				{ email: "owner@example.com", userId: "user-owner-duplicate" },
+			],
+		]);
+		const caller = await createCaller({ db });
+
+		const result = await caller.getWebsiteDeletionPreview({
+			websiteId: "site-1",
+		});
+
+		expect(result).toEqual({
+			website: {
+				id: "site-1",
+				name: "Cossistant",
+				slug: "cossistant",
+				domain: "cossistant.com",
+			},
+			organization: {
+				id: "org-1",
+				name: "Cossistant Inc",
+				slug: "cossistant-inc",
+				activeWebsiteCount: 1,
+				memberEmailCount: 1,
+			},
+		});
+	});
+
+	it("rejects website deletion when the confirmation slug does not match", async () => {
+		const db = createDb([[createWebsiteDeletionTarget()]]);
+		const caller = await createCaller({ db });
+
+		await expect(
+			caller.deleteWebsiteForever({
+				websiteId: "site-1",
+				confirmationSlug: "wrong-slug",
+				deleteOrganization: false,
+			})
+		).rejects.toMatchObject({
+			code: "BAD_REQUEST",
+		});
+		expect(removeUserFromDefaultAudienceMock).not.toHaveBeenCalled();
+		expect(permanentlyDeleteWebsiteMock).not.toHaveBeenCalled();
+	});
+
+	it("deletes a website forever and removes organization members from Resend", async () => {
+		const db = createDb([
+			[createWebsiteDeletionTarget()],
+			[{ value: 1 }],
+			[
+				{ email: "owner@example.com", userId: "user-owner" },
+				{ email: "member@example.com", userId: "user-member" },
+				{ email: "owner@example.com", userId: "user-owner-duplicate" },
+			],
+		]);
+		const caller = await createCaller({ db });
+
+		const result = await caller.deleteWebsiteForever({
+			websiteId: "site-1",
+			confirmationSlug: "cossistant",
+			deleteOrganization: false,
+		});
+
+		expect(result).toEqual({
+			success: true,
+			websiteId: "site-1",
+			websiteSlug: "cossistant",
+			organizationId: "org-1",
+			organizationDeleted: false,
+			removedResendEmailCount: 2,
+			deletedStorageObjectCount: 2,
+		});
+		expect(getCustomerByOrganizationIdMock).toHaveBeenCalledWith("org-1");
+		expect(getPolarCustomerStateMock).toHaveBeenCalledWith("customer-existing");
+		expect(partitionWebsiteSubscriptionsForDeletionMock).toHaveBeenCalledWith(
+			{ customerId: "customer-1" },
+			"site-1"
+		);
+		expect(invalidateApiKeyCacheForWebsiteMock).toHaveBeenCalledWith(
+			db,
+			"site-1"
+		);
+		expect(removeUserFromDefaultAudienceMock).toHaveBeenCalledTimes(2);
+		expect(removeUserFromDefaultAudienceMock).toHaveBeenCalledWith(
+			"owner@example.com"
+		);
+		expect(removeUserFromDefaultAudienceMock).toHaveBeenCalledWith(
+			"member@example.com"
+		);
+		expect(deleteWebsiteFilesMock).toHaveBeenCalledWith({
+			organizationId: "org-1",
+			websiteId: "site-1",
+		});
+		expect(deleteOrganizationFilesMock).not.toHaveBeenCalled();
+		expect(permanentlyDeleteWebsiteMock).toHaveBeenCalledWith(db, {
+			orgId: "org-1",
+			websiteId: "site-1",
+		});
+	});
+
+	it("blocks organization deletion when the organization has other active websites", async () => {
+		const db = createDb([
+			[createWebsiteDeletionTarget()],
+			[{ value: 2 }],
+			[{ email: "owner@example.com", userId: "user-owner" }],
+		]);
+		const caller = await createCaller({ db });
+
+		await expect(
+			caller.deleteWebsiteForever({
+				websiteId: "site-1",
+				confirmationSlug: "cossistant",
+				deleteOrganization: true,
+			})
+		).rejects.toMatchObject({
+			code: "BAD_REQUEST",
+		});
+		expect(removeUserFromDefaultAudienceMock).not.toHaveBeenCalled();
+		expect(deleteOrganizationFilesMock).not.toHaveBeenCalled();
+		expect(db.delete).not.toHaveBeenCalled();
+	});
+
+	it("deletes the organization when it is the last active website", async () => {
+		const db = createDb(
+			[
+				[createWebsiteDeletionTarget()],
+				[{ value: 1 }],
+				[{ email: "owner@example.com", userId: "user-owner" }],
+			],
+			[[{ id: "org-1", slug: "cossistant-inc" }]]
+		);
+		const caller = await createCaller({ db });
+
+		const result = await caller.deleteWebsiteForever({
+			websiteId: "site-1",
+			confirmationSlug: "cossistant",
+			deleteOrganization: true,
+		});
+
+		expect(result).toEqual({
+			success: true,
+			websiteId: "site-1",
+			websiteSlug: "cossistant",
+			organizationId: "org-1",
+			organizationDeleted: true,
+			removedResendEmailCount: 1,
+			deletedStorageObjectCount: 3,
+		});
+		expect(deleteOrganizationFilesMock).toHaveBeenCalledWith("org-1");
+		expect(deleteWebsiteFilesMock).not.toHaveBeenCalled();
+		expect(permanentlyDeleteWebsiteMock).not.toHaveBeenCalled();
+		expect(db.delete).toHaveBeenCalledTimes(1);
+	});
+
+	it("prevents database deletion when Resend cleanup fails", async () => {
+		removeUserFromDefaultAudienceMock.mockImplementation(async () => false);
+		const db = createDb([
+			[createWebsiteDeletionTarget()],
+			[{ value: 1 }],
+			[{ email: "owner@example.com", userId: "user-owner" }],
+		]);
+		const caller = await createCaller({ db });
+
+		await expect(
+			caller.deleteWebsiteForever({
+				websiteId: "site-1",
+				confirmationSlug: "cossistant",
+				deleteOrganization: false,
+			})
+		).rejects.toMatchObject({
+			code: "INTERNAL_SERVER_ERROR",
+		});
+		expect(deleteWebsiteFilesMock).not.toHaveBeenCalled();
+		expect(permanentlyDeleteWebsiteMock).not.toHaveBeenCalled();
+		expect(db.delete).not.toHaveBeenCalled();
 	});
 
 	it("returns a website AI usage snapshot for admins", async () => {

@@ -5,6 +5,7 @@ import {
 } from "@api/db/queries";
 import { getOrganizationMemberByUserId } from "@api/db/queries/member";
 import { getWebsiteBySlugWithAccess } from "@api/db/queries/website";
+import { syncMarketingEmailAudienceSubscription } from "@api/notifications/marketing-email-preferences";
 import { isValidPushSubscription } from "@api/utils/web-push";
 import {
 	MemberNotificationChannel,
@@ -85,11 +86,52 @@ export const notificationRouter = createTRPCRouter({
 				organizationId: website.organizationId,
 			});
 
-			return updateMemberNotificationSettings(ctx.db, {
+			const currentSettings = await getMemberNotificationSettings(ctx.db, {
+				organizationId: website.organizationId,
+				memberId: membership.id,
+			});
+			const currentMarketingSetting = currentSettings.settings.find(
+				(setting) =>
+					setting.channel === MemberNotificationChannel.EMAIL_MARKETING
+			);
+			const nextMarketingSetting = input.settings.find(
+				(setting) =>
+					setting.channel === MemberNotificationChannel.EMAIL_MARKETING
+			);
+
+			const updatedSettings = await updateMemberNotificationSettings(ctx.db, {
 				organizationId: website.organizationId,
 				memberId: membership.id,
 				settings: input.settings,
 			});
+
+			if (
+				nextMarketingSetting &&
+				currentMarketingSetting?.enabled !== nextMarketingSetting.enabled
+			) {
+				try {
+					await syncMarketingEmailAudienceSubscription(ctx.db, {
+						email: ctx.user.email,
+						enabled: nextMarketingSetting.enabled,
+						userId: ctx.user.id,
+					});
+				} catch (error) {
+					console.error("[notification] Failed to sync marketing preference", {
+						error,
+						memberId: membership.id,
+						organizationId: website.organizationId,
+						userId: ctx.user.id,
+					});
+
+					throw new TRPCError({
+						code: "INTERNAL_SERVER_ERROR",
+						message:
+							"Your preference was saved, but we could not sync your email subscription. Please try again.",
+					});
+				}
+			}
+
+			return updatedSettings;
 		}),
 
 	/**

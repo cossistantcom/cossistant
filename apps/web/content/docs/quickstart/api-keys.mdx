@@ -64,12 +64,13 @@ Public keys work only on whitelisted domains.
 
 - Production keys (`pk_live_*`) require explicit allowlisting.
 - Test keys (`pk_test_*`) work on localhost.
+- Allowlisting an apex domain also allows its subdomains.
 
-Use full origins, for example:
+Use full origins or bare domains, for example:
 
-- `https://example.com`
-- `https://app.example.com`
+- `example.com`
 - `https://staging.example.com`
+- `http://localhost:3000`
 
 ## Troubleshooting
 
@@ -86,4 +87,4 @@ Check:
 Check:
 
 - domain is listed in **Settings → Developers → Allowed domains**
-- protocol matches (`https://`)
+- live keys use HTTPS in production

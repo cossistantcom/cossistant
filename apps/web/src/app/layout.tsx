@@ -6,6 +6,7 @@ import "./globals.css";
 
 import { Toaster } from "@/components/ui/sonner";
 import { isDatafastEnabled } from "@/lib/analytics-flags";
+import { DATAFAST_DOMAIN, DATAFAST_WEBSITE_ID } from "@/lib/datafast";
 import { createRootMetadata } from "@/lib/metadata";
 import { Providers } from "./providers";
 
@@ -61,8 +62,8 @@ export default function RootLayout({
 				<div className="isolate" id="radix-portal-root" />
 				{datafastEnabled ? (
 					<Script
-						data-domain="cossistant.com"
-						data-website-id="68dfcb6e6f762f4ecaf58bb4"
+						data-domain={DATAFAST_DOMAIN}
+						data-website-id={DATAFAST_WEBSITE_ID}
 						src="https://datafa.st/js/script.js"
 						strategy="afterInteractive"
 					/>

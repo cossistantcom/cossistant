@@ -6,7 +6,7 @@ import type {
 	SubmitFeedbackResponse,
 } from "@cossistant/types/api/feedback";
 import { useCallback, useState } from "react";
-import { useSupport } from "../provider";
+import { useOptionalSupportContext } from "../provider";
 
 export type UseSubmitFeedbackOptions = {
 	client?: CossistantClient | null;
@@ -56,11 +56,12 @@ export function useSubmitFeedback(
 	options: UseSubmitFeedbackOptions = {}
 ): UseSubmitFeedbackResult {
 	const { client: overrideClient, onError, onSuccess } = options;
-	const { client: contextClient, visitor, website } = useSupport();
-	const client = overrideClient ?? contextClient;
-	const visitorIdFromContext = visitor?.id ?? website?.visitor?.id;
-	const contactIdFromContext =
-		visitor?.contact?.id ?? website?.visitor?.contact?.id;
+	const supportContext = useOptionalSupportContext();
+	const contextClient = supportContext?.client ?? null;
+	const website = supportContext?.website ?? null;
+	const client = overrideClient === undefined ? contextClient : overrideClient;
+	const visitorIdFromContext = website?.visitor?.id;
+	const contactIdFromContext = website?.visitor?.contact?.id;
 	const [isPending, setIsPending] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
 

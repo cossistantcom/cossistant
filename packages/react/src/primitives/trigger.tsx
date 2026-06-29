@@ -1,9 +1,9 @@
 import * as React from "react";
 import { useStoreSelector } from "../hooks/private/store/use-store-selector";
 import { isWidgetVisibleTypingEntry } from "../hooks/private/typing";
-import { useSupport } from "../provider";
-import { useSupportConfig } from "../support";
+import { useOptionalSupportContext } from "../provider";
 import { useTriggerRef } from "../support/context/positioning";
+import { useOptionalSupportConfig } from "../support/store";
 import { useRenderElement } from "../utils/use-render-element";
 
 /**
@@ -44,6 +44,24 @@ export type TriggerProps = Omit<
 	 */
 	asChild?: boolean;
 	className?: string;
+	/**
+	 * Explicit open state for provider-free usage.
+	 * When omitted, the trigger reads the widget runtime state.
+	 */
+	isOpen?: boolean;
+	/**
+	 * Explicit unread count for provider-free usage.
+	 */
+	unreadCount?: number;
+	/**
+	 * Explicit typing state for provider-free usage.
+	 */
+	isTyping?: boolean;
+	/**
+	 * Explicit toggle handler for provider-free usage.
+	 * When omitted, the trigger uses the widget runtime toggle handler.
+	 */
+	onToggleOpen?: () => void;
 };
 
 /**
@@ -72,9 +90,26 @@ export type TriggerProps = Omit<
  * </Trigger>
  */
 export const SupportTrigger = React.forwardRef<HTMLButtonElement, TriggerProps>(
-	({ children, className, asChild = false, ...props }, ref) => {
-		const { isOpen, toggle } = useSupportConfig();
-		const { unreadCount, client } = useSupport();
+	(
+		{
+			children,
+			className,
+			asChild = false,
+			isOpen: explicitIsOpen,
+			unreadCount: explicitUnreadCount,
+			isTyping: explicitIsTyping,
+			onToggleOpen,
+			onClick,
+			...props
+		},
+		ref
+	) => {
+		const supportConfig = useOptionalSupportConfig();
+		const supportContext = useOptionalSupportContext();
+		const isOpen = explicitIsOpen ?? supportConfig?.isOpen ?? false;
+		const toggle = onToggleOpen ?? supportConfig?.toggle ?? (() => {});
+		const unreadCount = explicitUnreadCount ?? supportContext?.unreadCount ?? 0;
+		const client = supportContext?.client ?? null;
 		const triggerRefContext = useTriggerRef();
 
 		// Extract setTriggerElement for stable dependency (state setter has stable identity)
@@ -97,7 +132,7 @@ export const SupportTrigger = React.forwardRef<HTMLButtonElement, TriggerProps>(
 			[ref, setTriggerElement]
 		);
 
-		const hasTyping = useStoreSelector(
+		const runtimeHasTyping = useStoreSelector(
 			client?.typingStore ?? null,
 			React.useCallback(
 				(
@@ -118,6 +153,7 @@ export const SupportTrigger = React.forwardRef<HTMLButtonElement, TriggerProps>(
 				[]
 			)
 		);
+		const hasTyping = explicitIsTyping ?? runtimeHasTyping;
 
 		const renderProps: TriggerRenderProps = {
 			isOpen,
@@ -142,7 +178,7 @@ export const SupportTrigger = React.forwardRef<HTMLButtonElement, TriggerProps>(
 					type: "button",
 					"aria-haspopup": "dialog",
 					"aria-expanded": isOpen,
-					onClick: toggle,
+					onClick: onClick ?? toggle,
 					...props,
 					children: content,
 				},

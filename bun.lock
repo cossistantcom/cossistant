@@ -132,6 +132,7 @@
         "@cossistant/tiny-markdown": "workspace:*",
         "@cossistant/transactional": "workspace:*",
         "@cossistant/types": "workspace:*",
+        "@datafast/ai-crawl": "^1.0.3",
         "@hookform/resolvers": "^5.2.2",
         "@normy/react-query": "^0.21.0",
         "@openstatus/react": "^0.0.3",
@@ -864,6 +865,8 @@
     "@cossistant/web": ["@cossistant/web@workspace:apps/web"],
 
     "@cossistant/workers": ["@cossistant/workers@workspace:apps/workers"],
+
+    "@datafast/ai-crawl": ["@datafast/ai-crawl@1.0.3", "", {}, "sha512-pf0fmrAzvzH/0CUZwwmrWnG0hLXsEvi9TH46o2wBi2avs4lks+khnK19I+2GtgdpuDwYgfIUOXyUgmi5Av4SWw=="],
 
     "@date-fns/tz": ["@date-fns/tz@1.4.1", "", {}, "sha512-P5LUNhtbj6YfI3iJjw5EL9eUAG6OitD0W3fWQcpQjDRc/QIsL0tRNuO1PcDvPccWL1fSTXXdE1ds+l95DV/OFA=="],
 

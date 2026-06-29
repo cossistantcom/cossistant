@@ -172,6 +172,16 @@ export const SupportContext = React.createContext<
 >(undefined);
 
 /**
+ * Returns raw support context when a SupportProvider is present.
+ *
+ * This is intentionally non-throwing so lower-level hooks can support an
+ * explicit-client mode while still using provider context as a fallback.
+ */
+export function useOptionalSupportContext(): CossistantContextValue | null {
+	return React.useContext(SupportContext) ?? null;
+}
+
+/**
  * Internal implementation that wires the REST client and websocket provider
  * together before exposing the combined context.
  */
@@ -374,7 +384,7 @@ export function SupportProvider({
  * is consumed outside of `SupportProvider` to catch integration mistakes.
  */
 export function useSupport(): UseSupportValue {
-	const context = React.useContext(SupportContext);
+	const context = useOptionalSupportContext();
 	if (!context) {
 		throw new Error(
 			"useSupport must be used within a cossistant SupportProvider"

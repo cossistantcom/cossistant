@@ -11,7 +11,7 @@ import type {
 	TimelinePartImage,
 } from "@cossistant/types/api/timeline-item";
 import { useCallback, useState } from "react";
-import { useSupport } from "../provider";
+import { useOptionalSupportContext } from "../provider";
 
 export type FileUploadPart = TimelinePartImage | TimelinePartFile;
 
@@ -20,7 +20,7 @@ export type UseFileUploadOptions = {
 	 * Optional Cossistant client instance.
 	 * If not provided, uses the client from SupportProvider context.
 	 */
-	client?: CossistantClient;
+	client?: CossistantClient | null;
 };
 
 export type UseFileUploadReturn = {
@@ -73,8 +73,9 @@ export type UseFileUploadReturn = {
 export function useFileUpload(
 	options: UseFileUploadOptions = {}
 ): UseFileUploadReturn {
-	const { client: contextClient } = useSupport();
-	const client = options.client ?? contextClient;
+	const supportContext = useOptionalSupportContext();
+	const contextClient = supportContext?.client ?? null;
+	const client = options.client === undefined ? contextClient : options.client;
 
 	const [isUploading, setIsUploading] = useState(false);
 	const [progress, setProgress] = useState(0);

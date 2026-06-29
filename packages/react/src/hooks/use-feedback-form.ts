@@ -1,14 +1,19 @@
 "use client";
 
+import type { CossistantClient } from "@cossistant/core";
 import type { SubmitFeedbackResponse } from "@cossistant/types/api/feedback";
 import * as React from "react";
 import { useSubmitFeedback } from "./use-submit-feedback";
 
 export type UseFeedbackFormOptions = {
+	client?: CossistantClient | null;
 	topics?: string[];
 	defaultTopic?: string;
 	trigger?: string;
 	conversationId?: string;
+	source?: string;
+	visitorId?: string;
+	contactId?: string;
 	commentRequired?: boolean;
 	defaultOpen?: boolean;
 	onOpenChange?: (open: boolean) => void;
@@ -123,10 +128,14 @@ function getRatingError(isMissing: boolean): string | null {
 }
 
 export function useFeedbackForm({
+	client,
 	topics,
 	defaultTopic,
 	trigger,
 	conversationId,
+	source,
+	visitorId,
+	contactId,
 	commentRequired = false,
 	defaultOpen = false,
 	onOpenChange,
@@ -148,7 +157,7 @@ export function useFeedbackForm({
 		isPending,
 		mutateAsync: submitFeedback,
 		reset: resetSubmitFeedback,
-	} = useSubmitFeedback({ onError, onSuccess });
+	} = useSubmitFeedback({ client, onError, onSuccess });
 
 	const availableTopics = React.useMemo(
 		() => normalizeTopics(topics),
@@ -356,6 +365,9 @@ export function useFeedbackForm({
 					comment: normalizedComment || undefined,
 					trigger: normalizedTrigger || undefined,
 					conversationId,
+					source,
+					visitorId,
+					contactId,
 				});
 				setHasSubmitted(true);
 			} catch {
@@ -364,6 +376,7 @@ export function useFeedbackForm({
 		},
 		[
 			conversationId,
+			contactId,
 			normalizedComment,
 			normalizedTopic,
 			normalizedTrigger,
@@ -372,7 +385,9 @@ export function useFeedbackForm({
 			rawIsRatingMissing,
 			rawIsTopicMissing,
 			resetSubmitFeedback,
+			source,
 			submitFeedback,
+			visitorId,
 		]
 	);
 

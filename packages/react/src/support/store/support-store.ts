@@ -7,7 +7,10 @@ import type {
 	SupportStoreState,
 } from "@cossistant/core";
 import { useCallback, useMemo } from "react";
-import { useSupportController } from "../../controller-context";
+import {
+	useOptionalSupportController,
+	useSupportController,
+} from "../../controller-context";
 import { useStoreSelector } from "../../hooks/private/store/use-store-selector";
 import { useControlledState } from "../context/controlled-state";
 import { useSupportMode } from "../context/mode";
@@ -159,11 +162,11 @@ export type UseSupportNavigationResult = {
  *   <MyComponent />
  * </Support>
  */
-export const useSupportConfig = (): UseSupportConfigResult => {
-	const controller = useSupportController();
+export const useOptionalSupportConfig = (): UseSupportConfigResult | null => {
+	const controller = useOptionalSupportController();
 	const config = useStoreSelector(
-		controller.supportStore,
-		(state) => state.config
+		controller?.supportStore ?? null,
+		(state: SupportStoreState | null) => state?.config ?? null
 	);
 	const controlledState = useControlledState();
 	const mode = useSupportMode();
@@ -173,17 +176,18 @@ export const useSupportConfig = (): UseSupportConfigResult => {
 	const controlledOpen = controlledState?.open;
 	const onOpenChange = controlledState?.onOpenChange;
 	const isResponsive = mode === "responsive";
+	const hasRuntime = Boolean(controller && config);
 
 	// Use controlled state if available, otherwise use store state
 	const isOpen = isResponsive
 		? true
 		: isControlled
 			? (controlledOpen ?? false)
-			: config.isOpen;
+			: (config?.isOpen ?? false);
 
 	// Create wrapped actions that respect controlled mode
 	const open = useCallback(() => {
-		if (isResponsive) {
+		if (!(controller && config) || isResponsive) {
 			return;
 		}
 
@@ -192,10 +196,10 @@ export const useSupportConfig = (): UseSupportConfigResult => {
 		} else {
 			controller.open();
 		}
-	}, [controller, isControlled, isResponsive, onOpenChange]);
+	}, [config, controller, isControlled, isResponsive, onOpenChange]);
 
 	const close = useCallback(() => {
-		if (isResponsive) {
+		if (!(controller && config) || isResponsive) {
 			return;
 		}
 
@@ -204,10 +208,10 @@ export const useSupportConfig = (): UseSupportConfigResult => {
 		} else {
 			controller.close();
 		}
-	}, [controller, isControlled, isResponsive, onOpenChange]);
+	}, [config, controller, isControlled, isResponsive, onOpenChange]);
 
 	const toggle = useCallback(() => {
-		if (isResponsive) {
+		if (!(controller && config) || isResponsive) {
 			return;
 		}
 
@@ -216,18 +220,40 @@ export const useSupportConfig = (): UseSupportConfigResult => {
 		} else {
 			controller.toggle();
 		}
-	}, [controller, isControlled, isResponsive, onOpenChange, controlledOpen]);
+	}, [
+		config,
+		controller,
+		isControlled,
+		isResponsive,
+		onOpenChange,
+		controlledOpen,
+	]);
 
 	return useMemo(
-		() => ({
-			isOpen,
-			size: config.size,
-			open,
-			close,
-			toggle,
-		}),
-		[isOpen, config.size, open, close, toggle]
+		() =>
+			hasRuntime && config
+				? {
+						isOpen,
+						size: config.size,
+						open,
+						close,
+						toggle,
+					}
+				: null,
+		[hasRuntime, config, isOpen, open, close, toggle]
 	);
+};
+
+export const useSupportConfig = (): UseSupportConfigResult => {
+	const config = useOptionalSupportConfig();
+
+	if (!config) {
+		throw new Error(
+			"useSupportConfig must be used within a cossistant SupportProvider"
+		);
+	}
+
+	return config;
 };
 
 /**

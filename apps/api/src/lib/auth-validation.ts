@@ -57,44 +57,64 @@ export function isTestApiKey(key: string): boolean {
 /**
  * Validate that a domain is in the whitelist
  */
+function normalizeHostname(hostname: string): string {
+	return hostname.trim().toLowerCase().replace(/\.+$/, "");
+}
+
+function getWhitelistedHostname(domain: string): string {
+	const value = domain.trim();
+
+	if (value.includes("://")) {
+		try {
+			const url = new URL(value);
+			return normalizeHostname(url.hostname);
+		} catch {
+			return normalizeHostname(value);
+		}
+	}
+
+	return normalizeHostname(value);
+}
+
 export function validateDomain(
 	requestDomain: string,
 	whitelistedDomains: string[]
 ): boolean {
-	return whitelistedDomains.some((domain) => {
-		let domainToCheck = domain;
+	const normalizedRequestDomain = normalizeHostname(requestDomain);
 
-		// Handle full URLs by extracting hostname
-		if (domain.includes("://")) {
-			try {
-				const url = new URL(domain);
-				domainToCheck = url.hostname;
-			} catch {
-				// If URL parsing fails, use the domain as-is
-				domainToCheck = domain;
-			}
+	if (!normalizedRequestDomain) {
+		return false;
+	}
+
+	return whitelistedDomains.some((domain) => {
+		const domainToCheck = getWhitelistedHostname(domain);
+
+		if (!domainToCheck) {
+			return false;
 		}
 
 		if (AUTH_LOGS_ENABLED) {
 			console.log(
-				`[AUTH] Checking domain: "${requestDomain}" against "${domainToCheck}" (original: "${domain}")`
+				`[AUTH] Checking domain: "${normalizedRequestDomain}" against "${domainToCheck}" (original: "${domain}")`
 			);
 		}
 
 		if (domainToCheck.startsWith("*.")) {
 			const baseDomain = domainToCheck.slice(2);
 			const isMatch =
-				requestDomain === baseDomain ||
-				requestDomain.endsWith(`.${baseDomain}`);
+				normalizedRequestDomain === baseDomain ||
+				normalizedRequestDomain.endsWith(`.${baseDomain}`);
 			if (AUTH_LOGS_ENABLED) {
 				console.log(`[AUTH] Wildcard match for "${baseDomain}": ${isMatch}`);
 			}
 			return isMatch;
 		}
 
-		const isMatch = requestDomain === domainToCheck;
+		const isMatch =
+			normalizedRequestDomain === domainToCheck ||
+			normalizedRequestDomain.endsWith(`.${domainToCheck}`);
 		if (AUTH_LOGS_ENABLED) {
-			console.log(`[AUTH] Exact match: ${isMatch}`);
+			console.log(`[AUTH] Domain or subdomain match: ${isMatch}`);
 		}
 		return isMatch;
 	});

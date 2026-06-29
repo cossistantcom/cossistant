@@ -68,7 +68,7 @@ export function formatFeedbackMetadataValue(
 }
 
 export function formatFeedbackRatingLabel(rating: number): string {
-	return `${rating} ${rating === 1 ? "star" : "stars"} review`;
+	return `${rating} star review`;
 }
 
 export function getFeedbackTimelineComment(

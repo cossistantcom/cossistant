@@ -32,9 +32,21 @@ type AllowedDomainsFormProps = {
 };
 
 const allowedProtocols = new Set(["http:", "https:"]);
+const protocolPattern = /^[a-z][a-z\d+\-.]*:\/\//i;
 
 export const normalizeDomainOrigin = (value: string) => {
-	const parsed = new URL(value);
+	const trimmedValue = value.trim();
+	let parsed: URL;
+
+	try {
+		parsed = new URL(
+			protocolPattern.test(trimmedValue)
+				? trimmedValue
+				: `https://${trimmedValue}`
+		);
+	} catch {
+		throw new Error("Invalid domain.");
+	}
 
 	if (!allowedProtocols.has(parsed.protocol)) {
 		throw new Error("Only http:// or https:// URLs are allowed.");
@@ -58,7 +70,7 @@ const allowedDomainsSchema = z.object({
 							code: z.ZodIssueCode.custom,
 							message:
 								error instanceof Error
-									? "Invalid domain."
+									? error.message
 									: "Enter a valid URL including http:// or https://.",
 						});
 					}
@@ -95,7 +107,7 @@ function DomainsInput({ form, isSubmitting }: DomainsInputProps) {
 							</FormLabel>
 							<FormControl className="flex items-center">
 								<Input
-									placeholder="https://example.com"
+									placeholder="example.com"
 									{...field}
 									append={
 										field.value.includes("http://") && (

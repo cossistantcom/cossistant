@@ -3,10 +3,10 @@ import type { CreateConversationResponseBody } from "@cossistant/types/api/conve
 import type { TimelineItem } from "@cossistant/types/api/timeline-item";
 import type { Conversation } from "@cossistant/types/schemas";
 import { useCallback, useState } from "react";
-import { useSupport } from "../provider";
+import { useOptionalSupportContext } from "../provider";
 
 export type UseCreateConversationOptions = {
-	client?: CossistantClient;
+	client?: CossistantClient | null;
 	onSuccess?: (data: CreateConversationResponseBody) => void;
 	onError?: (error: Error) => void;
 };
@@ -50,9 +50,10 @@ function toError(error: unknown): Error {
 export function useCreateConversation(
 	options: UseCreateConversationOptions = {}
 ): UseCreateConversationResult {
-	const { client: contextClient } = useSupport();
+	const supportContext = useOptionalSupportContext();
+	const contextClient = supportContext?.client ?? null;
 	const { client: overrideClient, onError, onSuccess } = options;
-	const client = overrideClient ?? contextClient;
+	const client = overrideClient === undefined ? contextClient : overrideClient;
 
 	const [isPending, setIsPending] = useState(false);
 	const [error, setError] = useState<Error | null>(null);

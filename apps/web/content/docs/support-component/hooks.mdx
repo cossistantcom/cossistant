@@ -35,6 +35,12 @@ If you are still shaping the widget, start with [Overview](/docs/support-compone
 - `useVisitor` for identity and contact metadata
 - conversation hooks for custom pages, drafts, typing, uploads, and send flows
 
+Provider-optional mutation hooks accept `options.client`. Omitting `client`
+uses the nearest `SupportProvider`; passing an explicit client lets the hook run
+outside the widget runtime. Passing `client: null` intentionally disables the
+provider fallback. This applies to `useSubmitFeedback`, `useSendMessage`,
+`useCreateConversation`, and `useFileUpload`.
+
 ## useSupport
 
 Access support widget state and controls from any client component.
@@ -453,17 +459,23 @@ export function MessageInput({ conversationId }: { conversationId: string }) {
 
 ## useFileUpload
 
-Hook for handling file uploads with progress tracking.
+Hook for handling file uploads with progress tracking. It can use the client
+from `SupportProvider`, or an explicit client for provider-free flows.
+If you import `CossistantClient` directly, install `@cossistant/core` in your
+app.
 
 ### Basic Example
 
 ```tsx showLineNumbers title="components/file-uploader.tsx"
 "use client";
 
-import { useFileUpload } from "@cossistant/react";
+import { CossistantClient } from "@cossistant/core";
+import { useFileUpload } from "@cossistant/react/hooks/use-file-upload";
+
+const client = new CossistantClient({ publicKey: "pk_test_xxxx" });
 
 export function FileUploader() {
-  const upload = useFileUpload();
+  const upload = useFileUpload({ client });
   const conversationId = "conv_123";
 
   return (
@@ -488,6 +500,9 @@ export function FileUploader() {
   );
 }
 ```
+
+Inside a `SupportProvider`, you can call `useFileUpload()` without options and
+it will use the provider client.
 
 ### Return Values
 

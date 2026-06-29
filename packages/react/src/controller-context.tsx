@@ -15,3 +15,7 @@ export function useSupportController(): SupportController {
 
 	return controller;
 }
+
+export function useOptionalSupportController(): SupportController | null {
+	return React.useContext(SupportControllerContext);
+}

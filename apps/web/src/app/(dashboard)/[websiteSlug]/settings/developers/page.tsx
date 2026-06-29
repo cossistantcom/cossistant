@@ -58,7 +58,7 @@ export default async function DevelopersSettingsPage({
 				</SettingsRow>
 
 				<SettingsRow
-					description="Manage the allowlist of domains that can use your public keys."
+					description="Manage the allowlist of domains and subdomains that can use your public keys."
 					title="Allowed domains"
 				>
 					<AllowedDomainsForm

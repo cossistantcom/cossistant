@@ -13,7 +13,7 @@ import type {
 } from "@cossistant/types/api/timeline-item";
 import { useCallback, useState } from "react";
 
-import { useSupport } from "../provider";
+import { useOptionalSupportContext } from "../provider";
 
 export type SendMessageOptions = {
 	conversationId?: string | null;
@@ -55,7 +55,7 @@ export type UseSendMessageResult = {
 };
 
 export type UseSendMessageOptions = {
-	client?: CossistantClient;
+	client?: CossistantClient | null;
 };
 
 function toError(error: unknown): Error {
@@ -173,8 +173,9 @@ async function uploadFilesForMessage(
 export function useSendMessage(
 	options: UseSendMessageOptions = {}
 ): UseSendMessageResult {
-	const { client: contextClient } = useSupport();
-	const client = options.client ?? contextClient;
+	const supportContext = useOptionalSupportContext();
+	const contextClient = supportContext?.client ?? null;
+	const client = options.client === undefined ? contextClient : options.client;
 
 	const [isPending, setIsPending] = useState(false);
 	const [isUploading, setIsUploading] = useState(false);

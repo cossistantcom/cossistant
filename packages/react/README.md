@@ -25,6 +25,10 @@ import "@cossistant/react/support.css";
 
 ## Quickstart
 
+Use the drop-in widget when you want Cossistant to own the runtime: client
+lifecycle, visitor context, websocket state, routing, open state, slots, and
+localization.
+
 ```tsx
 import { Support, SupportProvider } from "@cossistant/react";
 import "@cossistant/react/styles.css";
@@ -40,6 +44,59 @@ export function App() {
 
 `Support` is the batteries-included widget. It ships with the default trigger,
 router, home page, conversation page, timeline, composer, and styling hooks.
+
+## Headless Primitives
+
+Use hooks and primitives directly when you want to own the UI state and pass an
+explicit client. This does not require wrapping that subtree in
+`SupportProvider`.
+
+```tsx
+import { CossistantClient } from "@cossistant/core";
+import { SupportTrigger } from "@cossistant/react/primitives/trigger";
+import { useSubmitFeedback } from "@cossistant/react/hooks/use-submit-feedback";
+import { useState } from "react";
+
+const client = new CossistantClient({ publicKey: "pk_live_..." });
+
+export function CustomFeedbackButton() {
+  const [open, setOpen] = useState(false);
+  const feedback = useSubmitFeedback({ client });
+
+  return (
+    <div>
+      <SupportTrigger
+        className="rounded-md bg-black px-3 py-2 text-white"
+        isOpen={open}
+        onToggleOpen={() => setOpen((value) => !value)}
+        unreadCount={0}
+      >
+        {({ isOpen }) => (isOpen ? "Close" : "Send feedback")}
+      </SupportTrigger>
+
+      {open ? (
+        <button
+          onClick={() =>
+            feedback.mutate({
+              rating: 5,
+              source: "headless",
+              visitorId: "visitor_123",
+            })
+          }
+          type="button"
+        >
+          Send rating
+        </button>
+      ) : null}
+    </div>
+  );
+}
+```
+
+Provider-optional hooks include `useSubmitFeedback`, `useSendMessage`,
+`useCreateConversation`, `useFileUpload`, and `useFeedbackForm`. If `client` is
+omitted they fall back to `SupportProvider`; if no client is available they fail
+with a clear missing-client error.
 
 ## Feedback Quickstart
 

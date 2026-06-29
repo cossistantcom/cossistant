@@ -1,5 +1,12 @@
+import { trackAICrawlerRequest } from "@datafast/ai-crawl";
 import { isMarkdownPreferred, rewritePath } from "fumadocs-core/negotiation";
-import { type NextRequest, NextResponse } from "next/server";
+import {
+	type NextFetchEvent,
+	type NextRequest,
+	NextResponse,
+} from "next/server";
+import { isDatafastEnabled } from "@/lib/analytics-flags";
+import { DATAFAST_DOMAIN, DATAFAST_WEBSITE_ID } from "@/lib/datafast";
 
 const { rewrite: rewriteDocs } = rewritePath(
 	"/docs{/*path}",
@@ -14,7 +21,14 @@ const { rewrite: rewriteChangelog } = rewritePath(
 	"/llms.mdx/changelog{/*path}"
 );
 
-export default function proxy(request: NextRequest) {
+export default function proxy(request: NextRequest, event: NextFetchEvent) {
+	if (isDatafastEnabled()) {
+		trackAICrawlerRequest(request, event, {
+			domain: DATAFAST_DOMAIN,
+			websiteId: DATAFAST_WEBSITE_ID,
+		});
+	}
+
 	if (isMarkdownPreferred(request)) {
 		const pathname = request.nextUrl.pathname;
 		const result =
@@ -29,3 +43,7 @@ export default function proxy(request: NextRequest) {
 
 	return NextResponse.next();
 }
+
+export const config = {
+	matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+};

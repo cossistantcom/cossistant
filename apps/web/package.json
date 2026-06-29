@@ -14,6 +14,7 @@
     "@cossistant/tiny-markdown": "workspace:*",
     "@cossistant/transactional": "workspace:*",
     "@cossistant/types": "workspace:*",
+    "@datafast/ai-crawl": "^1.0.3",
     "@hookform/resolvers": "^5.2.2",
     "@normy/react-query": "^0.21.0",
     "@openstatus/react": "^0.0.3",

@@ -23,6 +23,8 @@ export type WindowProps = Omit<
 	id?: string;
 };
 
+export const FEEDBACK_WINDOW_ID = "cossistant-feedback-window";
+
 const FOCUSABLE_SELECTOR = [
 	"a[href]",
 	"area[href]",
@@ -59,7 +61,7 @@ export const FeedbackWindow = React.forwardRef<HTMLDivElement, WindowProps>(
 			closeOnEscape = true,
 			trapFocus = true,
 			restoreFocus = true,
-			id = "cossistant-feedback-window",
+			id = FEEDBACK_WINDOW_ID,
 			...props
 		},
 		ref
@@ -115,9 +117,19 @@ export const FeedbackWindow = React.forwardRef<HTMLDivElement, WindowProps>(
 			}
 
 			const handleKeyDown = (event: KeyboardEvent) => {
-				if (event.key === "Escape") {
-					closeWindow();
+				if (event.defaultPrevented || event.key !== "Escape") {
+					return;
 				}
+
+				// Only close when focus is inside the non-modal panel, so an
+				// Escape aimed at a host overlay does not destroy in-progress
+				// feedback.
+				const container = containerRef.current;
+				if (container && !container.contains(document.activeElement)) {
+					return;
+				}
+
+				closeWindow();
 			};
 
 			window.addEventListener("keydown", handleKeyDown);
@@ -203,7 +215,9 @@ export const FeedbackWindow = React.forwardRef<HTMLDivElement, WindowProps>(
 				state: renderProps,
 				props: {
 					role: "dialog",
-					"aria-modal": "true",
+					// Non-modal panel: the host page stays interactive, so no
+					// aria-modal. Default name is overridable via props.
+					"aria-label": "Feedback",
 					"data-feedback-window": "true",
 					"data-state": open ? "open" : "closed",
 					id,

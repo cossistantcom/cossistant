@@ -51,9 +51,57 @@ describe("feedback primitives", () => {
 		thirdButton?.props.onMouseLeave();
 
 		expect(onBlur).toHaveBeenCalledTimes(1);
-		expect(onHoverChange).toHaveBeenNthCalledWith(1, 3);
-		expect(onHoverChange).toHaveBeenNthCalledWith(2, null);
+		// Blur clears the hover preview before forwarding the event.
+		expect(onHoverChange).toHaveBeenNthCalledWith(1, null);
+		expect(onHoverChange).toHaveBeenNthCalledWith(2, 3);
+		expect(onHoverChange).toHaveBeenNthCalledWith(3, null);
 		expect(onSelect).toHaveBeenCalledWith(3);
+	});
+
+	it("mirrors the hover preview on focus", () => {
+		const onHoverChange = mock(() => {});
+		const element = FeedbackRatingSelector({
+			value: 2,
+			onHoverChange,
+		});
+		const buttons = getElementChildren(element);
+		const fourthButton = buttons[3];
+
+		fourthButton?.props.onFocus();
+
+		expect(onHoverChange).toHaveBeenCalledWith(4);
+	});
+
+	it("exposes radiogroup semantics with the checked rating", () => {
+		const html = renderToStaticMarkup(<FeedbackRatingSelector value={3} />);
+
+		expect(html).toContain('role="radiogroup"');
+		expect(html).toContain('aria-label="Rating"');
+		expect(countOccurrences(html, 'role="radio"')).toBe(5);
+		expect(countOccurrences(html, 'aria-checked="true"')).toBe(1);
+		expect(countOccurrences(html, 'aria-checked="false"')).toBe(4);
+		// Roving tabindex: only the selected star is tabbable.
+		expect(countOccurrences(html, 'tabindex="0"')).toBe(1);
+	});
+
+	it("moves the selection with arrow keys", () => {
+		const onSelect = mock(() => {});
+		const element = FeedbackRatingSelector({
+			value: 2,
+			onSelect,
+		});
+		const buttons = getElementChildren(element);
+		const secondButton = buttons[1];
+		const keyboardEvent = {
+			currentTarget: { parentElement: null },
+			key: "ArrowRight",
+			preventDefault: mock(() => {}),
+		};
+
+		secondButton?.props.onKeyDown(keyboardEvent);
+
+		expect(onSelect).toHaveBeenCalledWith(3);
+		expect(keyboardEvent.preventDefault).toHaveBeenCalledTimes(1);
 	});
 
 	it("renders the topic select through the shared primitive", () => {

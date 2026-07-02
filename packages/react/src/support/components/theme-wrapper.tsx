@@ -6,7 +6,7 @@ type ThemeWrapperProps = {
 };
 
 /**
- * Applies theme data attribute when dark mode is requested.
+ * Applies a color-scheme marker when a theme is forced.
  * Omit theme for automatic detection from parent elements.
  */
 export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
@@ -21,6 +21,11 @@ export const ThemeWrapper: React.FC<ThemeWrapperProps> = ({
 		);
 	}
 
-	// Light or undefined - render children directly to inherit theme from parent
+	if (theme === "light") {
+		// The stylesheet excludes light-forced subtrees from the .dark palette
+		return <div data-color-scheme="light">{children}</div>;
+	}
+
+	// Undefined - render children directly to inherit theme from parent
 	return <>{children}</>;
 };

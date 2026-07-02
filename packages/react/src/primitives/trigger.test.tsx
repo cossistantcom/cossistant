@@ -130,6 +130,14 @@ describe("SupportTrigger primitive", () => {
 		expect(html).toContain("Open typing 3");
 	});
 
+	it("links the trigger to the window via aria-controls", () => {
+		const html = renderToStaticMarkup(
+			<SupportTrigger isOpen={false}>Help</SupportTrigger>
+		);
+
+		expect(html).toContain('aria-controls="cossistant-window"');
+	});
+
 	it("uses the explicit toggle handler outside SupportProvider", async () => {
 		const onToggleOpen = mock(() => {});
 
@@ -142,6 +150,67 @@ describe("SupportTrigger primitive", () => {
 			getTrigger().click();
 		});
 
+		expect(onToggleOpen).toHaveBeenCalledTimes(1);
+	});
+
+	it("composes a consumer onClick with the internal toggle", async () => {
+		const onToggleOpen = mock(() => {});
+		const onClick = mock(() => {});
+
+		await render(
+			<SupportTrigger onClick={onClick} onToggleOpen={onToggleOpen}>
+				Help
+			</SupportTrigger>
+		);
+
+		const { act } = await import("react");
+		await act(async () => {
+			getTrigger().click();
+		});
+
+		expect(onClick).toHaveBeenCalledTimes(1);
+		expect(onToggleOpen).toHaveBeenCalledTimes(1);
+	});
+
+	it("skips toggle when the consumer onClick prevents default", async () => {
+		const onToggleOpen = mock(() => {});
+		const onClick = mock((event: React.MouseEvent<HTMLButtonElement>) => {
+			event.preventDefault();
+		});
+
+		await render(
+			<SupportTrigger onClick={onClick} onToggleOpen={onToggleOpen}>
+				Help
+			</SupportTrigger>
+		);
+
+		const { act } = await import("react");
+		await act(async () => {
+			getTrigger().click();
+		});
+
+		expect(onClick).toHaveBeenCalledTimes(1);
+		expect(onToggleOpen).not.toHaveBeenCalled();
+	});
+
+	it("composes the asChild child's own onClick with the toggle", async () => {
+		const onToggleOpen = mock(() => {});
+		const childOnClick = mock(() => {});
+
+		await render(
+			<SupportTrigger asChild onToggleOpen={onToggleOpen}>
+				<button onClick={childOnClick} type="button">
+					Help
+				</button>
+			</SupportTrigger>
+		);
+
+		const { act } = await import("react");
+		await act(async () => {
+			getTrigger().click();
+		});
+
+		expect(childOnClick).toHaveBeenCalledTimes(1);
 		expect(onToggleOpen).toHaveBeenCalledTimes(1);
 	});
 });

@@ -13,6 +13,10 @@ import {
 	mountSupportWidget,
 } from "../mount-support-widget";
 import { resolveBrowserEmbedAssetUrlsFromDocument } from "./asset-urls";
+import {
+	type BrowserEmbedAutoInitOptions,
+	resolveBrowserEmbedAutoInitOptionsFromDocument,
+} from "./auto-init";
 
 export type CossistantBrowserInitOptions = {
 	apiUrl?: string;
@@ -31,6 +35,12 @@ export type CossistantBrowserInitOptions = {
 
 export type CossistantBrowserUpdateConfigOptions =
 	BrowserSupportWidgetUpdateOptions;
+
+// Pre-init updateConfig() calls merge into pendingConfig, so it can carry the
+// update-shape `open` key alongside init options.
+type PendingCossistantBrowserConfig = CossistantBrowserInitOptions & {
+	open?: boolean;
+};
 
 type EventSubscription = {
 	handler: (event: SupportControllerEvent) => void;
@@ -88,13 +98,14 @@ type BrowserRuntimeWindow = Window & {
 			cssUrl: string;
 			widgetUrl: string;
 		};
+		autoInit?: BrowserEmbedAutoInitOptions;
 		isLoading?: boolean;
 	};
 	Cossistant?: BrowserLoaderStub | BrowserRuntimeApi;
 };
 
 function normalizeInitOptions(
-	options: CossistantBrowserInitOptions | undefined,
+	options: PendingCossistantBrowserConfig | undefined,
 	stylesheetUrl: string
 ) {
 	return {
@@ -104,7 +115,7 @@ function normalizeInitOptions(
 			apiUrl: options?.apiUrl,
 			autoConnect: options?.autoConnect,
 			defaultMessages: options?.defaultMessages,
-			defaultOpen: options?.defaultOpen,
+			defaultOpen: options?.defaultOpen ?? options?.open,
 			publicKey: options?.publicKey,
 			quickOptions: options?.quickOptions,
 			size: options?.size,
@@ -121,16 +132,13 @@ function normalizeInitOptions(
 }
 
 function normalizeUpdateOptions(
-	options: CossistantBrowserInitOptions | CossistantBrowserUpdateConfigOptions
+	options: Partial<
+		CossistantBrowserInitOptions & CossistantBrowserUpdateConfigOptions
+	>
 ): CossistantBrowserUpdateConfigOptions {
 	return {
 		defaultMessages: options.defaultMessages,
-		open:
-			"defaultOpen" in options
-				? options.defaultOpen
-				: "open" in options
-					? options.open
-					: undefined,
+		open: options.defaultOpen ?? options.open,
 		quickOptions: options.quickOptions,
 		size: options.size,
 		theme: options.theme,
@@ -165,9 +173,10 @@ export function installCossistantBrowserRuntime() {
 		return existing;
 	}
 
+	const loaderState = globalWindow.__COSSISTANT_BROWSER_WIDGET_LOADER__;
 	const assets =
 		existing?.__assets ??
-		globalWindow.__COSSISTANT_BROWSER_WIDGET_LOADER__?.assets ??
+		loaderState?.assets ??
 		resolveBrowserEmbedAssetUrlsFromDocument(document);
 
 	if (!assets) {
@@ -176,8 +185,15 @@ export function installCossistantBrowserRuntime() {
 		);
 	}
 
+	// The loader stashes data-attribute config (data-public-key, data-api-url,
+	// data-ws-url) from its own script tag; currentScript covers widget.js
+	// being embedded directly with the same attributes.
+	const autoInit =
+		loaderState?.autoInit ??
+		resolveBrowserEmbedAutoInitOptionsFromDocument(document);
+
 	let widget: BrowserSupportWidget | null = null;
-	let pendingConfig: CossistantBrowserInitOptions = {};
+	let pendingConfig: PendingCossistantBrowserConfig = {};
 	const subscriptions: EventSubscription[] = [];
 
 	const attachSubscription = (subscription: EventSubscription) => {
@@ -215,7 +231,7 @@ export function installCossistantBrowserRuntime() {
 					...(pendingConfig.widget ?? {}),
 					...(options.widget ?? {}),
 				},
-			} satisfies CossistantBrowserInitOptions;
+			} satisfies PendingCossistantBrowserConfig;
 
 			if (widget) {
 				widget.updateConfig(normalizeUpdateOptions(merged));
@@ -317,11 +333,43 @@ export function installCossistantBrowserRuntime() {
 		isLoading: false,
 	};
 
-	for (const queuedCall of existing?.__queue ?? []) {
-		const method = api[queuedCall.method];
-		if (typeof method === "function") {
-			(method as (...args: unknown[]) => unknown)(...queuedCall.args);
+	const runQueuedCall = (methodName: string, call: () => unknown) => {
+		try {
+			call();
+		} catch (error) {
+			// One failing queued call must not abort the rest of the replay.
+			console.warn(
+				`[cossistant] Skipped queued window.Cossistant.${methodName}() call`,
+				error
+			);
 		}
+	};
+
+	const replayPendingCalls = () => {
+		// Auto-init runs first so queued show()/identify() calls find a widget.
+		if (autoInit) {
+			runQueuedCall("init", () => api.init(autoInit));
+		}
+
+		for (const queuedCall of existing?.__queue ?? []) {
+			const method = api[queuedCall.method];
+			if (typeof method !== "function") {
+				continue;
+			}
+			runQueuedCall(queuedCall.method, () =>
+				(method as (...args: unknown[]) => unknown)(...queuedCall.args)
+			);
+		}
+	};
+
+	if (document.readyState === "loading" && !document.body) {
+		// widget.js can execute while the parser is still in <head>; wait for
+		// the DOM so the widget has a <body> to mount into.
+		document.addEventListener("DOMContentLoaded", replayPendingCalls, {
+			once: true,
+		});
+	} else {
+		replayPendingCalls();
 	}
 
 	return api;

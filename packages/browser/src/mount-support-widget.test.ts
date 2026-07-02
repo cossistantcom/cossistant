@@ -390,6 +390,31 @@ describe("mountSupportWidget", () => {
 		expect(externalController.destroy).not.toHaveBeenCalled();
 	});
 
+	it("falls back to documentElement when body is not available yet", async () => {
+		const { mountSupportWidget } = await mountSupportWidgetModulePromise;
+		const htmlElement = createMockElement("html") as MockElement & {
+			classList: { contains: ReturnType<typeof mock> };
+		};
+		htmlElement.classList = {
+			contains: mock(() => false),
+		};
+
+		const doc = document as unknown as {
+			body: MockElement | undefined;
+			documentElement: unknown;
+		};
+		doc.body = undefined;
+		doc.documentElement = htmlElement;
+
+		const widget = mountSupportWidget({
+			provider: {
+				publicKey: "pk_test_browser",
+			},
+		});
+
+		expect(htmlElement.children[0]).toBe(widget.hostElement as never);
+	});
+
 	it("throws when a selector-based container cannot be resolved", async () => {
 		const { mountSupportWidget } = await mountSupportWidgetModulePromise;
 

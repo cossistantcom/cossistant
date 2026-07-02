@@ -248,7 +248,8 @@ export function TimelineMessageItem({
 											>
 												<Icon className="h-4 w-4 shrink-0" name="file" />
 												<span className="flex-1 truncate font-medium">
-													{file.filename || "Download file"}
+													{file.filename ||
+														text("component.message.downloadFile")}
 												</span>
 												{file.size && (
 													<span className="text-co-muted-foreground opacity-70">

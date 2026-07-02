@@ -35,8 +35,15 @@ export type InlineParagraphCommand = {
 };
 
 function normalizeInput(input: string): string | null {
+	// Reject multi-line snippets before collapsing whitespace, otherwise a
+	// fenced block starting with a package-manager command would be mangled
+	// into a bogus one-line command
+	if (/[\n\r]/.test(input.trim())) {
+		return null;
+	}
+
 	const normalized = input.replace(/\s+/g, " ").trim();
-	if (!normalized || normalized.includes("\n") || normalized.includes("\r")) {
+	if (!normalized) {
 		return null;
 	}
 

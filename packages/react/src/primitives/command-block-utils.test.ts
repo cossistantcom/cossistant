@@ -108,4 +108,28 @@ describe("mapCommandVariants", () => {
 		expect(mapCommandVariants("yarn")).toBeNull();
 		expect(mapCommandVariants("pnpm --help")).toBeNull();
 	});
+
+	it("returns null for multi-line snippets starting with a package-manager command", () => {
+		expect(mapCommandVariants("npm install foo\ncd foo")).toBeNull();
+		expect(mapCommandVariants("npm install foo\r\ncd foo")).toBeNull();
+		expect(
+			mapCommandVariants("pnpm add zod\npnpm add @hono/zod-openapi")
+		).toBeNull();
+	});
+
+	it("still maps single commands with surrounding whitespace or trailing newline", () => {
+		expect(mapCommandVariants("npm install zod\n")).toEqual({
+			npm: "npm install zod",
+			yarn: "yarn add zod",
+			pnpm: "pnpm add zod",
+			bun: "bun add zod",
+		});
+
+		expect(mapCommandVariants("  npm   install   zod  ")).toEqual({
+			npm: "npm install zod",
+			yarn: "yarn add zod",
+			pnpm: "pnpm add zod",
+			bun: "bun add zod",
+		});
+	});
 });

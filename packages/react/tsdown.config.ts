@@ -21,8 +21,10 @@ export default defineConfig({
 		resolve: true,
 	},
 	hash: false,
-	minify: true,
-	sourcemap: false,
+	// Library output stays unminified with sourcemaps: consumers minify in
+	// their own builds, and readable code + maps keep stack traces debuggable.
+	minify: false,
+	sourcemap: true,
 	treeshake: true,
 	unbundle: true,
 	outExtensions: () => ({
@@ -37,11 +39,10 @@ export default defineConfig({
 		"@cossistant/types",
 		"@cossistant/tiny-markdown",
 		"facehash",
-		"@floating-ui/react",
+		"@floating-ui/react-dom",
 		"class-variance-authority",
 		"clsx",
 		"nanoid",
 		"tailwind-merge",
-		"ulid",
 	],
 });

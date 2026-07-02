@@ -5,23 +5,32 @@ import type {
 	CossistantClientOptions,
 } from "@cossistant/core/client";
 import { normalizeLocale } from "@cossistant/core/locale-utils";
+import type {
+	SupportConfig,
+	SupportStoreState,
+	SupportStoreStorage,
+} from "@cossistant/core/store/support-store";
 import type { AnySupportConfig } from "@cossistant/core/support-config";
 import {
 	createSupportController,
 	type SupportController,
 	type SupportControllerConfigurationError,
+	type SupportControllerOptions,
+	type SupportControllerSnapshot,
 } from "@cossistant/core/support-controller";
 import type { DefaultMessage } from "@cossistant/types";
 import type { PublicWebsiteResponse } from "@cossistant/types/api/website";
 import React from "react";
-import { SupportControllerContext } from "./controller-context";
+import {
+	SupportControllerContext,
+	useOptionalSupportController,
+} from "./controller-context";
 import { useStoreSelector } from "./hooks/private/store/use-store-selector";
 import { processingStoreSingleton } from "./realtime/processing-store";
 import { seenStoreSingleton } from "./realtime/seen-store";
 import { typingStoreSingleton } from "./realtime/typing-store";
 import { IdentificationProvider } from "./support/context/identification";
 import { WebSocketProvider } from "./support/context/websocket";
-import { useSupportStore } from "./support/store/support-store";
 
 export type SupportProviderProps = {
 	children?: React.ReactNode;
@@ -181,6 +190,172 @@ export function useOptionalSupportContext(): CossistantContextValue | null {
 	return React.useContext(SupportContext) ?? null;
 }
 
+// Mirrors the persisted payload written by @cossistant/core's support store
+// (see core/src/store/support-store.ts persistState). The key and shape are
+// frozen: changing them in core would already break existing visitors.
+const SUPPORT_STORE_STORAGE_KEY = "cossistant-support-store";
+
+type PersistedSupportState = {
+	navigation?: SupportStoreState["navigation"];
+	config?: Partial<Pick<SupportConfig, "size" | "isOpen">>;
+};
+
+type DeferredSupportStorage = SupportStoreStorage & {
+	activate: () => void;
+};
+
+/**
+ * Storage adapter that stays inert until activated after mount. The server
+ * render and the first client render therefore see identical (default) state
+ * — avoiding hydration mismatches — and render stays free of localStorage
+ * side effects. Persisted state is merged back in an effect.
+ */
+function createDeferredBrowserStorage(): DeferredSupportStorage {
+	let active = false;
+
+	const resolveStorage = () =>
+		typeof window === "undefined" ? null : window.localStorage;
+
+	return {
+		getItem(key) {
+			return active ? (resolveStorage()?.getItem(key) ?? null) : null;
+		},
+		setItem(key, value) {
+			if (active) {
+				resolveStorage()?.setItem(key, value);
+			}
+		},
+		removeItem(key) {
+			if (active) {
+				resolveStorage()?.removeItem(key);
+			}
+		},
+		activate() {
+			active = true;
+		},
+	};
+}
+
+function readPersistedSupportState(): PersistedSupportState | null {
+	if (typeof window === "undefined") {
+		return null;
+	}
+
+	try {
+		const raw = window.localStorage.getItem(SUPPORT_STORE_STORAGE_KEY);
+		return raw ? (JSON.parse(raw) as PersistedSupportState) : null;
+	} catch {
+		return null;
+	}
+}
+
+const UPDATABLE_OPTION_KEYS = [
+	"autoConnect",
+	"defaultMessages",
+	"quickOptions",
+	"size",
+	"defaultOpen",
+	"onWsConnect",
+	"onWsDisconnect",
+	"onWsError",
+	"support",
+] as const;
+
+type UpdatableOptionKey = (typeof UPDATABLE_OPTION_KEYS)[number];
+
+type UpdatableOptions = Pick<SupportControllerOptions, UpdatableOptionKey>;
+
+function setUpdatableOption<K extends UpdatableOptionKey>(
+	patch: Partial<UpdatableOptions>,
+	key: K,
+	value: UpdatableOptions[K]
+): void {
+	patch[key] = value;
+}
+
+type OwnedControllerHandle = {
+	controller: SupportController;
+	storage: DeferredSupportStorage;
+	// Options already applied at creation; the options effect only pushes
+	// values that changed relative to the last applied ones.
+	appliedOptions: UpdatableOptions;
+	hydrated: boolean;
+};
+
+/**
+ * Merges the persisted widget state into a freshly created owned controller
+ * after mount. Persisted state wins over `defaultOpen` (a default only for
+ * visitors without stored state); an explicit `size` prop stays authoritative.
+ */
+function hydrateOwnedController(handle: OwnedControllerHandle): void {
+	if (handle.hydrated) {
+		return;
+	}
+
+	handle.hydrated = true;
+	handle.storage.activate();
+
+	const persisted = readPersistedSupportState();
+	if (!persisted) {
+		return;
+	}
+
+	const explicitSize = handle.appliedOptions.size;
+
+	handle.controller.supportStore.setState((current) => {
+		const config = { ...current.config };
+
+		if (typeof persisted.config?.isOpen === "boolean") {
+			config.isOpen = persisted.config.isOpen;
+		}
+
+		if (persisted.config?.size !== undefined && explicitSize === undefined) {
+			config.size = persisted.config.size;
+		}
+
+		const navigation = persisted.navigation?.current
+			? {
+					current: persisted.navigation.current,
+					previousPages: persisted.navigation.previousPages ?? [],
+				}
+			: current.navigation;
+
+		return { config, navigation };
+	});
+}
+
+function resolveActiveController(
+	externalController: SupportController | undefined,
+	owned: OwnedControllerHandle | null
+): SupportController {
+	if (externalController) {
+		return externalController;
+	}
+
+	if (!owned) {
+		throw new Error("SupportProvider could not resolve a support controller");
+	}
+
+	return owned.controller;
+}
+
+function shallowEqual<T extends Record<string, unknown>>(
+	previous: T,
+	next: T
+): boolean {
+	if (Object.is(previous, next)) {
+		return true;
+	}
+
+	const keys = Object.keys(previous) as (keyof T)[];
+
+	if (keys.length !== Object.keys(next).length) {
+		return false;
+	}
+
+	return keys.every((key) => Object.is(previous[key], next[key]));
+}
+
 /**
  * Internal implementation that wires the REST client and websocket provider
  * together before exposing the combined context.
@@ -198,46 +373,108 @@ function SupportProviderInner({
 	onWsConnect,
 	onWsDisconnect,
 	onWsError,
-	size = "normal",
-	defaultOpen = false,
+	size,
+	defaultOpen,
 }: SupportProviderProps) {
-	const ownedController = React.useMemo(
-		() =>
-			createSupportController({
-				apiUrl,
-				wsUrl,
-				publicKey,
-				support,
-				clientOptions: sharedClientOptions,
-				autoConnect,
-				defaultMessages: defaultMessages ?? [],
-				quickOptions: quickOptions ?? [],
-				size,
-				defaultOpen,
-				onWsConnect,
-				onWsDisconnect,
-				onWsError,
-			}),
-		[apiUrl, publicKey, support, wsUrl]
-	);
-	const controller = externalController ?? ownedController;
-	const ownsController = externalController === undefined;
-	const pendingOwnedControllerDisposalsRef = React.useRef(
-		new Map<SupportController, ReturnType<typeof globalThis.setTimeout>>()
-	);
+	// Bumped to recreate the owned controller when a deferred destroy already
+	// ran (e.g. an offscreen/Activity remount past one macrotask).
+	const [ownedGeneration, setOwnedGeneration] = React.useState(0);
 
-	React.useEffect(() => {
-		controller.updateOptions({
+	// Only recreated when the connection identity changes; every other option
+	// (including `support`) is synced in place through updateOptions.
+	const owned = React.useMemo<OwnedControllerHandle | null>(() => {
+		if (externalController) {
+			return null;
+		}
+
+		const storage = createDeferredBrowserStorage();
+		const appliedOptions: UpdatableOptions = {
 			autoConnect,
-			defaultMessages: defaultMessages ?? [],
-			quickOptions: quickOptions ?? [],
-			size,
+			defaultMessages,
 			defaultOpen,
 			onWsConnect,
 			onWsDisconnect,
 			onWsError,
+			quickOptions,
+			size,
 			support,
-		});
+		};
+
+		return {
+			appliedOptions,
+			controller: createSupportController({
+				apiUrl,
+				autoConnect,
+				clientOptions: sharedClientOptions,
+				defaultMessages: defaultMessages ?? [],
+				defaultOpen,
+				onWsConnect,
+				onWsDisconnect,
+				onWsError,
+				publicKey,
+				quickOptions: quickOptions ?? [],
+				size,
+				storage,
+				support,
+				wsUrl,
+			}),
+			hydrated: false,
+			storage,
+		};
+	}, [apiUrl, externalController, ownedGeneration, publicKey, wsUrl]);
+	const controller = resolveActiveController(externalController, owned);
+	const ownsController = externalController === undefined;
+	const pendingOwnedControllerDisposalsRef = React.useRef(
+		new Map<SupportController, ReturnType<typeof globalThis.setTimeout>>()
+	);
+	const destroyedOwnedControllersRef = React.useRef(
+		new WeakSet<SupportController>()
+	);
+	const lastAppliedOptionsRef = React.useRef<{
+		controller: SupportController;
+		options: UpdatableOptions;
+	} | null>(null);
+
+	React.useEffect(() => {
+		const next: UpdatableOptions = {
+			autoConnect,
+			defaultMessages,
+			defaultOpen,
+			onWsConnect,
+			onWsDisconnect,
+			onWsError,
+			quickOptions,
+			size,
+			support,
+		};
+		const lastApplied = lastAppliedOptionsRef.current;
+		let previous: UpdatableOptions = {};
+
+		if (lastApplied?.controller === controller) {
+			previous = lastApplied.options;
+		} else if (owned?.controller === controller) {
+			previous = owned.appliedOptions;
+		}
+
+		// Only push options the consumer explicitly provided and that changed
+		// since they were last applied. Re-pushing defaults would stomp runtime
+		// state (e.g. `defaultOpen` force-closing an open widget) and external
+		// controller configuration.
+		const patch: Partial<UpdatableOptions> = {};
+
+		for (const key of UPDATABLE_OPTION_KEYS) {
+			const value = next[key];
+
+			if (value !== undefined && value !== previous[key]) {
+				setUpdatableOption(patch, key, value);
+			}
+		}
+
+		lastAppliedOptionsRef.current = { controller, options: next };
+
+		if (Object.keys(patch).length > 0) {
+			controller.updateOptions(patch);
+		}
 	}, [
 		autoConnect,
 		controller,
@@ -246,43 +483,75 @@ function SupportProviderInner({
 		onWsConnect,
 		onWsDisconnect,
 		onWsError,
+		owned,
 		quickOptions,
 		size,
 		support,
 	]);
 
 	React.useEffect(() => {
-		const pendingDisposal =
-			pendingOwnedControllerDisposalsRef.current.get(controller);
+		const pendingDisposals = pendingOwnedControllerDisposalsRef.current;
+		const pendingDisposal = pendingDisposals.get(controller);
 
 		if (pendingDisposal !== undefined) {
 			globalThis.clearTimeout(pendingDisposal);
-			pendingOwnedControllerDisposalsRef.current.delete(controller);
+			pendingDisposals.delete(controller);
+		}
+
+		if (destroyedOwnedControllersRef.current.has(controller)) {
+			// The deferred destroy already ran, so this controller can never be
+			// started again — recreate it instead of mounting a dead widget.
+			setOwnedGeneration((generation) => generation + 1);
+			return;
+		}
+
+		if (owned?.controller === controller) {
+			hydrateOwnedController(owned);
 		}
 
 		controller.start();
 		return () => {
-			if (ownsController) {
-				const pendingDisposals = pendingOwnedControllerDisposalsRef.current;
-				const existingDisposal = pendingDisposals.get(controller);
-
-				if (existingDisposal !== undefined) {
-					globalThis.clearTimeout(existingDisposal);
-				}
-
-				const timeoutId = globalThis.setTimeout(() => {
-					pendingDisposals.delete(controller);
-					controller.destroy();
-				}, 0);
-
-				pendingDisposals.set(controller, timeoutId);
+			if (!ownsController) {
+				return;
 			}
-		};
-	}, [controller, ownsController]);
 
+			const existingDisposal = pendingDisposals.get(controller);
+
+			if (existingDisposal !== undefined) {
+				globalThis.clearTimeout(existingDisposal);
+			}
+
+			const timeoutId = globalThis.setTimeout(() => {
+				pendingDisposals.delete(controller);
+				destroyedOwnedControllersRef.current.add(controller);
+				controller.destroy();
+			}, 0);
+
+			pendingDisposals.set(controller, timeoutId);
+		};
+	}, [controller, owned, ownsController]);
+
+	// Narrow selection + shallow equality so unrelated store changes (e.g.
+	// widget navigation) do not churn the context value and re-render every
+	// useSupport consumer.
 	const snapshot = useStoreSelector(
 		controller,
-		React.useCallback((state) => state, [])
+		React.useCallback(
+			(state: SupportControllerSnapshot) => ({
+				client: state.client,
+				configurationError: state.configurationError,
+				defaultMessages: state.defaultMessages,
+				error: state.error,
+				isLoading: state.isLoading,
+				isOpen: state.isOpen,
+				isVisitorBlocked: state.isVisitorBlocked,
+				quickOptions: state.quickOptions,
+				unreadCount: state.unreadCount,
+				website: state.website,
+			}),
+			[]
+		),
+		shallowEqual
 	);
 
 	const value = React.useMemo<CossistantContextValue>(
@@ -312,7 +581,7 @@ function SupportProviderInner({
 				<IdentificationProvider>
 					<WebSocketProvider
 						autoConnect={
-							autoConnect &&
+							(autoConnect ?? true) &&
 							!snapshot.isVisitorBlocked &&
 							!snapshot.configurationError
 						}
@@ -351,12 +620,12 @@ export function SupportProvider({
 	support,
 	defaultMessages,
 	quickOptions,
-	autoConnect = true,
+	autoConnect,
 	onWsConnect,
 	onWsDisconnect,
 	onWsError,
-	size = "normal",
-	defaultOpen = false,
+	size,
+	defaultOpen,
 }: SupportProviderProps): React.ReactElement {
 	return (
 		<SupportProviderInner
@@ -379,12 +648,20 @@ export function SupportProvider({
 	);
 }
 
+const selectWidgetSize = (state: SupportControllerSnapshot | null) =>
+	state?.size ?? "normal";
+
 /**
  * Convenience hook that exposes the aggregated support context. Throws when it
  * is consumed outside of `SupportProvider` to catch integration mistakes.
  */
 export function useSupport(): UseSupportValue {
 	const context = useOptionalSupportContext();
+	const controller = useOptionalSupportController();
+	// Narrow size selection so navigation/open-state changes alone do not
+	// re-render every useSupport consumer.
+	const size = useStoreSelector(controller, selectWidgetSize);
+
 	if (!context) {
 		throw new Error(
 			"useSupport must be used within a cossistant SupportProvider"
@@ -394,9 +671,6 @@ export function useSupport(): UseSupportValue {
 	const availableHumanAgents = context.website?.availableHumanAgents || [];
 	const availableAIAgents = context.website?.availableAIAgents || [];
 	const visitorLanguage = context.website?.visitor?.language || null;
-
-	// Get additional config from support store
-	const { config } = useSupportStore();
 
 	// Create visitor object with normalized locale
 	const visitor = context.website?.visitor
@@ -411,7 +685,7 @@ export function useSupport(): UseSupportValue {
 		availableHumanAgents,
 		availableAIAgents,
 		visitor,
-		size: config.size,
+		size,
 	};
 }
 

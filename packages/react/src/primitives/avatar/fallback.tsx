@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import { useRenderElement } from "../../utils/use-render-element";
 import { useAvatarContext } from "./avatar";
@@ -73,10 +75,10 @@ export const AvatarFallback = (() => {
 				initials,
 			};
 
-			const shouldRender =
-				canRender &&
-				imageLoadingStatus !== "loaded" &&
-				imageLoadingStatus !== "loading";
+			// Keep showing the fallback while the image is still loading so slow
+			// connections don't get a blank avatar (delayMs handles fast-load
+			// flashes)
+			const shouldRender = canRender && imageLoadingStatus !== "loaded";
 
 			const content = children || initials;
 

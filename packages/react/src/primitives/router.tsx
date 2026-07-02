@@ -1,3 +1,5 @@
+"use client";
+
 import type { RouteRegistry } from "@cossistant/core";
 import type React from "react";
 

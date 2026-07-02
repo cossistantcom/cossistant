@@ -10,7 +10,7 @@ import { ConfigurationErrorDisplay } from "../support/components/configuration-e
 import { ThemeWrapper } from "../support/components/theme-wrapper";
 import type { Align, CollisionPadding, Side } from "../support/types";
 import { Content } from "./components/content";
-import { FeedbackPanel } from "./components/panel";
+import { FeedbackPanel, type FeedbackPanelStrings } from "./components/panel";
 import { Root } from "./components/root";
 import { DefaultTrigger } from "./components/trigger";
 import { ControlledStateProvider } from "./context/controlled-state";
@@ -43,6 +43,7 @@ export type FeedbackProps = {
 	topicPlaceholder?: string;
 	commentPlaceholder?: string;
 	commentRequired?: boolean;
+	strings?: Partial<FeedbackPanelStrings>;
 	children?: React.ReactNode;
 };
 
@@ -131,6 +132,7 @@ function FeedbackComponentInner(
 		topicPlaceholder,
 		commentPlaceholder,
 		commentRequired = false,
+		strings,
 		children,
 	}: FeedbackProps,
 	ref: React.Ref<FeedbackHandle>
@@ -169,6 +171,7 @@ function FeedbackComponentInner(
 					commentRequired={commentRequired}
 					conversationId={conversationId}
 					defaultTopic={defaultTopic}
+					strings={strings}
 					topicPlaceholder={topicPlaceholder}
 					topics={topics}
 					trigger={trigger}
@@ -237,6 +240,7 @@ export type FeedbackContentProps = {
 	topicPlaceholder?: string;
 	commentPlaceholder?: string;
 	commentRequired?: boolean;
+	strings?: Partial<FeedbackPanelStrings>;
 	children?: React.ReactNode;
 };
 
@@ -254,6 +258,7 @@ const FeedbackContent: React.FC<FeedbackContentProps> = ({
 	topicPlaceholder,
 	commentPlaceholder,
 	commentRequired = false,
+	strings,
 	children,
 }) => (
 	<Content
@@ -270,6 +275,7 @@ const FeedbackContent: React.FC<FeedbackContentProps> = ({
 				commentRequired={commentRequired}
 				conversationId={conversationId}
 				defaultTopic={defaultTopic}
+				strings={strings}
 				topicPlaceholder={topicPlaceholder}
 				topics={topics}
 				trigger={trigger}
@@ -333,6 +339,7 @@ export type {
 	FeedbackFormFields,
 	FeedbackFormRatingFieldState,
 	FeedbackFormSubmitEvent,
+	FeedbackFormSubmitLabels,
 	FeedbackFormSubmitState,
 	UseFeedbackFormOptions,
 	UseFeedbackFormResult,
@@ -349,6 +356,8 @@ export type {
 	CollisionPadding,
 	Side,
 } from "../support/types";
+export type { FeedbackPanelStrings } from "./components/panel";
+export { DEFAULT_FEEDBACK_PANEL_STRINGS } from "./components/panel";
 export type { FeedbackHandle } from "./context/handle";
 export { useFeedbackHandle } from "./context/handle";
 export type { FeedbackTriggerRenderProps } from "./internal/trigger";

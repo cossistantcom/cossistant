@@ -102,6 +102,14 @@ export function useSoundEffect(
 			return;
 		}
 
+		// Autoplay policy: contexts created before a user gesture start
+		// suspended and stay silent until resume() is called.
+		if (audioContext.state === "suspended") {
+			void audioContext.resume().catch(() => {
+				// Resume is rejected until the user interacts with the page
+			});
+		}
+
 		// Stop any currently playing sound
 		if (sourceNodeRef.current) {
 			try {
@@ -159,6 +167,16 @@ export function useSoundEffect(
 	useEffect(
 		() => () => {
 			stop();
+			const audioContext = audioContextRef.current;
+			audioContextRef.current = null;
+			audioBufferRef.current = null;
+			// Browsers cap concurrent AudioContexts, so release the hardware
+			// handle instead of leaking one per remount
+			if (audioContext && audioContext.state !== "closed") {
+				void audioContext.close().catch(() => {
+					// Ignore errors from contexts already being closed
+				});
+			}
 		},
 		[stop]
 	);

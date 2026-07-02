@@ -36,28 +36,34 @@
   "dependencies": {
     "@cossistant/core": "workspace:*",
     "@cossistant/react": "workspace:*",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "@cossistant/types": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": ">=18 <20",
+    "react-dom": ">=18 <20"
   },
   "devDependencies": {
     "@cossistant/typescript-config": "workspace:*",
     "@tailwindcss/cli": "^4.2.2",
-    "preact": "^10.27.2"
+    "preact": "^10.27.2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   },
   "publishConfig": {
     "access": "public",
     "directory": "dist"
   },
   "scripts": {
-    "build": "bun run build:lib && bun run build:embed && bun run prepare-package",
+    "build": "bun run build:lib && bun run rewrite:types && rm -rf dist/node_modules dist/packages && find dist -name '*.map' -delete && bun run build:embed && bun run prepare-package",
     "build:lib": "tsdown",
+    "rewrite:types": "bun scripts/rewrite-dist-types.ts",
     "build:embed": "bun run build:embed:js && bun run build:embed:css",
     "build:embed:js": "tsdown --config tsdown.embed.config.ts && mv dist/embed/loader.iife.js dist/embed/loader.js && mv dist/embed/widget.iife.js dist/embed/widget.js",
     "build:embed:css": "mkdir -p dist/embed && bunx @tailwindcss/cli -i src/embed/widget.css -o dist/embed/widget.css --content '../react/src/**/*.{js,ts,jsx,tsx}' --minify",
     "prepare-package": "bun ../../scripts/prepare-package.ts",
-    "pub:release": "bun run build && npm publish --access public",
-    "pub:beta": "bun run build && npm publish --access public --tag beta --no-git-checks",
-    "pub:next": "bun run build && npm publish --access public --tag next --no-git-checks",
+    "pub:release": "bun run build && npm publish ./dist --access public",
+    "pub:beta": "bun run build && npm publish ./dist --access public --tag beta --no-git-checks",
+    "pub:next": "bun run build && npm publish ./dist --access public --tag next --no-git-checks",
     "lint": "biome check .",
     "check-types": "tsc --noEmit --project tsconfig.json"
   }

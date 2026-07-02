@@ -208,7 +208,7 @@ export default function RootLayout({
 		framework: "react",
 		frameworkLabel: "React",
 		packageName: "@cossistant/react",
-		envVarName: "COSSISTANT_API_KEY",
+		envVarName: "VITE_COSSISTANT_API_KEY",
 		envFileName: ".env",
 		docsQuickstartPath: "/docs/quickstart/react",
 		providerFileName: "src/main.tsx",
@@ -220,7 +220,7 @@ import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <SupportProvider publicKey={process.env.COSSISTANT_API_KEY}>
+    <SupportProvider publicKey={import.meta.env.VITE_COSSISTANT_API_KEY}>
       <App />
     </SupportProvider>
   </React.StrictMode>
@@ -306,7 +306,7 @@ import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <SupportProvider publicKey={process.env.COSSISTANT_API_KEY}>
+    <SupportProvider publicKey={import.meta.env.VITE_COSSISTANT_API_KEY}>
       <App />
     </SupportProvider>
   </React.StrictMode>
@@ -405,6 +405,13 @@ export function buildSupportAiSetupPrompt({
 		? `Use this exact public key value: ${publicApiKey}`
 		: "If the public key is missing, fetch it from Cossistant dashboard > Settings > Developers and replace the placeholder value.";
 
+	// The react guide assumes a Vite app; other bundlers need their own
+	// public-env mechanism or an explicit publicKey prop.
+	const envVarNote =
+		guide.framework === "react"
+			? `\n   "${guide.envVarName}" assumes Vite. If the project uses another bundler (CRA, Remix, etc.), use that bundler's public env variable mechanism or pass the key directly via <SupportProvider publicKey="...">.`
+			: "";
+
 	return `You are a senior ${guide.frameworkLabel} engineer. Integrate Cossistant into an existing ${guide.frameworkLabel} project.
 
 Project context:
@@ -424,7 +431,7 @@ Required implementation:
 1. Install dependency:
    ${installCommand}
 2. Add/update ${guide.envFileName} with:
-   ${guide.envVarName}=${keyValue}
+   ${guide.envVarName}=${keyValue}${envVarNote}
 3. ${keyInstruction}
 4. Mount <SupportProvider> at the app root.
 5. Import widget CSS:

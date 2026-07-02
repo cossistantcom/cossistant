@@ -123,7 +123,9 @@ export function useRealtime<
 					});
 				}
 			}),
-		[connection]
+		// Depend on the stable subscribe function rather than the whole context
+		// value so connection-state updates do not tear down the subscription.
+		[connection.subscribe]
 	);
 
 	return connection;

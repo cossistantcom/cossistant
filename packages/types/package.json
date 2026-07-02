@@ -18,7 +18,8 @@
     "./api": "./src/api/index.ts",
     "./api/*": "./src/api/*.ts",
     "./trpc/*": "./src/trpc/*.ts",
-    "./enums": "./src/enums.ts"
+    "./enums": "./src/enums.ts",
+    "./support-onboarding": "./src/support-onboarding.ts"
   },
   "main": "./src/index.ts",
   "types": "./src/index.ts",

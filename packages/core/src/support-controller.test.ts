@@ -152,6 +152,91 @@ describe("support controller", () => {
 		});
 	});
 
+	it("resyncs conversations and open timelines after a realtime reconnect", async () => {
+		const controller = createSupportController({
+			publicKey: "pk_test_widget",
+			autoConnect: true,
+		});
+		const client = controller.getState().client;
+
+		expect(client).not.toBeNull();
+		if (!client) {
+			return;
+		}
+
+		let realtimeStatus: "disconnected" | "connecting" | "connected" =
+			"disconnected";
+		let stateListener: (() => void) | null = null;
+
+		client.realtime.onStateChange = ((listener: () => void) => {
+			stateListener = listener;
+			return () => {};
+		}) as typeof client.realtime.onStateChange;
+		client.realtime.getState = (() => ({
+			status: realtimeStatus,
+			error: null,
+			connectionId: null,
+		})) as typeof client.realtime.getState;
+		client.realtime.connect = mock(() => {}) as typeof client.realtime.connect;
+		client.realtime.disconnect = mock(
+			() => {}
+		) as typeof client.realtime.disconnect;
+
+		const listConversationsMock = mock(async () => ({
+			conversations: [],
+			pagination: {
+				page: 1,
+				limit: 10,
+				total: 0,
+				totalPages: 0,
+				hasMore: false,
+			},
+		}));
+		const getTimelineItemsMock = mock(async () => ({
+			items: [],
+			nextCursor: null,
+			hasNextPage: false,
+		}));
+
+		client.listConversations =
+			listConversationsMock as typeof client.listConversations;
+		client.getConversationTimelineItems =
+			getTimelineItemsMock as unknown as typeof client.getConversationTimelineItems;
+		client.fetchWebsite = mock(async () => null) as typeof client.fetchWebsite;
+
+		client.timelineItemsStore.ingestPage("conv_123", {
+			items: [],
+			hasNextPage: false,
+			nextCursor: undefined,
+		});
+
+		controller.start();
+		await flushMicrotasks();
+
+		const emitStatus = (status: typeof realtimeStatus) => {
+			realtimeStatus = status;
+			stateListener?.();
+		};
+
+		// First connection must not trigger a resync
+		emitStatus("connected");
+		expect(listConversationsMock).not.toHaveBeenCalled();
+		expect(getTimelineItemsMock).not.toHaveBeenCalled();
+
+		// Reconnect after a drop must refetch conversations and open timelines
+		emitStatus("disconnected");
+		emitStatus("connected");
+		await flushMicrotasks();
+
+		expect(listConversationsMock).toHaveBeenCalledTimes(1);
+		expect(getTimelineItemsMock).toHaveBeenCalledTimes(1);
+		expect(getTimelineItemsMock.mock.calls[0]?.[0]).toMatchObject({
+			conversationId: "conv_123",
+		});
+
+		controller.destroy();
+	});
+
 	it("refreshes after identify and forwards controller events", async () => {
 		const controller = createSupportController({
 			publicKey: "pk_test_widget",

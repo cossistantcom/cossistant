@@ -69,6 +69,65 @@ describe("installCossistantBrowserLoader", () => {
 		]);
 	});
 
+	it("stashes data-attribute auto-init config from its own script tag", () => {
+		(document as Document & { currentScript: unknown }).currentScript = {
+			dataset: {
+				apiUrl: "https://api.example.com",
+				publicKey: "pk_test_browser",
+				wsUrl: "wss://api.example.com/ws",
+			},
+			src: "https://cdn.cossistant.com/widget/0.1.2/loader.js",
+		};
+
+		installCossistantBrowserLoader();
+
+		expect(
+			(window as typeof window & { __COSSISTANT_BROWSER_WIDGET_LOADER__: any })
+				.__COSSISTANT_BROWSER_WIDGET_LOADER__.autoInit
+		).toEqual({
+			apiUrl: "https://api.example.com",
+			publicKey: "pk_test_browser",
+			wsUrl: "wss://api.example.com/ws",
+		});
+		expect(appendedScripts).toHaveLength(1);
+	});
+
+	it("adopts a user-created stub that only has a queue and backfills methods", () => {
+		const queue = [
+			{
+				args: [{ publicKey: "pk_test_browser" }],
+				method: "init",
+			},
+		];
+		(window as typeof window & { Cossistant: any }).Cossistant = {
+			__queue: queue,
+		};
+
+		installCossistantBrowserLoader();
+
+		const runtime = (window as typeof window & { Cossistant: any }).Cossistant;
+
+		expect(runtime.__queue).toBe(queue);
+		expect(runtime.__isCossistantLoaderStub).toBe(true);
+		expect(runtime.__assets.widgetUrl).toBe(
+			"https://cdn.cossistant.com/widget/0.1.2/widget.js"
+		);
+
+		runtime.show();
+
+		expect(queue).toEqual([
+			{
+				args: [{ publicKey: "pk_test_browser" }],
+				method: "init",
+			},
+			{
+				args: [],
+				method: "show",
+			},
+		]);
+		expect(appendedScripts).toHaveLength(1);
+	});
+
 	it("does not re-queue or re-load the widget bundle after the runtime is installed", () => {
 		(window as typeof window & { Cossistant: any }).Cossistant = {
 			__isCossistantBrowserRuntime: true,

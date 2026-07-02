@@ -5,6 +5,12 @@ import type { SubmitFeedbackResponse } from "@cossistant/types/api/feedback";
 import * as React from "react";
 import { useSubmitFeedback } from "./use-submit-feedback";
 
+export type FeedbackFormSubmitLabels = {
+	idle?: string;
+	pending?: string;
+	ratingRequired?: string;
+};
+
 export type UseFeedbackFormOptions = {
 	client?: CossistantClient | null;
 	topics?: string[];
@@ -16,6 +22,7 @@ export type UseFeedbackFormOptions = {
 	contactId?: string;
 	commentRequired?: boolean;
 	defaultOpen?: boolean;
+	submitLabels?: FeedbackFormSubmitLabels;
 	onOpenChange?: (open: boolean) => void;
 	onSuccess?: (data: SubmitFeedbackResponse) => void;
 	onError?: (error: Error) => void;
@@ -48,7 +55,7 @@ export type FeedbackFormSubmitState = {
 	canSubmit: boolean;
 	canAttemptSubmit: boolean;
 	disabled: boolean;
-	label: "Rating needed" | "Send" | "Sending...";
+	label: string;
 };
 
 type FeedbackFormFieldName = keyof FeedbackFormFields;
@@ -138,6 +145,7 @@ export function useFeedbackForm({
 	contactId,
 	commentRequired = false,
 	defaultOpen = false,
+	submitLabels,
 	onOpenChange,
 	onSuccess,
 	onError,
@@ -152,6 +160,7 @@ export function useFeedbackForm({
 		React.useState<FeedbackFormInteractionState>(EMPTY_FIELD_INTERACTION);
 	const [touchedFields, setTouchedFields] =
 		React.useState<FeedbackFormInteractionState>(EMPTY_FIELD_INTERACTION);
+	const submitInFlightRef = React.useRef(false);
 	const {
 		error,
 		isPending,
@@ -267,10 +276,10 @@ export function useFeedbackForm({
 		canAttemptSubmit,
 		disabled: !canSubmit,
 		label: isPending
-			? "Sending..."
+			? (submitLabels?.pending ?? "Sending...")
 			: rawIsRatingMissing
-				? "Rating needed"
-				: "Send",
+				? (submitLabels?.ratingRequired ?? "Rating needed")
+				: (submitLabels?.idle ?? "Send"),
 	};
 
 	const resetForm = React.useCallback(() => {
@@ -285,9 +294,28 @@ export function useFeedbackForm({
 		resetSubmitFeedback();
 	}, [resetSubmitFeedback, resolvedDefaultTopic]);
 
+	// Only reset when the conversation actually changes; resetForm identity
+	// also churns when topics/defaultTopic resolve asynchronously and that
+	// must not wipe in-progress input.
+	const previousConversationIdRef = React.useRef(conversationId);
 	React.useEffect(() => {
+		if (previousConversationIdRef.current === conversationId) {
+			return;
+		}
+
+		previousConversationIdRef.current = conversationId;
 		resetForm();
 	}, [conversationId, resetForm]);
+
+	// Apply a late-resolving default topic only while the field is untouched.
+	const topicInteracted = dirtyFields.topic || touchedFields.topic;
+	React.useEffect(() => {
+		if (topicInteracted) {
+			return;
+		}
+
+		setTopic(resolvedDefaultTopic);
+	}, [resolvedDefaultTopic, topicInteracted]);
 
 	const handleOpenChange = React.useCallback(
 		(nextOpen: boolean) => {
@@ -346,6 +374,13 @@ export function useFeedbackForm({
 	const handleSubmit = React.useCallback(
 		async (event?: FeedbackFormSubmitEvent) => {
 			event?.preventDefault();
+
+			// Ref-based in-flight guard: isPending is stale inside this
+			// closure, so duplicate calls before a re-render would double-POST.
+			if (submitInFlightRef.current) {
+				return;
+			}
+
 			setHasAttemptedSubmit(true);
 			resetSubmitFeedback();
 
@@ -357,6 +392,8 @@ export function useFeedbackForm({
 			) {
 				return;
 			}
+
+			submitInFlightRef.current = true;
 
 			try {
 				await submitFeedback({
@@ -372,6 +409,8 @@ export function useFeedbackForm({
 				setHasSubmitted(true);
 			} catch {
 				// Error state is owned by useSubmitFeedback.
+			} finally {
+				submitInFlightRef.current = false;
 			}
 		},
 		[

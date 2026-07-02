@@ -1,3 +1,5 @@
+"use client";
+
 import type { CossistantClient } from "@cossistant/core/client";
 import {
 	isImageMimeType,

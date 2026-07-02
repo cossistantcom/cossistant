@@ -215,7 +215,11 @@ The most common options are:
 import { CossistantClient } from "@cossistant/core";
 import { useFeedbackForm } from "@cossistant/react/hooks/use-feedback-form";
 
-const client = new CossistantClient({ publicKey: "pk_test_xxxx" });
+const client = new CossistantClient({
+  publicKey: "pk_test_xxxx",
+  apiUrl: "https://api.cossistant.com/v1",
+  wsUrl: "wss://api.cossistant.com/ws",
+});
 
 export function ProviderFreeFeedback({ visitorId }: { visitorId: string }) {
   const feedback = useFeedbackForm({
@@ -282,7 +286,11 @@ For provider-free forms, pass a client and visitor explicitly:
 import { CossistantClient } from "@cossistant/core";
 import { useSubmitFeedback } from "@cossistant/react/hooks/use-submit-feedback";
 
-const client = new CossistantClient({ publicKey: "pk_test_xxxx" });
+const client = new CossistantClient({
+  publicKey: "pk_test_xxxx",
+  apiUrl: "https://api.cossistant.com/v1",
+  wsUrl: "wss://api.cossistant.com/ws",
+});
 
 export function HeadlessFeedbackSubmit({ visitorId }: { visitorId: string }) {
   const feedback = useSubmitFeedback({ client });

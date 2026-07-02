@@ -1,18 +1,16 @@
-import type {
-	SupportOnboardingState,
-	SupportStateResponse,
-} from "@cossistant/types/api/support";
+import type { SupportStateResponse } from "@cossistant/types/api/support";
 import {
 	EMPTY_SUPPORT_ONBOARDING_STATE,
 	normalizeSupportFeatureFlags,
 	normalizeSupportOnboardingState,
-} from "@cossistant/types/api/support";
+	type SupportOnboardingState,
+} from "@cossistant/types/support-onboarding";
 import { createStore, type Store } from "./create-store";
 
 export {
 	normalizeSupportFeatureFlags,
 	normalizeSupportOnboardingState,
-} from "@cossistant/types/api/support";
+} from "@cossistant/types/support-onboarding";
 
 export type SupportStateStatus = "idle" | "loading" | "success" | "error";
 

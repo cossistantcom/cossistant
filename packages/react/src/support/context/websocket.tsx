@@ -7,7 +7,7 @@ import {
 	useContext,
 	useEffect,
 	useMemo,
-	useState,
+	useRef,
 	useSyncExternalStore,
 } from "react";
 import { useSupport } from "../../provider";
@@ -21,6 +21,10 @@ type WebSocketContextValue = {
 	send: (event: AnyRealtimeEvent) => void;
 	sendRaw: (data: string) => void;
 	subscribe: (handler: SubscribeHandler) => () => void;
+	/**
+	 * Latest event received on the connection. Read-on-demand: updating it does
+	 * not re-render consumers. Use `subscribe` to react to incoming events.
+	 */
 	lastEvent: AnyRealtimeEvent | null;
 	connectionId: string | null;
 	reconnect: () => void;
@@ -31,10 +35,22 @@ type WebSocketContextValue = {
 
 type WebSocketProviderProps = {
 	children: React.ReactNode;
+	/**
+	 * @deprecated Ignored. The connection is owned by the support controller;
+	 * configure `publicKey` on `SupportProvider` instead.
+	 */
 	publicKey?: string;
 	websiteId?: string;
 	visitorId?: string;
+	/**
+	 * @deprecated Ignored. The connection is owned by the support controller;
+	 * configure `wsUrl` on `SupportProvider` instead.
+	 */
 	wsUrl?: string;
+	/**
+	 * @deprecated Ignored. The connection is owned by the support controller;
+	 * configure `autoConnect` on `SupportProvider` instead.
+	 */
 	autoConnect?: boolean;
 	onConnect?: () => void;
 	onDisconnect?: () => void;
@@ -56,10 +72,9 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 	children,
 	websiteId,
 	visitorId,
-	wsUrl: _wsUrl,
-	onConnect: _onConnect,
-	onDisconnect: _onDisconnect,
-	onError: _onError,
+	onConnect,
+	onDisconnect,
+	onError,
 }) => {
 	const { client, website } = useSupport();
 	const realtime = client?.realtime ?? null;
@@ -75,14 +90,54 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 		() => realtime?.getState() ?? DISCONNECTED_STATE
 	);
 
-	// Track last event via subscription
-	const [lastEvent, setLastEvent] = useState<AnyRealtimeEvent | null>(null);
+	// Track last event via subscription. A ref (not state) so a busy socket does
+	// not re-render every context consumer per event.
+	const lastEventRef = useRef<AnyRealtimeEvent | null>(null);
 
 	useEffect(() => {
 		if (!realtime) {
 			return;
 		}
-		return realtime.subscribe((event) => setLastEvent(event));
+		return realtime.subscribe((event) => {
+			lastEventRef.current = event;
+		});
+	}, [realtime]);
+
+	// Forward connection lifecycle callbacks, always invoking the latest props.
+	const onConnectRef = useRef(onConnect);
+	const onDisconnectRef = useRef(onDisconnect);
+	const onErrorRef = useRef(onError);
+
+	useEffect(() => {
+		onConnectRef.current = onConnect;
+		onDisconnectRef.current = onDisconnect;
+		onErrorRef.current = onError;
+	}, [onConnect, onDisconnect, onError]);
+
+	useEffect(() => {
+		if (!realtime) {
+			return;
+		}
+
+		let lastStatus = realtime.getState().status;
+		let lastError = realtime.getState().error;
+
+		return realtime.onStateChange((state) => {
+			if (lastStatus !== "connected" && state.status === "connected") {
+				onConnectRef.current?.();
+			}
+
+			if (lastStatus === "connected" && state.status !== "connected") {
+				onDisconnectRef.current?.();
+			}
+
+			if (state.error && state.error !== lastError) {
+				onErrorRef.current?.(state.error);
+			}
+
+			lastStatus = state.status;
+			lastError = state.error;
+		});
 	}, [realtime]);
 
 	// Stable send/subscribe callbacks
@@ -127,7 +182,9 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 			send,
 			sendRaw,
 			subscribe,
-			lastEvent,
+			get lastEvent() {
+				return lastEventRef.current;
+			},
 			connectionId: connectionState.connectionId,
 			reconnect,
 			visitorId: resolvedVisitorId,
@@ -139,7 +196,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 			send,
 			sendRaw,
 			subscribe,
-			lastEvent,
 			reconnect,
 			resolvedVisitorId,
 			resolvedWebsiteId,

@@ -112,8 +112,10 @@ export function useClientQuery<TData, TArgs = void>(
 	const hasFetchedRef = useRef(initialData !== undefined);
 	const isMountedRef = useRef(true);
 	const queryFnRef = useRef(queryFn);
+	const refetchOnMountRef = useRef(refetchOnMount);
 
 	queryFnRef.current = queryFn;
+	refetchOnMountRef.current = refetchOnMount;
 
 	useEffect(() => {
 		isMountedRef.current = true;
@@ -127,18 +129,19 @@ export function useClientQuery<TData, TArgs = void>(
 	}, [initialArgs]);
 
 	const execute = useCallback(
-		async (args?: TArgs, ignoreEnabled = false): Promise<TData | undefined> => {
+		async (args?: TArgs, isManual = false): Promise<TData | undefined> => {
 			// Handle null client (configuration error case)
 			if (!client) {
 				return dataRef.current;
 			}
 
-			if (!(enabled || ignoreEnabled)) {
+			if (!(enabled || isManual)) {
 				return dataRef.current;
 			}
 
+			// Explicit args apply to this call only: persisting them would leak a
+			// pagination cursor into interval/focus refetches and key changes.
 			const nextArgs = args ?? argsRef.current;
-			argsRef.current = nextArgs;
 
 			const fetchId = fetchIdRef.current + 1;
 			fetchIdRef.current = fetchId;
@@ -147,10 +150,14 @@ export function useClientQuery<TData, TArgs = void>(
 			setError(null);
 
 			try {
-				// Use deduplication to share in-flight requests with the same key
-				const result = await executeWithDeduplication(queryKey, () =>
-					queryFnRef.current(client, nextArgs)
-				);
+				// Manual refetches bypass deduplication: their args (e.g. a
+				// pagination cursor) can differ from the in-flight request that
+				// shares this key.
+				const result = isManual
+					? await queryFnRef.current(client, nextArgs)
+					: await executeWithDeduplication(queryKey, () =>
+							queryFnRef.current(client, nextArgs)
+						);
 
 				if (!isMountedRef.current || fetchId !== fetchIdRef.current) {
 					return dataRef.current;
@@ -184,9 +191,11 @@ export function useClientQuery<TData, TArgs = void>(
 			return;
 		}
 
+		// Read refetchOnMount through a ref: store-derived flags flip when the
+		// first response lands, and re-running this effect would double-fetch.
 		const shouldFetchInitially = hasMountedRef.current
 			? true
-			: refetchOnMount || !hasFetchedRef.current;
+			: refetchOnMountRef.current || !hasFetchedRef.current;
 
 		hasMountedRef.current = true;
 
@@ -194,8 +203,10 @@ export function useClientQuery<TData, TArgs = void>(
 			return;
 		}
 
-		void execute(argsRef.current);
-	}, [enabled, execute, refetchOnMount, ...dependencies]);
+		// Errors are captured in state; swallow the rejection so background
+		// fetch failures never escape as unhandled rejections in the host app.
+		execute(argsRef.current).catch(() => {});
+	}, [enabled, execute, ...dependencies]);
 
 	useEffect(() => {
 		if (!enabled) {
@@ -212,7 +223,7 @@ export function useClientQuery<TData, TArgs = void>(
 		}
 
 		const timer = window.setInterval(() => {
-			void execute(argsRef.current);
+			execute(argsRef.current).catch(() => {});
 		}, refetchInterval);
 
 		return () => {
@@ -234,16 +245,16 @@ export function useClientQuery<TData, TArgs = void>(
 				return;
 			}
 
-			void execute(argsRef.current);
+			execute(argsRef.current).catch(() => {});
 		};
 
 		const onFocus = () => {
-			void handleRefetch();
+			handleRefetch();
 		};
 
 		const onVisibilityChange = () => {
 			if (document.visibilityState === "visible") {
-				void handleRefetch();
+				handleRefetch();
 			}
 		};
 

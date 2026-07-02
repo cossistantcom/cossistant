@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import {
 	COMMAND_PACKAGE_MANAGERS,
@@ -61,8 +63,10 @@ export function TimelineCommandBlock({
 	className,
 	children,
 }: TimelineCommandBlockProps): React.ReactElement {
+	// Start from the default on both server and first client render (SSR
+	// hydration safety); the mount effect below applies the stored preference
 	const [packageManager, setPackageManager] =
-		React.useState<CommandPackageManager>(() => readStoredPackageManager());
+		React.useState<CommandPackageManager>(DEFAULT_PACKAGE_MANAGER);
 	const [hasCopied, setHasCopied] = React.useState(false);
 
 	React.useEffect(() => {

@@ -1,9 +1,11 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: works well here */
 /** biome-ignore-all lint/nursery/noUnnecessaryConditions: ok */
 
+"use client";
+
 import type { JSX } from "react";
 import * as React from "react";
-import { mergeRefs } from "./merge-refs";
+import { useMergeRefs } from "./merge-refs";
 
 /**
  * Gets the ref from a React element in a way that's compatible with both React 18 and React 19.
@@ -59,6 +61,48 @@ type SlotProps = {
 	[key: string]: any;
 };
 
+const EVENT_HANDLER_KEY = /^on[A-Z]/;
+
+/**
+ * Merges slot-injected props with the child element's own props instead of
+ * clobbering them: event handlers are composed (child first, slot skipped when
+ * the child called event.preventDefault()), style objects are merged with the
+ * child's values winning, and classNames are joined.
+ */
+function mergeSlotProps(
+	childProps: Record<string, any>,
+	slotProps: Record<string, any>
+): Record<string, any> {
+	const merged: Record<string, any> = {};
+
+	for (const key of Object.keys(slotProps)) {
+		const slotValue = slotProps[key];
+		const childValue = childProps[key];
+
+		if (
+			EVENT_HANDLER_KEY.test(key) &&
+			typeof slotValue === "function" &&
+			typeof childValue === "function"
+		) {
+			merged[key] = (...args: unknown[]) => {
+				childValue(...args);
+				const event = args[0] as { defaultPrevented?: boolean } | undefined;
+				if (!event?.defaultPrevented) {
+					slotValue(...args);
+				}
+			};
+		} else if (key === "style") {
+			merged.style = { ...slotValue, ...childValue };
+		} else if (key === "className") {
+			merged.className = [childValue, slotValue].filter(Boolean).join(" ");
+		} else {
+			merged[key] = slotValue;
+		}
+	}
+
+	return merged;
+}
+
 /**
  * Slot component that properly forwards refs when using asChild pattern.
  * Uses forwardRef to receive the ref and merges it with any existing ref on the child.
@@ -68,15 +112,12 @@ const Slot = React.forwardRef<HTMLElement, SlotProps>(
 		// Get the child's existing ref using React 18/19 compatible helper
 		const childRef = getElementRef(children);
 
-		// Merge the forwarded ref with the child's ref
-		const mergedRef = mergeRefs([forwardedRef, childRef]);
+		// Memoized so the child doesn't receive a new callback ref every render
+		const mergedRef = useMergeRefs([forwardedRef, childRef]);
 
 		return React.cloneElement(children, {
-			...props,
+			...mergeSlotProps(children.props as Record<string, any>, props),
 			ref: mergedRef,
-			className: [(children.props as any).className, props.className]
-				.filter(Boolean)
-				.join(" "),
 		} as any);
 	}
 );

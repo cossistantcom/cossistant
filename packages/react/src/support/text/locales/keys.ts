@@ -40,6 +40,10 @@ type SupportTextDefinition<Vars> =
 export const supportTextDefinitions = {
 	"common.actions.askQuestion": { variables: undefined },
 	"common.actions.attachFiles": { variables: undefined },
+	"common.actions.close": { variables: undefined },
+	"common.actions.closeSupport": { variables: undefined },
+	"common.actions.goBack": { variables: undefined },
+	"common.actions.openSupport": { variables: undefined },
 	"common.actions.removeFile": { variables: { fileName: "" as string } },
 	"common.brand.watermark": { variables: undefined },
 	"common.fallbacks.aiAssistant": { variables: undefined },
@@ -178,6 +182,25 @@ export const supportTextDefinitions = {
 	},
 	"component.message.feedback.label": {
 		variables: undefined,
+	},
+	"component.message.downloadFile": {
+		variables: undefined,
+	},
+	"component.imageLightbox.label": { variables: undefined },
+	"component.imageLightbox.close": { variables: undefined },
+	"component.imageLightbox.previous": { variables: undefined },
+	"component.imageLightbox.next": { variables: undefined },
+	"component.searchKnowledgeTool.searching": { variables: undefined },
+	"component.searchKnowledgeTool.searchingQuery": {
+		variables: { query: "" as string },
+	},
+	"component.searchKnowledgeTool.error": { variables: undefined },
+	"component.searchKnowledgeTool.errorQuery": {
+		variables: { query: "" as string },
+	},
+	"component.searchKnowledgeTool.result": { variables: undefined },
+	"component.searchKnowledgeTool.resultQuery": {
+		variables: { query: "" as string },
 	},
 } as const satisfies Record<string, SupportTextDefinition<unknown>>;
 

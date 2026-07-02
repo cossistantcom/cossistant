@@ -77,6 +77,63 @@ describe("support store", () => {
 		expect(store.getState().navigation.current.page).toBe("HOME");
 	});
 
+	it("goes back between two conversations instead of resetting to HOME", () => {
+		store.navigate({
+			page: "CONVERSATION",
+			params: { conversationId: "conv-1" },
+		});
+		store.navigate({
+			page: "CONVERSATION",
+			params: { conversationId: "conv-2" },
+		});
+
+		store.goBack();
+
+		const state = store.getState();
+		expect(state.navigation.current.page).toBe("CONVERSATION");
+		expect(state.navigation.current.params).toEqual({
+			conversationId: "conv-1",
+		});
+		expect(state.navigation.previousPages).toHaveLength(1);
+
+		store.goBack();
+		expect(store.getState().navigation.current.page).toBe("HOME");
+	});
+
+	it("resets to HOME when the previous entry equals the current one", () => {
+		store.navigate({
+			page: "CONVERSATION",
+			params: { conversationId: "conv-1" },
+		});
+		// Force a duplicate entry to simulate a stuck history
+		store.getState().navigation.previousPages.push({
+			page: "CONVERSATION",
+			params: { conversationId: "conv-1" },
+		});
+
+		store.goBack();
+
+		const state = store.getState();
+		expect(state.navigation.current.page).toBe("HOME");
+		expect(state.navigation.previousPages).toHaveLength(0);
+	});
+
+	it("skips pushing history for a no-op navigation", () => {
+		store.navigate({
+			page: "CONVERSATION",
+			params: { conversationId: "conv-1" },
+		});
+		store.navigate({
+			page: "CONVERSATION",
+			params: { conversationId: "conv-1" },
+		});
+
+		expect(store.getState().navigation.previousPages).toHaveLength(1);
+
+		store.goBack();
+		expect(store.getState().navigation.current.page).toBe("HOME");
+	});
+
 	it("updates config and persists", () => {
 		store.open();
 		store.updateConfig({ size: "larger" });

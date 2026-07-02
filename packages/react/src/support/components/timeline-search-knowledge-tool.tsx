@@ -2,6 +2,8 @@
 
 import type React from "react";
 import { extractToolPart } from "../../utils/timeline-tool";
+import { useSupportText } from "../text";
+import type { SupportTextResolvedFormatter } from "../text/locales/keys";
 import { extractWidgetSources } from "./timeline-search-knowledge-sources";
 import type { ConversationTimelineToolProps } from "./timeline-tool-types";
 import { WidgetToolActivityRow } from "./timeline-widget-tool";
@@ -24,27 +26,28 @@ function getKnowledgeSearchText(params: {
 	query: string | null;
 	state: "partial" | "result" | "error";
 	resultFallbackText: string;
+	text: SupportTextResolvedFormatter;
 }): string {
-	const { query, state, resultFallbackText } = params;
+	const { query, state, resultFallbackText, text } = params;
 
 	if (query) {
 		if (state === "partial") {
-			return `Searching for "${query}"...`;
+			return text("component.searchKnowledgeTool.searchingQuery", { query });
 		}
 
 		if (state === "error") {
-			return `Search for "${query}" failed`;
+			return text("component.searchKnowledgeTool.errorQuery", { query });
 		}
 
-		return `Searched for "${query}"`;
+		return text("component.searchKnowledgeTool.resultQuery", { query });
 	}
 
 	if (state === "partial") {
-		return "Searching knowledge base...";
+		return text("component.searchKnowledgeTool.searching");
 	}
 
 	if (state === "error") {
-		return "Knowledge base lookup failed";
+		return text("component.searchKnowledgeTool.error");
 	}
 
 	return resultFallbackText;
@@ -54,6 +57,7 @@ export function SearchKnowledgeTimelineTool({
 	item,
 	showTerminalIndicator = true,
 }: ConversationTimelineToolProps) {
+	const text = useSupportText();
 	const toolPart = extractToolPart(item);
 	const rawState = toolPart?.state ?? "partial";
 	const displayState = useToolDisplayState({
@@ -62,12 +66,13 @@ export function SearchKnowledgeTimelineTool({
 	});
 	const query = extractSearchQuery(toolPart?.input);
 	const resultFallbackText =
-		item.text?.trim() || "Finished knowledge base search";
+		item.text?.trim() || text("component.searchKnowledgeTool.result");
 
-	const text = getKnowledgeSearchText({
+	const label = getKnowledgeSearchText({
 		query,
 		state: displayState,
 		resultFallbackText,
+		text,
 	});
 
 	const widgetSources =
@@ -95,7 +100,7 @@ export function SearchKnowledgeTimelineTool({
 			}
 			showTerminalIndicator={showTerminalIndicator}
 			state={displayState}
-			text={text}
+			text={label}
 		/>
 	);
 }

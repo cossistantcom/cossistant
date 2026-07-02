@@ -122,6 +122,43 @@ export function useSupportText(): SupportTextResolvedFormatter {
 	return context.format;
 }
 
+const fallbackTextContext: SupportTextContext = {
+	website: null,
+	visitor: null,
+	humanAgents: [],
+	aiAgents: [],
+};
+
+let fallbackFormatter: SupportTextResolvedFormatter | null = null;
+
+function getFallbackFormatter(): SupportTextResolvedFormatter {
+	if (!fallbackFormatter) {
+		const utils = createTextUtils("en", false);
+		fallbackFormatter = ((key: SupportTextKey, variables?: unknown) => {
+			const resolved = resolveMessage(key, ["en"], new Map());
+			return evaluateMessage(
+				key,
+				resolved,
+				variables as SupportTextVariables<typeof key>,
+				fallbackTextContext,
+				utils
+			);
+		}) as SupportTextResolvedFormatter;
+	}
+
+	return fallbackFormatter;
+}
+
+/**
+ * Like `useSupportText`, but falls back to the bundled English strings when
+ * no `SupportTextProvider` is mounted. Intended for components that can be
+ * composed outside the default `<Support />` tree (e.g. the exported Header).
+ */
+export function useSupportTextSafe(): SupportTextResolvedFormatter {
+	const context = React.useContext(SupportTextRuntimeContext);
+	return context?.format ?? getFallbackFormatter();
+}
+
 type OptionalVariablesProp<K extends SupportTextKey> =
 	SupportTextDefinitions[K]["variables"] extends undefined
 		? { variables?: undefined }

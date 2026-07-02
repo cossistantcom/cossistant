@@ -469,12 +469,20 @@ export class RealtimeClient {
 
 		const resolved = normalizeAuth(auth);
 
-		if (!authChanged(this.auth, resolved)) {
+		// Skip only when auth is unchanged AND a live connection or scheduled
+		// reconnect already exists. After a permanent close neither exists, so a
+		// later connect() with the same credentials must be able to recover.
+		if (
+			!authChanged(this.auth, resolved) &&
+			(this.state.status !== "disconnected" || this.reconnectTimer !== null)
+		) {
 			return;
 		}
 
 		this.auth = resolved;
 		this.reconnectAttempt = 0;
+		// Clear any pending backoff timer so it cannot open a duplicate socket.
+		this.clearReconnectTimer();
 		this.closeSocket();
 		this.openSocket();
 	}
@@ -490,6 +498,8 @@ export class RealtimeClient {
 		if (this.destroyed || !this.auth) {
 			return;
 		}
+		// Clear any pending backoff timer so it cannot open a duplicate socket.
+		this.clearReconnectTimer();
 		this.closeSocket();
 		this.reconnectAttempt = 0;
 		this.openSocket();

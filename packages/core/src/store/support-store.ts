@@ -142,6 +142,32 @@ function cloneNavigationState<
 	return { ...state } as NavigationState<Routes>;
 }
 
+function isSameNavigationState<
+	Routes extends Record<string, unknown> = RouteRegistry,
+>(a: NavigationState<Routes>, b: NavigationState<Routes>): boolean {
+	if (a.page !== b.page) {
+		return false;
+	}
+
+	const aParams = a.params as Record<string, unknown> | undefined;
+	const bParams = b.params as Record<string, unknown> | undefined;
+
+	if (aParams === bParams) {
+		return true;
+	}
+
+	if (!(aParams && bParams)) {
+		return false;
+	}
+
+	const aKeys = Object.keys(aParams);
+	if (aKeys.length !== Object.keys(bParams).length) {
+		return false;
+	}
+
+	return aKeys.every((key) => aParams[key] === bParams[key]);
+}
+
 function parsePersistedState<
 	Routes extends Record<string, unknown> = RouteRegistry,
 >(
@@ -243,16 +269,23 @@ export function createSupportStore<
 	return {
 		...store,
 		navigate(state) {
-			commit((current) => ({
-				navigation: {
-					previousPages: [
-						...current.navigation.previousPages,
-						current.navigation.current,
-					],
-					current: state,
-				},
-				config: current.config,
-			}));
+			commit((current) => {
+				// Avoid pushing duplicate history entries for a no-op navigation
+				if (isSameNavigationState(current.navigation.current, state)) {
+					return current;
+				}
+
+				return {
+					navigation: {
+						previousPages: [
+							...current.navigation.previousPages,
+							current.navigation.current,
+						],
+						current: state,
+					},
+					config: current.config,
+				};
+			});
 		},
 		replace(state) {
 			commit((current) => ({
@@ -284,9 +317,11 @@ export function createSupportStore<
 					return current;
 				}
 
-				// Safeguard: If the previous page is the same as the current page,
-				// navigate to HOME instead to avoid getting stuck
-				if (previous.page === current.navigation.current.page) {
+				// Safeguard: If the previous entry equals the current one (same
+				// page AND params), navigate to HOME instead to avoid getting
+				// stuck. Same-page entries with different params (e.g. two
+				// conversations) are legitimate history.
+				if (isSameNavigationState(previous, current.navigation.current)) {
 					return {
 						navigation: {
 							previousPages: [],

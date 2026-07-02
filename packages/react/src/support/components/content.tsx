@@ -7,7 +7,7 @@ import {
 	type Placement,
 	shift,
 	useFloating,
-} from "@floating-ui/react";
+} from "@floating-ui/react-dom";
 import * as React from "react";
 import * as Primitive from "../../primitives";
 import { useSupportMode } from "../context/mode";

@@ -51,13 +51,20 @@ Use hooks and primitives directly when you want to own the UI state and pass an
 explicit client. This does not require wrapping that subtree in
 `SupportProvider`.
 
+Unlike `SupportProvider`, the low-level `CossistantClient` does not default its
+endpoints, so `apiUrl` and `wsUrl` are required:
+
 ```tsx
 import { CossistantClient } from "@cossistant/core";
 import { SupportTrigger } from "@cossistant/react/primitives/trigger";
 import { useSubmitFeedback } from "@cossistant/react/hooks/use-submit-feedback";
 import { useState } from "react";
 
-const client = new CossistantClient({ publicKey: "pk_live_..." });
+const client = new CossistantClient({
+  publicKey: "pk_live_...",
+  apiUrl: "https://api.cossistant.com/v1",
+  wsUrl: "wss://api.cossistant.com/ws",
+});
 
 export function CustomFeedbackButton() {
   const [open, setOpen] = useState(false);

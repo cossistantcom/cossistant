@@ -1,7 +1,7 @@
 "use client";
 
 import type { VisitorMetadata } from "@cossistant/types";
-import { type ReactElement, useEffect, useState } from "react";
+import { type ReactElement, useEffect, useRef, useState } from "react";
 import { useVisitor } from "./hooks";
 import { useIdentificationState } from "./support/context/identification";
 import { computeMetadataHash } from "./utils/metadata-hash";
@@ -44,8 +44,15 @@ export const IdentifySupportVisitor = ({
 }: IdentifySupportVisitorProps): ReactElement | null => {
 	const { visitor, identify, setVisitorMetadata } = useVisitor();
 	const identificationState = useIdentificationState();
-	const [hasIdentified, setHasIdentified] = useState(false);
+	// Key of the payload that last identified successfully. Latching the key
+	// (instead of a boolean) re-identifies when the payload meaningfully
+	// changes and never latches on failed or skipped attempts.
+	const [identifiedKey, setIdentifiedKey] = useState<string | null>(null);
+	const identifyInFlightRef = useRef(false);
 	const [lastMetadataHash, setLastMetadataHash] = useState<string | null>(null);
+
+	const identityKey = `${externalId ?? ""}|${email ?? ""}|${name ?? ""}|${image ?? ""}`;
+	const hasIdentified = identifiedKey === identityKey;
 
 	// Signal that identification is pending when we have identification data but no contact yet
 	useEffect(() => {
@@ -71,16 +78,39 @@ export const IdentifySupportVisitor = ({
 				return;
 			}
 
+			// Wait for the visitor session to load; identifying earlier would
+			// silently no-op inside identify(). The effect re-runs once the
+			// website/visitor becomes available.
+			if (!visitor) {
+				return;
+			}
+
+			// Guard concurrent runs (e.g. StrictMode effect replay)
+			if (identifyInFlightRef.current) {
+				return;
+			}
+
 			// Case 1: No contact exists yet
-			if (!visitor?.contact) {
-				if (!hasIdentified) {
-					await identify({
+			if (!visitor.contact) {
+				if (hasIdentified) {
+					return;
+				}
+
+				identifyInFlightRef.current = true;
+				try {
+					const result = await identify({
 						externalId,
 						email,
 						name: name ?? undefined,
 						image: image ?? undefined,
 					});
-					setHasIdentified(true);
+
+					// Only latch on success so transient failures can retry
+					if (result) {
+						setIdentifiedKey(identityKey);
+					}
+				} finally {
+					identifyInFlightRef.current = false;
 					// Clear identifying state after identification completes
 					if (identificationState?.setIsIdentifying) {
 						identificationState.setIsIdentifying(false);
@@ -97,24 +127,30 @@ export const IdentifySupportVisitor = ({
 			const hasChanges = nameChanged || emailChanged || imageChanged;
 
 			if (hasChanges) {
-				await identify({
-					externalId,
-					email,
-					name: name ?? undefined,
-					image: image ?? undefined,
-				});
+				identifyInFlightRef.current = true;
+				try {
+					await identify({
+						externalId,
+						email,
+						name: name ?? undefined,
+						image: image ?? undefined,
+					});
+				} finally {
+					identifyInFlightRef.current = false;
+				}
 			}
 		};
 
-		shouldIdentify();
+		void shouldIdentify();
 	}, [
-		visitor?.contact,
+		visitor,
 		externalId,
 		email,
 		name,
 		image,
 		identify,
 		hasIdentified,
+		identityKey,
 		identificationState,
 	]);
 

@@ -153,7 +153,14 @@ export function buildLocaleChain(
 	const chain: string[] = [];
 
 	const pushLocale = (value: string) => {
-		// Always normalize to base language (en-US -> en, en-GB -> en)
+		// Keep the full tag for exact override matches (pt-BR -> pt-br),
+		// then fall back to the base language (pt-BR -> pt)
+		const fullTag = value.toLowerCase();
+		if (!seen.has(fullTag)) {
+			seen.add(fullTag);
+			chain.push(fullTag);
+		}
+
 		const normalized = normalizeLocaleString(value);
 		if (!seen.has(normalized)) {
 			seen.add(normalized);
@@ -212,6 +219,17 @@ export function normalizeOverrides(
 				locale.toLowerCase(),
 				localizedValue as SupportLocaleMessages[typeof key]
 			);
+		}
+		// Region-subtag overrides (pt-BR) also serve as the base-language
+		// fallback (pt) unless an explicit base-language override exists
+		for (const [locale, localizedValue] of Object.entries(value)) {
+			if (!localizedValue) {
+				continue;
+			}
+			const base = normalizeLocaleString(locale);
+			if (!byLocale.has(base)) {
+				byLocale.set(base, localizedValue as SupportLocaleMessages[typeof key]);
+			}
 		}
 
 		map.set(key, { byLocale });

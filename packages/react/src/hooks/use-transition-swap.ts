@@ -24,6 +24,9 @@ export function useTransitionSwap<K extends string>(
 
 	useEffect(() => {
 		if (activeKey === displayedKey) {
+			// A pending swap was cancelled (key returned to the displayed one
+			// before the exit timeout fired) — recover from the exit phase.
+			setPhase((current) => (current === "exit" ? "enter" : current));
 			return;
 		}
 

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
+import type { TimelineItem as TimelineItemType } from "@cossistant/types/api/timeline-item";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { TimelineItemContent } from "./timeline-item";
+import { TimelineItem, TimelineItemContent } from "./timeline-item";
 
 function renderMessageContent(text: string): string {
 	return renderToStaticMarkup(
@@ -100,5 +101,70 @@ describe("TimelineItemContent", () => {
 		expect(html).toContain('data-co-command-block=""');
 		expect(html).toContain("npm install @cossistant/react");
 		expect(html).not.toContain("<code>pnpm add @cossistant/react</code>");
+	});
+});
+
+function createTimelineItem(
+	overrides: Partial<TimelineItemType> = {}
+): TimelineItemType {
+	const base: TimelineItemType = {
+		id: "item-1",
+		conversationId: "conv-1",
+		organizationId: "org-1",
+		visibility: "public",
+		type: "message",
+		text: "Hello",
+		parts: [],
+		userId: null,
+		visitorId: "visitor-1",
+		aiAgentId: null,
+		createdAt: new Date("2024-01-01T00:00:00.000Z").toISOString(),
+		deletedAt: null,
+	};
+
+	return { ...base, ...overrides };
+}
+
+function renderItem(item: TimelineItemType): string {
+	return renderToStaticMarkup(
+		React.createElement(TimelineItem, { item }, (props) =>
+			React.createElement("span", {
+				"data-sender-type": props.senderType,
+			})
+		)
+	);
+}
+
+describe("TimelineItem sender resolution", () => {
+	it("prefers user sender over ai and visitor ids like getTimelineItemSender", () => {
+		const html = renderItem(
+			createTimelineItem({
+				aiAgentId: "ai-1",
+				userId: "user-1",
+				visitorId: "visitor-1",
+			})
+		);
+
+		expect(html).toContain('data-sender-type="human"');
+		expect(html).toContain("from human agent");
+	});
+
+	it("prefers ai sender over visitor id", () => {
+		const html = renderItem(
+			createTimelineItem({
+				aiAgentId: "ai-1",
+				visitorId: "visitor-1",
+			})
+		);
+
+		expect(html).toContain('data-sender-type="ai"');
+		expect(html).toContain("from AI assistant");
+	});
+
+	it("resolves visitor-only items as visitor", () => {
+		const html = renderItem(createTimelineItem());
+
+		expect(html).toContain('data-sender-type="visitor"');
+		expect(html).toContain("from visitor");
 	});
 });

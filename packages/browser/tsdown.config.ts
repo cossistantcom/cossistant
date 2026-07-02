@@ -9,11 +9,14 @@ export default defineConfig({
 	],
 	clean: true,
 	dts: {
+		// Resolved workspace declarations are rewritten back to package
+		// specifiers by scripts/rewrite-dist-types.ts, and the vendored
+		// dist/packages tree is removed before publishing.
 		resolve: true,
 	},
 	hash: false,
 	minify: false,
-	sourcemap: true,
+	sourcemap: false,
 	treeshake: true,
 	unbundle: true,
 	outExtensions: () => ({
@@ -27,5 +30,6 @@ export default defineConfig({
 		"react/jsx-runtime",
 		"@cossistant/core",
 		"@cossistant/react",
+		"@cossistant/types",
 	],
 });

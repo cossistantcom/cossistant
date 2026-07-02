@@ -31,9 +31,24 @@ NEXT_PUBLIC_COSSISTANT_API_KEY=pk_live_xxxxxxxxxxxx
   </TabsContent>
   <TabsContent value="other">
 
+For frameworks without a public env variable convention (CRA, Remix, etc.),
+pass the key directly via the `publicKey` prop:
+
+```tsx
+<SupportProvider publicKey="pk_live_xxxxxxxxxxxx">
+```
+
+The generic env variable only works when your bundler or server inlines
+`process.env.COSSISTANT_API_KEY` into browser code (for example a custom
+webpack `DefinePlugin`, or SSR that renders the provider with the key):
+
 ```bash title=".env"
 COSSISTANT_API_KEY=pk_live_xxxxxxxxxxxx
 ```
+
+CRA only exposes `REACT_APP_*` variables and Remix does not expose
+`process.env` to the client at all, so on those frameworks prefer the
+`publicKey` prop.
 
   </TabsContent>
 </Tabs>
@@ -42,10 +57,10 @@ COSSISTANT_API_KEY=pk_live_xxxxxxxxxxxx
   <Icon name="help" className="size-4" />
   <AlertTitle>Auto-detection</AlertTitle>
   <AlertDescription>
-    The SDK automatically detects your framework and checks
-    `VITE_COSSISTANT_API_KEY` (Vite), `NEXT_PUBLIC_COSSISTANT_API_KEY`
-    (Next.js), or `COSSISTANT_API_KEY` (other). You can also pass the key
-    explicitly through `publicKey`.
+    The SDK automatically reads `VITE_COSSISTANT_API_KEY` (Vite),
+    `NEXT_PUBLIC_COSSISTANT_API_KEY` (Next.js), or `COSSISTANT_API_KEY`
+    (only when your bundler or server inlines `process.env` into client code).
+    You can also pass the key explicitly through `publicKey`.
   </AlertDescription>
 </Alert>
 

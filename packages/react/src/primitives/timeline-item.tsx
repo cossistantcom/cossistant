@@ -1,10 +1,14 @@
+"use client";
+
 import type { MarkdownToken } from "@cossistant/tiny-markdown";
 import {
 	hasMarkdownFormatting,
 	parseMarkdown,
 } from "@cossistant/tiny-markdown/utils";
 import type { TimelineItem as TimelineItemType } from "@cossistant/types/api/timeline-item";
+import { SenderType } from "@cossistant/types/enums";
 import * as React from "react";
+import { getTimelineItemSender } from "../utils/timeline-item-sender";
 import { useRenderElement } from "../utils/use-render-element";
 import {
 	type CommandVariants,
@@ -48,10 +52,12 @@ export type TimelineItemProps = Omit<
 export const TimelineItem = (() => {
 	const Component = React.forwardRef<HTMLDivElement, TimelineItemProps>(
 		({ children, className, asChild = false, item, ...props }, ref) => {
-			// Determine sender type from timeline item properties
-			const isVisitor = item.visitorId !== null;
-			const isAI = item.aiAgentId !== null;
-			const isHuman = item.userId !== null && !isVisitor;
+			// Resolve the acting sender with the shared precedence
+			// (user -> AI -> visitor) used by TimelineItemGroup and the hooks
+			const resolvedSender = getTimelineItemSender(item);
+			const isVisitor = resolvedSender.senderType === SenderType.VISITOR;
+			const isAI = resolvedSender.senderType === SenderType.AI;
+			const isHuman = resolvedSender.senderType === SenderType.TEAM_MEMBER;
 
 			const senderType = isVisitor ? "visitor" : isAI ? "ai" : "human";
 

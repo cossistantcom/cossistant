@@ -2,6 +2,10 @@ import {
 	type BrowserEmbedAssetUrls,
 	resolveBrowserEmbedAssetUrlsFromDocument,
 } from "./asset-urls";
+import {
+	type BrowserEmbedAutoInitOptions,
+	resolveBrowserEmbedAutoInitOptionsFromDocument,
+} from "./auto-init";
 
 type BrowserLoaderCall = {
 	args: unknown[];
@@ -35,6 +39,7 @@ type BrowserLoaderStub = {
 type BrowserLoaderWindow = Window & {
 	__COSSISTANT_BROWSER_WIDGET_LOADER__?: {
 		assets: BrowserEmbedAssetUrls;
+		autoInit?: BrowserEmbedAutoInitOptions;
 		isLoading: boolean;
 	};
 	Cossistant?:
@@ -84,6 +89,7 @@ export function installCossistantBrowserLoader() {
 
 	const globalWindow = window as BrowserLoaderWindow;
 	const assets = resolveBrowserEmbedAssetUrlsFromDocument(document);
+	const autoInit = resolveBrowserEmbedAutoInitOptionsFromDocument(document);
 
 	if (!assets) {
 		throw new Error(
@@ -109,15 +115,30 @@ export function installCossistantBrowserLoader() {
 		return;
 	}
 
+	// Adopt any user-created pre-load stub that has a queue, even when it
+	// lacks __assets or some methods; missing pieces are backfilled below.
 	const stub =
-		existing && "__queue" in existing && "__assets" in existing
+		existing && "__queue" in existing && Array.isArray(existing.__queue)
 			? existing
 			: createLoaderStub(assets);
 
 	stub.__assets = assets;
+	stub.__isCossistantLoaderStub = true;
+	for (const method of LOADER_METHODS) {
+		if (typeof stub[method] !== "function") {
+			stub[method] = (...args: unknown[]) => {
+				stub.__queue.push({
+					args,
+					method,
+				});
+			};
+		}
+	}
+
 	globalWindow.Cossistant = stub;
 	globalWindow.__COSSISTANT_BROWSER_WIDGET_LOADER__ = {
 		assets,
+		autoInit: autoInit ?? undefined,
 		isLoading: true,
 	};
 

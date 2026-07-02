@@ -1,3 +1,5 @@
+"use client";
+
 export type { AvatarProps } from "./avatar";
 export { Avatar } from "./avatar";
 export type { AvatarFallbackProps } from "./fallback";

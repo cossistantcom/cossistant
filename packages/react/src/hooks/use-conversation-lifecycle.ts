@@ -97,6 +97,19 @@ export function useConversationLifecycle(
 	const [conversationId, setConversationIdState] = useState(
 		initialConversationId
 	);
+	const [previousInitialConversationId, setPreviousInitialConversationId] =
+		useState(initialConversationId);
+	const conversationIdRef = useRef(conversationId);
+	conversationIdRef.current = conversationId;
+
+	// Resync when the caller navigates to a different conversation (URL param
+	// or router state change) without unmounting this hook.
+	if (previousInitialConversationId !== initialConversationId) {
+		setPreviousInitialConversationId(initialConversationId);
+		setConversationIdState(initialConversationId);
+		conversationIdRef.current = initialConversationId;
+	}
+
 	const onConversationCreatedRef = useRef(onConversationCreated);
 
 	// Keep callback ref up to date
@@ -105,16 +118,16 @@ export function useConversationLifecycle(
 	}, [onConversationCreated]);
 
 	const setConversationId = useCallback((newId: string) => {
-		setConversationIdState((current) => {
-			// Only trigger callback if transitioning from pending to real
-			if (
-				current === PENDING_CONVERSATION_ID &&
-				newId !== PENDING_CONVERSATION_ID
-			) {
-				onConversationCreatedRef.current?.(newId);
-			}
-			return newId;
-		});
+		// The callback runs outside the setState updater: updaters must stay
+		// side-effect free (StrictMode invokes them twice).
+		const wasPending = conversationIdRef.current === PENDING_CONVERSATION_ID;
+		conversationIdRef.current = newId;
+		setConversationIdState(newId);
+
+		// Only trigger callback if transitioning from pending to real
+		if (wasPending && newId !== PENDING_CONVERSATION_ID) {
+			onConversationCreatedRef.current?.(newId);
+		}
 	}, []);
 
 	const isPending = conversationId === PENDING_CONVERSATION_ID;

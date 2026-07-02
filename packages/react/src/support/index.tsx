@@ -1001,7 +1001,15 @@ export type {
 // Component Exports
 // =============================================================================
 
-export { CoButton as Button } from "./components/button";
+export type { CossistantButtonProps as SupportButtonProps } from "./components/button";
+export {
+	/**
+	 * @deprecated Use `SupportButton` instead. `Button` collides with the
+	 * headless `Button` primitive from `@cossistant/react/primitives/button`.
+	 */
+	CoButton as Button,
+	CoButton as SupportButton,
+} from "./components/button";
 export { Header } from "./components/header";
 
 // =============================================================================

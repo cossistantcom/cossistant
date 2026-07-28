@@ -398,6 +398,23 @@
         "react-dom": ">=18 <20",
       },
     },
+    "packages/protocol": {
+      "name": "@cossistant/protocol",
+      "version": "0.2.0",
+      "dependencies": {
+        "@cossistant/types": "workspace:*",
+        "@hono/zod-openapi": "^1.5.1",
+        "openapi3-ts": "^4.5.0",
+        "zod": "^4.3.6",
+      },
+      "devDependencies": {
+        "@cossistant/typescript-config": "workspace:*",
+        "hono": "^4.12.32",
+      },
+      "peerDependencies": {
+        "hono": ">=4.10.0",
+      },
+    },
     "packages/react": {
       "name": "@cossistant/react",
       "version": "0.2.0",
@@ -847,6 +864,8 @@
     "@cossistant/memory": ["@cossistant/memory@workspace:packages/memory"],
 
     "@cossistant/next": ["@cossistant/next@workspace:packages/next"],
+
+    "@cossistant/protocol": ["@cossistant/protocol@workspace:packages/protocol"],
 
     "@cossistant/react": ["@cossistant/react@workspace:packages/react"],
 

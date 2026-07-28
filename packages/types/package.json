@@ -34,8 +34,8 @@
     "@cossistant/typescript-config": "workspace:*"
   },
   "dependencies": {
-    "zod": "^4.1.8",
-    "@hono/zod-openapi": "^1.1.0"
+    "zod": "^4.3.6",
+    "@hono/zod-openapi": "^1.5.1"
   },
   "scripts": {
     "build": "tsdown && bun run prepare-package",

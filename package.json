@@ -66,6 +66,8 @@
   },
   "overrides": {
     "@ai-sdk/provider": "3.0.8",
-    "@polar-sh/sdk": "^0.44.0"
+    "@polar-sh/sdk": "^0.44.0",
+    "@asteasolutions/zod-to-openapi": "8.5.0",
+    "zod": "4.3.6"
   }
 }

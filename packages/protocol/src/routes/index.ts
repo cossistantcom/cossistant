@@ -1,5 +1,6 @@
 import type { RouteGroup } from "../mount";
 import { AI_AGENT_ROUTES } from "./ai-agents";
+import { CONTACT_CONTROL_ROUTES, CONTACT_RUNTIME_ROUTES } from "./contacts";
 import { FEEDBACK_CREATE_ROUTES, FEEDBACK_READ_ROUTES } from "./feedback";
 import { KNOWLEDGE_ROUTES } from "./knowledge";
 import { MESSAGES_ROUTES } from "./messages";
@@ -10,6 +11,7 @@ import { VISITOR_ROUTES } from "./visitors";
 import { WEBSITE_ROUTES } from "./websites";
 
 export * from "./ai-agents";
+export * from "./contacts";
 export * from "./feedback";
 export * from "./knowledge";
 export * from "./messages";
@@ -31,6 +33,13 @@ export const REST_MOUNT_TABLE: readonly RouteGroup[] = [
 	{ prefix: "/websites", routes: WEBSITE_ROUTES },
 	{ prefix: "/messages", routes: MESSAGES_ROUTES },
 	{ prefix: "/visitors", routes: VISITOR_ROUTES },
+	{
+		prefix: "/contacts",
+		groups: [
+			{ prefix: "/", routes: CONTACT_RUNTIME_ROUTES },
+			{ prefix: "/", routes: CONTACT_CONTROL_ROUTES },
+		],
+	},
 	{
 		prefix: "/support",
 		groups: [

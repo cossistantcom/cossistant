@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import * as schema from "@api/db/schema";
 import type { AnyRealtimeEvent } from "@cossistant/types/realtime-events";
 import type { EventContext } from "./router";
 import type { RawSocket } from "./socket";
@@ -22,18 +23,12 @@ mock.module("@api/db/queries/session", () => ({
 mock.module("@api/db/queries/website", () => ({
 	getWebsiteByIdWithAccess: async () => null,
 }));
+// Spread the real schema barrel rather than enumerating tables: Drizzle table
+// definitions are side-effect free, and an omitted export would surface as
+// "Export named 'x' not found" for any importer, since mock.module replaces the
+// module wholesale.
 mock.module("@api/db/schema", () => ({
-	website: {},
-	organization: {},
-	user: {},
-	member: {},
-	visitor: {},
-	view: {},
-	conversation: {},
-	conversationView: {},
-	conversationSeen: {},
-	conversationTimelineItem: {},
-	aiAgent: {},
+	...schema,
 }));
 mock.module("@api/lib/auth", () => ({
 	auth: {

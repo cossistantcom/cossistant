@@ -115,6 +115,7 @@ mock.module("@api/db/queries/conversation", () => ({
 	getConversationByIdWithLastMessage: getConversationByIdWithLastMessageMock,
 	getConversationHeader: getConversationHeaderMock,
 	getConversationSeenData: getConversationSeenDataMock,
+	getConversationTimelineItemByIdForOrganization: mock(async () => null),
 	getConversationTimelineItems: getConversationTimelineItemsMock,
 	listConversations: listConversationsMock,
 	listConversationsHeaders: listConversationsHeadersMock,

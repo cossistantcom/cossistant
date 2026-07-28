@@ -172,6 +172,15 @@
       "cache": false,
       "dependsOn": ["^build"],
       "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "check:openapi": {
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "inputs": ["src/**", "openapi.json"]
     }
   }
 }

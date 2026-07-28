@@ -32,7 +32,8 @@
   },
   "devDependencies": {
     "@cossistant/typescript-config": "workspace:*",
-    "hono": "^4.12.32"
+    "hono": "^4.12.32",
+    "@types/bun": "^1.3.6"
   },
   "dependencies": {
     "@cossistant/types": "workspace:*",

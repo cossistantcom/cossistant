@@ -46,6 +46,7 @@
         "@cossistant/jobs": "workspace:*",
         "@cossistant/location": "workspace:*",
         "@cossistant/memory": "workspace:*",
+        "@cossistant/protocol": "workspace:*",
         "@cossistant/redis": "workspace:*",
         "@cossistant/transactional": "workspace:*",
         "@cossistant/types": "workspace:*",
@@ -409,6 +410,7 @@
       },
       "devDependencies": {
         "@cossistant/typescript-config": "workspace:*",
+        "@types/bun": "^1.3.6",
         "hono": "^4.12.32",
       },
       "peerDependencies": {

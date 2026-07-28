@@ -21,6 +21,7 @@
     "@cossistant/jobs": "workspace:*",
     "@cossistant/location": "workspace:*",
     "@cossistant/memory": "workspace:*",
+    "@cossistant/protocol": "workspace:*",
     "@cossistant/redis": "workspace:*",
     "@cossistant/transactional": "workspace:*",
     "@cossistant/types": "workspace:*",

@@ -93,6 +93,34 @@ import {
 	validateResponse,
 } from "@api/utils/validate";
 import {
+	archiveConversationRoute,
+	createConversationRatingRoute,
+	createConversationRoute,
+	exportConversationRoute,
+	getConversationContextRoute,
+	getConversationRoute,
+	getConversationSeenRoute,
+	getConversationTimelineRoute,
+	joinConversationEscalationRoute,
+	listConversationsRoute,
+	listInboxConversationsRoute,
+	markConversationAsNotSpamRoute,
+	markConversationAsReadRoute,
+	markConversationAsSpamRoute,
+	markConversationAsUnreadRoute,
+	markConversationSeenRoute,
+	pauseConversationAiRoute,
+	reopenConversationRoute,
+	resolveConversationRoute,
+	resumeConversationAiRoute,
+	setConversationTypingRoute,
+	unarchiveConversationRoute,
+	updateConversationMetadataRoute,
+	updateConversationPriorityRoute,
+	updateConversationSentimentRoute,
+	updateConversationTitleRoute,
+} from "@cossistant/protocol/routes";
+import {
 	APIKeyType,
 	ConversationEventType,
 	TimelineItemVisibility,
@@ -633,178 +661,148 @@ export const conversationRouter = new OpenAPIHono<RestContext>();
 // Apply middleware to all routes in this router
 conversationRouter.use("/*", ...protectedPublicApiKeyMiddleware);
 
-conversationRouter.openapi(
-	{
-		method: "post",
-		path: "/",
-		summary: "Create a conversation (optionally with initial timeline items)",
-		description:
-			"Create a conversation; optionally pass a conversationId, public metadata, and a set of default timeline items. When a default item's createdAt is omitted, the server assigns the timestamp. Historical timestamps are allowed. Timestamps more than 5 minutes in the future are rejected.",
-		tags: ["Conversations"],
-		request: {
-			body: {
-				required: true,
-				content: {
-					"application/json": {
-						schema: createConversationRequestSchema,
-					},
-				},
-			},
-		},
-		responses: {
-			200: {
-				description: "Conversation created",
-				content: {
-					"application/json": {
-						schema: createConversationResponseSchema,
-					},
-				},
-			},
-			409: {
-				description:
-					"Conversation ID conflict (already exists for a different visitor or tenant)",
-				content: {
-					"application/json": {
-						schema: createConversationConflictResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse(
-				"Invalid request or defaultTimelineItems createdAt more than 5 minutes in the future"
-			),
-			401: errorJsonResponse("Unauthorized - Invalid or missing API key"),
-			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
-		},
-		...runtimeDualAuth({ includeVisitorIdHeader: true }),
-	},
-	async (c) => {
-		const { db, website, organization, body, visitorIdHeader } =
-			await safelyExtractRequestData(c, createConversationRequestSchema);
+conversationRouter.openapi(createConversationRoute, async (c) => {
+	const { db, website, organization, body, visitorIdHeader } =
+		await safelyExtractRequestData(c, createConversationRequestSchema);
 
-		type NormalizedDefaultTimelineItemInput = Omit<
-			TimelineItemCreateInput,
-			"createdAt"
-		> & {
-			createdAt?: Date;
-		};
+	type NormalizedDefaultTimelineItemInput = Omit<
+		TimelineItemCreateInput,
+		"createdAt"
+	> & {
+		createdAt?: Date;
+	};
 
-		let normalizedDefaults: NormalizedDefaultTimelineItemInput[];
-		try {
-			normalizedDefaults = (body.defaultTimelineItems ?? []).map(
-				(item, index) => ({
-					...item,
-					createdAt: normalizeClientTimelineItemCreatedAt({
-						createdAt: item.createdAt,
-						field: `defaultTimelineItems[${index}].createdAt`,
-					}),
-				})
-			);
-		} catch (error) {
-			if (error instanceof ClientTimelineItemCreatedAtValidationError) {
-				return restError(c, 400, "BAD_REQUEST", error.message);
-			}
-
-			throw error;
-		}
-
-		const visitorIdentity = await resolveRuntimeVisitorIdentity({
-			c,
-			db,
-			organizationId: organization.id,
-			websiteId: website.id,
-			headerVisitorId: visitorIdHeader,
-			requestVisitorId: body.visitorId,
-		});
-
-		if (visitorIdentity.error) {
-			return visitorIdentity.error;
-		}
-
-		const visitor = visitorIdentity.visitor;
-		if (!visitor) {
-			return restError(
-				c,
-				400,
-				"BAD_REQUEST",
-				"Visitor not found, please pass a valid visitorId"
-			);
-		}
-
-		const upsertResult = await upsertConversation(db, {
-			organizationId: organization.id,
-			websiteId: website.id,
-			visitorId: visitor.id,
-			conversationId: body.conversationId,
-			channel: body.channel,
-			metadata: body.metadata,
-			visitorLanguage: null,
-		});
-		if (upsertResult.status === "conflict") {
-			return c.json(
-				createConversationConflictResponse({
-					code: "CONVERSATION_ID_CONFLICT",
-					error: "Conversation ID already exists for another visitor",
-				}),
-				409
-			);
-		}
-		const conversationRecord = upsertResult.conversation;
-
-		// Add default participants if configured
-		const defaultParticipantIds = await getDefaultParticipants(db, website);
-		if (defaultParticipantIds.length > 0) {
-			await addConversationParticipants(db, {
-				conversationId: conversationRecord.id,
-				userIds: defaultParticipantIds,
-				organizationId: organization.id,
-				reason: "Default participant",
-			});
-		}
-
-		const planInfo = await getPlanForWebsite(website);
-		const autoTranslateEnabled = isAutomaticTranslationEnabled({
-			planAllowsAutoTranslate: planInfo.features["auto-translate"] === true,
-			websiteAutoTranslateEnabled: website.autoTranslateEnabled,
-		});
-		const preparedDefaults = normalizedDefaults.map((item, index) =>
-			mapDefaultTimelineItemForCreation({
+	let normalizedDefaults: NormalizedDefaultTimelineItemInput[];
+	try {
+		normalizedDefaults = (body.defaultTimelineItems ?? []).map(
+			(item, index) => ({
 				...item,
-				id:
-					item.id ??
-					buildDefaultTimelineItemId({
-						conversationId: conversationRecord.id,
-						index,
-						item,
-					}),
+				createdAt: normalizeClientTimelineItemCreatedAt({
+					createdAt: item.createdAt,
+					field: `defaultTimelineItems[${index}].createdAt`,
+				}),
 			})
 		);
-		let resolvedVisitorLanguage = resolveCreateConversationVisitorLanguage({
-			defaultTimelineItems: preparedDefaults,
-			visitorLanguage: conversationRecord.visitorLanguage ?? null,
+	} catch (error) {
+		if (error instanceof ClientTimelineItemCreatedAtValidationError) {
+			return restError(c, 400, "BAD_REQUEST", error.message);
+		}
+
+		throw error;
+	}
+
+	const visitorIdentity = await resolveRuntimeVisitorIdentity({
+		c,
+		db,
+		organizationId: organization.id,
+		websiteId: website.id,
+		headerVisitorId: visitorIdHeader,
+		requestVisitorId: body.visitorId,
+	});
+
+	if (visitorIdentity.error) {
+		return visitorIdentity.error;
+	}
+
+	const visitor = visitorIdentity.visitor;
+	if (!visitor) {
+		return restError(
+			c,
+			400,
+			"BAD_REQUEST",
+			"Visitor not found, please pass a valid visitorId"
+		);
+	}
+
+	const upsertResult = await upsertConversation(db, {
+		organizationId: organization.id,
+		websiteId: website.id,
+		visitorId: visitor.id,
+		conversationId: body.conversationId,
+		channel: body.channel,
+		metadata: body.metadata,
+		visitorLanguage: null,
+	});
+	if (upsertResult.status === "conflict") {
+		return c.json(
+			createConversationConflictResponse({
+				code: "CONVERSATION_ID_CONFLICT",
+				error: "Conversation ID already exists for another visitor",
+			}),
+			409
+		);
+	}
+	const conversationRecord = upsertResult.conversation;
+
+	// Add default participants if configured
+	const defaultParticipantIds = await getDefaultParticipants(db, website);
+	if (defaultParticipantIds.length > 0) {
+		await addConversationParticipants(db, {
+			conversationId: conversationRecord.id,
+			userIds: defaultParticipantIds,
+			organizationId: organization.id,
+			reason: "Default participant",
 		});
-		let hasBootstrapTranslationPart = false;
-		let bootstrapBillingSource: OpenRouterBillingSource | undefined;
-		const translatedDefaults: ReturnType<
-			typeof mapDefaultTimelineItemForCreation
-		>[] = [];
+	}
 
-		for (const preparedItem of preparedDefaults) {
-			if (preparedItem.kind !== "message") {
-				translatedDefaults.push(preparedItem);
-				continue;
-			}
+	const planInfo = await getPlanForWebsite(website);
+	const autoTranslateEnabled = isAutomaticTranslationEnabled({
+		planAllowsAutoTranslate: planInfo.features["auto-translate"] === true,
+		websiteAutoTranslateEnabled: website.autoTranslateEnabled,
+	});
+	const preparedDefaults = normalizedDefaults.map((item, index) =>
+		mapDefaultTimelineItemForCreation({
+			...item,
+			id:
+				item.id ??
+				buildDefaultTimelineItemId({
+					conversationId: conversationRecord.id,
+					index,
+					item,
+				}),
+		})
+	);
+	let resolvedVisitorLanguage = resolveCreateConversationVisitorLanguage({
+		defaultTimelineItems: preparedDefaults,
+		visitorLanguage: conversationRecord.visitorLanguage ?? null,
+	});
+	let hasBootstrapTranslationPart = false;
+	let bootstrapBillingSource: OpenRouterBillingSource | undefined;
+	const translatedDefaults: ReturnType<
+		typeof mapDefaultTimelineItemForCreation
+	>[] = [];
 
-			const isVisitorMessage =
-				Boolean(preparedItem.input.visitorId) &&
-				!preparedItem.input.userId &&
-				!preparedItem.input.aiAgentId;
-			const inboundTranslation = isVisitorMessage
-				? await prepareInboundVisitorTranslation({
+	for (const preparedItem of preparedDefaults) {
+		if (preparedItem.kind !== "message") {
+			translatedDefaults.push(preparedItem);
+			continue;
+		}
+
+		const isVisitorMessage =
+			Boolean(preparedItem.input.visitorId) &&
+			!preparedItem.input.userId &&
+			!preparedItem.input.aiAgentId;
+		const inboundTranslation = isVisitorMessage
+			? await prepareInboundVisitorTranslation({
+					text: preparedItem.input.text,
+					websiteDefaultLanguage: website.defaultLanguage,
+					visitorLanguageHint: resolvedVisitorLanguage,
+					mode: "auto",
+					autoTranslateEnabled,
+					aiContext: {
+						db,
+						organizationId: organization.id,
+						websiteId: website.id,
+					},
+				})
+			: null;
+		const outboundTranslation =
+			!isVisitorMessage && autoTranslateEnabled
+				? await prepareOutboundVisitorTranslation({
 						text: preparedItem.input.text,
-						websiteDefaultLanguage: website.defaultLanguage,
-						visitorLanguageHint: resolvedVisitorLanguage,
+						sourceLanguage: website.defaultLanguage,
+						visitorLanguage: resolvedVisitorLanguage,
 						mode: "auto",
-						autoTranslateEnabled,
 						aiContext: {
 							db,
 							organizationId: organization.id,
@@ -812,2675 +810,1744 @@ conversationRouter.openapi(
 						},
 					})
 				: null;
-			const outboundTranslation =
-				!isVisitorMessage && autoTranslateEnabled
-					? await prepareOutboundVisitorTranslation({
-							text: preparedItem.input.text,
-							sourceLanguage: website.defaultLanguage,
-							visitorLanguage: resolvedVisitorLanguage,
-							mode: "auto",
-							aiContext: {
-								db,
-								organizationId: organization.id,
-								websiteId: website.id,
-							},
-						})
-					: null;
 
-			if (inboundTranslation?.visitorLanguage) {
-				resolvedVisitorLanguage = inboundTranslation.visitorLanguage;
-			}
-
-			let extraParts = preparedItem.input.extraParts;
-
-			if (inboundTranslation?.translationPart) {
-				hasBootstrapTranslationPart = true;
-				if (inboundTranslation.translationResult.status === "translated") {
-					bootstrapBillingSource =
-						inboundTranslation.translationResult.billingSource ??
-						bootstrapBillingSource;
-				}
-				extraParts = replaceAudienceTranslationPart(
-					extraParts,
-					"team",
-					inboundTranslation.translationPart
-				);
-			}
-
-			if (outboundTranslation?.translationPart) {
-				hasBootstrapTranslationPart = true;
-				if (outboundTranslation.translationResult.status === "translated") {
-					bootstrapBillingSource =
-						outboundTranslation.translationResult.billingSource ??
-						bootstrapBillingSource;
-				}
-				extraParts = replaceAudienceTranslationPart(
-					extraParts,
-					"visitor",
-					outboundTranslation.translationPart
-				);
-			}
-
-			translatedDefaults.push({
-				...preparedItem,
-				input: {
-					...preparedItem.input,
-					extraParts,
-				},
-			});
+		if (inboundTranslation?.visitorLanguage) {
+			resolvedVisitorLanguage = inboundTranslation.visitorLanguage;
 		}
 
-		const createdItemsWithActors: Array<{
-			item: (ConversationTimelineItemRow & { parts: unknown }) | TimelineItem;
-			actor: MessageTimelineActor | null;
-			isNew: boolean;
-		}> = [];
+		let extraParts = preparedItem.input.extraParts;
 
-		for (const preparedItem of translatedDefaults) {
-			const timelineItemId = preparedItem.input.id;
-
-			if (!timelineItemId) {
-				throw new Error("Expected prepared default timeline item id");
+		if (inboundTranslation?.translationPart) {
+			hasBootstrapTranslationPart = true;
+			if (inboundTranslation.translationResult.status === "translated") {
+				bootstrapBillingSource =
+					inboundTranslation.translationResult.billingSource ??
+					bootstrapBillingSource;
 			}
+			extraParts = replaceAudienceTranslationPart(
+				extraParts,
+				"team",
+				inboundTranslation.translationPart
+			);
+		}
 
-			try {
-				if (preparedItem.kind === "message") {
-					const created = await createMessageTimelineItem({
-						db,
-						organizationId: organization.id,
-						websiteId: website.id,
-						conversationId: conversationRecord.id,
-						conversationOwnerVisitorId: conversationRecord.visitorId,
-						id: preparedItem.input.id,
-						text: preparedItem.input.text,
-						extraParts: preparedItem.input.extraParts,
-						visibility: preparedItem.input.visibility,
-						userId: preparedItem.input.userId,
-						aiAgentId: preparedItem.input.aiAgentId,
-						visitorId: preparedItem.input.visitorId,
-						createdAt: preparedItem.input.createdAt,
-						tool: preparedItem.input.tool,
-					});
-					createdItemsWithActors.push({
-						item: created.item,
-						actor: created.actor,
-						isNew: true,
-					});
-					continue;
-				}
+		if (outboundTranslation?.translationPart) {
+			hasBootstrapTranslationPart = true;
+			if (outboundTranslation.translationResult.status === "translated") {
+				bootstrapBillingSource =
+					outboundTranslation.translationResult.billingSource ??
+					bootstrapBillingSource;
+			}
+			extraParts = replaceAudienceTranslationPart(
+				extraParts,
+				"visitor",
+				outboundTranslation.translationPart
+			);
+		}
 
-				const createdItem = await createTimelineItem({
+		translatedDefaults.push({
+			...preparedItem,
+			input: {
+				...preparedItem.input,
+				extraParts,
+			},
+		});
+	}
+
+	const createdItemsWithActors: Array<{
+		item: (ConversationTimelineItemRow & { parts: unknown }) | TimelineItem;
+		actor: MessageTimelineActor | null;
+		isNew: boolean;
+	}> = [];
+
+	for (const preparedItem of translatedDefaults) {
+		const timelineItemId = preparedItem.input.id;
+
+		if (!timelineItemId) {
+			throw new Error("Expected prepared default timeline item id");
+		}
+
+		try {
+			if (preparedItem.kind === "message") {
+				const created = await createMessageTimelineItem({
 					db,
 					organizationId: organization.id,
 					websiteId: website.id,
 					conversationId: conversationRecord.id,
 					conversationOwnerVisitorId: conversationRecord.visitorId,
-					item: preparedItem.input,
+					id: preparedItem.input.id,
+					text: preparedItem.input.text,
+					extraParts: preparedItem.input.extraParts,
+					visibility: preparedItem.input.visibility,
+					userId: preparedItem.input.userId,
+					aiAgentId: preparedItem.input.aiAgentId,
+					visitorId: preparedItem.input.visitorId,
+					createdAt: preparedItem.input.createdAt,
+					tool: preparedItem.input.tool,
 				});
 				createdItemsWithActors.push({
-					item: createdItem,
-					actor: null,
+					item: created.item,
+					actor: created.actor,
 					isNew: true,
 				});
-			} catch (error) {
-				if (!isUniqueViolationError(error)) {
-					throw error;
-				}
-
-				const existingTimelineItem =
-					await getConversationTimelineItemByIdForOrganization(db, {
-						timelineItemId,
-						organizationId: organization.id,
-					});
-
-				if (!existingTimelineItem) {
-					throw new Error(
-						`Unable to resolve timeline item conflict for id ${timelineItemId}`
-					);
-				}
-
-				if (existingTimelineItem.conversationId !== conversationRecord.id) {
-					return c.json(
-						createConversationConflictResponse({
-							code: "TIMELINE_ITEM_ID_CONFLICT",
-							error: "Timeline item ID collision detected",
-						}),
-						409
-					);
-				}
-
-				const actor = resolveMessageTimelineActor(
-					existingTimelineItem,
-					conversationRecord.visitorId
-				);
-
-				createdItemsWithActors.push({
-					item: existingTimelineItem,
-					actor: existingTimelineItem.type === "message" ? actor : null,
-					isNew: false,
-				});
-			}
-		}
-
-		const createdItems = createdItemsWithActors.map(({ item }) => item);
-		const shouldFinalizeBootstrapTranslation =
-			hasBootstrapTranslationPart ||
-			Boolean(
-				resolvedVisitorLanguage &&
-					resolvedVisitorLanguage !== conversationRecord.visitorLanguage
-			);
-		const responseConversation = shouldFinalizeBootstrapTranslation
-			? applyTranslationFinalizeResult(
-					conversationRecord,
-					await finalizeConversationTranslation({
-						db,
-						conversation: conversationRecord,
-						websiteDefaultLanguage: website.defaultLanguage,
-						visitorLanguage: resolvedVisitorLanguage,
-						hasTranslationPart: hasBootstrapTranslationPart,
-						chargeCredits: autoTranslateEnabled,
-						billingSource: bootstrapBillingSource,
-						emitRealtime: false,
-					})
-				)
-			: conversationRecord;
-
-		// Trigger notification workflow for initial message items explicitly.
-		for (const { item, actor, isNew } of createdItemsWithActors) {
-			if (!isNew || item.type !== "message" || !actor || !item.id) {
 				continue;
 			}
 
-			try {
-				await triggerMessageNotificationWorkflow({
-					conversationId: conversationRecord.id,
-					messageId: item.id,
-					websiteId: website.id,
-					organizationId: organization.id,
-					actor,
-				});
-			} catch (error) {
-				console.error("[conversation.create] Notification trigger failed", {
-					stage: "trigger_notification_workflow",
-					conversationId: conversationRecord.id,
-					messageId: item.id,
-					organizationId: organization.id,
-					websiteId: website.id,
-					error,
-				});
+			const createdItem = await createTimelineItem({
+				db,
+				organizationId: organization.id,
+				websiteId: website.id,
+				conversationId: conversationRecord.id,
+				conversationOwnerVisitorId: conversationRecord.visitorId,
+				item: preparedItem.input,
+			});
+			createdItemsWithActors.push({
+				item: createdItem,
+				actor: null,
+				isNew: true,
+			});
+		} catch (error) {
+			if (!isUniqueViolationError(error)) {
+				throw error;
 			}
+
+			const existingTimelineItem =
+				await getConversationTimelineItemByIdForOrganization(db, {
+					timelineItemId,
+					organizationId: organization.id,
+				});
+
+			if (!existingTimelineItem) {
+				throw new Error(
+					`Unable to resolve timeline item conflict for id ${timelineItemId}`
+				);
+			}
+
+			if (existingTimelineItem.conversationId !== conversationRecord.id) {
+				return c.json(
+					createConversationConflictResponse({
+						code: "TIMELINE_ITEM_ID_CONFLICT",
+						error: "Timeline item ID collision detected",
+					}),
+					409
+				);
+			}
+
+			const actor = resolveMessageTimelineActor(
+				existingTimelineItem,
+				conversationRecord.visitorId
+			);
+
+			createdItemsWithActors.push({
+				item: existingTimelineItem,
+				actor: existingTimelineItem.type === "message" ? actor : null,
+				isNew: false,
+			});
+		}
+	}
+
+	const createdItems = createdItemsWithActors.map(({ item }) => item);
+	const shouldFinalizeBootstrapTranslation =
+		hasBootstrapTranslationPart ||
+		Boolean(
+			resolvedVisitorLanguage &&
+				resolvedVisitorLanguage !== conversationRecord.visitorLanguage
+		);
+	const responseConversation = shouldFinalizeBootstrapTranslation
+		? applyTranslationFinalizeResult(
+				conversationRecord,
+				await finalizeConversationTranslation({
+					db,
+					conversation: conversationRecord,
+					websiteDefaultLanguage: website.defaultLanguage,
+					visitorLanguage: resolvedVisitorLanguage,
+					hasTranslationPart: hasBootstrapTranslationPart,
+					chargeCredits: autoTranslateEnabled,
+					billingSource: bootstrapBillingSource,
+					emitRealtime: false,
+				})
+			)
+		: conversationRecord;
+
+	// Trigger notification workflow for initial message items explicitly.
+	for (const { item, actor, isNew } of createdItemsWithActors) {
+		if (!isNew || item.type !== "message" || !actor || !item.id) {
+			continue;
 		}
 
-		const header = await getConversationHeader(db, {
-			organizationId: organization.id,
-			websiteId: website.id,
-			conversationId: conversationRecord.id,
-			userId: null,
-		});
-
-		if (header && upsertResult.status === "created") {
-			const hardLimitPolicy = resolveDashboardHardLimitPolicy(planInfo);
-			const lockCutoff = await getDashboardConversationLockCutoff(db, {
+		try {
+			await triggerMessageNotificationWorkflow({
+				conversationId: conversationRecord.id,
+				messageId: item.id,
 				websiteId: website.id,
 				organizationId: organization.id,
-				policy: hardLimitPolicy,
+				actor,
 			});
-			const eventHeader = applyDashboardConversationHardLimit({
-				conversation: header,
-				policy: hardLimitPolicy,
-				cutoff: lockCutoff,
-			});
-
-			await emitConversationCreatedEvent({
-				conversation: responseConversation,
-				header: eventHeader,
+		} catch (error) {
+			console.error("[conversation.create] Notification trigger failed", {
+				stage: "trigger_notification_workflow",
+				conversationId: conversationRecord.id,
+				messageId: item.id,
+				organizationId: organization.id,
+				websiteId: website.id,
+				error,
 			});
 		}
-
-		const lastTimelineItem =
-			createdItems.at(-1) ?? header?.lastTimelineItem ?? undefined;
-
-		const response = {
-			initialTimelineItems: createdItems.map(serializeTimelineItemForResponse),
-			conversation: serializeConversationForResponse({
-				...responseConversation,
-				lastTimelineItem,
-			}),
-		};
-
-		return c.json(
-			validateResponse(response, createConversationResponseSchema),
-			200
-		);
 	}
-);
 
-conversationRouter.openapi(
-	{
-		method: "get",
-		path: "/",
-		summary: "List conversations for a visitor",
-		description:
-			"Fetch paginated list of conversations for a specific visitor with optional filters. Public conversation metadata is included when present.",
-		tags: ["Conversations"],
-		request: {
-			query: listConversationsRequestSchema,
-		},
-		responses: {
-			200: {
-				description: "List of conversations retrieved successfully",
-				content: {
-					"application/json": {
-						schema: listConversationsResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse("Invalid request"),
-			401: errorJsonResponse("Unauthorized - Invalid or missing API key"),
-			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
-		},
-		...runtimeDualAuth({ includeVisitorIdHeader: true }),
-	},
-	async (c) => {
-		const { db, website, organization, query, visitorIdHeader, apiKey } =
-			await safelyExtractRequestQuery(c, listConversationsRequestSchema);
+	const header = await getConversationHeader(db, {
+		organizationId: organization.id,
+		websiteId: website.id,
+		conversationId: conversationRecord.id,
+		userId: null,
+	});
 
-		const visitorIdentity = await resolveRuntimeVisitorIdentity({
-			c,
-			db,
-			apiKey,
-			organizationId: organization.id,
+	if (header && upsertResult.status === "created") {
+		const hardLimitPolicy = resolveDashboardHardLimitPolicy(planInfo);
+		const lockCutoff = await getDashboardConversationLockCutoff(db, {
 			websiteId: website.id,
-			headerVisitorId: visitorIdHeader,
-			requestVisitorId: query.visitorId,
-		});
-
-		if (visitorIdentity.error) {
-			return visitorIdentity.error;
-		}
-
-		const visitor = visitorIdentity.visitor;
-		if (!visitor) {
-			return restError(
-				c,
-				400,
-				"BAD_REQUEST",
-				"Visitor not found, please pass a valid visitorId"
-			);
-		}
-
-		const result = await listConversations(db, {
 			organizationId: organization.id,
-			websiteId: website.id,
-			visitorId: visitor.id,
-			page: query.page,
-			limit: query.limit,
-			status: query.status,
-			orderBy: query.orderBy,
-			order: query.order,
+			policy: hardLimitPolicy,
+		});
+		const eventHeader = applyDashboardConversationHardLimit({
+			conversation: header,
+			policy: hardLimitPolicy,
+			cutoff: lockCutoff,
 		});
 
-		const response = {
-			conversations: result.conversations.map((conv) =>
-				serializeConversationForResponse(conv)
-			),
-			pagination: result.pagination,
-		};
+		await emitConversationCreatedEvent({
+			conversation: responseConversation,
+			header: eventHeader,
+		});
+	}
 
-		return c.json(
-			validateResponse(response, listConversationsResponseSchema),
-			200
+	const lastTimelineItem =
+		createdItems.at(-1) ?? header?.lastTimelineItem ?? undefined;
+
+	const response = {
+		initialTimelineItems: createdItems.map(serializeTimelineItemForResponse),
+		conversation: serializeConversationForResponse({
+			...responseConversation,
+			lastTimelineItem,
+		}),
+	};
+
+	return c.json(
+		validateResponse(response, createConversationResponseSchema),
+		200
+	);
+});
+
+conversationRouter.openapi(listConversationsRoute, async (c) => {
+	const { db, website, organization, query, visitorIdHeader, apiKey } =
+		await safelyExtractRequestQuery(c, listConversationsRequestSchema);
+
+	const visitorIdentity = await resolveRuntimeVisitorIdentity({
+		c,
+		db,
+		apiKey,
+		organizationId: organization.id,
+		websiteId: website.id,
+		headerVisitorId: visitorIdHeader,
+		requestVisitorId: query.visitorId,
+	});
+
+	if (visitorIdentity.error) {
+		return visitorIdentity.error;
+	}
+
+	const visitor = visitorIdentity.visitor;
+	if (!visitor) {
+		return restError(
+			c,
+			400,
+			"BAD_REQUEST",
+			"Visitor not found, please pass a valid visitorId"
 		);
 	}
-);
 
-conversationRouter.openapi(
-	{
-		method: "post",
-		path: "/{conversationId}/resolve",
-		summary: "Resolve a conversation",
-		description:
-			"Marks a conversation as resolved. Requires a private API key. When using an unlinked private key, send `X-Actor-User-Id` with a valid website teammate ID.",
-		operationId: "resolveConversation",
-		tags: ["Conversations"],
-		responses: {
-			200: {
-				description: "Conversation resolved successfully",
-				content: {
-					"application/json": {
-						schema: privateConversationMutationResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse(
-				"Bad request - Missing actor for an unlinked private API key"
-			),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse(
-				"Forbidden - Private API key required or actor user not allowed for this website"
-			),
-			404: errorJsonResponse("Conversation not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({
-			parameters: [conversationIdPathParameter],
-			includeActorUserIdHeader: true,
-		}),
-	},
-	async (c) => {
-		const extracted = await safelyExtractRequestData(c);
-		const privateContext = assertPrivateConversationControlContext(extracted);
+	const result = await listConversations(db, {
+		organizationId: organization.id,
+		websiteId: website.id,
+		visitorId: visitor.id,
+		page: query.page,
+		limit: query.limit,
+		status: query.status,
+		orderBy: query.orderBy,
+		order: query.order,
+	});
 
-		const { conversationId } = getConversationPathParams(c);
-		const conversationRecord = await loadPrivateConversationRecord({
-			db: extracted.db,
-			organizationId: privateContext.organization.id,
-			websiteId: privateContext.website.id,
-			conversationId,
-		});
+	const response = {
+		conversations: result.conversations.map((conv) =>
+			serializeConversationForResponse(conv)
+		),
+		pagination: result.pagination,
+	};
 
-		if (!conversationRecord) {
-			return restError(c, 404, "NOT_FOUND", "Conversation not found");
-		}
+	return c.json(
+		validateResponse(response, listConversationsResponseSchema),
+		200
+	);
+});
 
-		const actor = await requirePrivateConversationActor({
+conversationRouter.openapi(resolveConversationRoute, async (c) => {
+	const extracted = await safelyExtractRequestData(c);
+	const privateContext = assertPrivateConversationControlContext(extracted);
+
+	const { conversationId } = getConversationPathParams(c);
+	const conversationRecord = await loadPrivateConversationRecord({
+		db: extracted.db,
+		organizationId: privateContext.organization.id,
+		websiteId: privateContext.website.id,
+		conversationId,
+	});
+
+	if (!conversationRecord) {
+		return restError(c, 404, "NOT_FOUND", "Conversation not found");
+	}
+
+	const actor = await requirePrivateConversationActor({
+		c,
+		db: extracted.db,
+		apiKey: privateContext.apiKey,
+		organizationId: privateContext.organization.id,
+		websiteTeamId: privateContext.website.teamId,
+		required: true,
+	});
+
+	const updatedConversation = await resolveConversation(extracted.db, {
+		conversation: conversationRecord,
+		actorUserId: actor.userId,
+	});
+
+	if (!updatedConversation) {
+		return restError(
 			c,
-			db: extracted.db,
-			apiKey: privateContext.apiKey,
-			organizationId: privateContext.organization.id,
-			websiteTeamId: privateContext.website.teamId,
-			required: true,
-		});
+			500,
+			"INTERNAL_SERVER_ERROR",
+			"Unable to resolve conversation"
+		);
+	}
 
-		const updatedConversation = await resolveConversation(extracted.db, {
+	await emitPrivateConversationUpdate(updatedConversation, {
+		status: updatedConversation.status,
+	});
+
+	return c.json(
+		createPrivateConversationMutationResponse(updatedConversation),
+		200
+	);
+});
+
+conversationRouter.openapi(reopenConversationRoute, async (c) => {
+	const extracted = await safelyExtractRequestData(c);
+	const privateContext = assertPrivateConversationControlContext(extracted);
+
+	const { conversationId } = getConversationPathParams(c);
+	const conversationRecord = await loadPrivateConversationRecord({
+		db: extracted.db,
+		organizationId: privateContext.organization.id,
+		websiteId: privateContext.website.id,
+		conversationId,
+	});
+
+	if (!conversationRecord) {
+		return restError(c, 404, "NOT_FOUND", "Conversation not found");
+	}
+
+	const actor = await requirePrivateConversationActor({
+		c,
+		db: extracted.db,
+		apiKey: privateContext.apiKey,
+		organizationId: privateContext.organization.id,
+		websiteTeamId: privateContext.website.teamId,
+		required: true,
+	});
+
+	const updatedConversation = await reopenConversation(extracted.db, {
+		conversation: conversationRecord,
+		actorUserId: actor.userId,
+	});
+
+	if (!updatedConversation) {
+		return restError(
+			c,
+			500,
+			"INTERNAL_SERVER_ERROR",
+			"Unable to reopen conversation"
+		);
+	}
+
+	await emitPrivateConversationUpdate(updatedConversation, {
+		status: updatedConversation.status,
+	});
+
+	return c.json(
+		createPrivateConversationMutationResponse(updatedConversation),
+		200
+	);
+});
+
+conversationRouter.openapi(markConversationAsSpamRoute, async (c) => {
+	const extracted = await safelyExtractRequestData(c);
+	const privateContext = assertPrivateConversationControlContext(extracted);
+
+	const { conversationId } = getConversationPathParams(c);
+	const conversationRecord = await loadPrivateConversationRecord({
+		db: extracted.db,
+		organizationId: privateContext.organization.id,
+		websiteId: privateContext.website.id,
+		conversationId,
+	});
+
+	if (!conversationRecord) {
+		return restError(c, 404, "NOT_FOUND", "Conversation not found");
+	}
+
+	const actor = await requirePrivateConversationActor({
+		c,
+		db: extracted.db,
+		apiKey: privateContext.apiKey,
+		organizationId: privateContext.organization.id,
+		websiteTeamId: privateContext.website.teamId,
+		required: true,
+	});
+
+	const updatedConversation = await markConversationAsSpam(extracted.db, {
+		conversation: conversationRecord,
+		actorUserId: actor.userId,
+	});
+
+	if (!updatedConversation) {
+		return restError(
+			c,
+			500,
+			"INTERNAL_SERVER_ERROR",
+			"Unable to mark conversation as spam"
+		);
+	}
+
+	await emitPrivateConversationUpdate(updatedConversation, {
+		status: updatedConversation.status,
+	});
+
+	return c.json(
+		createPrivateConversationMutationResponse(updatedConversation),
+		200
+	);
+});
+
+conversationRouter.openapi(markConversationAsNotSpamRoute, async (c) => {
+	const extracted = await safelyExtractRequestData(c);
+	const privateContext = assertPrivateConversationControlContext(extracted);
+
+	const { conversationId } = getConversationPathParams(c);
+	const conversationRecord = await loadPrivateConversationRecord({
+		db: extracted.db,
+		organizationId: privateContext.organization.id,
+		websiteId: privateContext.website.id,
+		conversationId,
+	});
+
+	if (!conversationRecord) {
+		return restError(c, 404, "NOT_FOUND", "Conversation not found");
+	}
+
+	const actor = await requirePrivateConversationActor({
+		c,
+		db: extracted.db,
+		apiKey: privateContext.apiKey,
+		organizationId: privateContext.organization.id,
+		websiteTeamId: privateContext.website.teamId,
+		required: true,
+	});
+
+	const updatedConversation = await markConversationAsNotSpam(extracted.db, {
+		conversation: conversationRecord,
+		actorUserId: actor.userId,
+	});
+
+	if (!updatedConversation) {
+		return restError(
+			c,
+			500,
+			"INTERNAL_SERVER_ERROR",
+			"Unable to mark conversation as not spam"
+		);
+	}
+
+	await emitPrivateConversationUpdate(updatedConversation, {
+		status: updatedConversation.status,
+	});
+
+	return c.json(
+		createPrivateConversationMutationResponse(updatedConversation),
+		200
+	);
+});
+
+conversationRouter.openapi(archiveConversationRoute, async (c) => {
+	const extracted = await safelyExtractRequestData(c);
+	const privateContext = assertPrivateConversationControlContext(extracted);
+
+	const { conversationId } = getConversationPathParams(c);
+	const conversationRecord = await loadPrivateConversationRecord({
+		db: extracted.db,
+		organizationId: privateContext.organization.id,
+		websiteId: privateContext.website.id,
+		conversationId,
+	});
+
+	if (!conversationRecord) {
+		return restError(c, 404, "NOT_FOUND", "Conversation not found");
+	}
+
+	const actor = await requirePrivateConversationActor({
+		c,
+		db: extracted.db,
+		apiKey: privateContext.apiKey,
+		organizationId: privateContext.organization.id,
+		websiteTeamId: privateContext.website.teamId,
+		required: true,
+	});
+
+	const updatedConversation = await archiveConversation(extracted.db, {
+		conversation: conversationRecord,
+		actorUserId: actor.userId,
+	});
+
+	if (!updatedConversation) {
+		return restError(
+			c,
+			500,
+			"INTERNAL_SERVER_ERROR",
+			"Unable to archive conversation"
+		);
+	}
+
+	await emitPrivateConversationUpdate(updatedConversation, {
+		deletedAt: updatedConversation.deletedAt,
+	});
+
+	return c.json(
+		createPrivateConversationMutationResponse(updatedConversation),
+		200
+	);
+});
+
+conversationRouter.openapi(unarchiveConversationRoute, async (c) => {
+	const extracted = await safelyExtractRequestData(c);
+	const privateContext = assertPrivateConversationControlContext(extracted);
+
+	const { conversationId } = getConversationPathParams(c);
+	const conversationRecord = await loadPrivateConversationRecord({
+		db: extracted.db,
+		organizationId: privateContext.organization.id,
+		websiteId: privateContext.website.id,
+		conversationId,
+	});
+
+	if (!conversationRecord) {
+		return restError(c, 404, "NOT_FOUND", "Conversation not found");
+	}
+
+	const actor = await requirePrivateConversationActor({
+		c,
+		db: extracted.db,
+		apiKey: privateContext.apiKey,
+		organizationId: privateContext.organization.id,
+		websiteTeamId: privateContext.website.teamId,
+		required: true,
+	});
+
+	const updatedConversation = await unarchiveConversation(extracted.db, {
+		conversation: conversationRecord,
+		actorUserId: actor.userId,
+	});
+
+	if (!updatedConversation) {
+		return restError(
+			c,
+			500,
+			"INTERNAL_SERVER_ERROR",
+			"Unable to unarchive conversation"
+		);
+	}
+
+	await emitPrivateConversationUpdate(updatedConversation, {
+		deletedAt: updatedConversation.deletedAt,
+	});
+
+	return c.json(
+		createPrivateConversationMutationResponse(updatedConversation),
+		200
+	);
+});
+
+conversationRouter.openapi(markConversationAsReadRoute, async (c) => {
+	const extracted = await safelyExtractRequestData(c);
+	const privateContext = assertPrivateConversationControlContext(extracted);
+
+	const { conversationId } = getConversationPathParams(c);
+	const conversationRecord = await loadPrivateConversationRecord({
+		db: extracted.db,
+		organizationId: privateContext.organization.id,
+		websiteId: privateContext.website.id,
+		conversationId,
+	});
+
+	if (!conversationRecord) {
+		return restError(c, 404, "NOT_FOUND", "Conversation not found");
+	}
+
+	const actor = await requirePrivateConversationActor({
+		c,
+		db: extracted.db,
+		apiKey: privateContext.apiKey,
+		organizationId: privateContext.organization.id,
+		websiteTeamId: privateContext.website.teamId,
+		required: true,
+	});
+
+	const { conversation: updatedConversation, lastSeenAt } =
+		await markConversationAsRead(extracted.db, {
 			conversation: conversationRecord,
 			actorUserId: actor.userId,
 		});
 
-		if (!updatedConversation) {
-			return restError(
-				c,
-				500,
-				"INTERNAL_SERVER_ERROR",
-				"Unable to resolve conversation"
-			);
-		}
+	await emitConversationSeenEvent({
+		conversation: updatedConversation,
+		actor: { type: "user", userId: actor.userId },
+		lastSeenAt,
+	});
 
-		await emitPrivateConversationUpdate(updatedConversation, {
-			status: updatedConversation.status,
-		});
+	return c.json(
+		createPrivateConversationMutationResponse(updatedConversation),
+		200
+	);
+});
 
-		return c.json(
-			createPrivateConversationMutationResponse(updatedConversation),
-			200
+conversationRouter.openapi(markConversationAsUnreadRoute, async (c) => {
+	const extracted = await safelyExtractRequestData(c);
+	const privateContext = assertPrivateConversationControlContext(extracted);
+
+	const { conversationId } = getConversationPathParams(c);
+	const conversationRecord = await loadPrivateConversationRecord({
+		db: extracted.db,
+		organizationId: privateContext.organization.id,
+		websiteId: privateContext.website.id,
+		conversationId,
+	});
+
+	if (!conversationRecord) {
+		return restError(c, 404, "NOT_FOUND", "Conversation not found");
+	}
+
+	const actor = await requirePrivateConversationActor({
+		c,
+		db: extracted.db,
+		apiKey: privateContext.apiKey,
+		organizationId: privateContext.organization.id,
+		websiteTeamId: privateContext.website.teamId,
+		required: true,
+	});
+
+	const updatedConversation = await markConversationAsUnread(extracted.db, {
+		conversation: conversationRecord,
+		actorUserId: actor.userId,
+	});
+
+	return c.json(
+		createPrivateConversationMutationResponse(updatedConversation),
+		200
+	);
+});
+
+conversationRouter.openapi(updateConversationMetadataRoute, async (c) => {
+	const extracted = await safelyExtractRequestData(
+		c,
+		updateConversationMetadataRequestSchema
+	);
+	const privateContext = assertPrivateConversationControlContext(extracted);
+
+	const { conversationId } = getConversationPathParams(c);
+	const conversationRecord = await loadPrivateConversationRecord({
+		db: extracted.db,
+		organizationId: privateContext.organization.id,
+		websiteId: privateContext.website.id,
+		conversationId,
+	});
+
+	if (!conversationRecord) {
+		return restError(c, 404, "NOT_FOUND", "Conversation not found");
+	}
+
+	const updatedConversation = await mergeConversationMetadata(extracted.db, {
+		conversation: conversationRecord,
+		metadata: extracted.body.metadata,
+	});
+
+	if (!updatedConversation) {
+		return restError(
+			c,
+			500,
+			"INTERNAL_SERVER_ERROR",
+			"Unable to update conversation metadata"
 		);
 	}
-);
 
-conversationRouter.openapi(
-	{
-		method: "post",
-		path: "/{conversationId}/reopen",
-		summary: "Reopen a conversation",
-		description:
-			"Reopens a previously resolved or spam conversation. Requires a private API key and an acting teammate.",
-		operationId: "reopenConversation",
-		tags: ["Conversations"],
-		responses: {
-			200: {
-				description: "Conversation reopened successfully",
-				content: {
-					"application/json": {
-						schema: privateConversationMutationResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse(
-				"Bad request - Missing actor for an unlinked private API key"
-			),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse(
-				"Forbidden - Private API key required or actor user not allowed for this website"
-			),
-			404: errorJsonResponse("Conversation not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({
-			parameters: [conversationIdPathParameter],
-			includeActorUserIdHeader: true,
-		}),
-	},
-	async (c) => {
-		const extracted = await safelyExtractRequestData(c);
-		const privateContext = assertPrivateConversationControlContext(extracted);
+	return c.json(
+		createPrivateConversationMutationResponse(updatedConversation),
+		200
+	);
+});
 
-		const { conversationId } = getConversationPathParams(c);
-		const conversationRecord = await loadPrivateConversationRecord({
-			db: extracted.db,
-			organizationId: privateContext.organization.id,
-			websiteId: privateContext.website.id,
-			conversationId,
-		});
+conversationRouter.openapi(updateConversationPriorityRoute, async (c) => {
+	const extracted = await safelyExtractRequestData(
+		c,
+		updateConversationPriorityRestRequestSchema
+	);
+	const privateContext = assertPrivateConversationControlContext(extracted);
 
-		if (!conversationRecord) {
-			return restError(c, 404, "NOT_FOUND", "Conversation not found");
-		}
+	const { conversationId } = getConversationPathParams(c);
+	const conversationRecord = await loadPrivateConversationRecord({
+		db: extracted.db,
+		organizationId: privateContext.organization.id,
+		websiteId: privateContext.website.id,
+		conversationId,
+	});
 
-		const actor = await requirePrivateConversationActor({
+	if (!conversationRecord) {
+		return restError(c, 404, "NOT_FOUND", "Conversation not found");
+	}
+
+	const actor = await requirePrivateConversationActor({
+		c,
+		db: extracted.db,
+		apiKey: privateContext.apiKey,
+		organizationId: privateContext.organization.id,
+		websiteTeamId: privateContext.website.teamId,
+		required: true,
+	});
+
+	const updatedConversation = await updateConversationPriority(extracted.db, {
+		conversation: conversationRecord,
+		priority: extracted.body.priority,
+		actorUserId: actor.userId,
+	});
+
+	if (!updatedConversation) {
+		return restError(
 			c,
-			db: extracted.db,
-			apiKey: privateContext.apiKey,
-			organizationId: privateContext.organization.id,
-			websiteTeamId: privateContext.website.teamId,
-			required: true,
-		});
-
-		const updatedConversation = await reopenConversation(extracted.db, {
-			conversation: conversationRecord,
-			actorUserId: actor.userId,
-		});
-
-		if (!updatedConversation) {
-			return restError(
-				c,
-				500,
-				"INTERNAL_SERVER_ERROR",
-				"Unable to reopen conversation"
-			);
-		}
-
-		await emitPrivateConversationUpdate(updatedConversation, {
-			status: updatedConversation.status,
-		});
-
-		return c.json(
-			createPrivateConversationMutationResponse(updatedConversation),
-			200
+			500,
+			"INTERNAL_SERVER_ERROR",
+			"Unable to update conversation priority"
 		);
 	}
-);
 
-conversationRouter.openapi(
-	{
-		method: "post",
-		path: "/{conversationId}/spam",
-		summary: "Mark a conversation as spam",
-		description:
-			"Marks a conversation as spam. Requires a private API key and an acting teammate.",
-		operationId: "markConversationAsSpam",
-		tags: ["Conversations"],
-		responses: {
-			200: {
-				description: "Conversation marked as spam successfully",
-				content: {
-					"application/json": {
-						schema: privateConversationMutationResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse(
-				"Bad request - Missing actor for an unlinked private API key"
-			),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse(
-				"Forbidden - Private API key required or actor user not allowed for this website"
-			),
-			404: errorJsonResponse("Conversation not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({
-			parameters: [conversationIdPathParameter],
-			includeActorUserIdHeader: true,
-		}),
-	},
-	async (c) => {
-		const extracted = await safelyExtractRequestData(c);
-		const privateContext = assertPrivateConversationControlContext(extracted);
+	await emitPrivateConversationUpdate(updatedConversation, {
+		priority: updatedConversation.priority,
+		prioritySource: updatedConversation.prioritySource,
+	});
 
-		const { conversationId } = getConversationPathParams(c);
-		const conversationRecord = await loadPrivateConversationRecord({
-			db: extracted.db,
-			organizationId: privateContext.organization.id,
-			websiteId: privateContext.website.id,
-			conversationId,
-		});
+	return c.json(
+		createPrivateConversationMutationResponse(updatedConversation),
+		200
+	);
+});
 
-		if (!conversationRecord) {
-			return restError(c, 404, "NOT_FOUND", "Conversation not found");
-		}
+conversationRouter.openapi(updateConversationSentimentRoute, async (c) => {
+	const extracted = await safelyExtractRequestData(
+		c,
+		updateConversationSentimentRestRequestSchema
+	);
+	const privateContext = assertPrivateConversationControlContext(extracted);
 
-		const actor = await requirePrivateConversationActor({
+	const { conversationId } = getConversationPathParams(c);
+	const conversationRecord = await loadPrivateConversationRecord({
+		db: extracted.db,
+		organizationId: privateContext.organization.id,
+		websiteId: privateContext.website.id,
+		conversationId,
+	});
+
+	if (!conversationRecord) {
+		return restError(c, 404, "NOT_FOUND", "Conversation not found");
+	}
+
+	const actor = await requirePrivateConversationActor({
+		c,
+		db: extracted.db,
+		apiKey: privateContext.apiKey,
+		organizationId: privateContext.organization.id,
+		websiteTeamId: privateContext.website.teamId,
+		required: true,
+	});
+
+	const updatedConversation = await updateConversationSentiment(extracted.db, {
+		conversation: conversationRecord,
+		sentiment: extracted.body.sentiment,
+		actorUserId: actor.userId,
+	});
+
+	if (!updatedConversation) {
+		return restError(
 			c,
-			db: extracted.db,
-			apiKey: privateContext.apiKey,
-			organizationId: privateContext.organization.id,
-			websiteTeamId: privateContext.website.teamId,
-			required: true,
-		});
-
-		const updatedConversation = await markConversationAsSpam(extracted.db, {
-			conversation: conversationRecord,
-			actorUserId: actor.userId,
-		});
-
-		if (!updatedConversation) {
-			return restError(
-				c,
-				500,
-				"INTERNAL_SERVER_ERROR",
-				"Unable to mark conversation as spam"
-			);
-		}
-
-		await emitPrivateConversationUpdate(updatedConversation, {
-			status: updatedConversation.status,
-		});
-
-		return c.json(
-			createPrivateConversationMutationResponse(updatedConversation),
-			200
+			500,
+			"INTERNAL_SERVER_ERROR",
+			"Unable to update conversation sentiment"
 		);
 	}
-);
 
-conversationRouter.openapi(
-	{
-		method: "post",
-		path: "/{conversationId}/not-spam",
-		summary: "Mark a conversation as not spam",
-		description:
-			"Restores a spam conversation back to the open state. Requires a private API key and an acting teammate.",
-		operationId: "markConversationAsNotSpam",
-		tags: ["Conversations"],
-		responses: {
-			200: {
-				description: "Conversation marked as not spam successfully",
-				content: {
-					"application/json": {
-						schema: privateConversationMutationResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse(
-				"Bad request - Missing actor for an unlinked private API key"
-			),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse(
-				"Forbidden - Private API key required or actor user not allowed for this website"
-			),
-			404: errorJsonResponse("Conversation not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({
-			parameters: [conversationIdPathParameter],
-			includeActorUserIdHeader: true,
-		}),
-	},
-	async (c) => {
-		const extracted = await safelyExtractRequestData(c);
-		const privateContext = assertPrivateConversationControlContext(extracted);
+	await emitPrivateConversationUpdate(updatedConversation, {
+		sentiment: updatedConversation.sentiment,
+		sentimentConfidence: updatedConversation.sentimentConfidence,
+		sentimentSource: updatedConversation.sentimentSource,
+	});
 
-		const { conversationId } = getConversationPathParams(c);
-		const conversationRecord = await loadPrivateConversationRecord({
-			db: extracted.db,
-			organizationId: privateContext.organization.id,
-			websiteId: privateContext.website.id,
-			conversationId,
-		});
+	return c.json(
+		createPrivateConversationMutationResponse(updatedConversation),
+		200
+	);
+});
 
-		if (!conversationRecord) {
-			return restError(c, 404, "NOT_FOUND", "Conversation not found");
-		}
+conversationRouter.openapi(updateConversationTitleRoute, async (c) => {
+	const extracted = await safelyExtractRequestData(
+		c,
+		updateConversationTitleRestRequestSchema
+	);
+	const privateContext = assertPrivateConversationControlContext(extracted);
 
-		const actor = await requirePrivateConversationActor({
+	const { conversationId } = getConversationPathParams(c);
+	const conversationRecord = await loadPrivateConversationRecord({
+		db: extracted.db,
+		organizationId: privateContext.organization.id,
+		websiteId: privateContext.website.id,
+		conversationId,
+	});
+
+	if (!conversationRecord) {
+		return restError(c, 404, "NOT_FOUND", "Conversation not found");
+	}
+
+	const normalizedTitle = extracted.body.title?.trim() || null;
+	const updatedConversation = await updateConversationTitle(extracted.db, {
+		conversation: conversationRecord,
+		title: normalizedTitle,
+		titleSource: "user",
+	});
+
+	if (!updatedConversation) {
+		return restError(
 			c,
-			db: extracted.db,
-			apiKey: privateContext.apiKey,
-			organizationId: privateContext.organization.id,
-			websiteTeamId: privateContext.website.teamId,
-			required: true,
-		});
-
-		const updatedConversation = await markConversationAsNotSpam(extracted.db, {
-			conversation: conversationRecord,
-			actorUserId: actor.userId,
-		});
-
-		if (!updatedConversation) {
-			return restError(
-				c,
-				500,
-				"INTERNAL_SERVER_ERROR",
-				"Unable to mark conversation as not spam"
-			);
-		}
-
-		await emitPrivateConversationUpdate(updatedConversation, {
-			status: updatedConversation.status,
-		});
-
-		return c.json(
-			createPrivateConversationMutationResponse(updatedConversation),
-			200
+			500,
+			"INTERNAL_SERVER_ERROR",
+			"Unable to update conversation title"
 		);
 	}
-);
 
-conversationRouter.openapi(
-	{
-		method: "post",
-		path: "/{conversationId}/archive",
-		summary: "Archive a conversation",
-		description:
-			"Archives a conversation from the inbox. This matches the dashboard delete behavior and requires a private API key plus an acting teammate.",
-		operationId: "archiveConversation",
-		tags: ["Conversations"],
-		responses: {
-			200: {
-				description: "Conversation archived successfully",
-				content: {
-					"application/json": {
-						schema: privateConversationMutationResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse(
-				"Bad request - Missing actor for an unlinked private API key"
-			),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse(
-				"Forbidden - Private API key required or actor user not allowed for this website"
-			),
-			404: errorJsonResponse("Conversation not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({
-			parameters: [conversationIdPathParameter],
-			includeActorUserIdHeader: true,
+	const planInfo = await getPlanForWebsite(privateContext.website);
+	const titleTranslation = await syncConversationVisitorTitle({
+		db: extracted.db,
+		conversationId: updatedConversation.id,
+		organizationId: updatedConversation.organizationId,
+		websiteId: updatedConversation.websiteId,
+		title: updatedConversation.title,
+		websiteDefaultLanguage: privateContext.website.defaultLanguage,
+		visitorLanguage: updatedConversation.visitorLanguage,
+		autoTranslateEnabled: isAutomaticTranslationEnabled({
+			planAllowsAutoTranslate: planInfo.features["auto-translate"] === true,
+			websiteAutoTranslateEnabled: privateContext.website.autoTranslateEnabled,
 		}),
-	},
-	async (c) => {
-		const extracted = await safelyExtractRequestData(c);
-		const privateContext = assertPrivateConversationControlContext(extracted);
-
-		const { conversationId } = getConversationPathParams(c);
-		const conversationRecord = await loadPrivateConversationRecord({
+		aiContext: {
 			db: extracted.db,
-			organizationId: privateContext.organization.id,
-			websiteId: privateContext.website.id,
-			conversationId,
-		});
-
-		if (!conversationRecord) {
-			return restError(c, 404, "NOT_FOUND", "Conversation not found");
-		}
-
-		const actor = await requirePrivateConversationActor({
-			c,
-			db: extracted.db,
-			apiKey: privateContext.apiKey,
-			organizationId: privateContext.organization.id,
-			websiteTeamId: privateContext.website.teamId,
-			required: true,
-		});
-
-		const updatedConversation = await archiveConversation(extracted.db, {
-			conversation: conversationRecord,
-			actorUserId: actor.userId,
-		});
-
-		if (!updatedConversation) {
-			return restError(
-				c,
-				500,
-				"INTERNAL_SERVER_ERROR",
-				"Unable to archive conversation"
-			);
-		}
-
-		await emitPrivateConversationUpdate(updatedConversation, {
-			deletedAt: updatedConversation.deletedAt,
-		});
-
-		return c.json(
-			createPrivateConversationMutationResponse(updatedConversation),
-			200
-		);
-	}
-);
-
-conversationRouter.openapi(
-	{
-		method: "post",
-		path: "/{conversationId}/unarchive",
-		summary: "Unarchive a conversation",
-		description:
-			"Restores an archived conversation. Requires a private API key and an acting teammate.",
-		operationId: "unarchiveConversation",
-		tags: ["Conversations"],
-		responses: {
-			200: {
-				description: "Conversation unarchived successfully",
-				content: {
-					"application/json": {
-						schema: privateConversationMutationResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse(
-				"Bad request - Missing actor for an unlinked private API key"
-			),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse(
-				"Forbidden - Private API key required or actor user not allowed for this website"
-			),
-			404: errorJsonResponse("Conversation not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({
-			parameters: [conversationIdPathParameter],
-			includeActorUserIdHeader: true,
-		}),
-	},
-	async (c) => {
-		const extracted = await safelyExtractRequestData(c);
-		const privateContext = assertPrivateConversationControlContext(extracted);
-
-		const { conversationId } = getConversationPathParams(c);
-		const conversationRecord = await loadPrivateConversationRecord({
-			db: extracted.db,
-			organizationId: privateContext.organization.id,
-			websiteId: privateContext.website.id,
-			conversationId,
-		});
-
-		if (!conversationRecord) {
-			return restError(c, 404, "NOT_FOUND", "Conversation not found");
-		}
-
-		const actor = await requirePrivateConversationActor({
-			c,
-			db: extracted.db,
-			apiKey: privateContext.apiKey,
-			organizationId: privateContext.organization.id,
-			websiteTeamId: privateContext.website.teamId,
-			required: true,
-		});
-
-		const updatedConversation = await unarchiveConversation(extracted.db, {
-			conversation: conversationRecord,
-			actorUserId: actor.userId,
-		});
-
-		if (!updatedConversation) {
-			return restError(
-				c,
-				500,
-				"INTERNAL_SERVER_ERROR",
-				"Unable to unarchive conversation"
-			);
-		}
-
-		await emitPrivateConversationUpdate(updatedConversation, {
-			deletedAt: updatedConversation.deletedAt,
-		});
-
-		return c.json(
-			createPrivateConversationMutationResponse(updatedConversation),
-			200
-		);
-	}
-);
-
-conversationRouter.openapi(
-	{
-		method: "post",
-		path: "/{conversationId}/read",
-		summary: "Mark a conversation as read",
-		description:
-			"Marks a conversation as read for the acting teammate. Requires a private API key and an acting teammate.",
-		operationId: "markConversationAsRead",
-		tags: ["Conversations"],
-		responses: {
-			200: {
-				description: "Conversation marked as read successfully",
-				content: {
-					"application/json": {
-						schema: privateConversationMutationResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse(
-				"Bad request - Missing actor for an unlinked private API key"
-			),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse(
-				"Forbidden - Private API key required or actor user not allowed for this website"
-			),
-			404: errorJsonResponse("Conversation not found"),
-		},
-		...privateControlAuth({
-			parameters: [conversationIdPathParameter],
-			includeActorUserIdHeader: true,
-		}),
-	},
-	async (c) => {
-		const extracted = await safelyExtractRequestData(c);
-		const privateContext = assertPrivateConversationControlContext(extracted);
-
-		const { conversationId } = getConversationPathParams(c);
-		const conversationRecord = await loadPrivateConversationRecord({
-			db: extracted.db,
-			organizationId: privateContext.organization.id,
-			websiteId: privateContext.website.id,
-			conversationId,
-		});
-
-		if (!conversationRecord) {
-			return restError(c, 404, "NOT_FOUND", "Conversation not found");
-		}
-
-		const actor = await requirePrivateConversationActor({
-			c,
-			db: extracted.db,
-			apiKey: privateContext.apiKey,
-			organizationId: privateContext.organization.id,
-			websiteTeamId: privateContext.website.teamId,
-			required: true,
-		});
-
-		const { conversation: updatedConversation, lastSeenAt } =
-			await markConversationAsRead(extracted.db, {
-				conversation: conversationRecord,
-				actorUserId: actor.userId,
-			});
-
-		await emitConversationSeenEvent({
-			conversation: updatedConversation,
-			actor: { type: "user", userId: actor.userId },
-			lastSeenAt,
-		});
-
-		return c.json(
-			createPrivateConversationMutationResponse(updatedConversation),
-			200
-		);
-	}
-);
-
-conversationRouter.openapi(
-	{
-		method: "post",
-		path: "/{conversationId}/unread",
-		summary: "Mark a conversation as unread",
-		description:
-			"Clears the acting teammate's read marker for a conversation. Requires a private API key and an acting teammate.",
-		operationId: "markConversationAsUnread",
-		tags: ["Conversations"],
-		responses: {
-			200: {
-				description: "Conversation marked as unread successfully",
-				content: {
-					"application/json": {
-						schema: privateConversationMutationResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse(
-				"Bad request - Missing actor for an unlinked private API key"
-			),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse(
-				"Forbidden - Private API key required or actor user not allowed for this website"
-			),
-			404: errorJsonResponse("Conversation not found"),
-		},
-		...privateControlAuth({
-			parameters: [conversationIdPathParameter],
-			includeActorUserIdHeader: true,
-		}),
-	},
-	async (c) => {
-		const extracted = await safelyExtractRequestData(c);
-		const privateContext = assertPrivateConversationControlContext(extracted);
-
-		const { conversationId } = getConversationPathParams(c);
-		const conversationRecord = await loadPrivateConversationRecord({
-			db: extracted.db,
-			organizationId: privateContext.organization.id,
-			websiteId: privateContext.website.id,
-			conversationId,
-		});
-
-		if (!conversationRecord) {
-			return restError(c, 404, "NOT_FOUND", "Conversation not found");
-		}
-
-		const actor = await requirePrivateConversationActor({
-			c,
-			db: extracted.db,
-			apiKey: privateContext.apiKey,
-			organizationId: privateContext.organization.id,
-			websiteTeamId: privateContext.website.teamId,
-			required: true,
-		});
-
-		const updatedConversation = await markConversationAsUnread(extracted.db, {
-			conversation: conversationRecord,
-			actorUserId: actor.userId,
-		});
-
-		return c.json(
-			createPrivateConversationMutationResponse(updatedConversation),
-			200
-		);
-	}
-);
-
-conversationRouter.openapi(
-	{
-		method: "patch",
-		path: "/{conversationId}/metadata",
-		summary: "Update conversation metadata",
-		description:
-			"Merges metadata into a conversation. Conversation metadata are public and retrievable on public conversation endpoints, but this post-creation update route requires a private API key.",
-		operationId: "updateConversationMetadata",
-		tags: ["Conversations"],
-		request: {
-			body: {
-				required: true,
-				content: {
-					"application/json": {
-						schema: updateConversationMetadataRequestSchema,
-					},
-				},
-			},
-		},
-		responses: {
-			200: {
-				description: "Conversation metadata updated successfully",
-				content: {
-					"application/json": {
-						schema: privateConversationMutationResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse("Bad request - Invalid request payload"),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse("Forbidden - Private API key required"),
-			404: errorJsonResponse("Conversation not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({
-			parameters: [conversationIdPathParameter],
-		}),
-	},
-	async (c) => {
-		const extracted = await safelyExtractRequestData(
-			c,
-			updateConversationMetadataRequestSchema
-		);
-		const privateContext = assertPrivateConversationControlContext(extracted);
-
-		const { conversationId } = getConversationPathParams(c);
-		const conversationRecord = await loadPrivateConversationRecord({
-			db: extracted.db,
-			organizationId: privateContext.organization.id,
-			websiteId: privateContext.website.id,
-			conversationId,
-		});
-
-		if (!conversationRecord) {
-			return restError(c, 404, "NOT_FOUND", "Conversation not found");
-		}
-
-		const updatedConversation = await mergeConversationMetadata(extracted.db, {
-			conversation: conversationRecord,
-			metadata: extracted.body.metadata,
-		});
-
-		if (!updatedConversation) {
-			return restError(
-				c,
-				500,
-				"INTERNAL_SERVER_ERROR",
-				"Unable to update conversation metadata"
-			);
-		}
-
-		return c.json(
-			createPrivateConversationMutationResponse(updatedConversation),
-			200
-		);
-	}
-);
-
-conversationRouter.openapi(
-	{
-		method: "patch",
-		path: "/{conversationId}/priority",
-		summary: "Update a conversation priority",
-		description:
-			"Updates the conversation priority and marks it as human-owned. Requires a private API key and an acting teammate.",
-		operationId: "updateConversationPriority",
-		tags: ["Conversations"],
-		request: {
-			body: {
-				required: true,
-				content: {
-					"application/json": {
-						schema: updateConversationPriorityRestRequestSchema,
-					},
-				},
-			},
-		},
-		responses: {
-			200: {
-				description: "Conversation priority updated successfully",
-				content: {
-					"application/json": {
-						schema: privateConversationMutationResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse(
-				"Bad request - Invalid request payload or missing actor for an unlinked private API key"
-			),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse(
-				"Forbidden - Private API key required or actor user not allowed for this website"
-			),
-			404: errorJsonResponse("Conversation not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({
-			parameters: [conversationIdPathParameter],
-			includeActorUserIdHeader: true,
-		}),
-	},
-	async (c) => {
-		const extracted = await safelyExtractRequestData(
-			c,
-			updateConversationPriorityRestRequestSchema
-		);
-		const privateContext = assertPrivateConversationControlContext(extracted);
-
-		const { conversationId } = getConversationPathParams(c);
-		const conversationRecord = await loadPrivateConversationRecord({
-			db: extracted.db,
-			organizationId: privateContext.organization.id,
-			websiteId: privateContext.website.id,
-			conversationId,
-		});
-
-		if (!conversationRecord) {
-			return restError(c, 404, "NOT_FOUND", "Conversation not found");
-		}
-
-		const actor = await requirePrivateConversationActor({
-			c,
-			db: extracted.db,
-			apiKey: privateContext.apiKey,
-			organizationId: privateContext.organization.id,
-			websiteTeamId: privateContext.website.teamId,
-			required: true,
-		});
-
-		const updatedConversation = await updateConversationPriority(extracted.db, {
-			conversation: conversationRecord,
-			priority: extracted.body.priority,
-			actorUserId: actor.userId,
-		});
-
-		if (!updatedConversation) {
-			return restError(
-				c,
-				500,
-				"INTERNAL_SERVER_ERROR",
-				"Unable to update conversation priority"
-			);
-		}
-
-		await emitPrivateConversationUpdate(updatedConversation, {
-			priority: updatedConversation.priority,
-			prioritySource: updatedConversation.prioritySource,
-		});
-
-		return c.json(
-			createPrivateConversationMutationResponse(updatedConversation),
-			200
-		);
-	}
-);
-
-conversationRouter.openapi(
-	{
-		method: "patch",
-		path: "/{conversationId}/sentiment",
-		summary: "Update a conversation sentiment",
-		description:
-			"Updates the conversation sentiment and marks it as human-owned. Pass null to mark sentiment as unknown. Requires a private API key and an acting teammate.",
-		operationId: "updateConversationSentiment",
-		tags: ["Conversations"],
-		request: {
-			body: {
-				required: true,
-				content: {
-					"application/json": {
-						schema: updateConversationSentimentRestRequestSchema,
-					},
-				},
-			},
-		},
-		responses: {
-			200: {
-				description: "Conversation sentiment updated successfully",
-				content: {
-					"application/json": {
-						schema: privateConversationMutationResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse(
-				"Bad request - Invalid request payload or missing actor for an unlinked private API key"
-			),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse(
-				"Forbidden - Private API key required or actor user not allowed for this website"
-			),
-			404: errorJsonResponse("Conversation not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({
-			parameters: [conversationIdPathParameter],
-			includeActorUserIdHeader: true,
-		}),
-	},
-	async (c) => {
-		const extracted = await safelyExtractRequestData(
-			c,
-			updateConversationSentimentRestRequestSchema
-		);
-		const privateContext = assertPrivateConversationControlContext(extracted);
-
-		const { conversationId } = getConversationPathParams(c);
-		const conversationRecord = await loadPrivateConversationRecord({
-			db: extracted.db,
-			organizationId: privateContext.organization.id,
-			websiteId: privateContext.website.id,
-			conversationId,
-		});
-
-		if (!conversationRecord) {
-			return restError(c, 404, "NOT_FOUND", "Conversation not found");
-		}
-
-		const actor = await requirePrivateConversationActor({
-			c,
-			db: extracted.db,
-			apiKey: privateContext.apiKey,
-			organizationId: privateContext.organization.id,
-			websiteTeamId: privateContext.website.teamId,
-			required: true,
-		});
-
-		const updatedConversation = await updateConversationSentiment(
-			extracted.db,
-			{
-				conversation: conversationRecord,
-				sentiment: extracted.body.sentiment,
-				actorUserId: actor.userId,
-			}
-		);
-
-		if (!updatedConversation) {
-			return restError(
-				c,
-				500,
-				"INTERNAL_SERVER_ERROR",
-				"Unable to update conversation sentiment"
-			);
-		}
-
-		await emitPrivateConversationUpdate(updatedConversation, {
-			sentiment: updatedConversation.sentiment,
-			sentimentConfidence: updatedConversation.sentimentConfidence,
-			sentimentSource: updatedConversation.sentimentSource,
-		});
-
-		return c.json(
-			createPrivateConversationMutationResponse(updatedConversation),
-			200
-		);
-	}
-);
-
-conversationRouter.openapi(
-	{
-		method: "patch",
-		path: "/{conversationId}",
-		summary: "Update a conversation title",
-		description:
-			"Updates the conversation title. This private control route does not require an acting teammate in v1.",
-		operationId: "updateConversationTitle",
-		tags: ["Conversations"],
-		request: {
-			body: {
-				required: true,
-				content: {
-					"application/json": {
-						schema: updateConversationTitleRestRequestSchema,
-					},
-				},
-			},
-		},
-		responses: {
-			200: {
-				description: "Conversation title updated successfully",
-				content: {
-					"application/json": {
-						schema: privateConversationMutationResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse("Bad request - Invalid request payload"),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse("Forbidden - Private API key required"),
-			404: errorJsonResponse("Conversation not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({
-			parameters: [conversationIdPathParameter],
-		}),
-	},
-	async (c) => {
-		const extracted = await safelyExtractRequestData(
-			c,
-			updateConversationTitleRestRequestSchema
-		);
-		const privateContext = assertPrivateConversationControlContext(extracted);
-
-		const { conversationId } = getConversationPathParams(c);
-		const conversationRecord = await loadPrivateConversationRecord({
-			db: extracted.db,
-			organizationId: privateContext.organization.id,
-			websiteId: privateContext.website.id,
-			conversationId,
-		});
-
-		if (!conversationRecord) {
-			return restError(c, 404, "NOT_FOUND", "Conversation not found");
-		}
-
-		const normalizedTitle = extracted.body.title?.trim() || null;
-		const updatedConversation = await updateConversationTitle(extracted.db, {
-			conversation: conversationRecord,
-			title: normalizedTitle,
-			titleSource: "user",
-		});
-
-		if (!updatedConversation) {
-			return restError(
-				c,
-				500,
-				"INTERNAL_SERVER_ERROR",
-				"Unable to update conversation title"
-			);
-		}
-
-		const planInfo = await getPlanForWebsite(privateContext.website);
-		const titleTranslation = await syncConversationVisitorTitle({
-			db: extracted.db,
-			conversationId: updatedConversation.id,
 			organizationId: updatedConversation.organizationId,
 			websiteId: updatedConversation.websiteId,
-			title: updatedConversation.title,
-			websiteDefaultLanguage: privateContext.website.defaultLanguage,
-			visitorLanguage: updatedConversation.visitorLanguage,
-			autoTranslateEnabled: isAutomaticTranslationEnabled({
-				planAllowsAutoTranslate: planInfo.features["auto-translate"] === true,
-				websiteAutoTranslateEnabled:
-					privateContext.website.autoTranslateEnabled,
-			}),
-			aiContext: {
-				db: extracted.db,
+		},
+	});
+	const responseConversation = {
+		...updatedConversation,
+		visitorTitle: titleTranslation.visitorTitle,
+		visitorTitleLanguage: titleTranslation.visitorTitleLanguage,
+	};
+
+	await emitPrivateConversationUpdate(responseConversation, {
+		title: responseConversation.title,
+		titleSource: responseConversation.titleSource,
+		visitorTitle: responseConversation.visitorTitle,
+		visitorTitleLanguage: responseConversation.visitorTitleLanguage,
+	});
+
+	return c.json(
+		createPrivateConversationMutationResponse(responseConversation),
+		200
+	);
+});
+
+conversationRouter.openapi(pauseConversationAiRoute, async (c) => {
+	const extracted = await safelyExtractOptionalRequestData(
+		c,
+		pauseConversationAiRestRequestSchema
+	);
+	const privateContext = assertPrivateConversationControlContext(extracted);
+
+	const { conversationId } = getConversationPathParams(c);
+	const conversationRecord = await loadPrivateConversationRecord({
+		db: extracted.db,
+		organizationId: privateContext.organization.id,
+		websiteId: privateContext.website.id,
+		conversationId,
+	});
+
+	if (!conversationRecord) {
+		return restError(c, 404, "NOT_FOUND", "Conversation not found");
+	}
+
+	const actor = await requirePrivateConversationActor({
+		c,
+		db: extracted.db,
+		apiKey: privateContext.apiKey,
+		organizationId: privateContext.organization.id,
+		websiteTeamId: privateContext.website.teamId,
+		required: true,
+	});
+
+	const durationMinutes =
+		extracted.body.durationMinutes ?? env.AI_AGENT_ROGUE_PAUSE_MINUTES;
+
+	if (durationMinutes > AI_PAUSE_DURATION_MAX_MINUTES) {
+		return restError(
+			c,
+			400,
+			"BAD_REQUEST",
+			"durationMinutes exceeds the supported maximum"
+		);
+	}
+
+	const updatedConversation = await pauseAiForConversation({
+		db: extracted.db,
+		redis: getRedis(),
+		conversationId: conversationRecord.id,
+		organizationId: conversationRecord.organizationId,
+		durationMinutes,
+		reason: `manual:${actor.userId}`,
+		mode: "replace",
+	});
+
+	if (!updatedConversation) {
+		return restError(
+			c,
+			500,
+			"INTERNAL_SERVER_ERROR",
+			"Unable to pause AI for conversation"
+		);
+	}
+
+	await Promise.all([
+		emitPrivateConversationUpdate(updatedConversation, {
+			aiPausedUntil: updatedConversation.aiPausedUntil,
+		}),
+		createConversationEvent({
+			db: extracted.db,
+			context: {
+				conversationId: updatedConversation.id,
 				organizationId: updatedConversation.organizationId,
 				websiteId: updatedConversation.websiteId,
+				visitorId: updatedConversation.visitorId,
 			},
-		});
-		const responseConversation = {
-			...updatedConversation,
-			visitorTitle: titleTranslation.visitorTitle,
-			visitorTitleLanguage: titleTranslation.visitorTitleLanguage,
-		};
+			event: {
+				type: ConversationEventType.AI_PAUSED,
+				actorUserId: actor.userId,
+				message: buildAiPauseEventMessage(durationMinutes),
+				visibility: TimelineItemVisibility.PRIVATE,
+			},
+		}),
+	]);
 
-		await emitPrivateConversationUpdate(responseConversation, {
-			title: responseConversation.title,
-			titleSource: responseConversation.titleSource,
-			visitorTitle: responseConversation.visitorTitle,
-			visitorTitleLanguage: responseConversation.visitorTitleLanguage,
-		});
+	return c.json(
+		createPrivateConversationMutationResponse(updatedConversation),
+		200
+	);
+});
 
-		return c.json(
-			createPrivateConversationMutationResponse(responseConversation),
-			200
+conversationRouter.openapi(resumeConversationAiRoute, async (c) => {
+	const extracted = await safelyExtractRequestData(c);
+	const privateContext = assertPrivateConversationControlContext(extracted);
+
+	const { conversationId } = getConversationPathParams(c);
+	const conversationRecord = await loadPrivateConversationRecord({
+		db: extracted.db,
+		organizationId: privateContext.organization.id,
+		websiteId: privateContext.website.id,
+		conversationId,
+	});
+
+	if (!conversationRecord) {
+		return restError(c, 404, "NOT_FOUND", "Conversation not found");
+	}
+
+	const actor = await requirePrivateConversationActor({
+		c,
+		db: extracted.db,
+		apiKey: privateContext.apiKey,
+		organizationId: privateContext.organization.id,
+		websiteTeamId: privateContext.website.teamId,
+		required: true,
+	});
+
+	const updatedConversation = await resumeAiForConversation({
+		db: extracted.db,
+		redis: getRedis(),
+		conversationId: conversationRecord.id,
+		organizationId: conversationRecord.organizationId,
+	});
+
+	if (!updatedConversation) {
+		return restError(
+			c,
+			500,
+			"INTERNAL_SERVER_ERROR",
+			"Unable to resume AI for conversation"
 		);
 	}
-);
 
-conversationRouter.openapi(
-	{
-		method: "post",
-		path: "/{conversationId}/ai/pause",
-		summary: "Pause AI replies for a conversation",
-		description:
-			"Pauses AI replies for a conversation for the provided duration. Requires a private API key and an acting teammate.",
-		operationId: "pauseConversationAi",
-		tags: ["Conversations"],
-		request: {
-			body: {
-				required: false,
-				content: {
-					"application/json": {
-						schema: pauseConversationAiRestRequestSchema,
-					},
-				},
-			},
-		},
-		responses: {
-			200: {
-				description: "Conversation AI paused successfully",
-				content: {
-					"application/json": {
-						schema: privateConversationMutationResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse(
-				"Bad request - Invalid request payload or missing actor for an unlinked private API key"
-			),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse(
-				"Forbidden - Private API key required or actor user not allowed for this website"
-			),
-			404: errorJsonResponse("Conversation not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({
-			parameters: [conversationIdPathParameter],
-			includeActorUserIdHeader: true,
+	await Promise.all([
+		emitPrivateConversationUpdate(updatedConversation, {
+			aiPausedUntil: null,
 		}),
-	},
-	async (c) => {
-		const extracted = await safelyExtractOptionalRequestData(
-			c,
-			pauseConversationAiRestRequestSchema
-		);
-		const privateContext = assertPrivateConversationControlContext(extracted);
-
-		const { conversationId } = getConversationPathParams(c);
-		const conversationRecord = await loadPrivateConversationRecord({
+		createConversationEvent({
 			db: extracted.db,
-			organizationId: privateContext.organization.id,
-			websiteId: privateContext.website.id,
-			conversationId,
-		});
+			context: {
+				conversationId: updatedConversation.id,
+				organizationId: updatedConversation.organizationId,
+				websiteId: updatedConversation.websiteId,
+				visitorId: updatedConversation.visitorId,
+			},
+			event: {
+				type: ConversationEventType.AI_RESUMED,
+				actorUserId: actor.userId,
+				message: "resumed AI answers",
+				visibility: TimelineItemVisibility.PRIVATE,
+			},
+		}),
+	]);
 
-		if (!conversationRecord) {
-			return restError(c, 404, "NOT_FOUND", "Conversation not found");
-		}
+	return c.json(
+		createPrivateConversationMutationResponse(updatedConversation),
+		200
+	);
+});
 
-		const actor = await requirePrivateConversationActor({
-			c,
-			db: extracted.db,
-			apiKey: privateContext.apiKey,
-			organizationId: privateContext.organization.id,
-			websiteTeamId: privateContext.website.teamId,
-			required: true,
-		});
+conversationRouter.openapi(joinConversationEscalationRoute, async (c) => {
+	const extracted = await safelyExtractRequestData(c);
+	const privateContext = assertPrivateConversationControlContext(extracted);
 
-		const durationMinutes =
-			extracted.body.durationMinutes ?? env.AI_AGENT_ROGUE_PAUSE_MINUTES;
+	const { conversationId } = getConversationPathParams(c);
+	const conversationRecord = await loadPrivateConversationRecord({
+		db: extracted.db,
+		organizationId: privateContext.organization.id,
+		websiteId: privateContext.website.id,
+		conversationId,
+	});
 
-		if (durationMinutes > AI_PAUSE_DURATION_MAX_MINUTES) {
-			return restError(
-				c,
-				400,
-				"BAD_REQUEST",
-				"durationMinutes exceeds the supported maximum"
-			);
-		}
-
-		const updatedConversation = await pauseAiForConversation({
-			db: extracted.db,
-			redis: getRedis(),
-			conversationId: conversationRecord.id,
-			organizationId: conversationRecord.organizationId,
-			durationMinutes,
-			reason: `manual:${actor.userId}`,
-			mode: "replace",
-		});
-
-		if (!updatedConversation) {
-			return restError(
-				c,
-				500,
-				"INTERNAL_SERVER_ERROR",
-				"Unable to pause AI for conversation"
-			);
-		}
-
-		await Promise.all([
-			emitPrivateConversationUpdate(updatedConversation, {
-				aiPausedUntil: updatedConversation.aiPausedUntil,
-			}),
-			createConversationEvent({
-				db: extracted.db,
-				context: {
-					conversationId: updatedConversation.id,
-					organizationId: updatedConversation.organizationId,
-					websiteId: updatedConversation.websiteId,
-					visitorId: updatedConversation.visitorId,
-				},
-				event: {
-					type: ConversationEventType.AI_PAUSED,
-					actorUserId: actor.userId,
-					message: buildAiPauseEventMessage(durationMinutes),
-					visibility: TimelineItemVisibility.PRIVATE,
-				},
-			}),
-		]);
-
-		return c.json(
-			createPrivateConversationMutationResponse(updatedConversation),
-			200
-		);
+	if (!conversationRecord) {
+		return restError(c, 404, "NOT_FOUND", "Conversation not found");
 	}
-);
 
-conversationRouter.openapi(
-	{
-		method: "post",
-		path: "/{conversationId}/ai/resume",
-		summary: "Resume AI replies for a conversation",
-		description:
-			"Resumes AI replies for a conversation. Requires a private API key and an acting teammate.",
-		operationId: "resumeConversationAi",
-		tags: ["Conversations"],
-		responses: {
-			200: {
-				description: "Conversation AI resumed successfully",
-				content: {
-					"application/json": {
-						schema: privateConversationMutationResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse(
-				"Bad request - Missing actor for an unlinked private API key"
-			),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse(
-				"Forbidden - Private API key required or actor user not allowed for this website"
-			),
-			404: errorJsonResponse("Conversation not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({
-			parameters: [conversationIdPathParameter],
-			includeActorUserIdHeader: true,
-		}),
-	},
-	async (c) => {
-		const extracted = await safelyExtractRequestData(c);
-		const privateContext = assertPrivateConversationControlContext(extracted);
+	const actor = await requirePrivateConversationActor({
+		c,
+		db: extracted.db,
+		apiKey: privateContext.apiKey,
+		organizationId: privateContext.organization.id,
+		websiteTeamId: privateContext.website.teamId,
+		required: true,
+	});
 
-		const { conversationId } = getConversationPathParams(c);
-		const conversationRecord = await loadPrivateConversationRecord({
-			db: extracted.db,
-			organizationId: privateContext.organization.id,
-			websiteId: privateContext.website.id,
-			conversationId,
-		});
+	const isParticipant = await isUserParticipant(extracted.db, {
+		conversationId,
+		userId: actor.userId,
+	});
 
-		if (!conversationRecord) {
-			return restError(c, 404, "NOT_FOUND", "Conversation not found");
-		}
-
-		const actor = await requirePrivateConversationActor({
-			c,
-			db: extracted.db,
-			apiKey: privateContext.apiKey,
-			organizationId: privateContext.organization.id,
-			websiteTeamId: privateContext.website.teamId,
-			required: true,
-		});
-
-		const updatedConversation = await resumeAiForConversation({
-			db: extracted.db,
-			redis: getRedis(),
-			conversationId: conversationRecord.id,
-			organizationId: conversationRecord.organizationId,
-		});
-
-		if (!updatedConversation) {
-			return restError(
-				c,
-				500,
-				"INTERNAL_SERVER_ERROR",
-				"Unable to resume AI for conversation"
-			);
-		}
-
-		await Promise.all([
-			emitPrivateConversationUpdate(updatedConversation, {
-				aiPausedUntil: null,
-			}),
-			createConversationEvent({
-				db: extracted.db,
-				context: {
-					conversationId: updatedConversation.id,
-					organizationId: updatedConversation.organizationId,
-					websiteId: updatedConversation.websiteId,
-					visitorId: updatedConversation.visitorId,
-				},
-				event: {
-					type: ConversationEventType.AI_RESUMED,
-					actorUserId: actor.userId,
-					message: "resumed AI answers",
-					visibility: TimelineItemVisibility.PRIVATE,
-				},
-			}),
-		]);
-
-		return c.json(
-			createPrivateConversationMutationResponse(updatedConversation),
-			200
-		);
-	}
-);
-
-conversationRouter.openapi(
-	{
-		method: "post",
-		path: "/{conversationId}/join-escalation",
-		summary: "Join an escalated conversation",
-		description:
-			"Marks an escalation as handled and adds the acting teammate as a participant if needed. Requires a private API key and an acting teammate.",
-		operationId: "joinConversationEscalation",
-		tags: ["Conversations"],
-		responses: {
-			200: {
-				description: "Escalation joined successfully",
-				content: {
-					"application/json": {
-						schema: privateConversationMutationResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse(
-				"Bad request - Missing actor for an unlinked private API key"
-			),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse(
-				"Forbidden - Private API key required or actor user not allowed for this website"
-			),
-			404: errorJsonResponse("Conversation not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({
-			parameters: [conversationIdPathParameter],
-			includeActorUserIdHeader: true,
-		}),
-	},
-	async (c) => {
-		const extracted = await safelyExtractRequestData(c);
-		const privateContext = assertPrivateConversationControlContext(extracted);
-
-		const { conversationId } = getConversationPathParams(c);
-		const conversationRecord = await loadPrivateConversationRecord({
-			db: extracted.db,
-			organizationId: privateContext.organization.id,
-			websiteId: privateContext.website.id,
-			conversationId,
-		});
-
-		if (!conversationRecord) {
-			return restError(c, 404, "NOT_FOUND", "Conversation not found");
-		}
-
-		const actor = await requirePrivateConversationActor({
-			c,
-			db: extracted.db,
-			apiKey: privateContext.apiKey,
-			organizationId: privateContext.organization.id,
-			websiteTeamId: privateContext.website.teamId,
-			required: true,
-		});
-
-		const isParticipant = await isUserParticipant(extracted.db, {
+	if (!isParticipant) {
+		await addConversationParticipant(extracted.db, {
 			conversationId,
 			userId: actor.userId,
-		});
-
-		if (!isParticipant) {
-			await addConversationParticipant(extracted.db, {
-				conversationId,
-				userId: actor.userId,
-				organizationId: privateContext.organization.id,
-				requestedByUserId: actor.userId,
-				reason: "Joined escalation",
-			});
-		}
-
-		await createParticipantJoinedEvent(extracted.db, {
-			conversationId,
 			organizationId: privateContext.organization.id,
-			websiteId: privateContext.website.id,
-			visitorId: conversationRecord.visitorId,
-			targetUserId: actor.userId,
-			actorUserId: actor.userId,
-			isAutoAdded: false,
-			customMessage: "joined to help",
+			requestedByUserId: actor.userId,
+			reason: "Joined escalation",
 		});
-
-		const updatedConversation = await joinEscalation(extracted.db, {
-			conversation: conversationRecord,
-			actorUserId: actor.userId,
-		});
-
-		return c.json(
-			createPrivateConversationMutationResponse(updatedConversation),
-			200
-		);
 	}
-);
 
-conversationRouter.openapi(
-	{
-		method: "get",
-		path: "/inbox",
-		summary: "List inbox conversations",
-		description:
-			"Returns a cursor-paginated inbox view for the authenticated website. This control-plane endpoint requires a private API key.",
-		tags: ["Conversations"],
-		request: {
-			query: listInboxConversationsRequestSchema,
-		},
-		responses: {
-			200: {
-				description: "Inbox conversations retrieved successfully",
-				content: {
-					"application/json": {
-						schema: listInboxConversationsResponseSchema,
-					},
-				},
-			},
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse("Forbidden - Private API key required"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({
-			includeActorUserIdHeader: true,
-		}),
-	},
-	async (c) => {
-		const extracted = await safelyExtractRequestQuery(
-			c,
-			listInboxConversationsRequestSchema
-		);
-		const privateContext = requirePrivateControlContext(c, extracted);
+	await createParticipantJoinedEvent(extracted.db, {
+		conversationId,
+		organizationId: privateContext.organization.id,
+		websiteId: privateContext.website.id,
+		visitorId: conversationRecord.visitorId,
+		targetUserId: actor.userId,
+		actorUserId: actor.userId,
+		isAutoAdded: false,
+		customMessage: "joined to help",
+	});
 
-		if (privateContext instanceof Response) {
-			return privateContext;
-		}
+	const updatedConversation = await joinEscalation(extracted.db, {
+		conversation: conversationRecord,
+		actorUserId: actor.userId,
+	});
 
-		const actor = await requirePrivateConversationActor({
-			c,
-			db: extracted.db,
-			apiKey: privateContext.apiKey,
-			organizationId: privateContext.organization.id,
-			websiteTeamId: privateContext.website.teamId,
-			required: false,
-		});
+	return c.json(
+		createPrivateConversationMutationResponse(updatedConversation),
+		200
+	);
+});
 
-		const response = await listSupportConversations(extracted.db, {
+conversationRouter.openapi(listInboxConversationsRoute, async (c) => {
+	const extracted = await safelyExtractRequestQuery(
+		c,
+		listInboxConversationsRequestSchema
+	);
+	const privateContext = requirePrivateControlContext(c, extracted);
+
+	if (privateContext instanceof Response) {
+		return privateContext;
+	}
+
+	const actor = await requirePrivateConversationActor({
+		c,
+		db: extracted.db,
+		apiKey: privateContext.apiKey,
+		organizationId: privateContext.organization.id,
+		websiteTeamId: privateContext.website.teamId,
+		required: false,
+	});
+
+	const response = await listSupportConversations(extracted.db, {
+		website: privateContext.website,
+		actorUserId: actor?.userId ?? null,
+		limit: extracted.query.limit,
+		cursor: extracted.query.cursor ?? null,
+		status: extracted.query.status,
+		priority: extracted.query.priority,
+		sentiment: extracted.query.sentiment,
+		visitorId: extracted.query.visitorId,
+		contactId: extracted.query.contactId,
+		assignedToUserId: extracted.query.assignedToUserId,
+		viewId: extracted.query.viewId,
+		createdAtFrom: extracted.query.createdAtFrom,
+		createdAtTo: extracted.query.createdAtTo,
+		updatedAtFrom: extracted.query.updatedAtFrom,
+		updatedAtTo: extracted.query.updatedAtTo,
+		q: extracted.query.q,
+		orderBy: extracted.query.orderBy,
+		order: extracted.query.order,
+	});
+
+	return c.json(
+		validateResponse(response, listInboxConversationsResponseSchema),
+		200
+	);
+});
+
+conversationRouter.openapi(getConversationContextRoute, async (c) => {
+	const extracted = await safelyExtractRequestQuery(
+		c,
+		conversationContextRequestSchema
+	);
+	const privateContext = requirePrivateControlContext(c, extracted);
+
+	if (privateContext instanceof Response) {
+		return privateContext;
+	}
+
+	const { conversationId } = getConversationPathParams(c);
+	const actor = await requirePrivateConversationActor({
+		c,
+		db: extracted.db,
+		apiKey: privateContext.apiKey,
+		organizationId: privateContext.organization.id,
+		websiteTeamId: privateContext.website.teamId,
+		required: false,
+	});
+
+	let response: Awaited<ReturnType<typeof getSupportConversation>>;
+	try {
+		response = await getSupportConversation(extracted.db, {
 			website: privateContext.website,
 			actorUserId: actor?.userId ?? null,
-			limit: extracted.query.limit,
-			cursor: extracted.query.cursor ?? null,
-			status: extracted.query.status,
-			priority: extracted.query.priority,
-			sentiment: extracted.query.sentiment,
-			visitorId: extracted.query.visitorId,
-			contactId: extracted.query.contactId,
-			assignedToUserId: extracted.query.assignedToUserId,
-			viewId: extracted.query.viewId,
-			createdAtFrom: extracted.query.createdAtFrom,
-			createdAtTo: extracted.query.createdAtTo,
-			updatedAtFrom: extracted.query.updatedAtFrom,
-			updatedAtTo: extracted.query.updatedAtTo,
-			q: extracted.query.q,
-			orderBy: extracted.query.orderBy,
-			order: extracted.query.order,
+			conversationId,
+			timelineLimit: extracted.query.timelineLimit,
+			timelineCursor: extracted.query.timelineCursor ?? null,
+			feedbackLimit: extracted.query.feedbackLimit,
 		});
+	} catch (error) {
+		if (error instanceof SupportCapabilityError) {
+			const status = error.status === 409 ? 400 : error.status;
+			return restError(c, status, error.code, error.message);
+		}
+		throw error;
+	}
 
+	return c.json(
+		validateResponse(response, conversationContextResponseSchema),
+		200
+	);
+});
+
+conversationRouter.openapi(getConversationRoute, async (c) => {
+	const { db, website, organization, apiKey, visitorIdHeader } =
+		await safelyExtractRequestData(c);
+	const params = getConversationPathParams(c);
+
+	const conversationRecord = await getConversationByIdWithLastMessage(db, {
+		organizationId: organization.id,
+		websiteId: website.id,
+		conversationId: params.conversationId,
+	});
+
+	if (!conversationRecord) {
 		return c.json(
-			validateResponse(response, listInboxConversationsResponseSchema),
-			200
+			{
+				error: "Conversation not found",
+			},
+			404
 		);
 	}
-);
 
-conversationRouter.openapi(
-	{
-		method: "get",
-		path: "/{conversationId}/context",
-		summary: "Get conversation context",
-		description:
-			"Returns agent-ready private context for a conversation, including rich conversation state, visitor/contact profile, a private timeline page, and linked feedback.",
-		tags: ["Conversations"],
-		request: {
-			params: getConversationRequestSchema,
-			query: conversationContextRequestSchema,
-		},
-		responses: {
-			200: {
-				description: "Conversation context retrieved successfully",
-				content: {
-					"application/json": {
-						schema: conversationContextResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse("Invalid request"),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse("Forbidden - Private API key required"),
-			404: errorJsonResponse("Conversation not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({
-			parameters: [conversationIdPathParameter],
-			includeActorUserIdHeader: true,
-		}),
-	},
-	async (c) => {
-		const extracted = await safelyExtractRequestQuery(
-			c,
-			conversationContextRequestSchema
+	const publicVisitor = await resolvePublicConversationVisitor({
+		c,
+		db,
+		organizationId: organization.id,
+		websiteId: website.id,
+		apiKey,
+		headerVisitorId: visitorIdHeader,
+	});
+
+	if (publicVisitor.error) {
+		return publicVisitor.error;
+	}
+
+	const ownershipError = await ensurePublicConversationAccess({
+		c,
+		db,
+		organizationId: organization.id,
+		websiteId: website.id,
+		conversationVisitorId: conversationRecord.visitorId,
+		viewerVisitorId: publicVisitor.visitor?.id ?? null,
+	});
+
+	if (ownershipError) {
+		return ownershipError;
+	}
+
+	try {
+		const response = {
+			conversation: serializeConversationForResponse(conversationRecord),
+		};
+
+		return c.json(
+			validateResponse(response, getConversationResponseSchema),
+			200
 		);
-		const privateContext = requirePrivateControlContext(c, extracted);
-
-		if (privateContext instanceof Response) {
-			return privateContext;
-		}
-
-		const { conversationId } = getConversationPathParams(c);
-		const actor = await requirePrivateConversationActor({
-			c,
-			db: extracted.db,
-			apiKey: privateContext.apiKey,
-			organizationId: privateContext.organization.id,
-			websiteTeamId: privateContext.website.teamId,
-			required: false,
-		});
-
-		let response: Awaited<ReturnType<typeof getSupportConversation>>;
-		try {
-			response = await getSupportConversation(extracted.db, {
-				website: privateContext.website,
-				actorUserId: actor?.userId ?? null,
-				conversationId,
-				timelineLimit: extracted.query.timelineLimit,
-				timelineCursor: extracted.query.timelineCursor ?? null,
-				feedbackLimit: extracted.query.feedbackLimit,
-			});
-		} catch (error) {
-			if (error instanceof SupportCapabilityError) {
-				const status = error.status === 409 ? 400 : error.status;
-				return restError(c, status, error.code, error.message);
+	} catch (error) {
+		console.error(
+			"[GET_CONVERSATION] Failed to serialize conversation response",
+			{
+				error,
+				conversationId: params.conversationId,
+				organizationId: organization.id,
+				websiteId: website.id,
 			}
-			throw error;
-		}
-
-		return c.json(
-			validateResponse(response, conversationContextResponseSchema),
-			200
 		);
+
+		return c.json({ error: "Failed to serialize conversation response" }, 500);
 	}
-);
+});
 
-conversationRouter.openapi(
-	{
-		method: "get",
-		path: "/{conversationId}",
-		summary: "Get a single conversation by ID",
-		description:
-			"Fetch a specific conversation by its ID, including any public conversation metadata.",
-		tags: ["Conversations"],
-		request: {
-			params: getConversationRequestSchema,
-		},
-		responses: {
-			200: {
-				description: "Conversation retrieved successfully",
-				content: {
-					"application/json": {
-						schema: getConversationResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse("Invalid request"),
-			401: errorJsonResponse("Unauthorized - Invalid or missing API key"),
-			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
-			404: errorJsonResponse("Conversation not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...runtimeDualAuth({
-			parameters: [conversationIdPathParameter],
-			includeVisitorIdHeader: true,
+conversationRouter.openapi(markConversationSeenRoute, async (c) => {
+	const { db, website, organization, body, visitorIdHeader } =
+		await safelyExtractRequestData(c, markConversationSeenRequestSchema);
+
+	const params = getConversationRequestSchema.parse({
+		conversationId: c.req.param("conversationId"),
+	});
+
+	const [visitorIdentity, conversationRecord] = await Promise.all([
+		resolveRuntimeVisitorIdentity({
+			c,
+			db,
+			organizationId: organization.id,
+			websiteId: website.id,
+			headerVisitorId: visitorIdHeader,
+			requestVisitorId: body.visitorId,
 		}),
-	},
-	async (c) => {
-		const { db, website, organization, apiKey, visitorIdHeader } =
-			await safelyExtractRequestData(c);
-		const params = getConversationPathParams(c);
-
-		const conversationRecord = await getConversationByIdWithLastMessage(db, {
+		getConversationByIdWithLastMessage(db, {
 			organizationId: organization.id,
 			websiteId: website.id,
 			conversationId: params.conversationId,
-		});
+		}),
+	]);
 
-		if (!conversationRecord) {
-			return c.json(
-				{
-					error: "Conversation not found",
-				},
-				404
-			);
-		}
+	if (visitorIdentity.error) {
+		return visitorIdentity.error;
+	}
 
-		const publicVisitor = await resolvePublicConversationVisitor({
+	const visitor = visitorIdentity.visitor;
+	if (!visitor) {
+		return restError(
+			c,
+			400,
+			"BAD_REQUEST",
+			"Visitor not found, please pass a valid visitorId"
+		);
+	}
+
+	if (!conversationRecord) {
+		return c.json(
+			{
+				error: "Conversation not found",
+			},
+			404
+		);
+	}
+
+	const canAccessConversation = await canVisitorAccessConversation(db, {
+		organizationId: organization.id,
+		websiteId: website.id,
+		viewerVisitorId: visitor.id,
+		conversationVisitorId: conversationRecord.visitorId,
+	});
+
+	if (!canAccessConversation) {
+		return c.json(
+			{
+				error: "Conversation not found",
+			},
+			404
+		);
+	}
+
+	const lastSeenAt = await markConversationAsSeenByVisitor(db, {
+		conversation: conversationRecord,
+		visitorId: visitor.id,
+	});
+
+	await emitConversationSeenEvent({
+		conversation: conversationRecord,
+		actor: { type: "visitor", visitorId: visitor.id },
+		lastSeenAt,
+	});
+
+	const response = {
+		conversationId: conversationRecord.id,
+		lastSeenAt,
+	};
+
+	return c.json(
+		validateResponse(response, markConversationSeenResponseSchema),
+		200
+	);
+});
+
+conversationRouter.openapi(setConversationTypingRoute, async (c) => {
+	const { db, website, organization, body, visitorIdHeader } =
+		await safelyExtractRequestData(c, setConversationTypingRequestSchema);
+
+	const params = getConversationRequestSchema.parse({
+		conversationId: c.req.param("conversationId"),
+	});
+
+	const [visitorIdentity, conversationRecord] = await Promise.all([
+		resolveRuntimeVisitorIdentity({
 			c,
 			db,
 			organizationId: organization.id,
 			websiteId: website.id,
-			apiKey,
 			headerVisitorId: visitorIdHeader,
-		});
+			requestVisitorId: body.visitorId,
+		}),
+		getConversationByIdWithLastMessage(db, {
+			organizationId: organization.id,
+			websiteId: website.id,
+			conversationId: params.conversationId,
+		}),
+	]);
 
-		if (publicVisitor.error) {
-			return publicVisitor.error;
+	if (visitorIdentity.error) {
+		return visitorIdentity.error;
+	}
+
+	const visitor = visitorIdentity.visitor;
+	if (!visitor) {
+		return restError(
+			c,
+			400,
+			"BAD_REQUEST",
+			"Visitor not found, please pass a valid visitorId"
+		);
+	}
+
+	if (!conversationRecord) {
+		return c.json(
+			{
+				error: "Conversation not found",
+			},
+			404
+		);
+	}
+
+	const canAccessConversation = await canVisitorAccessConversation(db, {
+		organizationId: organization.id,
+		websiteId: website.id,
+		viewerVisitorId: visitor.id,
+		conversationVisitorId: conversationRecord.visitorId,
+	});
+
+	if (!canAccessConversation) {
+		return c.json(
+			{
+				error: "Conversation not found",
+			},
+			404
+		);
+	}
+
+	const trimmedPreview = body.visitorPreview?.trim() ?? "";
+	let effectivePreview =
+		body.isTyping && trimmedPreview.length > 0
+			? trimmedPreview.slice(0, 2000)
+			: null;
+
+	if (effectivePreview) {
+		const stickyVisitorLanguage =
+			conversationRecord.visitorLanguage ?? visitor.language ?? null;
+		const autoTranslateEnabled =
+			website.autoTranslateEnabled === true
+				? isAutomaticTranslationEnabled({
+						planAllowsAutoTranslate:
+							(await getPlanForWebsite(website)).features["auto-translate"] ===
+							true,
+						websiteAutoTranslateEnabled: website.autoTranslateEnabled,
+					})
+				: false;
+		if (
+			autoTranslateEnabled &&
+			shouldMaskTypingPreview({
+				preview: effectivePreview,
+				websiteDefaultLanguage: website.defaultLanguage,
+				visitorLanguageHint: stickyVisitorLanguage,
+			})
+		) {
+			effectivePreview = "Typing in another language";
 		}
+	}
 
-		const ownershipError = await ensurePublicConversationAccess({
+	await emitConversationTypingEvent({
+		conversation: conversationRecord,
+		actor: { type: "visitor", visitorId: visitor.id },
+		isTyping: body.isTyping,
+		visitorPreview: effectivePreview ?? undefined,
+	});
+
+	const sentAt = new Date();
+
+	await markVisitorPresence({
+		websiteId: website.id,
+		visitorId: visitor.id,
+		lastSeenAt: sentAt,
+		geo: extractGeoFromVisitor(visitor),
+	});
+
+	const response = {
+		conversationId: conversationRecord.id,
+		isTyping: body.isTyping,
+		visitorPreview: effectivePreview,
+		sentAt: sentAt.toISOString(),
+	};
+
+	return c.json(
+		validateResponse(response, setConversationTypingResponseSchema),
+		200
+	);
+});
+
+conversationRouter.openapi(createConversationRatingRoute, async (c) => {
+	const { db, website, organization, body, visitorIdHeader } =
+		await safelyExtractRequestData(c, submitConversationRatingRequestSchema);
+
+	const params = getConversationRequestSchema.parse({
+		conversationId: c.req.param("conversationId"),
+	});
+
+	const [visitorIdentity, conversationRecord] = await Promise.all([
+		resolveRuntimeVisitorIdentity({
 			c,
 			db,
 			organizationId: organization.id,
 			websiteId: website.id,
-			conversationVisitorId: conversationRecord.visitorId,
-			viewerVisitorId: publicVisitor.visitor?.id ?? null,
-		});
-
-		if (ownershipError) {
-			return ownershipError;
-		}
-
-		try {
-			const response = {
-				conversation: serializeConversationForResponse(conversationRecord),
-			};
-
-			return c.json(
-				validateResponse(response, getConversationResponseSchema),
-				200
-			);
-		} catch (error) {
-			console.error(
-				"[GET_CONVERSATION] Failed to serialize conversation response",
-				{
-					error,
-					conversationId: params.conversationId,
-					organizationId: organization.id,
-					websiteId: website.id,
-				}
-			);
-
-			return c.json(
-				{ error: "Failed to serialize conversation response" },
-				500
-			);
-		}
-	}
-);
-
-conversationRouter.openapi(
-	{
-		method: "post",
-		path: "/{conversationId}/seen",
-		summary: "Mark a conversation as seen by the visitor",
-		description:
-			"Record a visitor's last seen timestamp for a specific conversation.",
-		tags: ["Conversations"],
-		request: {
-			body: {
-				required: false,
-				content: {
-					"application/json": {
-						schema: markConversationSeenRequestSchema,
-					},
-				},
-			},
-		},
-		responses: {
-			200: {
-				description: "Conversation seen timestamp recorded",
-				content: {
-					"application/json": {
-						schema: markConversationSeenResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse("Invalid request"),
-			401: errorJsonResponse("Unauthorized - Invalid or missing API key"),
-			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
-			404: errorJsonResponse("Conversation not found"),
-		},
-		...runtimeDualAuth({
-			parameters: [conversationIdPathParameter],
-			includeVisitorIdHeader: true,
+			headerVisitorId: visitorIdHeader,
+			requestVisitorId: body.visitorId,
 		}),
-	},
-	async (c) => {
-		const { db, website, organization, body, visitorIdHeader } =
-			await safelyExtractRequestData(c, markConversationSeenRequestSchema);
-
-		const params = getConversationRequestSchema.parse({
-			conversationId: c.req.param("conversationId"),
-		});
-
-		const [visitorIdentity, conversationRecord] = await Promise.all([
-			resolveRuntimeVisitorIdentity({
-				c,
-				db,
-				organizationId: organization.id,
-				websiteId: website.id,
-				headerVisitorId: visitorIdHeader,
-				requestVisitorId: body.visitorId,
-			}),
-			getConversationByIdWithLastMessage(db, {
-				organizationId: organization.id,
-				websiteId: website.id,
-				conversationId: params.conversationId,
-			}),
-		]);
-
-		if (visitorIdentity.error) {
-			return visitorIdentity.error;
-		}
-
-		const visitor = visitorIdentity.visitor;
-		if (!visitor) {
-			return restError(
-				c,
-				400,
-				"BAD_REQUEST",
-				"Visitor not found, please pass a valid visitorId"
-			);
-		}
-
-		if (!conversationRecord) {
-			return c.json(
-				{
-					error: "Conversation not found",
-				},
-				404
-			);
-		}
-
-		const canAccessConversation = await canVisitorAccessConversation(db, {
+		getConversationByIdWithLastMessage(db, {
 			organizationId: organization.id,
 			websiteId: website.id,
-			viewerVisitorId: visitor.id,
-			conversationVisitorId: conversationRecord.visitorId,
-		});
+			conversationId: params.conversationId,
+		}),
+	]);
 
-		if (!canAccessConversation) {
-			return c.json(
-				{
-					error: "Conversation not found",
-				},
-				404
-			);
-		}
+	if (visitorIdentity.error) {
+		return visitorIdentity.error;
+	}
 
-		const lastSeenAt = await markConversationAsSeenByVisitor(db, {
-			conversation: conversationRecord,
-			visitorId: visitor.id,
-		});
-
-		await emitConversationSeenEvent({
-			conversation: conversationRecord,
-			actor: { type: "visitor", visitorId: visitor.id },
-			lastSeenAt,
-		});
-
-		const response = {
-			conversationId: conversationRecord.id,
-			lastSeenAt,
-		};
-
-		return c.json(
-			validateResponse(response, markConversationSeenResponseSchema),
-			200
+	const visitor = visitorIdentity.visitor;
+	if (!visitor) {
+		return restError(
+			c,
+			400,
+			"BAD_REQUEST",
+			"Visitor not found, please pass a valid visitorId"
 		);
 	}
-);
 
-conversationRouter.openapi(
-	{
-		method: "post",
-		path: "/{conversationId}/typing",
-		summary: "Report a visitor typing state",
-		description:
-			"Emit a typing indicator event for the visitor. Either visitorId must be provided via body or headers.",
-		tags: ["Conversations"],
-		request: {
-			body: {
-				required: true,
-				content: {
-					"application/json": {
-						schema: setConversationTypingRequestSchema,
-					},
-				},
-			},
-		},
-		responses: {
-			200: {
-				description: "Typing state recorded",
-				content: {
-					"application/json": {
-						schema: setConversationTypingResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse("Invalid request"),
-			401: errorJsonResponse("Unauthorized - Invalid or missing API key"),
-			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
-			404: errorJsonResponse("Conversation not found"),
-		},
-		...runtimeDualAuth({
-			parameters: [conversationIdPathParameter],
-			includeVisitorIdHeader: true,
-		}),
-	},
-	async (c) => {
-		const { db, website, organization, body, visitorIdHeader } =
-			await safelyExtractRequestData(c, setConversationTypingRequestSchema);
-
-		const params = getConversationRequestSchema.parse({
-			conversationId: c.req.param("conversationId"),
-		});
-
-		const [visitorIdentity, conversationRecord] = await Promise.all([
-			resolveRuntimeVisitorIdentity({
-				c,
-				db,
-				organizationId: organization.id,
-				websiteId: website.id,
-				headerVisitorId: visitorIdHeader,
-				requestVisitorId: body.visitorId,
-			}),
-			getConversationByIdWithLastMessage(db, {
-				organizationId: organization.id,
-				websiteId: website.id,
-				conversationId: params.conversationId,
-			}),
-		]);
-
-		if (visitorIdentity.error) {
-			return visitorIdentity.error;
-		}
-
-		const visitor = visitorIdentity.visitor;
-		if (!visitor) {
-			return restError(
-				c,
-				400,
-				"BAD_REQUEST",
-				"Visitor not found, please pass a valid visitorId"
-			);
-		}
-
-		if (!conversationRecord) {
-			return c.json(
-				{
-					error: "Conversation not found",
-				},
-				404
-			);
-		}
-
-		const canAccessConversation = await canVisitorAccessConversation(db, {
-			organizationId: organization.id,
-			websiteId: website.id,
-			viewerVisitorId: visitor.id,
-			conversationVisitorId: conversationRecord.visitorId,
-		});
-
-		if (!canAccessConversation) {
-			return c.json(
-				{
-					error: "Conversation not found",
-				},
-				404
-			);
-		}
-
-		const trimmedPreview = body.visitorPreview?.trim() ?? "";
-		let effectivePreview =
-			body.isTyping && trimmedPreview.length > 0
-				? trimmedPreview.slice(0, 2000)
-				: null;
-
-		if (effectivePreview) {
-			const stickyVisitorLanguage =
-				conversationRecord.visitorLanguage ?? visitor.language ?? null;
-			const autoTranslateEnabled =
-				website.autoTranslateEnabled === true
-					? isAutomaticTranslationEnabled({
-							planAllowsAutoTranslate:
-								(await getPlanForWebsite(website)).features[
-									"auto-translate"
-								] === true,
-							websiteAutoTranslateEnabled: website.autoTranslateEnabled,
-						})
-					: false;
-			if (
-				autoTranslateEnabled &&
-				shouldMaskTypingPreview({
-					preview: effectivePreview,
-					websiteDefaultLanguage: website.defaultLanguage,
-					visitorLanguageHint: stickyVisitorLanguage,
-				})
-			) {
-				effectivePreview = "Typing in another language";
-			}
-		}
-
-		await emitConversationTypingEvent({
-			conversation: conversationRecord,
-			actor: { type: "visitor", visitorId: visitor.id },
-			isTyping: body.isTyping,
-			visitorPreview: effectivePreview ?? undefined,
-		});
-
-		const sentAt = new Date();
-
-		await markVisitorPresence({
-			websiteId: website.id,
-			visitorId: visitor.id,
-			lastSeenAt: sentAt,
-			geo: extractGeoFromVisitor(visitor),
-		});
-
-		const response = {
-			conversationId: conversationRecord.id,
-			isTyping: body.isTyping,
-			visitorPreview: effectivePreview,
-			sentAt: sentAt.toISOString(),
-		};
-
+	if (!conversationRecord) {
 		return c.json(
-			validateResponse(response, setConversationTypingResponseSchema),
-			200
+			{
+				error: "Conversation not found",
+			},
+			404
 		);
 	}
-);
 
-conversationRouter.openapi(
-	{
-		method: "post",
-		path: "/{conversationId}/rating",
-		summary: "Submit a visitor rating for a conversation",
-		description:
-			"Record a visitor rating (1-5) for a resolved conversation. Requires visitor ownership.",
-		tags: ["Conversations"],
-		request: {
-			body: {
-				required: true,
-				content: {
-					"application/json": {
-						schema: submitConversationRatingRequestSchema,
-					},
-				},
-			},
-		},
-		responses: {
-			200: {
-				description: "Conversation rating recorded",
-				content: {
-					"application/json": {
-						schema: submitConversationRatingResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse("Invalid request"),
-			401: errorJsonResponse("Unauthorized - Invalid or missing API key"),
-			403: errorJsonResponse("Forbidden"),
-			404: errorJsonResponse("Conversation not found"),
-		},
-		...runtimeDualAuth({
-			parameters: [conversationIdPathParameter],
-			includeVisitorIdHeader: true,
-		}),
-	},
-	async (c) => {
-		const { db, website, organization, body, visitorIdHeader } =
-			await safelyExtractRequestData(c, submitConversationRatingRequestSchema);
+	const canAccessConversation = await canVisitorAccessConversation(db, {
+		organizationId: organization.id,
+		websiteId: website.id,
+		viewerVisitorId: visitor.id,
+		conversationVisitorId: conversationRecord.visitorId,
+	});
 
-		const params = getConversationRequestSchema.parse({
-			conversationId: c.req.param("conversationId"),
-		});
-
-		const [visitorIdentity, conversationRecord] = await Promise.all([
-			resolveRuntimeVisitorIdentity({
-				c,
-				db,
-				organizationId: organization.id,
-				websiteId: website.id,
-				headerVisitorId: visitorIdHeader,
-				requestVisitorId: body.visitorId,
-			}),
-			getConversationByIdWithLastMessage(db, {
-				organizationId: organization.id,
-				websiteId: website.id,
-				conversationId: params.conversationId,
-			}),
-		]);
-
-		if (visitorIdentity.error) {
-			return visitorIdentity.error;
-		}
-
-		const visitor = visitorIdentity.visitor;
-		if (!visitor) {
-			return restError(
-				c,
-				400,
-				"BAD_REQUEST",
-				"Visitor not found, please pass a valid visitorId"
-			);
-		}
-
-		if (!conversationRecord) {
-			return c.json(
-				{
-					error: "Conversation not found",
-				},
-				404
-			);
-		}
-
-		const canAccessConversation = await canVisitorAccessConversation(db, {
-			organizationId: organization.id,
-			websiteId: website.id,
-			viewerVisitorId: visitor.id,
-			conversationVisitorId: conversationRecord.visitorId,
-		});
-
-		if (!canAccessConversation) {
-			return c.json(
-				{
-					error: "Conversation not found",
-				},
-				404
-			);
-		}
-
-		if (conversationRecord.status !== "resolved") {
-			return c.json(
-				{
-					error: "Conversation must be resolved before submitting a rating",
-				},
-				403
-			);
-		}
-
-		const { ratedAt } = await persistFeedbackSubmission({
-			db,
-			organizationId: organization.id,
-			websiteId: website.id,
-			website,
-			conversationId: conversationRecord.id,
-			visitorId: visitor.id,
-			contactId: visitor.contactId,
-			rating: body.rating,
-			topic: undefined,
-			comment: body.comment,
-			trigger: "conversation_resolved",
-			source: "widget",
-			syncConversationRating: true,
-		});
-
-		const response = {
-			conversationId: conversationRecord.id,
-			rating: body.rating,
-			ratedAt,
-		};
-
+	if (!canAccessConversation) {
 		return c.json(
-			validateResponse(response, submitConversationRatingResponseSchema),
-			200
+			{
+				error: "Conversation not found",
+			},
+			404
 		);
 	}
-);
+
+	if (conversationRecord.status !== "resolved") {
+		return c.json(
+			{
+				error: "Conversation must be resolved before submitting a rating",
+			},
+			403
+		);
+	}
+
+	const { ratedAt } = await persistFeedbackSubmission({
+		db,
+		organizationId: organization.id,
+		websiteId: website.id,
+		website,
+		conversationId: conversationRecord.id,
+		visitorId: visitor.id,
+		contactId: visitor.contactId,
+		rating: body.rating,
+		topic: undefined,
+		comment: body.comment,
+		trigger: "conversation_resolved",
+		source: "widget",
+		syncConversationRating: true,
+	});
+
+	const response = {
+		conversationId: conversationRecord.id,
+		rating: body.rating,
+		ratedAt,
+	};
+
+	return c.json(
+		validateResponse(response, submitConversationRatingResponseSchema),
+		200
+	);
+});
 
 // GET /conversations/:conversationId/seen - Fetch seen data for a conversation
-conversationRouter.openapi(
-	{
-		method: "get",
-		path: "/{conversationId}/seen",
-		summary: "Get conversation seen data",
-		description:
-			"Fetch the seen data (read receipts) for a conversation, showing who has seen messages and when.",
-		tags: ["Conversations"],
-		responses: {
-			200: {
-				description: "Seen data retrieved successfully",
-				content: {
-					"application/json": {
-						schema: getConversationSeenDataResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse("Invalid request"),
-			401: errorJsonResponse("Unauthorized - Invalid or missing API key"),
-			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
-			404: errorJsonResponse("Conversation not found"),
-		},
-		...runtimeDualAuth({
-			parameters: [conversationIdPathParameter],
-			includeVisitorIdHeader: true,
-		}),
-	},
-	async (c) => {
-		const { db, website, organization, apiKey, visitorIdHeader } =
-			await safelyExtractRequestQuery(c, z.object({}));
+conversationRouter.openapi(getConversationSeenRoute, async (c) => {
+	const { db, website, organization, apiKey, visitorIdHeader } =
+		await safelyExtractRequestQuery(c, z.object({}));
 
-		const params = getConversationPathParams(c);
+	const params = getConversationPathParams(c);
 
-		const conversationRecord = await getConversationByIdWithLastMessage(db, {
-			organizationId: organization.id,
-			websiteId: website.id,
-			conversationId: params.conversationId,
-		});
+	const conversationRecord = await getConversationByIdWithLastMessage(db, {
+		organizationId: organization.id,
+		websiteId: website.id,
+		conversationId: params.conversationId,
+	});
 
-		if (!conversationRecord) {
-			return c.json(
-				{
-					error: "Conversation not found",
-				},
-				404
-			);
-		}
-
-		const publicVisitor = await resolvePublicConversationVisitor({
-			c,
-			db,
-			organizationId: organization.id,
-			websiteId: website.id,
-			apiKey,
-			headerVisitorId: visitorIdHeader,
-		});
-
-		if (publicVisitor.error) {
-			return publicVisitor.error;
-		}
-
-		const ownershipError = await ensurePublicConversationAccess({
-			c,
-			db,
-			organizationId: organization.id,
-			websiteId: website.id,
-			conversationVisitorId: conversationRecord.visitorId,
-			viewerVisitorId: publicVisitor.visitor?.id ?? null,
-		});
-
-		if (ownershipError) {
-			return ownershipError;
-		}
-
-		const seenData = await getConversationSeenData(db, {
-			conversationId: params.conversationId,
-			organizationId: organization.id,
-		});
-
+	if (!conversationRecord) {
 		return c.json(
-			validateResponse({ seenData }, getConversationSeenDataResponseSchema),
-			200
-		);
-	}
-);
-
-conversationRouter.openapi(
-	{
-		method: "get",
-		path: "/{conversationId}/export",
-		summary: "Download a full conversation export",
-		description:
-			"Returns the full internal conversation transcript as plain text. This control-plane endpoint requires a private API key.",
-		tags: ["Conversations"],
-		request: {
-			query: emptyQuerySchema,
-			params: getConversationRequestSchema,
-		},
-		responses: {
-			200: {
-				description: "Conversation export generated successfully",
-				content: {
-					"text/plain": {
-						schema: z.string(),
-					},
-				},
-			},
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse("Forbidden - Private API key required"),
-			404: errorJsonResponse("Conversation not found"),
-		},
-		...privateControlAuth({
-			parameters: [conversationIdPathParameter],
-		}),
-	},
-	async (c) => {
-		const extracted = await safelyExtractRequestQuery(c, emptyQuerySchema);
-		const privateContext = requirePrivateControlContext(c, extracted);
-
-		if (privateContext instanceof Response) {
-			return privateContext;
-		}
-
-		const params = getConversationPathParams(c);
-		const conversationRecord = await getConversationByIdWithLastMessage(
-			extracted.db,
 			{
-				organizationId: privateContext.organization.id,
-				websiteId: privateContext.website.id,
-				conversationId: params.conversationId,
-			}
+				error: "Conversation not found",
+			},
+			404
 		);
-
-		if (!conversationRecord) {
-			return c.json(
-				{
-					error: "Conversation not found",
-				},
-				404
-			);
-		}
-
-		const exportResult = await buildConversationExport({
-			db: extracted.db,
-			website: {
-				id: privateContext.website.id,
-				slug: privateContext.website.slug,
-				organizationId: privateContext.website.organizationId,
-				teamId: privateContext.website.teamId,
-			},
-			conversation: {
-				id: conversationRecord.id,
-				title: conversationRecord.title,
-				createdAt: conversationRecord.createdAt,
-				visitorId: conversationRecord.visitorId,
-			},
-		});
-
-		return c.text(exportResult.content, 200, {
-			"Content-Disposition": `attachment; filename="${exportResult.filename}"`,
-			"Content-Type": exportResult.mimeType,
-		});
 	}
-);
+
+	const publicVisitor = await resolvePublicConversationVisitor({
+		c,
+		db,
+		organizationId: organization.id,
+		websiteId: website.id,
+		apiKey,
+		headerVisitorId: visitorIdHeader,
+	});
+
+	if (publicVisitor.error) {
+		return publicVisitor.error;
+	}
+
+	const ownershipError = await ensurePublicConversationAccess({
+		c,
+		db,
+		organizationId: organization.id,
+		websiteId: website.id,
+		conversationVisitorId: conversationRecord.visitorId,
+		viewerVisitorId: publicVisitor.visitor?.id ?? null,
+	});
+
+	if (ownershipError) {
+		return ownershipError;
+	}
+
+	const seenData = await getConversationSeenData(db, {
+		conversationId: params.conversationId,
+		organizationId: organization.id,
+	});
+
+	return c.json(
+		validateResponse({ seenData }, getConversationSeenDataResponseSchema),
+		200
+	);
+});
+
+conversationRouter.openapi(exportConversationRoute, async (c) => {
+	const extracted = await safelyExtractRequestQuery(c, emptyQuerySchema);
+	const privateContext = requirePrivateControlContext(c, extracted);
+
+	if (privateContext instanceof Response) {
+		return privateContext;
+	}
+
+	const params = getConversationPathParams(c);
+	const conversationRecord = await getConversationByIdWithLastMessage(
+		extracted.db,
+		{
+			organizationId: privateContext.organization.id,
+			websiteId: privateContext.website.id,
+			conversationId: params.conversationId,
+		}
+	);
+
+	if (!conversationRecord) {
+		return c.json(
+			{
+				error: "Conversation not found",
+			},
+			404
+		);
+	}
+
+	const exportResult = await buildConversationExport({
+		db: extracted.db,
+		website: {
+			id: privateContext.website.id,
+			slug: privateContext.website.slug,
+			organizationId: privateContext.website.organizationId,
+			teamId: privateContext.website.teamId,
+		},
+		conversation: {
+			id: conversationRecord.id,
+			title: conversationRecord.title,
+			createdAt: conversationRecord.createdAt,
+			visitorId: conversationRecord.visitorId,
+		},
+	});
+
+	return c.text(exportResult.content, 200, {
+		"Content-Disposition": `attachment; filename="${exportResult.filename}"`,
+		"Content-Type": exportResult.mimeType,
+	});
+});
 
 // GET /conversations/:conversationId/timeline - Fetch timeline items for a conversation
-conversationRouter.openapi(
-	{
-		method: "get",
-		path: "/{conversationId}/timeline",
-		summary: "Get conversation timeline items",
-		description:
-			"Fetch paginated timeline items (messages and events) for a conversation in chronological order.",
-		tags: ["Conversations"],
-		request: {
-			query: getConversationTimelineItemsRequestSchema,
-		},
-		responses: {
-			200: {
-				description: "Timeline items retrieved successfully",
-				content: {
-					"application/json": {
-						schema: getConversationTimelineItemsResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse("Invalid request"),
-			401: errorJsonResponse("Unauthorized - Invalid or missing API key"),
-			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
-			404: errorJsonResponse("Conversation not found"),
-		},
-		...runtimeDualAuth({
-			parameters: [conversationIdPathParameter],
-			includeVisitorIdHeader: true,
-		}),
-	},
-	async (c) => {
-		const { db, website, organization, query, apiKey, visitorIdHeader } =
-			await safelyExtractRequestQuery(
-				c,
-				getConversationTimelineItemsRequestSchema
-			);
-
-		const params = getConversationPathParams(c);
-
-		const conversationRecord = await getConversationByIdWithLastMessage(db, {
-			organizationId: organization.id,
-			websiteId: website.id,
-			conversationId: params.conversationId,
-		});
-
-		if (!conversationRecord) {
-			return c.json(
-				{
-					error: "Conversation not found",
-				},
-				404
-			);
-		}
-
-		const publicVisitor = await resolvePublicConversationVisitor({
+conversationRouter.openapi(getConversationTimelineRoute, async (c) => {
+	const { db, website, organization, query, apiKey, visitorIdHeader } =
+		await safelyExtractRequestQuery(
 			c,
-			db,
-			organizationId: organization.id,
-			websiteId: website.id,
-			apiKey,
-			headerVisitorId: visitorIdHeader,
-		});
+			getConversationTimelineItemsRequestSchema
+		);
 
-		if (publicVisitor.error) {
-			return publicVisitor.error;
-		}
+	const params = getConversationPathParams(c);
 
-		const ownershipError = await ensurePublicConversationAccess({
-			c,
-			db,
-			organizationId: organization.id,
-			websiteId: website.id,
-			conversationVisitorId: conversationRecord.visitorId,
-			viewerVisitorId: publicVisitor.visitor?.id ?? null,
-		});
+	const conversationRecord = await getConversationByIdWithLastMessage(db, {
+		organizationId: organization.id,
+		websiteId: website.id,
+		conversationId: params.conversationId,
+	});
 
-		if (ownershipError) {
-			return ownershipError;
-		}
-
-		const visibilityFilter =
-			apiKey?.keyType === APIKeyType.PUBLIC
-				? [TimelineItemVisibility.PUBLIC]
-				: undefined;
-
-		const result = await getConversationTimelineItems(db, {
-			organizationId: organization.id,
-			conversationId: params.conversationId,
-			websiteId: website.id,
-			limit: query.limit,
-			cursor: query.cursor,
-			visibility: visibilityFilter,
-		});
-
+	if (!conversationRecord) {
 		return c.json(
 			{
-				items: result.items as TimelineItem[],
-				nextCursor: result.nextCursor ?? null,
-				hasNextPage: result.hasNextPage,
+				error: "Conversation not found",
 			},
-			200
+			404
 		);
 	}
-);
+
+	const publicVisitor = await resolvePublicConversationVisitor({
+		c,
+		db,
+		organizationId: organization.id,
+		websiteId: website.id,
+		apiKey,
+		headerVisitorId: visitorIdHeader,
+	});
+
+	if (publicVisitor.error) {
+		return publicVisitor.error;
+	}
+
+	const ownershipError = await ensurePublicConversationAccess({
+		c,
+		db,
+		organizationId: organization.id,
+		websiteId: website.id,
+		conversationVisitorId: conversationRecord.visitorId,
+		viewerVisitorId: publicVisitor.visitor?.id ?? null,
+	});
+
+	if (ownershipError) {
+		return ownershipError;
+	}
+
+	const visibilityFilter =
+		apiKey?.keyType === APIKeyType.PUBLIC
+			? [TimelineItemVisibility.PUBLIC]
+			: undefined;
+
+	const result = await getConversationTimelineItems(db, {
+		organizationId: organization.id,
+		conversationId: params.conversationId,
+		websiteId: website.id,
+		limit: query.limit,
+		cursor: query.cursor,
+		visibility: visibilityFilter,
+	});
+
+	return c.json(
+		{
+			items: result.items as TimelineItem[],
+			nextCursor: result.nextCursor ?? null,
+			hasNextPage: result.hasNextPage,
+		},
+		200
+	);
+});

@@ -15,6 +15,11 @@ import {
 	validateResponse,
 } from "@api/utils/validate";
 import {
+	getAiAgentRoute,
+	getAiAgentTrainingStatusRoute,
+	startAiAgentTrainingRoute,
+} from "@cossistant/protocol/routes";
+import {
 	type AiAgentTrainingPublicStatus,
 	aiAgentResponseSchema,
 	aiAgentStartTrainingResponseSchema,
@@ -242,315 +247,194 @@ async function buildTrainingStatusResponse(params: {
 	);
 }
 
-aiAgentRouter.openapi(
-	{
-		method: "get",
-		path: "/{id}/training",
-		summary: "Get AI agent training status",
-		description:
-			"Returns the current public and internal knowledge base training status for a specific AI agent.",
-		operationId: "getAiAgentTrainingStatus",
-		responses: {
-			200: {
-				description: "AI agent training status retrieved successfully",
-				content: {
-					"application/json": {
-						schema: aiAgentTrainingStatusResponseSchema,
-					},
-				},
-			},
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse("Forbidden - Private API key required"),
-			404: errorJsonResponse("AI agent not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		tags: ["AI Agents"],
-		...privateControlAuth({
-			parameters: [aiAgentIdPathParameter],
-		}),
-	},
-	async (c) => {
-		try {
-			const extracted = await safelyExtractRequestData(c);
-			const privateContext = requirePrivateControlContext(c, extracted);
-			const aiAgentId = c.req.param("id");
+aiAgentRouter.openapi(getAiAgentTrainingStatusRoute, async (c) => {
+	try {
+		const extracted = await safelyExtractRequestData(c);
+		const privateContext = requirePrivateControlContext(c, extracted);
+		const aiAgentId = c.req.param("id");
 
-			if (privateContext instanceof Response) {
-				return privateContext;
-			}
-
-			if (!aiAgentId) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "AI agent not found" },
-					404
-				);
-			}
-
-			const agent = await getAiAgentForWebsiteById(extracted.db, {
-				aiAgentId,
-				websiteId: privateContext.website.id,
-				organizationId: privateContext.organization.id,
-			});
-
-			if (!agent) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "AI agent not found" },
-					404
-				);
-			}
-
-			return c.json(
-				await buildTrainingStatusResponse({
-					db: extracted.db,
-					website: privateContext.website,
-					agent,
-				}),
-				200
-			);
-		} catch (error) {
-			return handleAiAgentRouterError(
-				c,
-				error,
-				"Failed to fetch AI agent training status"
-			) as never;
+		if (privateContext instanceof Response) {
+			return privateContext;
 		}
-	}
-);
 
-aiAgentRouter.openapi(
-	{
-		method: "post",
-		path: "/{id}/training",
-		summary: "Start AI agent training",
-		description:
-			"Queues a retraining job for the AI agent knowledge base. Requires a private API key. When using an unlinked private key, send `X-Actor-User-Id` with a valid website teammate ID.",
-		operationId: "startAiAgentTraining",
-		responses: {
-			202: {
-				description: "AI agent training job queued successfully",
-				content: {
-					"application/json": {
-						schema: aiAgentStartTrainingResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse(
-				"Bad request - Missing required actor header for an unlinked private key"
-			),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse(
-				"Forbidden - Private API key required or actor is not allowed for this website"
-			),
-			404: errorJsonResponse("AI agent not found"),
-			409: errorJsonResponse("Conflict - Training is already in progress"),
-			429: errorJsonResponse(
-				"Too Many Requests - Training cooldown has not elapsed yet"
-			),
-			500: errorJsonResponse("Internal server error"),
-		},
-		tags: ["AI Agents"],
-		...privateControlAuth({
-			parameters: [aiAgentIdPathParameter],
-			includeActorUserIdHeader: true,
-		}),
-	},
-	async (c) => {
-		try {
-			const extracted = await safelyExtractRequestData(c);
-			const privateContext = requirePrivateControlContext(c, extracted);
-			const aiAgentId = c.req.param("id");
+		if (!aiAgentId) {
+			return c.json({ error: "NOT_FOUND", message: "AI agent not found" }, 404);
+		}
 
-			if (privateContext instanceof Response) {
-				return privateContext;
-			}
+		const agent = await getAiAgentForWebsiteById(extracted.db, {
+			aiAgentId,
+			websiteId: privateContext.website.id,
+			organizationId: privateContext.organization.id,
+		});
 
-			if (!aiAgentId) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "AI agent not found" },
-					404
-				);
-			}
+		if (!agent) {
+			return c.json({ error: "NOT_FOUND", message: "AI agent not found" }, 404);
+		}
 
-			const agent = await getAiAgentForWebsiteById(extracted.db, {
-				aiAgentId,
-				websiteId: privateContext.website.id,
-				organizationId: privateContext.organization.id,
-			});
-
-			if (!agent) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "AI agent not found" },
-					404
-				);
-			}
-
-			const actor = await requirePrivateAiAgentActor({
-				c,
+		return c.json(
+			await buildTrainingStatusResponse({
 				db: extracted.db,
-				apiKey: privateContext.apiKey,
-				organizationId: privateContext.organization.id,
-				websiteTeamId: privateContext.website.teamId,
-				required: true,
-			});
-
-			if (!actor) {
-				throw new HTTPException(403, {
-					message: "Actor user is not allowed for this website",
-				});
-			}
-
-			if (
-				agent.trainingStatus === "pending" ||
-				agent.trainingStatus === "training"
-			) {
-				return c.json(
-					{
-						error: "CONFLICT",
-						message: "Training is already in progress",
-					},
-					409
-				);
-			}
-
-			const planInfo = await getPlanForWebsite(privateContext.website);
-			const cooldownMs = getTrainingCooldownMs(
-				planInfo.features["ai-agent-training-interval"]
-			);
-			if (cooldownMs > 0 && agent.lastTrainedAt) {
-				const cooldownEnd = new Date(
-					new Date(agent.lastTrainedAt).getTime() + cooldownMs
-				);
-
-				if (cooldownEnd > new Date()) {
-					c.header(
-						"Retry-After",
-						String(
-							Math.max(
-								1,
-								Math.ceil((cooldownEnd.getTime() - Date.now()) / 1000)
-							)
-						)
-					);
-					return c.json(
-						{
-							error: "TOO_MANY_REQUESTS",
-							message: `Your plan allows training every ${Math.round(cooldownMs / 60_000)} minutes. Try again after ${cooldownEnd.toISOString()}`,
-						},
-						429
-					);
-				}
-			}
-
-			await updateAiAgentTrainingStatus(extracted.db, {
-				aiAgentId: agent.id,
-				trainingStatus: "pending",
-				trainingProgress: 0,
-				trainingError: null,
-			});
-
-			const jobId = await triggerAiTraining({
-				websiteId: privateContext.website.id,
-				organizationId: privateContext.organization.id,
-				aiAgentId: agent.id,
-				triggeredBy: actor.userId,
-			});
-
-			return c.json(
-				validateResponse(
-					{
-						aiAgentId: agent.id,
-						jobId,
-						status: "training_ongoing" as const,
-						internalStatus: "pending" as const,
-						progress: 0,
-					},
-					aiAgentStartTrainingResponseSchema
-				),
-				202
-			);
-		} catch (error) {
-			return handleAiAgentRouterError(
-				c,
-				error,
-				"Failed to start AI agent training"
-			) as never;
-		}
+				website: privateContext.website,
+				agent,
+			}),
+			200
+		);
+	} catch (error) {
+		return handleAiAgentRouterError(
+			c,
+			error,
+			"Failed to fetch AI agent training status"
+		) as never;
 	}
-);
+});
 
-aiAgentRouter.openapi(
-	{
-		method: "get",
-		path: "/{id}",
-		summary: "Get an AI agent",
-		description:
-			"Retrieves a single AI agent by ID for the authenticated website.",
-		operationId: "getAiAgent",
-		responses: {
-			200: {
-				description: "AI agent retrieved successfully",
-				content: {
-					"application/json": {
-						schema: aiAgentResponseSchema,
-					},
+aiAgentRouter.openapi(startAiAgentTrainingRoute, async (c) => {
+	try {
+		const extracted = await safelyExtractRequestData(c);
+		const privateContext = requirePrivateControlContext(c, extracted);
+		const aiAgentId = c.req.param("id");
+
+		if (privateContext instanceof Response) {
+			return privateContext;
+		}
+
+		if (!aiAgentId) {
+			return c.json({ error: "NOT_FOUND", message: "AI agent not found" }, 404);
+		}
+
+		const agent = await getAiAgentForWebsiteById(extracted.db, {
+			aiAgentId,
+			websiteId: privateContext.website.id,
+			organizationId: privateContext.organization.id,
+		});
+
+		if (!agent) {
+			return c.json({ error: "NOT_FOUND", message: "AI agent not found" }, 404);
+		}
+
+		const actor = await requirePrivateAiAgentActor({
+			c,
+			db: extracted.db,
+			apiKey: privateContext.apiKey,
+			organizationId: privateContext.organization.id,
+			websiteTeamId: privateContext.website.teamId,
+			required: true,
+		});
+
+		if (!actor) {
+			throw new HTTPException(403, {
+				message: "Actor user is not allowed for this website",
+			});
+		}
+
+		if (
+			agent.trainingStatus === "pending" ||
+			agent.trainingStatus === "training"
+		) {
+			return c.json(
+				{
+					error: "CONFLICT",
+					message: "Training is already in progress",
 				},
-			},
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse("Forbidden - Private API key required"),
-			404: errorJsonResponse("AI agent not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		tags: ["AI Agents"],
-		...privateControlAuth({
-			parameters: [aiAgentIdPathParameter],
-		}),
-	},
-	async (c) => {
-		try {
-			const extracted = await safelyExtractRequestData(c);
-			const privateContext = requirePrivateControlContext(c, extracted);
-			const aiAgentId = c.req.param("id");
-
-			if (privateContext instanceof Response) {
-				return privateContext;
-			}
-
-			if (!aiAgentId) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "AI agent not found" },
-					404
-				);
-			}
-
-			const agent = await getAiAgentForWebsiteById(extracted.db, {
-				aiAgentId,
-				websiteId: privateContext.website.id,
-				organizationId: privateContext.organization.id,
-			});
-
-			if (!agent) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "AI agent not found" },
-					404
-				);
-			}
-
-			return c.json(
-				validateResponse(toAiAgentResponse(agent), aiAgentResponseSchema),
-				200
+				409
 			);
-		} catch (error) {
-			return handleAiAgentRouterError(
-				c,
-				error,
-				"Failed to fetch AI agent"
-			) as never;
 		}
+
+		const planInfo = await getPlanForWebsite(privateContext.website);
+		const cooldownMs = getTrainingCooldownMs(
+			planInfo.features["ai-agent-training-interval"]
+		);
+		if (cooldownMs > 0 && agent.lastTrainedAt) {
+			const cooldownEnd = new Date(
+				new Date(agent.lastTrainedAt).getTime() + cooldownMs
+			);
+
+			if (cooldownEnd > new Date()) {
+				c.header(
+					"Retry-After",
+					String(
+						Math.max(1, Math.ceil((cooldownEnd.getTime() - Date.now()) / 1000))
+					)
+				);
+				return c.json(
+					{
+						error: "TOO_MANY_REQUESTS",
+						message: `Your plan allows training every ${Math.round(cooldownMs / 60_000)} minutes. Try again after ${cooldownEnd.toISOString()}`,
+					},
+					429
+				);
+			}
+		}
+
+		await updateAiAgentTrainingStatus(extracted.db, {
+			aiAgentId: agent.id,
+			trainingStatus: "pending",
+			trainingProgress: 0,
+			trainingError: null,
+		});
+
+		const jobId = await triggerAiTraining({
+			websiteId: privateContext.website.id,
+			organizationId: privateContext.organization.id,
+			aiAgentId: agent.id,
+			triggeredBy: actor.userId,
+		});
+
+		return c.json(
+			validateResponse(
+				{
+					aiAgentId: agent.id,
+					jobId,
+					status: "training_ongoing" as const,
+					internalStatus: "pending" as const,
+					progress: 0,
+				},
+				aiAgentStartTrainingResponseSchema
+			),
+			202
+		);
+	} catch (error) {
+		return handleAiAgentRouterError(
+			c,
+			error,
+			"Failed to start AI agent training"
+		) as never;
 	}
-);
+});
+
+aiAgentRouter.openapi(getAiAgentRoute, async (c) => {
+	try {
+		const extracted = await safelyExtractRequestData(c);
+		const privateContext = requirePrivateControlContext(c, extracted);
+		const aiAgentId = c.req.param("id");
+
+		if (privateContext instanceof Response) {
+			return privateContext;
+		}
+
+		if (!aiAgentId) {
+			return c.json({ error: "NOT_FOUND", message: "AI agent not found" }, 404);
+		}
+
+		const agent = await getAiAgentForWebsiteById(extracted.db, {
+			aiAgentId,
+			websiteId: privateContext.website.id,
+			organizationId: privateContext.organization.id,
+		});
+
+		if (!agent) {
+			return c.json({ error: "NOT_FOUND", message: "AI agent not found" }, 404);
+		}
+
+		return c.json(
+			validateResponse(toAiAgentResponse(agent), aiAgentResponseSchema),
+			200
+		);
+	} catch (error) {
+		return handleAiAgentRouterError(
+			c,
+			error,
+			"Failed to fetch AI agent"
+		) as never;
+	}
+});

@@ -36,6 +36,18 @@ jobs:
       - name: Check types
         run: bun run check-types
 
+      - name: Check protocol OpenAPI document is up to date
+        run: bun run check:openapi
+
+      - name: Test protocol package
+        run: bun run test --filter @cossistant/protocol
+
+      - name: Test REST OpenAPI contract
+        # Run this file on its own: bun's mock.module registrations are global to
+        # the test process, so partial factories in other files leak across a
+        # combined `bun test src` run.
+        run: cd apps/api && bun test src/rest/openapi-contract.test.ts
+
       - name: Build browser embed package
         run: bun run build --filter @cossistant/browser
 

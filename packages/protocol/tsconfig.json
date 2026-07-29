@@ -1,0 +1,37 @@
+{
+  "extends": "@cossistant/typescript-config/base.json",
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "es2022",
+    "lib": ["es2022", "DOM", "DOM.Iterable"],
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "noEmit": false,
+    "declaration": true,
+    "declarationDir": "./dist",
+    "emitDeclarationOnly": true,
+    "baseUrl": "./",
+    "allowSyntheticDefaultImports": true,
+    "noErrorTruncation": false,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "outDir": "./dist",
+    "paths": {
+      "@cossistant/protocol": ["./src"],
+      "@cossistant/protocol/*": ["./src/*"],
+      "@cossistant/types": ["../types/src"],
+      "@cossistant/types/*": ["../types/src/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": [
+    "**/.*/",
+    "**/build",
+    "**/build-tests",
+    "**/node_modules",
+    "docs/export",
+    "dist",
+    "*.config.*"
+  ]
+}

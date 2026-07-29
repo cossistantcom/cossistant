@@ -16,6 +16,14 @@ import {
 	validateResponse,
 } from "@api/utils/validate";
 import {
+	createKnowledgeRoute,
+	deleteKnowledgeRoute,
+	getKnowledgeRoute,
+	listKnowledgeRoute,
+	searchKnowledgeRoute,
+	updateKnowledgeRoute,
+} from "@cossistant/protocol/routes";
+import {
 	type CreateKnowledgeRestRequest,
 	createKnowledgeRestRequestSchema,
 	type KnowledgeResponse,
@@ -274,536 +282,291 @@ function formatKnowledgeResponse(entry: {
 }
 
 // GET /knowledge - List knowledge entries with filters and pagination
-knowledgeRouter.openapi(
-	{
-		method: "get",
-		path: "/",
-		summary: "List knowledge entries",
-		description:
-			"Returns a paginated list of knowledge entries for the website. Supports filtering by type, AI agent, training inclusion, and link source.",
-		operationId: "listKnowledge",
-		request: {
-			query: listKnowledgeRestRequestSchema,
-		},
-		responses: {
-			200: {
-				description: "Knowledge entries retrieved successfully",
-				content: {
-					"application/json": {
-						schema: listKnowledgeResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse("Bad request - Invalid query parameters"),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			500: errorJsonResponse("Internal server error"),
-		},
-		tags: ["Knowledge"],
-		...privateControlAuth(),
-	},
-	async (c) => {
-		try {
-			const { db, website, query } = await safelyExtractRequestQuery(
-				c,
-				listKnowledgeRestRequestSchema
-			);
+knowledgeRouter.openapi(listKnowledgeRoute, async (c) => {
+	try {
+		const { db, website, query } = await safelyExtractRequestQuery(
+			c,
+			listKnowledgeRestRequestSchema
+		);
 
-			if (!(website?.id && website.organizationId)) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
-			}
-
-			const aiAgentId = normalizeAiAgentId(query.aiAgentId);
-			const isIncluded = normalizeIsIncluded(query.isIncluded);
-
-			const result = await listKnowledge(db, {
-				organizationId: website.organizationId,
-				websiteId: website.id,
-				type: query.type,
-				aiAgentId,
-				isIncluded,
-				linkSourceId: query.linkSourceId,
-				page: query.page,
-				limit: query.limit,
-			});
-
-			return c.json(
-				validateResponse(
-					{
-						items: result.items.map(formatKnowledgeResponse),
-						pagination: result.pagination,
-					},
-					listKnowledgeResponseSchema
-				),
-				200
-			);
-		} catch (error) {
-			return handleKnowledgeRouterError(
-				c,
-				error,
-				"Failed to list knowledge entries"
-			) as never;
+		if (!(website?.id && website.organizationId)) {
+			return c.json({ error: "UNAUTHORIZED", message: "Invalid API key" }, 401);
 		}
-	}
-);
 
-knowledgeRouter.openapi(
-	{
-		method: "get",
-		path: "/search",
-		summary: "Search knowledge",
-		description:
-			"Runs private semantic retrieval against indexed knowledge chunks for the authenticated website. Designed for CLI, MCP, and support-agent tools that need source-backed context.",
-		operationId: "searchKnowledge",
-		request: {
-			query: knowledgeSearchRequestSchema,
-		},
-		responses: {
-			200: {
-				description: "Knowledge search completed successfully",
-				content: {
-					"application/json": {
-						schema: knowledgeSearchResponseSchema,
-					},
+		const aiAgentId = normalizeAiAgentId(query.aiAgentId);
+		const isIncluded = normalizeIsIncluded(query.isIncluded);
+
+		const result = await listKnowledge(db, {
+			organizationId: website.organizationId,
+			websiteId: website.id,
+			type: query.type,
+			aiAgentId,
+			isIncluded,
+			linkSourceId: query.linkSourceId,
+			page: query.page,
+			limit: query.limit,
+		});
+
+		return c.json(
+			validateResponse(
+				{
+					items: result.items.map(formatKnowledgeResponse),
+					pagination: result.pagination,
 				},
-			},
-			400: errorJsonResponse("Bad request - Invalid query parameters"),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
+				listKnowledgeResponseSchema
 			),
-			403: errorJsonResponse("Forbidden - Private API key required"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		tags: ["Knowledge"],
-		...privateControlAuth(),
-	},
-	async (c) => {
-		try {
-			const { db, website, query } = await safelyExtractRequestQuery(
-				c,
-				knowledgeSearchRequestSchema
-			);
-
-			if (!(website?.id && website.organizationId)) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
-			}
-
-			const response = await searchSupportKnowledge(db, {
-				website,
-				query: query.query,
-				knowledgeId: query.knowledgeId,
-				limit: query.limit,
-				minSimilarity: query.minSimilarity,
-			});
-
-			return c.json(
-				validateResponse(response, knowledgeSearchResponseSchema),
-				200
-			);
-		} catch (error) {
-			return handleKnowledgeRouterError(
-				c,
-				error,
-				"Failed to search knowledge"
-			) as never;
-		}
+			200
+		);
+	} catch (error) {
+		return handleKnowledgeRouterError(
+			c,
+			error,
+			"Failed to list knowledge entries"
+		) as never;
 	}
-);
+});
+
+knowledgeRouter.openapi(searchKnowledgeRoute, async (c) => {
+	try {
+		const { db, website, query } = await safelyExtractRequestQuery(
+			c,
+			knowledgeSearchRequestSchema
+		);
+
+		if (!(website?.id && website.organizationId)) {
+			return c.json({ error: "UNAUTHORIZED", message: "Invalid API key" }, 401);
+		}
+
+		const response = await searchSupportKnowledge(db, {
+			website,
+			query: query.query,
+			knowledgeId: query.knowledgeId,
+			limit: query.limit,
+			minSimilarity: query.minSimilarity,
+		});
+
+		return c.json(
+			validateResponse(response, knowledgeSearchResponseSchema),
+			200
+		);
+	} catch (error) {
+		return handleKnowledgeRouterError(
+			c,
+			error,
+			"Failed to search knowledge"
+		) as never;
+	}
+});
 
 // GET /knowledge/:id - Get a single knowledge entry
-knowledgeRouter.openapi(
-	{
-		method: "get",
-		path: "/{id}",
-		summary: "Get a knowledge entry",
-		description: "Retrieves a single knowledge entry by ID",
-		operationId: "getKnowledge",
-		responses: {
-			200: {
-				description: "Knowledge entry retrieved successfully",
-				content: {
-					"application/json": {
-						schema: knowledgeResponseSchema,
-					},
-				},
-			},
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			404: errorJsonResponse("Knowledge entry not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		tags: ["Knowledge"],
-		...privateControlAuth({
-			parameters: [
-				{
-					name: "id",
-					in: "path",
-					required: true,
-					description: "The knowledge entry ID",
-					schema: {
-						type: "string",
-					},
-				},
-			],
-		}),
-	},
-	async (c) => {
-		try {
-			const { db, website } = await safelyExtractRequestData(c);
-			const id = c.req.param("id");
+knowledgeRouter.openapi(getKnowledgeRoute, async (c) => {
+	try {
+		const { db, website } = await safelyExtractRequestData(c);
+		const id = c.req.param("id");
 
-			if (!id) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Knowledge entry not found" },
-					404
-				);
-			}
-
-			if (!website?.id) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
-			}
-
-			const entry = await getKnowledgeById(db, {
-				id,
-				websiteId: website.id,
-			});
-
-			if (!entry) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Knowledge entry not found" },
-					404
-				);
-			}
-
+		if (!id) {
 			return c.json(
-				validateResponse(
-					formatKnowledgeResponse(entry),
-					knowledgeResponseSchema
-				),
-				200
+				{ error: "NOT_FOUND", message: "Knowledge entry not found" },
+				404
 			);
-		} catch (error) {
-			return handleKnowledgeRouterError(
-				c,
-				error,
-				"Failed to fetch knowledge entry"
-			) as never;
 		}
+
+		if (!website?.id) {
+			return c.json({ error: "UNAUTHORIZED", message: "Invalid API key" }, 401);
+		}
+
+		const entry = await getKnowledgeById(db, {
+			id,
+			websiteId: website.id,
+		});
+
+		if (!entry) {
+			return c.json(
+				{ error: "NOT_FOUND", message: "Knowledge entry not found" },
+				404
+			);
+		}
+
+		return c.json(
+			validateResponse(formatKnowledgeResponse(entry), knowledgeResponseSchema),
+			200
+		);
+	} catch (error) {
+		return handleKnowledgeRouterError(
+			c,
+			error,
+			"Failed to fetch knowledge entry"
+		) as never;
 	}
-);
+});
 
 // POST /knowledge - Create a new knowledge entry
-knowledgeRouter.openapi(
-	{
-		method: "post",
-		path: "/",
-		summary: "Create a knowledge entry",
-		description: "Creates a new knowledge entry for the website",
-		request: {
-			body: {
-				content: {
-					"application/json": {
-						schema: createKnowledgeRestRequestSchema,
-					},
-				},
-			},
-		},
-		responses: {
-			201: {
-				description: "Knowledge entry created successfully",
-				content: {
-					"application/json": {
-						schema: knowledgeResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse("Invalid request data"),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse(
-				"Forbidden - Plan knowledge limits prevent creating this entry"
-			),
-			500: errorJsonResponse("Internal server error"),
-		},
-		tags: ["Knowledge"],
-		...privateControlAuth(),
-	},
-	async (c) => {
-		try {
-			const { db, website, apiKey, body } = await safelyExtractRequestData(
-				c,
-				createKnowledgeRestRequestSchema
-			);
+knowledgeRouter.openapi(createKnowledgeRoute, async (c) => {
+	try {
+		const { db, website, apiKey, body } = await safelyExtractRequestData(
+			c,
+			createKnowledgeRestRequestSchema
+		);
 
-			if (!(website?.id && website.organizationId)) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
-			}
-
-			await enforceKnowledgeCreateLimits({
-				db,
-				website,
-				body,
-			});
-
-			const entry = await createKnowledge(db, {
-				organizationId: website.organizationId,
-				websiteId: website.id,
-				aiAgentId: body.aiAgentId ?? null,
-				type: body.type,
-				sourceUrl: body.sourceUrl ?? null,
-				sourceTitle: body.sourceTitle ?? null,
-				origin: body.origin,
-				createdBy: `api_key_${apiKey.id}`,
-				payload: body.payload,
-				metadata: body.metadata ?? null,
-			});
-
-			return c.json(
-				validateResponse(
-					formatKnowledgeResponse(entry),
-					knowledgeResponseSchema
-				),
-				201
-			);
-		} catch (error) {
-			return handleKnowledgeRouterError(
-				c,
-				error,
-				"Failed to create knowledge entry"
-			) as never;
+		if (!(website?.id && website.organizationId)) {
+			return c.json({ error: "UNAUTHORIZED", message: "Invalid API key" }, 401);
 		}
+
+		await enforceKnowledgeCreateLimits({
+			db,
+			website,
+			body,
+		});
+
+		const entry = await createKnowledge(db, {
+			organizationId: website.organizationId,
+			websiteId: website.id,
+			aiAgentId: body.aiAgentId ?? null,
+			type: body.type,
+			sourceUrl: body.sourceUrl ?? null,
+			sourceTitle: body.sourceTitle ?? null,
+			origin: body.origin,
+			createdBy: `api_key_${apiKey.id}`,
+			payload: body.payload,
+			metadata: body.metadata ?? null,
+		});
+
+		return c.json(
+			validateResponse(formatKnowledgeResponse(entry), knowledgeResponseSchema),
+			201
+		);
+	} catch (error) {
+		return handleKnowledgeRouterError(
+			c,
+			error,
+			"Failed to create knowledge entry"
+		) as never;
 	}
-);
+});
 
 // PATCH /knowledge/:id - Update a knowledge entry
-knowledgeRouter.openapi(
-	{
-		method: "patch",
-		path: "/{id}",
-		summary: "Update a knowledge entry",
-		description: "Updates an existing knowledge entry",
-		request: {
-			body: {
-				content: {
-					"application/json": {
-						schema: updateKnowledgeRestRequestSchema,
-					},
-				},
-			},
-		},
-		responses: {
-			200: {
-				description: "Knowledge entry updated successfully",
-				content: {
-					"application/json": {
-						schema: knowledgeResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse("Invalid request data"),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse(
-				"Forbidden - Plan knowledge limits prevent updating this entry"
-			),
-			404: errorJsonResponse("Knowledge entry not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		tags: ["Knowledge"],
-		...privateControlAuth({
-			parameters: [
-				{
-					name: "id",
-					in: "path",
-					required: true,
-					description: "The knowledge entry ID",
-					schema: {
-						type: "string",
-					},
-				},
-			],
-		}),
-	},
-	async (c) => {
-		try {
-			const { db, website, body } = await safelyExtractRequestData(
-				c,
-				updateKnowledgeRestRequestSchema
-			);
-			const id = c.req.param("id");
+knowledgeRouter.openapi(updateKnowledgeRoute, async (c) => {
+	try {
+		const { db, website, body } = await safelyExtractRequestData(
+			c,
+			updateKnowledgeRestRequestSchema
+		);
+		const id = c.req.param("id");
 
-			if (!id) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Knowledge entry not found" },
-					404
-				);
-			}
-
-			if (!website?.id) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
-			}
-
-			const existingEntry = await getKnowledgeById(db, {
-				id,
-				websiteId: website.id,
-			});
-
-			if (!existingEntry) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Knowledge entry not found" },
-					404
-				);
-			}
-
-			await enforceKnowledgeUpdateSizeLimit({
-				db,
-				website,
-				existingEntry,
-				body,
-			});
-
-			const entry = await updateKnowledge(db, {
-				id,
-				websiteId: website.id,
-				aiAgentId: body.aiAgentId,
-				sourceUrl: body.sourceUrl,
-				sourceTitle: body.sourceTitle,
-				payload: body.payload,
-				metadata: body.metadata,
-			});
-
-			if (!entry) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Knowledge entry not found" },
-					404
-				);
-			}
-
+		if (!id) {
 			return c.json(
-				validateResponse(
-					formatKnowledgeResponse(entry),
-					knowledgeResponseSchema
-				),
-				200
+				{ error: "NOT_FOUND", message: "Knowledge entry not found" },
+				404
 			);
-		} catch (error) {
-			return handleKnowledgeRouterError(
-				c,
-				error,
-				"Failed to update knowledge entry"
-			) as never;
 		}
+
+		if (!website?.id) {
+			return c.json({ error: "UNAUTHORIZED", message: "Invalid API key" }, 401);
+		}
+
+		const existingEntry = await getKnowledgeById(db, {
+			id,
+			websiteId: website.id,
+		});
+
+		if (!existingEntry) {
+			return c.json(
+				{ error: "NOT_FOUND", message: "Knowledge entry not found" },
+				404
+			);
+		}
+
+		await enforceKnowledgeUpdateSizeLimit({
+			db,
+			website,
+			existingEntry,
+			body,
+		});
+
+		const entry = await updateKnowledge(db, {
+			id,
+			websiteId: website.id,
+			aiAgentId: body.aiAgentId,
+			sourceUrl: body.sourceUrl,
+			sourceTitle: body.sourceTitle,
+			payload: body.payload,
+			metadata: body.metadata,
+		});
+
+		if (!entry) {
+			return c.json(
+				{ error: "NOT_FOUND", message: "Knowledge entry not found" },
+				404
+			);
+		}
+
+		return c.json(
+			validateResponse(formatKnowledgeResponse(entry), knowledgeResponseSchema),
+			200
+		);
+	} catch (error) {
+		return handleKnowledgeRouterError(
+			c,
+			error,
+			"Failed to update knowledge entry"
+		) as never;
 	}
-);
+});
 
 // DELETE /knowledge/:id - Delete a knowledge entry
-knowledgeRouter.openapi(
-	{
-		method: "delete",
-		path: "/{id}",
-		summary: "Delete a knowledge entry",
-		description: "Permanently deletes a knowledge entry",
-		responses: {
-			204: {
-				description: "Knowledge entry deleted successfully",
-			},
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			404: errorJsonResponse("Knowledge entry not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		tags: ["Knowledge"],
-		...privateControlAuth({
-			parameters: [
-				{
-					name: "id",
-					in: "path",
-					required: true,
-					description: "The knowledge entry ID",
-					schema: {
-						type: "string",
-					},
-				},
-			],
-		}),
-	},
-	async (c) => {
-		try {
-			const { db, website } = await safelyExtractRequestData(c);
-			const id = c.req.param("id");
+knowledgeRouter.openapi(deleteKnowledgeRoute, async (c) => {
+	try {
+		const { db, website } = await safelyExtractRequestData(c);
+		const id = c.req.param("id");
 
-			if (!id) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Knowledge entry not found" },
-					404
-				);
-			}
-
-			if (!website?.id) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
-			}
-
-			const knowledgeEntry = await getKnowledgeById(db, {
-				id,
-				websiteId: website.id,
-			});
-
-			if (!knowledgeEntry) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Knowledge entry not found" },
-					404
-				);
-			}
-
-			const deleted = await deleteKnowledge(db, {
-				id,
-				websiteId: website.id,
-			});
-
-			if (!deleted) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Knowledge entry not found" },
-					404
-				);
-			}
-
-			if (knowledgeEntry.linkSourceId && knowledgeEntry.type === "url") {
-				await syncLinkSourceStatsFromKnowledge(db, {
-					id: knowledgeEntry.linkSourceId,
-					websiteId: website.id,
-				});
-			}
-
-			return c.body(null, 204);
-		} catch (error) {
-			return handleKnowledgeRouterError(
-				c,
-				error,
-				"Failed to delete knowledge entry"
-			) as never;
+		if (!id) {
+			return c.json(
+				{ error: "NOT_FOUND", message: "Knowledge entry not found" },
+				404
+			);
 		}
+
+		if (!website?.id) {
+			return c.json({ error: "UNAUTHORIZED", message: "Invalid API key" }, 401);
+		}
+
+		const knowledgeEntry = await getKnowledgeById(db, {
+			id,
+			websiteId: website.id,
+		});
+
+		if (!knowledgeEntry) {
+			return c.json(
+				{ error: "NOT_FOUND", message: "Knowledge entry not found" },
+				404
+			);
+		}
+
+		const deleted = await deleteKnowledge(db, {
+			id,
+			websiteId: website.id,
+		});
+
+		if (!deleted) {
+			return c.json(
+				{ error: "NOT_FOUND", message: "Knowledge entry not found" },
+				404
+			);
+		}
+
+		if (knowledgeEntry.linkSourceId && knowledgeEntry.type === "url") {
+			await syncLinkSourceStatsFromKnowledge(db, {
+				id: knowledgeEntry.linkSourceId,
+				websiteId: website.id,
+			});
+		}
+
+		return c.body(null, 204);
+	} catch (error) {
+		return handleKnowledgeRouterError(
+			c,
+			error,
+			"Failed to delete knowledge entry"
+		) as never;
 	}
-);
+});

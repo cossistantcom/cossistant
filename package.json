@@ -17,7 +17,9 @@
     "changeset:publish": "turbo run build --filter=@cossistant/browser... --filter=@cossistant/next... --filter=facehash && changeset publish",
     "release": "bun run packages/release/src/index.ts create",
     "billing:backfill-free-subscriptions": "bun scripts/billing/backfill-free-subscriptions.ts",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test": "turbo run test",
+    "check:openapi": "turbo run check:openapi"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.6",
@@ -66,6 +68,8 @@
   },
   "overrides": {
     "@ai-sdk/provider": "3.0.8",
-    "@polar-sh/sdk": "^0.44.0"
+    "@polar-sh/sdk": "^0.44.0",
+    "@asteasolutions/zod-to-openapi": "8.5.0",
+    "zod": "4.3.6"
   }
 }

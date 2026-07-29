@@ -21,7 +21,17 @@ mock.module("@api/realtime/emitter", () => ({
 	},
 }));
 
+// Mocked because importing the real module constructs an S3Client at load time.
+// Every export must be listed: mock.module replaces the module wholesale, so an
+// omitted symbol becomes "Export named 'x' not found" for any importer.
 mock.module("@api/services/upload", () => ({
+	s3Client: {},
+	deleteConversationFiles: mock(async () => 0),
+	deleteContactFiles: mock(async () => 0),
+	deleteOrganizationFiles: mock(async () => 0),
+	deleteVisitorFiles: mock(async () => 0),
+	deleteWebsiteFiles: mock(async () => 0),
+	getWebsiteUsageBytes: mock(async () => 0),
 	generateUploadUrl: mock(async () => ({
 		uploadUrl: "https://example.com/upload",
 		key: "uploads/example.txt",

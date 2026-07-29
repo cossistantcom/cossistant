@@ -29,6 +29,19 @@ import {
 	validateResponse,
 } from "@api/utils/validate";
 import {
+	createContactOrganizationRoute,
+	createContactRoute,
+	deleteContactOrganizationRoute,
+	deleteContactRoute,
+	getContactOrganizationRoute,
+	getContactRoute,
+	identifyContactRoute,
+	listContactsRoute,
+	updateContactMetadataRoute,
+	updateContactOrganizationRoute,
+	updateContactRoute,
+} from "@cossistant/protocol/routes";
+import {
 	type ContactOrganizationResponse,
 	contactOrganizationResponseSchema,
 	contactResponseSchema,
@@ -116,970 +129,607 @@ export function normalizeIdentifyContactIdentifiers(params: {
 	};
 }
 
-contactRuntimeRouter.openapi(
-	{
-		method: "post",
-		path: "/identify",
-		summary: "Identify a visitor",
-		description:
-			"Creates or updates a contact for a visitor. If a contact with the same externalId or email exists, it will be updated. The visitor will be linked to the contact. Public callers may pass the visitor ID in the request body or via X-Visitor-Id; when both are provided they must match.",
-		request: {
-			body: {
-				content: {
-					"application/json": {
-						schema: identifyContactRequestSchema,
-					},
+contactRuntimeRouter.openapi(identifyContactRoute, async (c) => {
+	try {
+		const { db, website, body, visitorIdHeader } =
+			await safelyExtractRequestData(c, identifyContactRequestSchema);
+
+		if (!(website?.id && website.organizationId)) {
+			return c.json({ error: "UNAUTHORIZED", message: "Invalid API key" }, 401);
+		}
+
+		const { externalId, email } = normalizeIdentifyContactIdentifiers({
+			externalId: body.externalId,
+			email: body.email,
+		});
+
+		if (!(externalId || email)) {
+			return c.json(
+				{
+					error: "BAD_REQUEST",
+					message: "Either externalId or email is required",
 				},
-			},
-		},
-		responses: {
-			200: {
-				content: {
-					"application/json": {
-						schema: identifyContactResponseSchema,
-					},
+				400
+			);
+		}
+
+		const visitorIdentity = await resolveRuntimeVisitorIdentity({
+			c,
+			db,
+			organizationId: website.organizationId,
+			websiteId: website.id,
+			headerVisitorId: visitorIdHeader,
+			requestVisitorId: body.visitorId,
+		});
+
+		if (visitorIdentity.error) {
+			return visitorIdentity.error;
+		}
+
+		const visitor = visitorIdentity.visitor;
+		if (!visitor) {
+			return c.json(
+				{
+					error: "BAD_REQUEST",
+					message: "Visitor not found, please pass a valid visitorId",
 				},
-				description: "Contact identified successfully",
-			},
-			400: errorJsonResponse("Invalid request data"),
-			401: errorJsonResponse("Unauthorized - Invalid API key"),
-			404: errorJsonResponse("Visitor not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...runtimeDualAuth({ includeVisitorIdHeader: true }),
-	},
-	async (c) => {
-		try {
-			const { db, website, body, visitorIdHeader } =
-				await safelyExtractRequestData(c, identifyContactRequestSchema);
+				400
+			);
+		}
 
-			if (!(website?.id && website.organizationId)) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
-			}
+		const contact = await identifyContact(db, {
+			websiteId: website.id,
+			organizationId: website.organizationId,
+			externalId,
+			email,
+			name: body.name,
+			image: body.image,
+			metadata: body.metadata,
+			contactOrganizationId: body.contactOrganizationId,
+		});
 
-			const { externalId, email } = normalizeIdentifyContactIdentifiers({
-				externalId: body.externalId,
-				email: body.email,
-			});
+		await linkVisitorToContact(db, {
+			visitorId: visitor.id,
+			contactId: contact.id,
+			websiteId: website.id,
+		});
 
-			if (!(externalId || email)) {
-				return c.json(
-					{
-						error: "BAD_REQUEST",
-						message: "Either externalId or email is required",
-					},
-					400
-				);
-			}
+		await copyVisitorOnboardingToContactIfEmpty(db, {
+			visitorId: visitor.id,
+			contactId: contact.id,
+			websiteId: website.id,
+		});
 
-			const visitorIdentity = await resolveRuntimeVisitorIdentity({
-				c,
-				db,
-				organizationId: website.organizationId,
-				websiteId: website.id,
-				headerVisitorId: visitorIdHeader,
-				requestVisitorId: body.visitorId,
-			});
+		const visitorRecord = await getCompleteVisitorWithContact(db, {
+			visitorId: visitor.id,
+		});
 
-			if (visitorIdentity.error) {
-				return visitorIdentity.error;
-			}
-
-			const visitor = visitorIdentity.visitor;
-			if (!visitor) {
-				return c.json(
-					{
-						error: "BAD_REQUEST",
-						message: "Visitor not found, please pass a valid visitorId",
-					},
-					400
-				);
-			}
-
-			const contact = await identifyContact(db, {
-				websiteId: website.id,
-				organizationId: website.organizationId,
-				externalId,
-				email,
-				name: body.name,
-				image: body.image,
-				metadata: body.metadata,
-				contactOrganizationId: body.contactOrganizationId,
-			});
-
-			await linkVisitorToContact(db, {
-				visitorId: visitor.id,
-				contactId: contact.id,
-				websiteId: website.id,
-			});
-
-			await copyVisitorOnboardingToContactIfEmpty(db, {
-				visitorId: visitor.id,
-				contactId: contact.id,
-				websiteId: website.id,
-			});
-
-			const visitorRecord = await getCompleteVisitorWithContact(db, {
-				visitorId: visitor.id,
-			});
-
-			if (visitorRecord) {
-				try {
-					await realtime.emit("visitorIdentified", {
-						websiteId: website.id,
-						organizationId: website.organizationId,
-						visitorId: visitorRecord.id,
-						userId: null,
-						visitor: formatVisitorWithContactResponse(
-							visitorRecord as CompleteVisitorRecord
-						),
-					});
-				} catch (emitError) {
-					console.error("Failed to emit visitorIdentified event:", emitError);
-				}
-			}
-
+		if (visitorRecord) {
 			try {
-				await emitSupportStateUpdated({
-					db,
-					visitorId: visitor.id,
+				await realtime.emit("visitorIdentified", {
 					websiteId: website.id,
 					organizationId: website.organizationId,
+					visitorId: visitorRecord.id,
+					userId: null,
+					visitor: formatVisitorWithContactResponse(
+						visitorRecord as CompleteVisitorRecord
+					),
 				});
 			} catch (emitError) {
-				console.error("Failed to emit supportStateUpdated event:", emitError);
+				console.error("Failed to emit visitorIdentified event:", emitError);
 			}
+		}
 
-			const response: IdentifyContactResponse = {
-				contact: formatContactResponse(contact),
+		try {
+			await emitSupportStateUpdated({
+				db,
 				visitorId: visitor.id,
-			};
-
-			return c.json(
-				validateResponse(response, identifyContactResponseSchema),
-				200
-			);
-		} catch (error) {
-			console.error("Error identifying contact:", error);
-			return c.json(
-				{
-					error: "INTERNAL_SERVER_ERROR",
-					message: "Failed to identify contact",
-				},
-				500
-			);
+				websiteId: website.id,
+				organizationId: website.organizationId,
+			});
+		} catch (emitError) {
+			console.error("Failed to emit supportStateUpdated event:", emitError);
 		}
-	}
-);
 
-contactControlRouter.openapi(
-	{
-		method: "get",
-		path: "/",
-		summary: "List contacts",
-		description:
-			"Returns a paginated list of contacts for the authenticated website.",
-		request: {
-			query: listContactsRequestSchema,
-		},
-		responses: {
-			200: {
-				content: {
-					"application/json": {
-						schema: listContactsRestResponseSchema,
-					},
-				},
-				description: "Contact list retrieved successfully",
+		const response: IdentifyContactResponse = {
+			contact: formatContactResponse(contact),
+			visitorId: visitor.id,
+		};
+
+		return c.json(
+			validateResponse(response, identifyContactResponseSchema),
+			200
+		);
+	} catch (error) {
+		console.error("Error identifying contact:", error);
+		return c.json(
+			{
+				error: "INTERNAL_SERVER_ERROR",
+				message: "Failed to identify contact",
 			},
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
+			500
+		);
+	}
+});
+
+contactControlRouter.openapi(listContactsRoute, async (c) => {
+	try {
+		const extracted = await safelyExtractRequestQuery(
+			c,
+			listContactsRequestSchema
+		);
+		const privateContext = requirePrivateControlContext(c, extracted);
+
+		if (privateContext instanceof Response) {
+			return privateContext;
+		}
+
+		const result = await listContacts(extracted.db, {
+			websiteId: privateContext.website.id,
+			organizationId: privateContext.organization.id,
+			page: extracted.query.page,
+			limit: extracted.query.limit,
+			search: extracted.query.search,
+			sortBy: extracted.query.sortBy,
+			sortOrder: extracted.query.sortOrder,
+			visitorStatus:
+				extracted.query.visitorStatus === "all"
+					? undefined
+					: extracted.query.visitorStatus,
+		});
+
+		return c.json(
+			validateResponse(
+				{
+					...result,
+					items: result.items.map((item) =>
+						formatContactListItem(item as RestContactListItem)
+					),
+				},
+				listContactsRestResponseSchema
 			),
-			403: errorJsonResponse("Forbidden - Private API key required"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth(),
-	},
-	async (c) => {
-		try {
-			const extracted = await safelyExtractRequestQuery(
-				c,
-				listContactsRequestSchema
-			);
-			const privateContext = requirePrivateControlContext(c, extracted);
+			200
+		);
+	} catch (error) {
+		console.error("Error listing contacts:", error);
+		return c.json(
+			{
+				error: "INTERNAL_SERVER_ERROR",
+				message: "Failed to list contacts",
+			},
+			500
+		);
+	}
+});
 
-			if (privateContext instanceof Response) {
-				return privateContext;
-			}
+contactControlRouter.openapi(createContactRoute, async (c) => {
+	try {
+		const extracted = await safelyExtractRequestData(
+			c,
+			createContactRequestSchema
+		);
+		const privateContext = requirePrivateControlContext(c, extracted);
 
-			const result = await listContacts(extracted.db, {
+		if (privateContext instanceof Response) {
+			return privateContext;
+		}
+
+		const { externalId } = normalizeIdentifyContactIdentifiers({
+			externalId: extracted.body.externalId,
+		});
+
+		if (externalId) {
+			const upsertResult = await upsertContactByExternalId(extracted.db, {
 				websiteId: privateContext.website.id,
 				organizationId: privateContext.organization.id,
-				page: extracted.query.page,
-				limit: extracted.query.limit,
-				search: extracted.query.search,
-				sortBy: extracted.query.sortBy,
-				sortOrder: extracted.query.sortOrder,
-				visitorStatus:
-					extracted.query.visitorStatus === "all"
-						? undefined
-						: extracted.query.visitorStatus,
-			});
-
-			return c.json(
-				validateResponse(
-					{
-						...result,
-						items: result.items.map((item) =>
-							formatContactListItem(item as RestContactListItem)
-						),
-					},
-					listContactsRestResponseSchema
-				),
-				200
-			);
-		} catch (error) {
-			console.error("Error listing contacts:", error);
-			return c.json(
-				{
-					error: "INTERNAL_SERVER_ERROR",
-					message: "Failed to list contacts",
-				},
-				500
-			);
-		}
-	}
-);
-
-contactControlRouter.openapi(
-	{
-		method: "post",
-		path: "/",
-		summary: "Create a contact",
-		description:
-			"Creates a new contact for the website. If externalId is provided and already exists for the website, the contact is updated and returned.",
-		request: {
-			body: {
-				content: {
-					"application/json": {
-						schema: createContactRequestSchema,
-					},
-				},
-			},
-		},
-		responses: {
-			200: {
-				content: {
-					"application/json": {
-						schema: contactResponseSchema,
-					},
-				},
-				description: "Contact updated successfully via externalId upsert",
-			},
-			201: {
-				content: {
-					"application/json": {
-						schema: contactResponseSchema,
-					},
-				},
-				description: "Contact created successfully",
-			},
-			400: errorJsonResponse("Invalid request data"),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse("Forbidden - Private API key required"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth(),
-	},
-	async (c) => {
-		try {
-			const extracted = await safelyExtractRequestData(
-				c,
-				createContactRequestSchema
-			);
-			const privateContext = requirePrivateControlContext(c, extracted);
-
-			if (privateContext instanceof Response) {
-				return privateContext;
-			}
-
-			const { externalId } = normalizeIdentifyContactIdentifiers({
-				externalId: extracted.body.externalId,
-			});
-
-			if (externalId) {
-				const upsertResult = await upsertContactByExternalId(extracted.db, {
-					websiteId: privateContext.website.id,
-					organizationId: privateContext.organization.id,
-					externalId,
-					email: extracted.body.email,
-					name: extracted.body.name,
-					image: extracted.body.image,
-					metadata: extracted.body.metadata,
-					contactOrganizationId: extracted.body.contactOrganizationId,
-				});
-
-				const response = formatContactResponse(upsertResult.contact);
-				const statusCode = upsertResult.status === "created" ? 201 : 200;
-
-				return c.json(
-					validateResponse(response, contactResponseSchema),
-					statusCode
-				);
-			}
-
-			const newContact = await createContact(extracted.db, {
-				websiteId: privateContext.website.id,
-				organizationId: privateContext.organization.id,
-				data: {
-					...extracted.body,
-					externalId,
-				},
-			});
-
-			return c.json(
-				validateResponse(
-					formatContactResponse(newContact),
-					contactResponseSchema
-				),
-				201
-			);
-		} catch (error) {
-			console.error("Error creating contact:", error);
-			return c.json(
-				{
-					error: "INTERNAL_SERVER_ERROR",
-					message: "Failed to create contact",
-				},
-				500
-			);
-		}
-	}
-);
-
-contactControlRouter.openapi(
-	{
-		method: "get",
-		path: "/{id}",
-		summary: "Get a contact",
-		description: "Retrieves a contact by ID.",
-		responses: {
-			200: {
-				content: {
-					"application/json": {
-						schema: contactResponseSchema,
-					},
-				},
-				description: "Contact retrieved successfully",
-			},
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse("Forbidden - Private API key required"),
-			404: errorJsonResponse("Contact not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({ parameters: [contactIdPathParameter] }),
-	},
-	async (c) => {
-		try {
-			const extracted = await safelyExtractRequestData(c);
-			const privateContext = requirePrivateControlContext(c, extracted);
-			const contactId = c.req.param("id");
-
-			if (privateContext instanceof Response) {
-				return privateContext;
-			}
-
-			if (!contactId) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Contact not found" },
-					404
-				);
-			}
-
-			const contact = await findContactForWebsite(extracted.db, {
-				contactId,
-				websiteId: privateContext.website.id,
-			});
-
-			if (!contact) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Contact not found" },
-					404
-				);
-			}
-
-			return c.json(
-				validateResponse(formatContactResponse(contact), contactResponseSchema),
-				200
-			);
-		} catch (error) {
-			console.error("Error fetching contact:", error);
-			return c.json(
-				{
-					error: "INTERNAL_SERVER_ERROR",
-					message: "Failed to fetch contact",
-				},
-				500
-			);
-		}
-	}
-);
-
-contactControlRouter.openapi(
-	{
-		method: "patch",
-		path: "/{id}",
-		summary: "Update a contact",
-		description: "Updates an existing contact.",
-		request: {
-			body: {
-				content: {
-					"application/json": {
-						schema: updateContactRequestSchema,
-					},
-				},
-			},
-		},
-		responses: {
-			200: {
-				content: {
-					"application/json": {
-						schema: contactResponseSchema,
-					},
-				},
-				description: "Contact updated successfully",
-			},
-			400: errorJsonResponse("Invalid request data"),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse("Forbidden - Private API key required"),
-			404: errorJsonResponse("Contact not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({ parameters: [contactIdPathParameter] }),
-	},
-	async (c) => {
-		try {
-			const extracted = await safelyExtractRequestData(
-				c,
-				updateContactRequestSchema
-			);
-			const privateContext = requirePrivateControlContext(c, extracted);
-			const contactId = c.req.param("id");
-
-			if (privateContext instanceof Response) {
-				return privateContext;
-			}
-
-			if (!contactId) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Contact not found" },
-					404
-				);
-			}
-
-			const updatedContact = await updateContact(extracted.db, {
-				contactId,
-				websiteId: privateContext.website.id,
-				data: extracted.body,
-			});
-
-			if (!updatedContact) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Contact not found" },
-					404
-				);
-			}
-
-			return c.json(
-				validateResponse(
-					formatContactResponse(updatedContact),
-					contactResponseSchema
-				),
-				200
-			);
-		} catch (error) {
-			console.error("Error updating contact:", error);
-			return c.json(
-				{
-					error: "INTERNAL_SERVER_ERROR",
-					message: "Failed to update contact",
-				},
-				500
-			);
-		}
-	}
-);
-
-contactControlRouter.openapi(
-	{
-		method: "patch",
-		path: "/{id}/metadata",
-		summary: "Update contact metadata",
-		description: "Merges the provided metadata into the contact profile.",
-		request: {
-			body: {
-				content: {
-					"application/json": {
-						schema: updateContactMetadataRequestSchema,
-					},
-				},
-			},
-		},
-		responses: {
-			200: {
-				content: {
-					"application/json": {
-						schema: contactResponseSchema,
-					},
-				},
-				description: "Contact metadata updated successfully",
-			},
-			400: errorJsonResponse("Invalid request data"),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse("Forbidden - Private API key required"),
-			404: errorJsonResponse("Contact not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({ parameters: [contactIdPathParameter] }),
-	},
-	async (c) => {
-		try {
-			const extracted = await safelyExtractRequestData(
-				c,
-				updateContactMetadataRequestSchema
-			);
-			const privateContext = requirePrivateControlContext(c, extracted);
-			const contactId = c.req.param("id");
-
-			if (privateContext instanceof Response) {
-				return privateContext;
-			}
-
-			if (!contactId) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Contact not found" },
-					404
-				);
-			}
-
-			const updatedContact = await mergeContactMetadata(extracted.db, {
-				contactId,
-				websiteId: privateContext.website.id,
+				externalId,
+				email: extracted.body.email,
+				name: extracted.body.name,
+				image: extracted.body.image,
 				metadata: extracted.body.metadata,
+				contactOrganizationId: extracted.body.contactOrganizationId,
 			});
 
-			if (!updatedContact) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Contact not found" },
-					404
-				);
-			}
+			const response = formatContactResponse(upsertResult.contact);
+			const statusCode = upsertResult.status === "created" ? 201 : 200;
 
 			return c.json(
-				validateResponse(
-					formatContactResponse(updatedContact),
-					contactResponseSchema
-				),
-				200
-			);
-		} catch (error) {
-			console.error("Error updating contact metadata:", error);
-			return c.json(
-				{
-					error: "INTERNAL_SERVER_ERROR",
-					message: "Failed to update contact metadata",
-				},
-				500
+				validateResponse(response, contactResponseSchema),
+				statusCode
 			);
 		}
-	}
-);
 
-contactControlRouter.openapi(
-	{
-		method: "delete",
-		path: "/{id}",
-		summary: "Delete a contact",
-		description: "Soft deletes a contact.",
-		responses: {
-			204: {
-				description: "Contact deleted successfully",
+		const newContact = await createContact(extracted.db, {
+			websiteId: privateContext.website.id,
+			organizationId: privateContext.organization.id,
+			data: {
+				...extracted.body,
+				externalId,
 			},
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
+		});
+
+		return c.json(
+			validateResponse(
+				formatContactResponse(newContact),
+				contactResponseSchema
 			),
-			403: errorJsonResponse("Forbidden - Private API key required"),
-			404: errorJsonResponse("Contact not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({ parameters: [contactIdPathParameter] }),
-	},
-	async (c) => {
-		try {
-			const extracted = await safelyExtractRequestData(c);
-			const privateContext = requirePrivateControlContext(c, extracted);
-			const contactId = c.req.param("id");
-
-			if (privateContext instanceof Response) {
-				return privateContext;
-			}
-
-			if (!contactId) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Contact not found" },
-					404
-				);
-			}
-
-			const deleted = await deleteContact(extracted.db, {
-				contactId,
-				websiteId: privateContext.website.id,
-			});
-
-			if (!deleted) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Contact not found" },
-					404
-				);
-			}
-
-			return c.body(null, 204);
-		} catch (error) {
-			console.error("Error deleting contact:", error);
-			return c.json(
-				{
-					error: "INTERNAL_SERVER_ERROR",
-					message: "Failed to delete contact",
-				},
-				500
-			);
-		}
+			201
+		);
+	} catch (error) {
+		console.error("Error creating contact:", error);
+		return c.json(
+			{
+				error: "INTERNAL_SERVER_ERROR",
+				message: "Failed to create contact",
+			},
+			500
+		);
 	}
-);
+});
 
-contactControlRouter.openapi(
-	{
-		method: "post",
-		path: "/organizations",
-		summary: "Create a contact organization",
-		description: "Creates a new contact organization for the website.",
-		request: {
-			body: {
-				content: {
-					"application/json": {
-						schema: createContactOrganizationRequestSchema,
-					},
-				},
+contactControlRouter.openapi(getContactRoute, async (c) => {
+	try {
+		const extracted = await safelyExtractRequestData(c);
+		const privateContext = requirePrivateControlContext(c, extracted);
+		const contactId = c.req.param("id");
+
+		if (privateContext instanceof Response) {
+			return privateContext;
+		}
+
+		if (!contactId) {
+			return c.json({ error: "NOT_FOUND", message: "Contact not found" }, 404);
+		}
+
+		const contact = await findContactForWebsite(extracted.db, {
+			contactId,
+			websiteId: privateContext.website.id,
+		});
+
+		if (!contact) {
+			return c.json({ error: "NOT_FOUND", message: "Contact not found" }, 404);
+		}
+
+		return c.json(
+			validateResponse(formatContactResponse(contact), contactResponseSchema),
+			200
+		);
+	} catch (error) {
+		console.error("Error fetching contact:", error);
+		return c.json(
+			{
+				error: "INTERNAL_SERVER_ERROR",
+				message: "Failed to fetch contact",
 			},
-		},
-		responses: {
-			201: {
-				content: {
-					"application/json": {
-						schema: contactOrganizationResponseSchema,
-					},
-				},
-				description: "Contact organization created successfully",
-			},
-			400: errorJsonResponse("Invalid request data"),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
+			500
+		);
+	}
+});
+
+contactControlRouter.openapi(updateContactRoute, async (c) => {
+	try {
+		const extracted = await safelyExtractRequestData(
+			c,
+			updateContactRequestSchema
+		);
+		const privateContext = requirePrivateControlContext(c, extracted);
+		const contactId = c.req.param("id");
+
+		if (privateContext instanceof Response) {
+			return privateContext;
+		}
+
+		if (!contactId) {
+			return c.json({ error: "NOT_FOUND", message: "Contact not found" }, 404);
+		}
+
+		const updatedContact = await updateContact(extracted.db, {
+			contactId,
+			websiteId: privateContext.website.id,
+			data: extracted.body,
+		});
+
+		if (!updatedContact) {
+			return c.json({ error: "NOT_FOUND", message: "Contact not found" }, 404);
+		}
+
+		return c.json(
+			validateResponse(
+				formatContactResponse(updatedContact),
+				contactResponseSchema
 			),
-			403: errorJsonResponse("Forbidden - Private API key required"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth(),
-	},
-	async (c) => {
-		try {
-			const extracted = await safelyExtractRequestData(
-				c,
-				createContactOrganizationRequestSchema
-			);
-			const privateContext = requirePrivateControlContext(c, extracted);
-
-			if (privateContext instanceof Response) {
-				return privateContext;
-			}
-
-			const created = await createContactOrganization(extracted.db, {
-				websiteId: privateContext.website.id,
-				organizationId: privateContext.organization.id,
-				data: extracted.body,
-			});
-
-			return c.json(
-				validateResponse(
-					formatContactOrganizationResponse(created),
-					contactOrganizationResponseSchema
-				),
-				201
-			);
-		} catch (error) {
-			console.error("Error creating contact organization:", error);
-			return c.json(
-				{
-					error: "INTERNAL_SERVER_ERROR",
-					message: "Failed to create contact organization",
-				},
-				500
-			);
-		}
-	}
-);
-
-contactControlRouter.openapi(
-	{
-		method: "get",
-		path: "/organizations/{id}",
-		summary: "Get a contact organization",
-		description: "Retrieves a contact organization by ID.",
-		responses: {
-			200: {
-				content: {
-					"application/json": {
-						schema: contactOrganizationResponseSchema,
-					},
-				},
-				description: "Contact organization retrieved successfully",
+			200
+		);
+	} catch (error) {
+		console.error("Error updating contact:", error);
+		return c.json(
+			{
+				error: "INTERNAL_SERVER_ERROR",
+				message: "Failed to update contact",
 			},
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
+			500
+		);
+	}
+});
+
+contactControlRouter.openapi(updateContactMetadataRoute, async (c) => {
+	try {
+		const extracted = await safelyExtractRequestData(
+			c,
+			updateContactMetadataRequestSchema
+		);
+		const privateContext = requirePrivateControlContext(c, extracted);
+		const contactId = c.req.param("id");
+
+		if (privateContext instanceof Response) {
+			return privateContext;
+		}
+
+		if (!contactId) {
+			return c.json({ error: "NOT_FOUND", message: "Contact not found" }, 404);
+		}
+
+		const updatedContact = await mergeContactMetadata(extracted.db, {
+			contactId,
+			websiteId: privateContext.website.id,
+			metadata: extracted.body.metadata,
+		});
+
+		if (!updatedContact) {
+			return c.json({ error: "NOT_FOUND", message: "Contact not found" }, 404);
+		}
+
+		return c.json(
+			validateResponse(
+				formatContactResponse(updatedContact),
+				contactResponseSchema
 			),
-			403: errorJsonResponse("Forbidden - Private API key required"),
-			404: errorJsonResponse("Contact organization not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({ parameters: [contactOrganizationIdPathParameter] }),
-	},
-	async (c) => {
-		try {
-			const extracted = await safelyExtractRequestData(c);
-			const privateContext = requirePrivateControlContext(c, extracted);
-			const contactOrganizationId = c.req.param("id");
-
-			if (privateContext instanceof Response) {
-				return privateContext;
-			}
-
-			if (!contactOrganizationId) {
-				return c.json(
-					{
-						error: "NOT_FOUND",
-						message: "Contact organization not found",
-					},
-					404
-				);
-			}
-
-			const organization = await findContactOrganizationForWebsite(
-				extracted.db,
-				{
-					contactOrganizationId,
-					websiteId: privateContext.website.id,
-				}
-			);
-
-			if (!organization) {
-				return c.json(
-					{
-						error: "NOT_FOUND",
-						message: "Contact organization not found",
-					},
-					404
-				);
-			}
-
-			return c.json(
-				validateResponse(
-					formatContactOrganizationResponse(organization),
-					contactOrganizationResponseSchema
-				),
-				200
-			);
-		} catch (error) {
-			console.error("Error fetching contact organization:", error);
-			return c.json(
-				{
-					error: "INTERNAL_SERVER_ERROR",
-					message: "Failed to fetch contact organization",
-				},
-				500
-			);
-		}
+			200
+		);
+	} catch (error) {
+		console.error("Error updating contact metadata:", error);
+		return c.json(
+			{
+				error: "INTERNAL_SERVER_ERROR",
+				message: "Failed to update contact metadata",
+			},
+			500
+		);
 	}
-);
+});
 
-contactControlRouter.openapi(
-	{
-		method: "patch",
-		path: "/organizations/{id}",
-		summary: "Update a contact organization",
-		description: "Updates an existing contact organization.",
-		request: {
-			body: {
-				content: {
-					"application/json": {
-						schema: updateContactOrganizationRequestSchema,
-					},
-				},
+contactControlRouter.openapi(deleteContactRoute, async (c) => {
+	try {
+		const extracted = await safelyExtractRequestData(c);
+		const privateContext = requirePrivateControlContext(c, extracted);
+		const contactId = c.req.param("id");
+
+		if (privateContext instanceof Response) {
+			return privateContext;
+		}
+
+		if (!contactId) {
+			return c.json({ error: "NOT_FOUND", message: "Contact not found" }, 404);
+		}
+
+		const deleted = await deleteContact(extracted.db, {
+			contactId,
+			websiteId: privateContext.website.id,
+		});
+
+		if (!deleted) {
+			return c.json({ error: "NOT_FOUND", message: "Contact not found" }, 404);
+		}
+
+		return c.body(null, 204);
+	} catch (error) {
+		console.error("Error deleting contact:", error);
+		return c.json(
+			{
+				error: "INTERNAL_SERVER_ERROR",
+				message: "Failed to delete contact",
 			},
-		},
-		responses: {
-			200: {
-				content: {
-					"application/json": {
-						schema: contactOrganizationResponseSchema,
-					},
-				},
-				description: "Contact organization updated successfully",
-			},
-			400: errorJsonResponse("Invalid request data"),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
+			500
+		);
+	}
+});
+
+contactControlRouter.openapi(createContactOrganizationRoute, async (c) => {
+	try {
+		const extracted = await safelyExtractRequestData(
+			c,
+			createContactOrganizationRequestSchema
+		);
+		const privateContext = requirePrivateControlContext(c, extracted);
+
+		if (privateContext instanceof Response) {
+			return privateContext;
+		}
+
+		const created = await createContactOrganization(extracted.db, {
+			websiteId: privateContext.website.id,
+			organizationId: privateContext.organization.id,
+			data: extracted.body,
+		});
+
+		return c.json(
+			validateResponse(
+				formatContactOrganizationResponse(created),
+				contactOrganizationResponseSchema
 			),
-			403: errorJsonResponse("Forbidden - Private API key required"),
-			404: errorJsonResponse("Contact organization not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({ parameters: [contactOrganizationIdPathParameter] }),
-	},
-	async (c) => {
-		try {
-			const extracted = await safelyExtractRequestData(
-				c,
-				updateContactOrganizationRequestSchema
-			);
-			const privateContext = requirePrivateControlContext(c, extracted);
-			const contactOrganizationId = c.req.param("id");
-
-			if (privateContext instanceof Response) {
-				return privateContext;
-			}
-
-			if (!contactOrganizationId) {
-				return c.json(
-					{
-						error: "NOT_FOUND",
-						message: "Contact organization not found",
-					},
-					404
-				);
-			}
-
-			const updated = await updateContactOrganization(extracted.db, {
-				contactOrganizationId,
-				websiteId: privateContext.website.id,
-				data: extracted.body,
-			});
-
-			if (!updated) {
-				return c.json(
-					{
-						error: "NOT_FOUND",
-						message: "Contact organization not found",
-					},
-					404
-				);
-			}
-
-			return c.json(
-				validateResponse(
-					formatContactOrganizationResponse(updated),
-					contactOrganizationResponseSchema
-				),
-				200
-			);
-		} catch (error) {
-			console.error("Error updating contact organization:", error);
-			return c.json(
-				{
-					error: "INTERNAL_SERVER_ERROR",
-					message: "Failed to update contact organization",
-				},
-				500
-			);
-		}
-	}
-);
-
-contactControlRouter.openapi(
-	{
-		method: "delete",
-		path: "/organizations/{id}",
-		summary: "Delete a contact organization",
-		description: "Soft deletes a contact organization.",
-		responses: {
-			204: {
-				description: "Contact organization deleted successfully",
+			201
+		);
+	} catch (error) {
+		console.error("Error creating contact organization:", error);
+		return c.json(
+			{
+				error: "INTERNAL_SERVER_ERROR",
+				message: "Failed to create contact organization",
 			},
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse("Forbidden - Private API key required"),
-			404: errorJsonResponse("Contact organization not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...privateControlAuth({ parameters: [contactOrganizationIdPathParameter] }),
-	},
-	async (c) => {
-		try {
-			const extracted = await safelyExtractRequestData(c);
-			const privateContext = requirePrivateControlContext(c, extracted);
-			const contactOrganizationId = c.req.param("id");
+			500
+		);
+	}
+});
 
-			if (privateContext instanceof Response) {
-				return privateContext;
-			}
+contactControlRouter.openapi(getContactOrganizationRoute, async (c) => {
+	try {
+		const extracted = await safelyExtractRequestData(c);
+		const privateContext = requirePrivateControlContext(c, extracted);
+		const contactOrganizationId = c.req.param("id");
 
-			if (!contactOrganizationId) {
-				return c.json(
-					{
-						error: "NOT_FOUND",
-						message: "Contact organization not found",
-					},
-					404
-				);
-			}
+		if (privateContext instanceof Response) {
+			return privateContext;
+		}
 
-			const deleted = await deleteContactOrganization(extracted.db, {
-				contactOrganizationId,
-				websiteId: privateContext.website.id,
-			});
-
-			if (!deleted) {
-				return c.json(
-					{
-						error: "NOT_FOUND",
-						message: "Contact organization not found",
-					},
-					404
-				);
-			}
-
-			return c.body(null, 204);
-		} catch (error) {
-			console.error("Error deleting contact organization:", error);
+		if (!contactOrganizationId) {
 			return c.json(
 				{
-					error: "INTERNAL_SERVER_ERROR",
-					message: "Failed to delete contact organization",
+					error: "NOT_FOUND",
+					message: "Contact organization not found",
 				},
-				500
+				404
 			);
 		}
+
+		const organization = await findContactOrganizationForWebsite(extracted.db, {
+			contactOrganizationId,
+			websiteId: privateContext.website.id,
+		});
+
+		if (!organization) {
+			return c.json(
+				{
+					error: "NOT_FOUND",
+					message: "Contact organization not found",
+				},
+				404
+			);
+		}
+
+		return c.json(
+			validateResponse(
+				formatContactOrganizationResponse(organization),
+				contactOrganizationResponseSchema
+			),
+			200
+		);
+	} catch (error) {
+		console.error("Error fetching contact organization:", error);
+		return c.json(
+			{
+				error: "INTERNAL_SERVER_ERROR",
+				message: "Failed to fetch contact organization",
+			},
+			500
+		);
 	}
-);
+});
+
+contactControlRouter.openapi(updateContactOrganizationRoute, async (c) => {
+	try {
+		const extracted = await safelyExtractRequestData(
+			c,
+			updateContactOrganizationRequestSchema
+		);
+		const privateContext = requirePrivateControlContext(c, extracted);
+		const contactOrganizationId = c.req.param("id");
+
+		if (privateContext instanceof Response) {
+			return privateContext;
+		}
+
+		if (!contactOrganizationId) {
+			return c.json(
+				{
+					error: "NOT_FOUND",
+					message: "Contact organization not found",
+				},
+				404
+			);
+		}
+
+		const updated = await updateContactOrganization(extracted.db, {
+			contactOrganizationId,
+			websiteId: privateContext.website.id,
+			data: extracted.body,
+		});
+
+		if (!updated) {
+			return c.json(
+				{
+					error: "NOT_FOUND",
+					message: "Contact organization not found",
+				},
+				404
+			);
+		}
+
+		return c.json(
+			validateResponse(
+				formatContactOrganizationResponse(updated),
+				contactOrganizationResponseSchema
+			),
+			200
+		);
+	} catch (error) {
+		console.error("Error updating contact organization:", error);
+		return c.json(
+			{
+				error: "INTERNAL_SERVER_ERROR",
+				message: "Failed to update contact organization",
+			},
+			500
+		);
+	}
+});
+
+contactControlRouter.openapi(deleteContactOrganizationRoute, async (c) => {
+	try {
+		const extracted = await safelyExtractRequestData(c);
+		const privateContext = requirePrivateControlContext(c, extracted);
+		const contactOrganizationId = c.req.param("id");
+
+		if (privateContext instanceof Response) {
+			return privateContext;
+		}
+
+		if (!contactOrganizationId) {
+			return c.json(
+				{
+					error: "NOT_FOUND",
+					message: "Contact organization not found",
+				},
+				404
+			);
+		}
+
+		const deleted = await deleteContactOrganization(extracted.db, {
+			contactOrganizationId,
+			websiteId: privateContext.website.id,
+		});
+
+		if (!deleted) {
+			return c.json(
+				{
+					error: "NOT_FOUND",
+					message: "Contact organization not found",
+				},
+				404
+			);
+		}
+
+		return c.body(null, 204);
+	} catch (error) {
+		console.error("Error deleting contact organization:", error);
+		return c.json(
+			{
+				error: "INTERNAL_SERVER_ERROR",
+				message: "Failed to delete contact organization",
+			},
+			500
+		);
+	}
+});
 
 // Mount shared runtime routes before private control routes so public requests
 // like POST /contacts/identify are not intercepted by private-only middleware.

@@ -1,24 +1,24 @@
 {
-  "name": "@cossistant/types",
+  "name": "@cossistant/protocol",
   "type": "module",
   "version": "0.2.0",
   "private": false,
   "author": "Cossistant Team",
-  "description": "Shared TypeScript types for Cossistant packages",
+  "description": "Canonical HTTP and WebSocket wire contract for the Cossistant API",
   "keywords": [
-    "types",
-    "typescript",
-    "shared",
+    "openapi",
+    "protocol",
+    "contract",
+    "hono",
     "api"
   ],
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts",
-    "./*": "./src/*.ts",
-    "./api": "./src/api/index.ts",
-    "./api/*": "./src/api/*.ts",
-    "./trpc/*": "./src/trpc/*.ts",
-    "./enums": "./src/enums.ts"
+    "./routes": "./src/routes/index.ts",
+    "./openapi": "./src/openapi.ts",
+    "./testkit": "./src/testkit.ts",
+    "./openapi.json": "./openapi.json"
   },
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -31,19 +31,29 @@
     "directory": "dist"
   },
   "devDependencies": {
-    "@cossistant/typescript-config": "workspace:*"
+    "@cossistant/typescript-config": "workspace:*",
+    "hono": "^4.12.32",
+    "@types/bun": "^1.3.6"
   },
   "dependencies": {
-    "zod": "^4.3.6",
-    "@hono/zod-openapi": "^1.5.1"
+    "@cossistant/types": "workspace:*",
+    "@hono/zod-openapi": "^1.5.1",
+    "openapi3-ts": "^4.5.0",
+    "zod": "^4.3.6"
+  },
+  "peerDependencies": {
+    "hono": ">=4.10.0"
   },
   "scripts": {
-    "build": "tsdown && bun run prepare-package",
+    "build": "tsdown && bun run generate:openapi && bun run prepare-package",
+    "generate:openapi": "bun run scripts/generate-openapi.ts",
+    "check:openapi": "bun run scripts/generate-openapi.ts --check",
     "prepare-package": "bun ../../scripts/prepare-package.ts",
     "pub:release": "bun run build && npm publish --access public",
     "pub:beta": "bun run build && npm publish --access public --tag beta --no-git-checks",
     "pub:next": "bun run build && npm publish --access public --tag next --no-git-checks",
     "lint": "biome check .",
+    "test": "bun test src",
     "check-types": "tsc --noEmit --project tsconfig.json"
   }
 }

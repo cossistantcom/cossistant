@@ -30,6 +30,14 @@ import {
 	validateResponse,
 } from "@api/utils/validate";
 import {
+	blockVisitorRoute,
+	getVisitorActivityRoute,
+	getVisitorRoute,
+	unblockVisitorRoute,
+	updateVisitorMetadataRoute,
+	updateVisitorRoute,
+} from "@cossistant/protocol/routes";
+import {
 	ConversationEventType,
 	TimelineItemVisibility,
 	type UpdateVisitorRequest,
@@ -523,808 +531,509 @@ function toOptionalString(
 visitorRouter.use("/*", ...protectedPublicApiKeyMiddleware);
 
 // POST /visitors/:id/activity - Track live visitor activity
-visitorRouter.openapi(
-	{
-		method: "post",
-		path: "/{id}/activity",
-		summary: "Track live visitor activity",
-		description:
-			"Records live visitor activity for realtime dashboards. This endpoint is the canonical ingestion path for live visitor presence and page activity.",
-		request: {
-			body: {
-				content: {
-					"application/json": {
-						schema: visitorActivityRequestSchema,
-					},
-				},
-			},
-		},
-		responses: {
-			200: {
-				description: "Live activity accepted",
-				content: {
-					"application/json": {
-						schema: visitorActivityResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse("Invalid request data"),
-			401: errorJsonResponse("Unauthorized - Invalid or missing API key"),
-			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
-			404: errorJsonResponse("Visitor not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...runtimeDualAuth({
-			parameters: [
+visitorRouter.openapi(getVisitorActivityRoute, async (c) => {
+	try {
+		const { body, db, website } = await safelyExtractRequestData(
+			c,
+			visitorActivityRequestSchema
+		);
+		const visitorId = c.req.param("id");
+
+		if (!visitorId) {
+			return c.json(
 				{
-					name: "id",
-					in: "path",
-					required: true,
-					description: "The visitor ID",
-					schema: {
-						type: "string",
-					},
+					error: "BAD_REQUEST",
+					message: "Visitor ID is required",
 				},
-			],
-		}),
-	},
-	async (c) => {
-		try {
-			const { body, db, website } = await safelyExtractRequestData(
-				c,
-				visitorActivityRequestSchema
+				400
 			);
-			const visitorId = c.req.param("id");
+		}
 
-			if (!visitorId) {
-				return c.json(
-					{
-						error: "BAD_REQUEST",
-						message: "Visitor ID is required",
-					},
-					400
-				);
-			}
+		const visitor = await findVisitorForWebsite(db, {
+			visitorId,
+			websiteId: website.id,
+		});
 
-			const visitor = await findVisitorForWebsite(db, {
-				visitorId,
-				websiteId: website.id,
-			});
+		if (!visitor) {
+			return c.json({ error: "NOT_FOUND", message: "Visitor not found" }, 404);
+		}
 
-			if (!visitor) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Visitor not found" },
-					404
-				);
-			}
+		const acceptedAt = new Date().toISOString();
+		const updatedVisitor = await updateVisitorForWebsite(db, {
+			visitorId,
+			websiteId: website.id,
+			data: {
+				lastSeenAt: acceptedAt,
+				updatedAt: acceptedAt,
+			},
+		});
+		const trackingContext = flattenVisitorTrackingContext({
+			attribution: body.attribution,
+			currentPage: body.currentPage,
+		});
+		void updatedVisitor;
 
-			const acceptedAt = new Date().toISOString();
-			const updatedVisitor = await updateVisitorForWebsite(db, {
-				visitorId,
-				websiteId: website.id,
-				data: {
-					lastSeenAt: acceptedAt,
-					updatedAt: acceptedAt,
-				},
-			});
-			const trackingContext = flattenVisitorTrackingContext({
+		trackVisitorActivity({
+			website_id: website.id,
+			visitor_id: visitorId,
+			session_id: body.sessionId,
+			event_type: body.activityType,
+			city: toOptionalString(visitor.city),
+			country_code: toOptionalString(visitor.countryCode),
+			latitude: toOptionalNumber(visitor.latitude),
+			longitude: toOptionalNumber(visitor.longitude),
+			...trackingContext,
+		});
+
+		await markVisitorPresence({
+			websiteId: website.id,
+			visitorId,
+			lastSeenAt: acceptedAt,
+			geo: {
+				city: toOptionalString(visitor.city),
+				countryCode: toOptionalString(visitor.countryCode),
+				latitude: toOptionalNumber(visitor.latitude),
+				longitude: toOptionalNumber(visitor.longitude),
+			},
+		});
+
+		void realtime
+			.emit("visitorPresenceUpdate", {
+				activityType: body.activityType,
 				attribution: body.attribution,
 				currentPage: body.currentPage,
+				organizationId: visitor.organizationId,
+				sessionId: body.sessionId,
+				userId: null,
+				visitorId,
+				websiteId: website.id,
+			})
+			.catch((error) => {
+				console.error("[VisitorActivity] Failed to publish realtime event", {
+					websiteId: website.id,
+					visitorId,
+					error,
+				});
 			});
-			void updatedVisitor;
+
+		const response: VisitorActivityResponse = {
+			ok: true,
+			acceptedAt,
+		};
+
+		return c.json(
+			validateResponse(response, visitorActivityResponseSchema),
+			200
+		);
+	} catch (error) {
+		console.error("Error tracking visitor activity:", error);
+		return c.json(
+			{
+				error: "INTERNAL_SERVER_ERROR",
+				message: "Failed to track visitor activity",
+			},
+			500
+		);
+	}
+});
+
+// PATCH /visitors/:id - Update existing visitor information
+visitorRouter.openapi(updateVisitorRoute, async (c) => {
+	try {
+		const { db, website, body } = await safelyExtractRequestData(
+			c,
+			updateVisitorRequestSchema
+		);
+		const visitorId = c.req.param("id");
+
+		if (!visitorId) {
+			return c.json({ error: "NOT_FOUND", message: "Visitor not found" }, 404);
+		}
+
+		if (!website?.id) {
+			return c.json({ error: "UNAUTHORIZED", message: "Invalid API key" }, 401);
+		}
+
+		const existingVisitor = await findVisitorForWebsite(db, {
+			visitorId,
+			websiteId: website.id,
+		});
+
+		if (!existingVisitor) {
+			return c.json({ error: "NOT_FOUND", message: "Visitor not found" }, 404);
+		}
+
+		const normalizedBodyCountryCode = normalizeCountryCode(body.countryCode);
+		if (
+			typeof body.countryCode === "string" &&
+			normalizedBodyCountryCode === null
+		) {
+			return c.json(
+				{
+					error: "BAD_REQUEST",
+					message: "countryCode must be a valid ISO 3166-1 alpha-2 code",
+				},
+				400
+			);
+		}
+
+		const normalizedBody: UpdateVisitorRequest = {
+			...body,
+			...(normalizedBodyCountryCode
+				? { countryCode: normalizedBodyCountryCode }
+				: {}),
+			attribution: body.attribution,
+			currentPage: body.currentPage,
+		};
+
+		const now = new Date();
+		const nowIso = now.toISOString();
+		const requestContext = extractRequestContext(c.req);
+		const { geoUpdate, timezoneFallback } = await resolveServerGeoUpdate({
+			existingVisitor,
+			canonicalIp: requestContext.canonicalIp,
+			publicIp: requestContext.publicIp,
+			edgeGeoUpdate: requestContext.edgeGeoUpdate,
+			edgeTimezone: requestContext.edgeTimezone,
+			resolvedAt: nowIso,
+		});
+
+		const baseVisitorUpdate = stripServerOwnedGeoFields(normalizedBody);
+		if (
+			baseVisitorUpdate.language === undefined &&
+			requestContext.preferredLanguage
+		) {
+			baseVisitorUpdate.language = requestContext.preferredLanguage;
+		}
+		if (baseVisitorUpdate.timezone === undefined && timezoneFallback) {
+			baseVisitorUpdate.timezone = timezoneFallback;
+		}
+
+		const manualGeoFallback =
+			requestContext.canonicalIp === null
+				? extractManualGeoFallback(
+						normalizedBody,
+						requestContext.preferredLocale
+					)
+				: {};
+
+		const updatedVisitor = await updateVisitorForWebsite(db, {
+			visitorId,
+			websiteId: website.id,
+			data: {
+				...baseVisitorUpdate,
+				...manualGeoFallback,
+				...geoUpdate,
+				attribution: resolveFirstTouchAttribution({
+					existingAttribution: existingVisitor.attribution,
+					incomingAttribution: normalizedBody.attribution,
+				}),
+				currentPage: normalizedBody.currentPage ?? existingVisitor.currentPage,
+				lastSeenAt: nowIso,
+				updatedAt: nowIso,
+			},
+		});
+
+		if (!updatedVisitor) {
+			return c.json({ error: "NOT_FOUND", message: "Visitor not found" }, 404);
+		}
+
+		if (normalizedBody.currentPage) {
+			const trackingContext = flattenVisitorTrackingContext({
+				attribution: updatedVisitor.attribution,
+				currentPage: updatedVisitor.currentPage,
+			});
+
+			trackVisitorEvent({
+				website_id: website.id,
+				visitor_id: visitorId,
+				event_type: "page_view",
+				...trackingContext,
+			});
 
 			trackVisitorActivity({
 				website_id: website.id,
 				visitor_id: visitorId,
-				session_id: body.sessionId,
-				event_type: body.activityType,
-				city: toOptionalString(visitor.city),
-				country_code: toOptionalString(visitor.countryCode),
-				latitude: toOptionalNumber(visitor.latitude),
-				longitude: toOptionalNumber(visitor.longitude),
+				event_type: "page_sync",
+				session_id: visitorId,
+				city: updatedVisitor.city ?? undefined,
+				country_code: updatedVisitor.countryCode ?? undefined,
+				latitude: updatedVisitor.latitude ?? undefined,
+				longitude: updatedVisitor.longitude ?? undefined,
 				...trackingContext,
 			});
-
-			await markVisitorPresence({
-				websiteId: website.id,
-				visitorId,
-				lastSeenAt: acceptedAt,
-				geo: {
-					city: toOptionalString(visitor.city),
-					countryCode: toOptionalString(visitor.countryCode),
-					latitude: toOptionalNumber(visitor.latitude),
-					longitude: toOptionalNumber(visitor.longitude),
-				},
-			});
-
-			void realtime
-				.emit("visitorPresenceUpdate", {
-					activityType: body.activityType,
-					attribution: body.attribution,
-					currentPage: body.currentPage,
-					organizationId: visitor.organizationId,
-					sessionId: body.sessionId,
-					userId: null,
-					visitorId,
-					websiteId: website.id,
-				})
-				.catch((error) => {
-					console.error("[VisitorActivity] Failed to publish realtime event", {
-						websiteId: website.id,
-						visitorId,
-						error,
-					});
-				});
-
-			const response: VisitorActivityResponse = {
-				ok: true,
-				acceptedAt,
-			};
-
-			return c.json(
-				validateResponse(response, visitorActivityResponseSchema),
-				200
-			);
-		} catch (error) {
-			console.error("Error tracking visitor activity:", error);
-			return c.json(
-				{
-					error: "INTERNAL_SERVER_ERROR",
-					message: "Failed to track visitor activity",
-				},
-				500
-			);
 		}
-	}
-);
 
-// PATCH /visitors/:id - Update existing visitor information
-visitorRouter.openapi(
-	{
-		method: "patch",
-		path: "/{id}",
-		summary: "Update existing visitor information",
-		description:
-			"Updates an existing visitor's browser, device, and location data. The visitor must already exist in the system.",
-		request: {
-			body: {
-				content: {
-					"application/json": {
-						schema: updateVisitorRequestSchema,
-					},
-				},
+		const response = formatVisitorResponse(updatedVisitor);
+
+		return c.json(validateResponse(response, visitorResponseSchema), 200);
+	} catch (error) {
+		console.error("Error updating visitor:", error);
+		return c.json(
+			{
+				error: "INTERNAL_SERVER_ERROR",
+				message: "Failed to update visitor information",
 			},
-		},
-		responses: {
-			200: {
-				content: {
-					"application/json": {
-						schema: visitorResponseSchema,
-					},
-				},
-				description: "Visitor information successfully created or updated",
-			},
-			400: errorJsonResponse("Invalid request data"),
-			401: errorJsonResponse("Unauthorized - Invalid API key"),
-			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
-			404: errorJsonResponse("Visitor not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...runtimeDualAuth({
-			parameters: [
-				{
-					name: "id",
-					in: "path",
-					required: true,
-					description: "The visitor ID to update",
-					schema: {
-						type: "string",
-					},
-				},
-			],
-		}),
-	},
-	async (c) => {
-		try {
-			const { db, website, body } = await safelyExtractRequestData(
-				c,
-				updateVisitorRequestSchema
-			);
-			const visitorId = c.req.param("id");
-
-			if (!visitorId) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Visitor not found" },
-					404
-				);
-			}
-
-			if (!website?.id) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
-			}
-
-			const existingVisitor = await findVisitorForWebsite(db, {
-				visitorId,
-				websiteId: website.id,
-			});
-
-			if (!existingVisitor) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Visitor not found" },
-					404
-				);
-			}
-
-			const normalizedBodyCountryCode = normalizeCountryCode(body.countryCode);
-			if (
-				typeof body.countryCode === "string" &&
-				normalizedBodyCountryCode === null
-			) {
-				return c.json(
-					{
-						error: "BAD_REQUEST",
-						message: "countryCode must be a valid ISO 3166-1 alpha-2 code",
-					},
-					400
-				);
-			}
-
-			const normalizedBody: UpdateVisitorRequest = {
-				...body,
-				...(normalizedBodyCountryCode
-					? { countryCode: normalizedBodyCountryCode }
-					: {}),
-				attribution: body.attribution,
-				currentPage: body.currentPage,
-			};
-
-			const now = new Date();
-			const nowIso = now.toISOString();
-			const requestContext = extractRequestContext(c.req);
-			const { geoUpdate, timezoneFallback } = await resolveServerGeoUpdate({
-				existingVisitor,
-				canonicalIp: requestContext.canonicalIp,
-				publicIp: requestContext.publicIp,
-				edgeGeoUpdate: requestContext.edgeGeoUpdate,
-				edgeTimezone: requestContext.edgeTimezone,
-				resolvedAt: nowIso,
-			});
-
-			const baseVisitorUpdate = stripServerOwnedGeoFields(normalizedBody);
-			if (
-				baseVisitorUpdate.language === undefined &&
-				requestContext.preferredLanguage
-			) {
-				baseVisitorUpdate.language = requestContext.preferredLanguage;
-			}
-			if (baseVisitorUpdate.timezone === undefined && timezoneFallback) {
-				baseVisitorUpdate.timezone = timezoneFallback;
-			}
-
-			const manualGeoFallback =
-				requestContext.canonicalIp === null
-					? extractManualGeoFallback(
-							normalizedBody,
-							requestContext.preferredLocale
-						)
-					: {};
-
-			const updatedVisitor = await updateVisitorForWebsite(db, {
-				visitorId,
-				websiteId: website.id,
-				data: {
-					...baseVisitorUpdate,
-					...manualGeoFallback,
-					...geoUpdate,
-					attribution: resolveFirstTouchAttribution({
-						existingAttribution: existingVisitor.attribution,
-						incomingAttribution: normalizedBody.attribution,
-					}),
-					currentPage:
-						normalizedBody.currentPage ?? existingVisitor.currentPage,
-					lastSeenAt: nowIso,
-					updatedAt: nowIso,
-				},
-			});
-
-			if (!updatedVisitor) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Visitor not found" },
-					404
-				);
-			}
-
-			if (normalizedBody.currentPage) {
-				const trackingContext = flattenVisitorTrackingContext({
-					attribution: updatedVisitor.attribution,
-					currentPage: updatedVisitor.currentPage,
-				});
-
-				trackVisitorEvent({
-					website_id: website.id,
-					visitor_id: visitorId,
-					event_type: "page_view",
-					...trackingContext,
-				});
-
-				trackVisitorActivity({
-					website_id: website.id,
-					visitor_id: visitorId,
-					event_type: "page_sync",
-					session_id: visitorId,
-					city: updatedVisitor.city ?? undefined,
-					country_code: updatedVisitor.countryCode ?? undefined,
-					latitude: updatedVisitor.latitude ?? undefined,
-					longitude: updatedVisitor.longitude ?? undefined,
-					...trackingContext,
-				});
-			}
-
-			const response = formatVisitorResponse(updatedVisitor);
-
-			return c.json(validateResponse(response, visitorResponseSchema), 200);
-		} catch (error) {
-			console.error("Error updating visitor:", error);
-			return c.json(
-				{
-					error: "INTERNAL_SERVER_ERROR",
-					message: "Failed to update visitor information",
-				},
-				500
-			);
-		}
+			500
+		);
 	}
-);
+});
 
 // PATCH /visitors/:id/metadata - Update contact metadata for a visitor
-visitorRouter.openapi(
-	{
-		method: "patch",
-		path: "/{id}/metadata",
-		summary: "Update contact metadata for a visitor",
-		description:
-			"Merges the provided metadata into the contact profile associated with the visitor. The visitor must be identified first (linked to a contact) via the /contacts/identify endpoint.",
-		request: {
-			body: {
-				content: {
-					"application/json": {
-						schema: updateVisitorMetadataRequestSchema,
-					},
-				},
-			},
-		},
-		responses: {
-			200: {
-				description: "Contact metadata updated successfully",
-				content: {
-					"application/json": {
-						schema: visitorResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse("Invalid request data or visitor not identified"),
-			401: errorJsonResponse("Unauthorized - Invalid API key"),
-			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
-			404: errorJsonResponse("Visitor not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...runtimeDualAuth({
-			parameters: [
-				{
-					name: "id",
-					in: "path",
-					required: true,
-					description: "The visitor ID",
-					schema: {
-						type: "string",
-					},
-				},
-			],
-		}),
-	},
-	async (c) => {
-		try {
-			const { db, website, body } = await safelyExtractRequestData(
-				c,
-				updateVisitorMetadataRequestSchema
-			);
-			const visitorId = c.req.param("id");
+visitorRouter.openapi(updateVisitorMetadataRoute, async (c) => {
+	try {
+		const { db, website, body } = await safelyExtractRequestData(
+			c,
+			updateVisitorMetadataRequestSchema
+		);
+		const visitorId = c.req.param("id");
 
-			if (!visitorId) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Visitor not found" },
-					404
-				);
-			}
+		if (!visitorId) {
+			return c.json({ error: "NOT_FOUND", message: "Visitor not found" }, 404);
+		}
 
-			if (!website?.id) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
-			}
+		if (!website?.id) {
+			return c.json({ error: "UNAUTHORIZED", message: "Invalid API key" }, 401);
+		}
 
-			const contact = await getContactForVisitor(db, {
-				visitorId,
-				websiteId: website.id,
-			});
+		const contact = await getContactForVisitor(db, {
+			visitorId,
+			websiteId: website.id,
+		});
 
-			if (!contact) {
-				return c.json(
-					{
-						error: "BAD_REQUEST",
-						message:
-							"Visitor is not identified. Please use the /contacts/identify endpoint first to create a contact for this visitor.",
-					},
-					400
-				);
-			}
-
-			await mergeContactMetadata(db, {
-				contactId: contact.id,
-				websiteId: website.id,
-				metadata: body.metadata,
-			});
-
-			const visitor = await findVisitorForWebsite(db, {
-				visitorId,
-				websiteId: website.id,
-			});
-
-			if (!visitor) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Visitor not found" },
-					404
-				);
-			}
-
-			const response = formatVisitorResponse(visitor);
-
-			return c.json(validateResponse(response, visitorResponseSchema), 200);
-		} catch (error) {
-			console.error("Error updating contact metadata:", error);
+		if (!contact) {
 			return c.json(
 				{
-					error: "INTERNAL_SERVER_ERROR",
-					message: "Failed to update contact metadata",
+					error: "BAD_REQUEST",
+					message:
+						"Visitor is not identified. Please use the /contacts/identify endpoint first to create a contact for this visitor.",
 				},
-				500
+				400
 			);
 		}
-	}
-);
 
-visitorRouter.openapi(
-	{
-		method: "post",
-		path: "/{id}/block",
-		summary: "Block a visitor",
-		description:
-			"Blocks a visitor from sending new messages. Requires a private API key and an acting teammate.",
-		operationId: "blockVisitor",
-		responses: {
-			200: {
-				description: "Visitor blocked successfully",
-				content: {
-					"application/json": {
-						schema: visitorResponseSchema,
-					},
-				},
+		await mergeContactMetadata(db, {
+			contactId: contact.id,
+			websiteId: website.id,
+			metadata: body.metadata,
+		});
+
+		const visitor = await findVisitorForWebsite(db, {
+			visitorId,
+			websiteId: website.id,
+		});
+
+		if (!visitor) {
+			return c.json({ error: "NOT_FOUND", message: "Visitor not found" }, 404);
+		}
+
+		const response = formatVisitorResponse(visitor);
+
+		return c.json(validateResponse(response, visitorResponseSchema), 200);
+	} catch (error) {
+		console.error("Error updating contact metadata:", error);
+		return c.json(
+			{
+				error: "INTERNAL_SERVER_ERROR",
+				message: "Failed to update contact metadata",
 			},
-			400: errorJsonResponse(
-				"Bad request - Missing actor for an unlinked private API key"
-			),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse(
-				"Forbidden - Private API key required or actor user not allowed for this website"
-			),
-			404: errorJsonResponse("Visitor not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		tags: ["Visitors"],
-		...privateControlAuth({
-			parameters: [
-				{
-					name: "id",
-					in: "path",
-					required: true,
-					description: "The visitor ID",
-					schema: {
-						type: "string",
-					},
-				},
-			],
-			includeActorUserIdHeader: true,
-		}),
-	},
-	async (c) => {
-		try {
-			const extracted = await safelyExtractRequestData(c);
-			const privateContext = requirePrivateControlContext(c, extracted);
+			500
+		);
+	}
+});
 
-			if (privateContext instanceof Response) {
-				return privateContext;
-			}
+visitorRouter.openapi(blockVisitorRoute, async (c) => {
+	try {
+		const extracted = await safelyExtractRequestData(c);
+		const privateContext = requirePrivateControlContext(c, extracted);
 
-			const visitorId = c.req.param("id");
-			if (!visitorId) {
-				return restError(c, 404, "NOT_FOUND", "Visitor not found");
-			}
+		if (privateContext instanceof Response) {
+			return privateContext;
+		}
 
-			const actor = await resolvePrivateVisitorActor({
-				c,
-				db: extracted.db,
-				apiKey: privateContext.apiKey,
-				organizationId: privateContext.organization.id,
-				websiteTeamId: privateContext.website.teamId,
-			});
+		const visitorId = c.req.param("id");
+		if (!visitorId) {
+			return restError(c, 404, "NOT_FOUND", "Visitor not found");
+		}
 
-			if (actor instanceof Response) {
-				return actor;
-			}
-			if (!actor) {
-				return restError(c, 400, "BAD_REQUEST", "Actor user is required");
-			}
+		const actor = await resolvePrivateVisitorActor({
+			c,
+			db: extracted.db,
+			apiKey: privateContext.apiKey,
+			organizationId: privateContext.organization.id,
+			websiteTeamId: privateContext.website.teamId,
+		});
 
-			const visitorRecord = await findVisitorForWebsite(extracted.db, {
-				visitorId,
-				websiteId: privateContext.website.id,
-			});
+		if (actor instanceof Response) {
+			return actor;
+		}
+		if (!actor) {
+			return restError(c, 400, "BAD_REQUEST", "Actor user is required");
+		}
 
-			if (!visitorRecord) {
-				return restError(c, 404, "NOT_FOUND", "Visitor not found");
-			}
+		const visitorRecord = await findVisitorForWebsite(extracted.db, {
+			visitorId,
+			websiteId: privateContext.website.id,
+		});
 
-			const updatedVisitor = await blockVisitor(extracted.db, {
-				visitor: visitorRecord,
-				actorUserId: actor.userId,
-			});
+		if (!visitorRecord) {
+			return restError(c, 404, "NOT_FOUND", "Visitor not found");
+		}
 
-			if (!updatedVisitor) {
-				return restError(
-					c,
-					500,
-					"INTERNAL_SERVER_ERROR",
-					"Unable to block visitor"
-				);
-			}
+		const updatedVisitor = await blockVisitor(extracted.db, {
+			visitor: visitorRecord,
+			actorUserId: actor.userId,
+		});
 
-			await createLatestVisitorModerationEvent({
-				db: extracted.db,
-				organizationId: privateContext.organization.id,
-				websiteId: privateContext.website.id,
-				visitorId,
-				actorUserId: actor.userId,
-				type: ConversationEventType.VISITOR_BLOCKED,
-			});
-
-			return c.json(
-				validateResponse(
-					formatVisitorResponse(updatedVisitor),
-					visitorResponseSchema
-				),
-				200
-			);
-		} catch (error) {
-			console.error("Error blocking visitor:", error);
+		if (!updatedVisitor) {
 			return restError(
 				c,
 				500,
 				"INTERNAL_SERVER_ERROR",
-				"Failed to block visitor"
+				"Unable to block visitor"
 			);
 		}
+
+		await createLatestVisitorModerationEvent({
+			db: extracted.db,
+			organizationId: privateContext.organization.id,
+			websiteId: privateContext.website.id,
+			visitorId,
+			actorUserId: actor.userId,
+			type: ConversationEventType.VISITOR_BLOCKED,
+		});
+
+		return c.json(
+			validateResponse(
+				formatVisitorResponse(updatedVisitor),
+				visitorResponseSchema
+			),
+			200
+		);
+	} catch (error) {
+		console.error("Error blocking visitor:", error);
+		return restError(
+			c,
+			500,
+			"INTERNAL_SERVER_ERROR",
+			"Failed to block visitor"
+		);
 	}
-);
+});
 
-visitorRouter.openapi(
-	{
-		method: "post",
-		path: "/{id}/unblock",
-		summary: "Unblock a visitor",
-		description:
-			"Unblocks a visitor so they can send messages again. Requires a private API key and an acting teammate.",
-		operationId: "unblockVisitor",
-		responses: {
-			200: {
-				description: "Visitor unblocked successfully",
-				content: {
-					"application/json": {
-						schema: visitorResponseSchema,
-					},
-				},
-			},
-			400: errorJsonResponse(
-				"Bad request - Missing actor for an unlinked private API key"
-			),
-			401: errorJsonResponse(
-				"Unauthorized - Invalid or missing private API key"
-			),
-			403: errorJsonResponse(
-				"Forbidden - Private API key required or actor user not allowed for this website"
-			),
-			404: errorJsonResponse("Visitor not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		tags: ["Visitors"],
-		...privateControlAuth({
-			parameters: [
-				{
-					name: "id",
-					in: "path",
-					required: true,
-					description: "The visitor ID",
-					schema: {
-						type: "string",
-					},
-				},
-			],
-			includeActorUserIdHeader: true,
-		}),
-	},
-	async (c) => {
-		try {
-			const extracted = await safelyExtractRequestData(c);
-			const privateContext = requirePrivateControlContext(c, extracted);
+visitorRouter.openapi(unblockVisitorRoute, async (c) => {
+	try {
+		const extracted = await safelyExtractRequestData(c);
+		const privateContext = requirePrivateControlContext(c, extracted);
 
-			if (privateContext instanceof Response) {
-				return privateContext;
-			}
+		if (privateContext instanceof Response) {
+			return privateContext;
+		}
 
-			const visitorId = c.req.param("id");
-			if (!visitorId) {
-				return restError(c, 404, "NOT_FOUND", "Visitor not found");
-			}
+		const visitorId = c.req.param("id");
+		if (!visitorId) {
+			return restError(c, 404, "NOT_FOUND", "Visitor not found");
+		}
 
-			const actor = await resolvePrivateVisitorActor({
-				c,
-				db: extracted.db,
-				apiKey: privateContext.apiKey,
-				organizationId: privateContext.organization.id,
-				websiteTeamId: privateContext.website.teamId,
-			});
+		const actor = await resolvePrivateVisitorActor({
+			c,
+			db: extracted.db,
+			apiKey: privateContext.apiKey,
+			organizationId: privateContext.organization.id,
+			websiteTeamId: privateContext.website.teamId,
+		});
 
-			if (actor instanceof Response) {
-				return actor;
-			}
-			if (!actor) {
-				return restError(c, 400, "BAD_REQUEST", "Actor user is required");
-			}
+		if (actor instanceof Response) {
+			return actor;
+		}
+		if (!actor) {
+			return restError(c, 400, "BAD_REQUEST", "Actor user is required");
+		}
 
-			const visitorRecord = await findVisitorForWebsite(extracted.db, {
-				visitorId,
-				websiteId: privateContext.website.id,
-			});
+		const visitorRecord = await findVisitorForWebsite(extracted.db, {
+			visitorId,
+			websiteId: privateContext.website.id,
+		});
 
-			if (!visitorRecord) {
-				return restError(c, 404, "NOT_FOUND", "Visitor not found");
-			}
+		if (!visitorRecord) {
+			return restError(c, 404, "NOT_FOUND", "Visitor not found");
+		}
 
-			const updatedVisitor = await unblockVisitor(extracted.db, {
-				visitor: visitorRecord,
-				actorUserId: actor.userId,
-			});
+		const updatedVisitor = await unblockVisitor(extracted.db, {
+			visitor: visitorRecord,
+			actorUserId: actor.userId,
+		});
 
-			if (!updatedVisitor) {
-				return restError(
-					c,
-					500,
-					"INTERNAL_SERVER_ERROR",
-					"Unable to unblock visitor"
-				);
-			}
-
-			await createLatestVisitorModerationEvent({
-				db: extracted.db,
-				organizationId: privateContext.organization.id,
-				websiteId: privateContext.website.id,
-				visitorId,
-				actorUserId: actor.userId,
-				type: ConversationEventType.VISITOR_UNBLOCKED,
-			});
-
-			return c.json(
-				validateResponse(
-					formatVisitorResponse(updatedVisitor),
-					visitorResponseSchema
-				),
-				200
-			);
-		} catch (error) {
-			console.error("Error unblocking visitor:", error);
+		if (!updatedVisitor) {
 			return restError(
 				c,
 				500,
 				"INTERNAL_SERVER_ERROR",
-				"Failed to unblock visitor"
+				"Unable to unblock visitor"
 			);
 		}
+
+		await createLatestVisitorModerationEvent({
+			db: extracted.db,
+			organizationId: privateContext.organization.id,
+			websiteId: privateContext.website.id,
+			visitorId,
+			actorUserId: actor.userId,
+			type: ConversationEventType.VISITOR_UNBLOCKED,
+		});
+
+		return c.json(
+			validateResponse(
+				formatVisitorResponse(updatedVisitor),
+				visitorResponseSchema
+			),
+			200
+		);
+	} catch (error) {
+		console.error("Error unblocking visitor:", error);
+		return restError(
+			c,
+			500,
+			"INTERNAL_SERVER_ERROR",
+			"Failed to unblock visitor"
+		);
 	}
-);
+});
 
 // GET /visitors/:id - Get visitor information by ID
-visitorRouter.openapi(
-	{
-		method: "get",
-		path: "/{id}",
-		summary: "Get visitor information",
-		description: "Retrieves visitor information by visitor ID",
-		responses: {
-			200: {
-				content: {
-					"application/json": {
-						schema: visitorResponseSchema,
-					},
-				},
-				description: "Visitor information retrieved successfully",
-			},
-			401: errorJsonResponse("Unauthorized - Invalid API key"),
-			403: errorJsonResponse("Forbidden - Public key origin validation failed"),
-			404: errorJsonResponse("Visitor not found"),
-			500: errorJsonResponse("Internal server error"),
-		},
-		...runtimeDualAuth({
-			parameters: [
-				{
-					name: "id",
-					in: "path",
-					required: true,
-					description: "The visitor ID",
-					schema: {
-						type: "string",
-					},
-				},
-			],
-		}),
-	},
-	async (c) => {
-		try {
-			const { db, website } = await safelyExtractRequestData(c);
-			const visitorId = c.req.param("id");
+visitorRouter.openapi(getVisitorRoute, async (c) => {
+	try {
+		const { db, website } = await safelyExtractRequestData(c);
+		const visitorId = c.req.param("id");
 
-			if (!visitorId) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Visitor not found" },
-					404
-				);
-			}
-
-			if (!website?.id) {
-				return c.json(
-					{ error: "UNAUTHORIZED", message: "Invalid API key" },
-					401
-				);
-			}
-
-			const visitorRecord = await findVisitorForWebsite(db, {
-				visitorId,
-				websiteId: website.id,
-			});
-
-			if (!visitorRecord) {
-				return c.json(
-					{ error: "NOT_FOUND", message: "Visitor not found" },
-					404
-				);
-			}
-
-			const response = formatVisitorResponse(visitorRecord);
-
-			return c.json(validateResponse(response, visitorResponseSchema), 200);
-		} catch (error) {
-			console.error("Error fetching visitor:", error);
-			return c.json(
-				{
-					error: "INTERNAL_SERVER_ERROR",
-					message: "Failed to fetch visitor information",
-				},
-				500
-			);
+		if (!visitorId) {
+			return c.json({ error: "NOT_FOUND", message: "Visitor not found" }, 404);
 		}
+
+		if (!website?.id) {
+			return c.json({ error: "UNAUTHORIZED", message: "Invalid API key" }, 401);
+		}
+
+		const visitorRecord = await findVisitorForWebsite(db, {
+			visitorId,
+			websiteId: website.id,
+		});
+
+		if (!visitorRecord) {
+			return c.json({ error: "NOT_FOUND", message: "Visitor not found" }, 404);
+		}
+
+		const response = formatVisitorResponse(visitorRecord);
+
+		return c.json(validateResponse(response, visitorResponseSchema), 200);
+	} catch (error) {
+		console.error("Error fetching visitor:", error);
+		return c.json(
+			{
+				error: "INTERNAL_SERVER_ERROR",
+				message: "Failed to fetch visitor information",
+			},
+			500
+		);
 	}
-);
+});

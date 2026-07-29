@@ -70,6 +70,11 @@ const toDistExport = (value: unknown) => {
 		return value;
 	}
 	const normalized = stripSrcPrefix(value);
+	// Data files are published as-is; mapping them to {types,import} would point
+	// at .d.ts/.js files that do not exist.
+	if (normalized.endsWith(".json")) {
+		return normalized;
+	}
 	if (normalized.endsWith(".css")) {
 		// CSS files should strip ./dist/ prefix since the package.json is in dist/
 		if (normalized.startsWith("./dist/")) {
@@ -141,7 +146,7 @@ const main = async () => {
 	const distPkgPath = path.join(distDir, "package.json");
 	await writeFile(distPkgPath, `${JSON.stringify(distPkg, null, 2)}\n`, "utf8");
 
-	for (const fileName of ["README.md", "LICENSE"]) {
+	for (const fileName of ["README.md", "LICENSE", "openapi.json"]) {
 		const source = path.join(packageDir, fileName);
 		try {
 			await copyFile(source, path.join(distDir, fileName));

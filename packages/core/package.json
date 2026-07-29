@@ -1,7 +1,7 @@
 {
   "name": "@cossistant/core",
   "type": "module",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": false,
   "author": "Cossistant Team",
   "description": "Core library for connecting to Cossistant API and managing data fetching",

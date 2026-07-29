@@ -1,5 +1,15 @@
 # @cossistant/react
 
+## 0.3.0
+
+### Patch Changes
+
+- [`41fd069`](https://github.com/cossistantcom/cossistant/commit/41fd069ddd795fc5588045e5dba0742b643d23eb) Thanks [@Rieranthony](https://github.com/Rieranthony)! - Fix internally owned SupportProvider controllers staying inactive after React StrictMode effect replay in development.
+
+- Updated dependencies []:
+  - @cossistant/core@0.3.0
+  - @cossistant/types@0.3.0
+
 ## 0.2.0
 
 ### Minor Changes

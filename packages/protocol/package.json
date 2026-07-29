@@ -1,7 +1,7 @@
 {
   "name": "@cossistant/protocol",
   "type": "module",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": false,
   "author": "Cossistant Team",
   "description": "Canonical HTTP and WebSocket wire contract for the Cossistant API",

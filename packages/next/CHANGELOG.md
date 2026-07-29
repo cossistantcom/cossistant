@@ -1,5 +1,12 @@
 # @cossistant/next
 
+## 0.3.0
+
+### Patch Changes
+
+- Updated dependencies [[`41fd069`](https://github.com/cossistantcom/cossistant/commit/41fd069ddd795fc5588045e5dba0742b643d23eb)]:
+  - @cossistant/react@0.3.0
+
 ## 0.2.0
 
 ### Minor Changes

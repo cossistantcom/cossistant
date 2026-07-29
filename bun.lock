@@ -265,7 +265,7 @@
     },
     "examples/nextjs-tailwind": {
       "name": "@cossistant/example-nextjs-tailwind",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "dependencies": {
         "@cossistant/core": "workspace:*",
         "@cossistant/next": "workspace:*",
@@ -286,7 +286,7 @@
     },
     "examples/react-vite": {
       "name": "@cossistant/example-react-vite",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@cossistant/core": "workspace:*",
         "@cossistant/react": "workspace:*",
@@ -305,7 +305,7 @@
     },
     "packages/browser": {
       "name": "@cossistant/browser",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@cossistant/core": "workspace:*",
         "@cossistant/react": "workspace:*",
@@ -320,7 +320,7 @@
     },
     "packages/core": {
       "name": "@cossistant/core",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@hono/zod-openapi": "^1.5.1",
         "nanoid": "^5.1.5",
@@ -386,7 +386,7 @@
     },
     "packages/next": {
       "name": "@cossistant/next",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@cossistant/react": "workspace:*",
       },
@@ -401,7 +401,7 @@
     },
     "packages/protocol": {
       "name": "@cossistant/protocol",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@cossistant/types": "workspace:*",
         "@hono/zod-openapi": "^1.5.1",
@@ -419,7 +419,7 @@
     },
     "packages/react": {
       "name": "@cossistant/react",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@cossistant/core": "workspace:*",
         "@cossistant/tiny-markdown": "workspace:*",
@@ -530,7 +530,7 @@
     },
     "packages/types": {
       "name": "@cossistant/types",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@hono/zod-openapi": "^1.5.1",
         "zod": "^4.3.6",

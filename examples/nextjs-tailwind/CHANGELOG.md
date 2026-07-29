@@ -1,5 +1,13 @@
 # @cossistant/example-nextjs-tailwind
 
+## 0.1.6
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @cossistant/next@0.3.0
+  - @cossistant/core@0.3.0
+
 ## 0.1.5
 
 ### Patch Changes

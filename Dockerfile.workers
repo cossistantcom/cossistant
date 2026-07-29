@@ -20,6 +20,7 @@ COPY packages/tiny-markdown/package.json ./packages/tiny-markdown/
 COPY packages/memory/package.json ./packages/memory/
 COPY packages/location/package.json ./packages/location/
 COPY tinybird/package.json ./tinybird/
+COPY packages/protocol/package.json ./packages/protocol/
 
 # Install dependencies
 RUN bun install

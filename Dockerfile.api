@@ -18,6 +18,7 @@ COPY packages/tiny-markdown/package.json ./packages/tiny-markdown/
 COPY packages/redis/package.json ./packages/redis/
 COPY packages/location/package.json ./packages/location/
 COPY packages/memory/package.json ./packages/memory/
+COPY packages/protocol/package.json ./packages/protocol/
 COPY tinybird/package.json ./tinybird/
 
 # Install dependencies

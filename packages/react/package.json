@@ -139,6 +139,7 @@
     "pub:release": "bun run build && bun run check:pack && npm publish ./dist --access public",
     "pub:beta": "bun run build && bun run check:pack && npm publish ./dist --access public --tag beta --no-git-checks",
     "pub:next": "bun run build && bun run check:pack && npm publish ./dist --access public --tag next --no-git-checks",
+    "test": "bun test src",
     "lint": "biome check .",
     "check-types": "tsc --noEmit --project tsconfig.json"
   }

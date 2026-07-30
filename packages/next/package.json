@@ -122,6 +122,7 @@
     "pub:beta": "bun run build && npm publish ./dist --access public --tag beta --no-git-checks",
     "pub:next": "bun run build && npm publish ./dist --access public --tag next --no-git-checks",
     "prepare-package": "bun ../../scripts/prepare-package.ts",
+    "test": "bun test src",
     "lint": "biome check .",
     "check-types": "tsc --noEmit --project tsconfig.json"
   }

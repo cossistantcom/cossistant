@@ -49,9 +49,9 @@
     "generate:openapi": "bun run scripts/generate-openapi.ts",
     "check:openapi": "bun run scripts/generate-openapi.ts --check",
     "prepare-package": "bun ../../scripts/prepare-package.ts",
-    "pub:release": "bun run build && npm publish --access public",
-    "pub:beta": "bun run build && npm publish --access public --tag beta --no-git-checks",
-    "pub:next": "bun run build && npm publish --access public --tag next --no-git-checks",
+    "pub:release": "bun run build && npm publish ./dist --access public",
+    "pub:beta": "bun run build && npm publish ./dist --access public --tag beta --no-git-checks",
+    "pub:next": "bun run build && npm publish ./dist --access public --tag next --no-git-checks",
     "lint": "biome check .",
     "test": "bun test src",
     "check-types": "tsc --noEmit --project tsconfig.json"

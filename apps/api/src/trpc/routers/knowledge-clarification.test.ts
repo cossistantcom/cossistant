@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import * as actualKnowledgeClarificationQueries from "@api/db/queries/knowledge-clarification";
 
 const getWebsiteBySlugWithAccessMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
@@ -29,7 +30,11 @@ mock.module("@api/db/queries/website", () => ({
 	getWebsiteBySlugWithAccess: getWebsiteBySlugWithAccessMock,
 }));
 
+// Spread the real query module so every export the router imports still exists
+// — mock.module replaces the module wholesale — then override the handful this
+// test drives.
 mock.module("@api/db/queries/knowledge-clarification", () => ({
+	...actualKnowledgeClarificationQueries,
 	ACTIVE_CONVERSATION_STATUSES: [
 		"analyzing",
 		"awaiting_answer",
@@ -76,6 +81,11 @@ mock.module("@api/services/knowledge-clarification", () => ({
 		conversation: null,
 	})),
 	serializeKnowledgeClarificationRequest: mock((value: unknown) => value),
+	// The router serializes through this metadata-aware variant; mirror the
+	// passthrough behaviour of its sibling above.
+	serializeKnowledgeClarificationRequestWithMetadata: mock(
+		async (params: { request: unknown }) => params.request
+	),
 }));
 
 const modulePromise = Promise.all([

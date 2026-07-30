@@ -34,6 +34,14 @@ mock.module("@tanstack/react-query", () => ({
 		mutateAsync: async () => null,
 		isPending: false,
 	}),
+	// bun's mock.module replaces the whole module, so every export the route's
+	// module graph touches has to be present here.
+	useQuery: () => ({ data: undefined, isLoading: false }),
+	useQueryClient: () => ({
+		getQueryState: () => {},
+		invalidateQueries: async () => {},
+		setQueryData: () => {},
+	}),
 }));
 
 mock.module("@/contexts/website", () => ({

@@ -2,10 +2,16 @@ import { beforeEach, describe, expect, it, mock } from "bun:test";
 import path from "node:path";
 import React from "react";
 
+// This file lives at <repo>/apps/web/src/lib, so four levels up is the repo
+// root. Deriving it keeps the test working in CI, git worktrees, and any
+// checkout location — a hardcoded absolute path only passed on one machine.
+const REPO_ROOT = path.resolve(import.meta.dir, "../../../..");
+const APP_DIR = path.join(REPO_ROOT, "apps/web");
+
 let packageVersion = "0.2.0";
 let readFilePath = "";
 let existingPackageJsonPath = path.join(
-	"/Users/anthonyriera/code/cossistant-monorepo",
+	REPO_ROOT,
 	"packages/react/package.json"
 );
 let latestRelease = {
@@ -45,7 +51,7 @@ describe("getDocsWidgetRelease", () => {
 		packageVersion = "0.2.0";
 		readFilePath = "";
 		existingPackageJsonPath = path.join(
-			"/Users/anthonyriera/code/cossistant-monorepo",
+			REPO_ROOT,
 			"packages/react/package.json"
 		);
 		latestRelease = {
@@ -84,9 +90,7 @@ describe("getDocsWidgetRelease", () => {
 
 	it("finds the widget package when the app runs from apps/web", async () => {
 		const { findWidgetPackageJsonPath } = await modulePromise;
-		const packageJsonPath = await findWidgetPackageJsonPath(
-			"/Users/anthonyriera/code/cossistant-monorepo/apps/web"
-		);
+		const packageJsonPath = await findWidgetPackageJsonPath(APP_DIR);
 
 		expect(packageJsonPath).toBe(existingPackageJsonPath);
 	});

@@ -45,8 +45,11 @@ describe("VisitorSourceBadge", () => {
 
 		expect(html).toContain('data-slot="visitor-source-badge"');
 		expect(html).toContain('data-slot="visitor-source-badge-favicon"');
-		expect(html).toContain('height="12"');
-		expect(html).toContain('width="12"');
+		// Displayed at 12px (size-3) but requested at 16px so the favicon stays
+		// crisp on high-DPI screens.
+		expect(html).toContain('class="size-3 shrink-0 rounded-[2px]"');
+		expect(html).toContain('height="16"');
+		expect(html).toContain('width="16"');
 		expect(html).toContain("Twitter");
 	});
 

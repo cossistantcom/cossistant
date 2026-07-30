@@ -8,6 +8,44 @@ mock.module("nuqs", () => ({
 	useQueryState: () => [null, () => Promise.resolve(new URLSearchParams())],
 }));
 
+// page-tree-node calls useRouter, which throws outside a mounted app router.
+mock.module("next/navigation", () => ({
+	usePathname: () => "/",
+	useRouter: () => ({
+		prefetch: async (_href: string) => {},
+		push: (_href: string) => {},
+		replace: (_href: string) => {},
+	}),
+	useSearchParams: () => new URLSearchParams(),
+}));
+
+// Rows use useTrainingEntryPrefetch, which needs tRPC and a query client.
+mock.module("@/lib/trpc/client", () => ({
+	useTRPC: () => ({
+		knowledge: {
+			get: {
+				queryOptions: (input: Record<string, unknown>) => ({
+					queryKey: ["knowledge", "get", input],
+				}),
+			},
+		},
+	}),
+}));
+
+mock.module("@tanstack/react-query", () => ({
+	useMutation: () => ({
+		isPending: false,
+		mutate: () => {},
+		mutateAsync: async () => null,
+	}),
+	useQuery: () => ({ data: undefined, isLoading: false }),
+	useQueryClient: () => ({
+		getQueryState: () => {},
+		invalidateQueries: async () => {},
+		prefetchQuery: async () => {},
+	}),
+}));
+
 const modulePromise = import("./page-tree-node");
 
 const childNode: MergedPageNode = {

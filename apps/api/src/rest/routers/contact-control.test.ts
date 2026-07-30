@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import * as actualConversationAccess from "@api/db/queries/conversation-access";
+import * as actualSupportQueries from "@api/db/queries/support";
 import { APIKeyType } from "@cossistant/types";
 
 const safelyExtractRequestDataMock = mock((async () => ({})) as (
@@ -66,6 +68,22 @@ mock.module("@api/db/queries/visitor", () => ({
 	findVisitorForWebsite: findVisitorForWebsiteMock,
 	getCompleteVisitorWithContact: mock(async () => null),
 	getVisitor: mock(async () => null),
+}));
+
+// runtime-visitor resolves the visitor through conversation-access now, so serve
+// it from the same fixture the visitor-query mock uses. Spread the real module
+// so its other exports survive mock.module's wholesale replacement.
+mock.module("@api/db/queries/conversation-access", () => ({
+	...actualConversationAccess,
+	getActiveVisitorForWebsite: async (...args: unknown[]) =>
+		await findVisitorForWebsiteMock(...args),
+}));
+
+// identify copies onboarding state as a side effect; these tests only assert the
+// route's response, so make it a no-op instead of stubbing a whole db.
+mock.module("@api/db/queries/support", () => ({
+	...actualSupportQueries,
+	copyVisitorOnboardingToContactIfEmpty: async () => {},
 }));
 
 mock.module("@api/utils/format-visitor", () => ({

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import * as actualVisitorQueries from "@api/db/queries/visitor";
 import type {
 	ConversationTranscriptEntry,
 	RoleAwareMessage,
@@ -38,7 +39,11 @@ mock.module("@api/db/queries/conversation", () => ({
 	getMessageMetadata: getMessageMetadataMock,
 }));
 
+// mock.module replaces the whole module, so spread the real exports and
+// override only what this test drives. Otherwise any other query the module
+// graph imports disappears and linking fails.
 mock.module("@api/db/queries/visitor", () => ({
+	...actualVisitorQueries,
 	getCompleteVisitorWithContact: getCompleteVisitorWithContactMock,
 }));
 
@@ -185,6 +190,9 @@ describe("loadIntakeContext", () => {
 
 		const result = await loadIntakeContext(
 			{
+				// No website record: loadIntakeContext then leaves auto-translate
+				// off, which is the behaviour these assertions were written against.
+				query: { website: { findFirst: async () => {} } },
 				select: selectMock,
 			} as never,
 			{

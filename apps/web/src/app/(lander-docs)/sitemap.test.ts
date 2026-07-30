@@ -1,4 +1,10 @@
 import { describe, expect, it } from "bun:test";
+
+// getSiteUrl() only falls back to localhost when NODE_ENV is "development",
+// which bun test does not set. Pin the origin so these assertions do not depend
+// on the ambient environment.
+process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
+
 import { getAllBlogTags, getIndexableBlogTags } from "@/lib/seo-content";
 import sitemap from "./sitemap";
 

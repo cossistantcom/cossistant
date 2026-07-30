@@ -14,9 +14,15 @@ const aiAgent = createWorkerFactoryMock();
 const aiAgentBackground = createWorkerFactoryMock();
 const webCrawl = createWorkerFactoryMock();
 const aiTraining = createWorkerFactoryMock();
+const lifecycleEmail = createWorkerFactoryMock();
 
 mock.module("@cossistant/redis", () => ({
 	getBullConnectionOptions: getBullConnectionOptionsMock,
+	// mock.module replaces the whole module, so the other exports the worker
+	// graph imports have to be present even though this test never calls them.
+	createRedisConnection: () => ({}),
+	getRedisConnectionOptions: () => ({}),
+	getSafeRedisUrl: () => "redis://localhost:6379",
 }));
 
 mock.module("./message-notification/worker", () => ({
@@ -37,6 +43,12 @@ mock.module("./web-crawl/worker", () => ({
 
 mock.module("./ai-training/worker", () => ({
 	createAiTrainingWorker: aiTraining.factory,
+}));
+
+// Left unmocked this builds a real BullMQ worker and opens a Redis connection,
+// so the suite could only pass against a live Redis.
+mock.module("./lifecycle-email/worker", () => ({
+	createLifecycleEmailWorker: lifecycleEmail.factory,
 }));
 
 const modulePromise = import("./index");

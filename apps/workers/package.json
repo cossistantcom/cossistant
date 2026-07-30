@@ -34,6 +34,7 @@
     "build": "bun build src/index.ts --compile --outfile server",
     "start": "bun run src/index.ts",
     "lint": "biome check .",
-    "check-types": "tsc --noEmit --project tsconfig.json"
+    "check-types": "tsc --noEmit --project tsconfig.json",
+    "test": "bun scripts/test-isolated.ts"
   }
 }

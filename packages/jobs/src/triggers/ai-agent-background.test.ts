@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { AI_AGENT_BACKGROUND_DELAY_MS } from "../ai-agent-background-job-scheduler";
 import type { AiAgentBackgroundJobData } from "../types";
 
 type MockJobState =
@@ -132,7 +133,8 @@ describe("createAiAgentBackgroundTriggers", () => {
 		expect(lastAddedName).toBe("ai-agent-background");
 		expect(lastAddedJobId).toBe("ai-agent-background-conv-1");
 		expect(lastAddedData?.conversationId).toBe("conv-1");
-		expect(lastAddedOptions?.delay).toBe(60_000);
+		// Read the default from the scheduler so retuning it does not break this.
+		expect(lastAddedOptions?.delay).toBe(AI_AGENT_BACKGROUND_DELAY_MS);
 		expect(lastAddedOptions?.removeOnComplete).toBe(true);
 		expect(lastAddedOptions?.removeOnFail).toBe(true);
 

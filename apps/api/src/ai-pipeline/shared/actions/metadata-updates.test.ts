@@ -588,6 +588,7 @@ describe("metadata update actions", () => {
 			websiteDefaultLanguage: "en",
 			visitorLanguage: "es",
 			autoTranslateEnabled: true,
+			aiContext: { db, organizationId: "org-1", websiteId: "site-1" },
 		});
 		expect(realtimeEmitMock).toHaveBeenCalledWith("conversationUpdated", {
 			websiteId: "site-1",

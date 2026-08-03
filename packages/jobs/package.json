@@ -21,6 +21,7 @@
   },
   "scripts": {
     "lint": "biome check .",
-    "check-types": "tsc --noEmit --project tsconfig.json"
+    "check-types": "tsc --noEmit --project tsconfig.json",
+    "test": "bun scripts/test-isolated.ts"
   }
 }

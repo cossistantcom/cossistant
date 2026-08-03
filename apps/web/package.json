@@ -123,7 +123,7 @@
     "start": "next start",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "test": "bun test",
+    "test": "bun scripts/test-isolated.ts",
     "seo:check": "bun test src/lib/metadata.test.ts src/lib/seo-content.test.ts 'src/app/(lander-docs)/seo-routes.test.ts' 'src/app/(lander-docs)/sitemap.test.ts'",
     "test:watch": "bun test --watch",
     "postinstall": "fumadocs-mdx",

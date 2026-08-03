@@ -1,5 +1,10 @@
 import { describe, expect, it, mock } from "bun:test";
 
+// getSiteUrl() only falls back to localhost when NODE_ENV is "development",
+// which bun test does not set. Pin the origin so these assertions do not depend
+// on the ambient environment.
+process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
+
 mock.module("server-only", () => ({}));
 
 const seoRoutesModulePromise = Promise.all([

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
@@ -6,6 +6,30 @@ import {
 	getPrecisionFlowReplayButtonLabel,
 	PrecisionFlowSection,
 } from "./precision-flow-section";
+
+// The precision stage renders the real dashboard timeline, which reaches for
+// tRPC, react-query and website context. None of that is available in a
+// server-render test, so stub the three touch points the tree actually uses.
+mock.module("@/lib/trpc/client", () => ({
+	useTRPC: () => ({
+		conversation: {
+			translateMessageGroup: {
+				mutationOptions: () => ({}),
+			},
+		},
+	}),
+}));
+
+mock.module("@tanstack/react-query", () => ({
+	useMutation: () => ({
+		isPending: false,
+		mutateAsync: async () => null,
+	}),
+}));
+
+mock.module("@/contexts/website", () => ({
+	useOptionalWebsite: () => null,
+}));
 
 describe("PrecisionFlowSection", () => {
 	it("renders a clean conversation surface without browser or dashboard chrome", () => {

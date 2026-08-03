@@ -16,6 +16,10 @@ const getContactForVisitorMock = mock(
 const listWebsiteAccessUsersMock = mock((async () => []) as (
 	...args: unknown[]
 ) => Promise<unknown>);
+// The route reads AI agents through this query rather than db.query.aiAgent.
+const listActiveAiAgentSummariesForWebsiteMock = mock((async () => []) as (
+	...args: unknown[]
+) => Promise<unknown>);
 
 mock.module("@api/utils/validate", () => ({
 	safelyExtractRequestData: safelyExtractRequestDataMock,
@@ -32,6 +36,11 @@ mock.module("@api/db/queries/contact", () => ({
 
 mock.module("@api/lib/team-seats", () => ({
 	listWebsiteAccessUsers: listWebsiteAccessUsersMock,
+}));
+
+mock.module("@api/db/queries/ai-agent", () => ({
+	listActiveAiAgentSummariesForWebsite:
+		listActiveAiAgentSummariesForWebsiteMock,
 }));
 
 mock.module("../middleware", () => ({
@@ -62,6 +71,11 @@ function createWebsiteContext(
 	const findManyMock = mock((async () => []) as (
 		...args: unknown[]
 	) => Promise<unknown>);
+	// Tests declare their agents via findManyMock; serve the extracted query from
+	// the same fixture so those call sites keep working.
+	listActiveAiAgentSummariesForWebsiteMock.mockImplementation(
+		async () => await findManyMock()
+	);
 	const db = {
 		query: {
 			aiAgent: {

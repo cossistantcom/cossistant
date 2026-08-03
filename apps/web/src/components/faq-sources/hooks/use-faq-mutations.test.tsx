@@ -67,6 +67,10 @@ mock.module("@tanstack/react-query", () => ({
 			}
 		},
 	}),
+	// Sibling page components reach the module graph through the barrel and
+	// import useQuery. bun's mock.module replaces the whole module, so the
+	// export has to exist even though these tests never render those pages.
+	useQuery: () => ({ data: undefined, isLoading: false }),
 	useQueryClient: () => queryClientMock,
 }));
 

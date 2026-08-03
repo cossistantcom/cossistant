@@ -5,6 +5,29 @@ import { createMarcEscalatedConversation, marcVisitor } from "../data";
 import { FakeConversation } from "./index";
 import { FAKE_CONVERSATION_HUMAN_REPLY_TEXT } from "./use-fake-conversation";
 
+// The fake conversation renders the real dashboard timeline, which reaches for
+// tRPC, react-query and website context.
+mock.module("@/lib/trpc/client", () => ({
+	useTRPC: () => ({
+		conversation: {
+			translateMessageGroup: {
+				mutationOptions: () => ({}),
+			},
+		},
+	}),
+}));
+
+mock.module("@tanstack/react-query", () => ({
+	useMutation: () => ({
+		isPending: false,
+		mutateAsync: async () => null,
+	}),
+}));
+
+mock.module("@/contexts/website", () => ({
+	useOptionalWebsite: () => null,
+}));
+
 mock.module("react-hotkeys-hook", () => ({
 	useHotkeys: () => {},
 }));

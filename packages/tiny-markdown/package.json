@@ -63,6 +63,7 @@
     "pub:release": "bun run build && npm publish --access public",
     "pub:beta": "bun run build && npm publish --access public --tag beta --no-git-checks",
     "lint": "biome check .",
-    "check-types": "tsc --noEmit --project tsconfig.json"
+    "check-types": "tsc --noEmit --project tsconfig.json",
+    "test": "bun scripts/test-isolated.ts"
   }
 }

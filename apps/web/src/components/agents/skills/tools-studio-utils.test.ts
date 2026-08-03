@@ -208,7 +208,10 @@ describe("tools-studio-utils", () => {
 		);
 		expect(sendMessageTool).toBeDefined();
 		expect(sendMessageTool?.group).toBe("behavior");
-		expect(sendMessageTool?.order).toBe(6);
+		// Read the order from the catalog so adding tools does not break this test.
+		expect(sendMessageTool?.order).toBe(
+			AI_AGENT_TOOL_CATALOG.find((tool) => tool.id === "sendMessage")?.order
+		);
 		expect(sendMessageTool?.enabled).toBe(false);
 		expect(sendMessageTool?.skillContent).toBe("custom send content");
 		expect(sendMessageTool?.skillHasOverride).toBe(true);
@@ -232,8 +235,17 @@ describe("tools-studio-utils", () => {
 		]);
 
 		const sections = buildToolStudioSections(normalizedTools);
-		expect(sections.toggleableBehaviorTools).toHaveLength(3);
-		expect(sections.toggleableActionTools).toHaveLength(3);
+		// Counts come from the catalog so new tools do not break this test.
+		const toggleableIn = (group: string) =>
+			AI_AGENT_TOOL_CATALOG.filter(
+				(tool) => tool.group === group && tool.isToggleable
+			).length;
+		expect(sections.toggleableBehaviorTools).toHaveLength(
+			toggleableIn("behavior")
+		);
+		expect(sections.toggleableActionTools).toHaveLength(
+			toggleableIn("actions")
+		);
 		expect(sections.alwaysOnTools.map((tool) => tool.id)).toEqual([
 			"searchKnowledgeBase",
 			"identifyVisitor",

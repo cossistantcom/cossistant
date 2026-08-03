@@ -4,6 +4,11 @@ import type { Database } from "@api/db";
 const getWebsiteBySlugWithAccessMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<unknown>
 );
+// getPlansForOrganization reads the organization's websites through this query
+// rather than selecting from ctx.db directly.
+const listOrganizationWebsitePlanTargetsMock = mock((async () => []) as (
+	...args: unknown[]
+) => Promise<unknown[]>);
 const getRollingWindowMessageCountMock = mock(
 	(async () => 0) as (...args: unknown[]) => Promise<number>
 );
@@ -44,6 +49,7 @@ const getDiscountInfoMock = mock(
 
 mock.module("@api/db/queries/website", () => ({
 	getWebsiteBySlugWithAccess: getWebsiteBySlugWithAccessMock,
+	listOrganizationWebsitePlanTargets: listOrganizationWebsitePlanTargetsMock,
 }));
 
 mock.module("@api/db/queries/usage", () => ({
@@ -138,6 +144,9 @@ function createDbForPlans(
 ) {
 	let selectCallCount = 0;
 
+	// The websites the caller declares are served through the extracted query.
+	listOrganizationWebsitePlanTargetsMock.mockResolvedValue(websites);
+
 	return {
 		select() {
 			selectCallCount += 1;
@@ -187,6 +196,8 @@ async function createCaller(db: Database) {
 describe("plan router self-hosted billing mode", () => {
 	beforeEach(() => {
 		getWebsiteBySlugWithAccessMock.mockReset();
+		listOrganizationWebsitePlanTargetsMock.mockReset();
+		listOrganizationWebsitePlanTargetsMock.mockResolvedValue([]);
 		getRollingWindowMessageCountMock.mockReset();
 		getRollingWindowConversationCountMock.mockReset();
 		getContactCountMock.mockReset();

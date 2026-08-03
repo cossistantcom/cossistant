@@ -73,7 +73,7 @@
     "start": "bun run src/index.ts",
     "build:types": "tsc --build",
     "dev:types": "tsc --build --watch",
-    "test": "bun test src",
+    "test": "bun scripts/test-isolated.ts",
     "test:watch": "bun test src --watch",
     "test:coverage": "bun test src --coverage",
     "db:seed": "bun run scripts/seed.ts",

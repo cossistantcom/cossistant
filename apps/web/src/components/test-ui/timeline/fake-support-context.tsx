@@ -74,45 +74,57 @@ export function FakeSupportProvider({
 	const fakeController = React.useMemo<SupportController>(() => {
 		const supportStore = createSupportStore();
 
+		// useSyncExternalStore requires getSnapshot to return a stable reference
+		// between store changes. Rebuilding this object on every call makes React
+		// see a new snapshot on every render and bail out with "Maximum update
+		// depth exceeded". The real controller caches its snapshot and rebuilds it
+		// only when state changes (see syncSnapshot in @cossistant/core); mirror
+		// that here, and forward store changes to subscribers so updates still
+		// reach React.
+		const buildSnapshot = () => {
+			const support = supportStore.getState();
+
+			return {
+				client: fakeClient,
+				configurationError: null,
+				defaultMessages: [],
+				error: null,
+				isLoading: false,
+				isOpen: support.config.isOpen,
+				isVisitorBlocked: false,
+				navigation: support.navigation,
+				quickOptions: [],
+				size: support.config.size,
+				support,
+				unreadCount,
+				visitorId: TEST_UI_VISITOR_ID,
+				website: fakeWebsite,
+				websiteStatus: "success",
+			};
+		};
+
+		let snapshot = buildSnapshot();
+		const listeners = new Set<() => void>();
+
+		supportStore.subscribe(() => {
+			snapshot = buildSnapshot();
+			for (const listener of listeners) {
+				listener();
+			}
+		});
+
 		return {
 			supportStore,
 			start: () => {},
 			destroy: () => {},
-			getState: () => ({
-				client: fakeClient,
-				configurationError: null,
-				defaultMessages: [],
-				error: null,
-				isLoading: false,
-				isOpen: supportStore.getState().config.isOpen,
-				isVisitorBlocked: false,
-				navigation: supportStore.getState().navigation,
-				quickOptions: [],
-				size: supportStore.getState().config.size,
-				support: supportStore.getState(),
-				unreadCount,
-				visitorId: TEST_UI_VISITOR_ID,
-				website: fakeWebsite,
-				websiteStatus: "success",
-			}),
-			getSnapshot: () => ({
-				client: fakeClient,
-				configurationError: null,
-				defaultMessages: [],
-				error: null,
-				isLoading: false,
-				isOpen: supportStore.getState().config.isOpen,
-				isVisitorBlocked: false,
-				navigation: supportStore.getState().navigation,
-				quickOptions: [],
-				size: supportStore.getState().config.size,
-				support: supportStore.getState(),
-				unreadCount,
-				visitorId: TEST_UI_VISITOR_ID,
-				website: fakeWebsite,
-				websiteStatus: "success",
-			}),
-			subscribe: () => () => {},
+			getState: () => snapshot,
+			getSnapshot: () => snapshot,
+			subscribe: (listener: () => void) => {
+				listeners.add(listener);
+				return () => {
+					listeners.delete(listener);
+				};
+			},
 			refresh: async () => fakeWebsite,
 			updateOptions: (
 				_options: Parameters<SupportController["updateOptions"]>[0]

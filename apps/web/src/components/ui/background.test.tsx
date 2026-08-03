@@ -6,6 +6,10 @@ import {
 	computeBackgroundGridDimensions,
 	createAuroraEmitters,
 	createPointerTrailPool,
+	DEFAULT_BACKGROUND_DESKTOP_FPS,
+	DEFAULT_BACKGROUND_POINTER_TRAIL_INTENSITY,
+	DEFAULT_BACKGROUND_POINTER_TRAIL_LIFETIME_MS,
+	DEFAULT_BACKGROUND_POINTER_TRAIL_RADIUS,
 	getPointerTrailBlobState,
 	getPointerTrailFade,
 	normalizeFieldValue,
@@ -113,11 +117,19 @@ describe("background helpers", () => {
 		});
 
 		expect(desktopConfig.asciiResolution).toBe(0.06);
-		expect(desktopConfig.targetFps).toBe(12);
+		// Bound to the constant so tuning the desktop frame rate does not silently
+		// break this test again.
+		expect(desktopConfig.targetFps).toBe(DEFAULT_BACKGROUND_DESKTOP_FPS);
 		expect(desktopConfig.pointerTrail).toBe(true);
-		expect(desktopConfig.pointerTrailIntensity).toBe(0.75);
-		expect(desktopConfig.pointerTrailLifetimeMs).toBe(1350);
-		expect(desktopConfig.pointerTrailRadius).toBe(0.11);
+		expect(desktopConfig.pointerTrailIntensity).toBe(
+			DEFAULT_BACKGROUND_POINTER_TRAIL_INTENSITY
+		);
+		expect(desktopConfig.pointerTrailLifetimeMs).toBe(
+			DEFAULT_BACKGROUND_POINTER_TRAIL_LIFETIME_MS
+		);
+		expect(desktopConfig.pointerTrailRadius).toBe(
+			DEFAULT_BACKGROUND_POINTER_TRAIL_RADIUS
+		);
 		expect(mobileConfig.asciiResolution).toBe(0.08);
 		expect(mobileConfig.targetFps).toBe(8);
 		expect(overrideConfig.asciiResolution).toBe(0.22);

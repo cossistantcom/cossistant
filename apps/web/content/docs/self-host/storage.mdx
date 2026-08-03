@@ -51,10 +51,17 @@ It creates:
 - an IAM user that the API can use to generate presigned upload URLs
 
 <Callout type="warning">
-  This setup allows public reads to exact object URLs. It does not allow bucket
-  listing, but you should still treat uploaded asset URLs as publicly reachable
-  unless you add stricter delivery controls on top.
+  The bundled module is a permissive starter, not a production-hardened storage
+  baseline. It enables `force_destroy`, disables S3 public-access blocks,
+  permits public reads, allows CORS from `*`, and creates long-lived IAM access
+  keys. Treat every object URL as public and review every setting before using
+  the module outside an isolated development environment.
 </Callout>
+
+For production, restrict CORS to your real origins, prefer private objects plus
+signed/CDN delivery where possible, enable encryption/versioning/retention and
+access logs, replace static keys with workload roles when your platform
+supports them, rotate any remaining keys, and test backup and recovery.
 
 ## Step 1: Deploy the storage module
 
@@ -84,12 +91,17 @@ Initialize Terraform:
 terraform init
 ```
 
-Create or select a workspace, then apply:
+Use encrypted remote state with locking for shared or production environments.
+The state contains sensitive resource details, and the module outputs an IAM
+secret. Do not commit state, plans, tfvars, or output containing credentials.
+
+Create or select a workspace, inspect a saved plan, then apply that exact plan:
 
 ```bash
 terraform workspace new dev
 terraform workspace select dev
-terraform apply -var-file="terraform.dev.tfvars"
+terraform plan -var-file="terraform.dev.tfvars" -out="cossistant-storage.tfplan"
+terraform apply "cossistant-storage.tfplan"
 ```
 
 Repeat the same pattern for production with a production bucket name and workspace.
@@ -116,6 +128,7 @@ S3_ACCESS_KEY_ID=AKIA...
 S3_SECRET_ACCESS_KEY=...
 S3_PUBLIC_BASE_URL=https://cossistant-dev-your-unique-suffix.s3.us-east-1.amazonaws.com
 S3_CDN_BASE_URL=
+S3_SIGNED_URL_EXPIRATION_SECONDS=900
 ```
 
 What each one does:
@@ -125,6 +138,7 @@ What each one does:
 - `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`: credentials the API uses to sign uploads
 - `S3_PUBLIC_BASE_URL`: the read base URL when you are serving files directly from S3
 - `S3_CDN_BASE_URL`: an optional CDN base URL if you later put CloudFront or another CDN in front of reads
+- `S3_SIGNED_URL_EXPIRATION_SECONDS`: lifetime of generated upload URLs; defaults to 900 seconds
 
 If you are not using a CDN yet, leave `S3_CDN_BASE_URL` empty.
 
@@ -165,6 +179,12 @@ Before you consider storage finished, confirm all of the following:
 - the returned public URL resolves correctly
 - uploaded files render in the dashboard where you expect them
 - the configured `S3_PUBLIC_BASE_URL` or `S3_CDN_BASE_URL` matches the URLs the app stores
+- production CORS, public-access, retention, encryption, credentials, and teardown behavior were reviewed explicitly
+
+Before any `terraform destroy`, remember that the starter module's
+`force_destroy` setting permits deletion of a non-empty bucket. Back up required
+objects and inspect the destroy plan; a Terraform workspace is not a backup or
+an isolation boundary by itself.
 
 ## Common issues
 

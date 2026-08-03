@@ -31,8 +31,10 @@ NEXT_PUBLIC_COSSISTANT_API_KEY=pk_live_xxxxxxxxxxxx
   </TabsContent>
   <TabsContent value="other">
 
-```bash title=".env"
-COSSISTANT_API_KEY=pk_live_xxxxxxxxxxxx
+```tsx
+<SupportProvider publicKey="pk_live_xxxxxxxxxxxx">
+  <App />
+</SupportProvider>
 ```
 
   </TabsContent>
@@ -42,10 +44,12 @@ COSSISTANT_API_KEY=pk_live_xxxxxxxxxxxx
   <Icon name="help" className="size-4" />
   <AlertTitle>Auto-detection</AlertTitle>
   <AlertDescription>
-    The SDK automatically detects your framework and checks
+    The SDK checks
     `VITE_COSSISTANT_API_KEY` (Vite), `NEXT_PUBLIC_COSSISTANT_API_KEY`
-    (Next.js), or `COSSISTANT_API_KEY` (other). You can also pass the key
-    explicitly through `publicKey`.
+    (Next.js), or `COSSISTANT_API_KEY` when your bundler explicitly exposes it
+    to browser code. Create React App, Remix, and generic bundlers do not expose
+    arbitrary server environment variables automatically, so pass `publicKey`
+    from their documented client configuration instead.
   </AlertDescription>
 </Alert>
 
@@ -63,7 +67,8 @@ Only use **public** keys in frontend widget code.
 Public keys work only on whitelisted domains.
 
 - Production keys (`pk_live_*`) require explicit allowlisting.
-- Test keys (`pk_test_*`) work on localhost.
+- Test keys (`pk_test_*`) can use HTTP on localhost, but localhost must still be
+  present in the key's allowed domains.
 - Allowlisting an apex domain also allows its subdomains.
 
 Use full origins or bare domains, for example:

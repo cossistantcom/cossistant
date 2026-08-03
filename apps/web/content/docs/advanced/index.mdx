@@ -32,12 +32,17 @@ That means you can:
 - inspect the shipped widget source and use it as a base
 - build your own support UI with the same logic and primitives underneath
 
-## Templates are coming soon
+## Build sequence
 
-We are working on templates with full examples for common custom builds.
+1. Configure `SupportProvider` and identify authenticated visitors.
+2. Decide whether to adapt the [support source](https://github.com/cossistantcom/cossistant/tree/main/packages/react/src/support) or compose [focused primitives](/docs/advanced/primitives).
+3. Connect navigation, conversations, timeline loading, message sending, files,
+   typing, realtime updates, and error states with the
+   [Hooks Reference](/docs/support-component/hooks).
+4. Use the [Types Reference](/docs/support-component/types) and installed
+   package declarations as the contract for your version.
+5. Test keyboard operation, focus return, responsive layouts, reduced motion,
+   loading/empty/error states, and authenticated account switching.
 
-## What to do today
-
-1. Start with the [support source](https://github.com/cossistantcom/cossistant/tree/main/packages/react/src/support) if you want a real widget codebase to adapt.
-2. Use [Primitives](/docs/advanced/primitives) when you want headless building blocks.
-3. Keep [Hooks Reference](/docs/support-component/hooks) and [Types Reference](/docs/support-component/types) nearby while you build.
+You own the shell, accessibility, and interaction design. Cossistant continues
+to provide the client, state hooks, realtime transport, and shared data types.

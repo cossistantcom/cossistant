@@ -1,6 +1,6 @@
 ---
-title: Events Reference
-description: Listen to Support widget events for analytics, logging, and app-specific reactions.
+title: Manual events reference
+description: Emit and subscribe to Support events from custom widget code.
 search:
   kind: guide
   tags:
@@ -15,48 +15,56 @@ search:
     - onError
 ---
 
-Reach for this page when prop-level customization is not enough and you need to react to widget activity in your app.
+Reach for this page when custom widget code needs an in-process event channel.
 
 If you are still shipping the widget, start with [Overview](/docs/support-component), [Change One Thing](/docs/support-component/customization), or [Pages & Layouts](/docs/support-component/routing).
 
 ## Use this page when
 
-- you want analytics events when visitors start or continue a conversation
-- you want error logging tied to widget activity
+- you want custom pages to publish events to app-level callbacks
+- you want custom error logging tied to your own widget actions
 - you are building custom pages that need to emit Support events
+
+<Alert variant="warning" className="mt-6 mb-6">
+  <Icon name="info" className="size-4" />
+  <AlertTitle>Events are manual in v0.2.0</AlertTitle>
+  <AlertDescription>
+    The built-in widget does not automatically emit conversation, message, or
+    error events. Callback props and subscriptions run only for events your
+    custom code emits with `useSupportEventEmitter()`. Do not use these props as
+    built-in analytics instrumentation yet.
+  </AlertDescription>
+</Alert>
 
 ## Smallest working snippet
 
-Callback props on `<Support />` are the fastest way to listen to widget events.
+Put the callback and emitter under the same `<Support.Root>` runtime.
 
 ```tsx
-import { Support } from "@cossistant/react";
+import { Support, useSupportEventEmitter } from "@cossistant/react";
+
+function StartConversationButton() {
+  const events = useSupportEventEmitter();
+
+  return (
+    <button
+      onClick={() => events.emitConversationStart("01K0000000000000000000000")}
+      type="button"
+    >
+      Start conversation
+    </button>
+  );
+}
 
 export function SupportWidget() {
   return (
-    <Support
+    <Support.Root
       onConversationStart={({ conversationId }) => {
         analytics.track("support_conversation_started", { conversationId });
       }}
-      onConversationEnd={({ conversationId }) => {
-        analytics.track("support_conversation_ended", { conversationId });
-      }}
-      onMessageSent={({ conversationId, message }) => {
-        analytics.track("support_message_sent", {
-          conversationId,
-          messageId: message.id,
-        });
-      }}
-      onMessageReceived={({ conversationId, message }) => {
-        analytics.track("support_message_received", {
-          conversationId,
-          messageId: message.id,
-        });
-      }}
-      onError={({ error, context }) => {
-        logger.error("Support widget error", { error, context });
-      }}
-    />
+    >
+      <StartConversationButton />
+    </Support.Root>
   );
 }
 ```
@@ -134,7 +142,10 @@ export function AnalyticsTracker() {
 
 ## Emit from custom pages
 
-Use `useSupportEventEmitter()` when your own page or composer needs to emit the same widget events other listeners expect.
+Use `useSupportEventEmitter()` when your own page needs to emit the same widget
+events other listeners expect. Emission is synchronous and local to the current
+runtime. Cossistant does not persist, retry, deduplicate, or server-confirm
+these events.
 
 ```tsx
 "use client";
@@ -143,23 +154,31 @@ import { useSupportEventEmitter } from "@cossistant/react";
 
 export function CustomConversationPage({
   conversationId,
+  onArchive,
 }: {
   conversationId: string;
+  onArchive: (conversationId: string) => Promise<void>;
 }) {
   const emitter = useSupportEventEmitter();
 
-  const handleSendMessage = async (message: string) => {
+  const handleArchive = async () => {
     try {
-      const sentMessage = await sendMessage(conversationId, message);
-      emitter.emitMessageSent(conversationId, sentMessage);
-    } catch (error) {
-      emitter.emitError(error as Error, "message_send_failed");
+      await onArchive(conversationId);
+      emitter.emitConversationEnd(conversationId);
+    } catch (cause) {
+      const error =
+        cause instanceof Error ? cause : new Error("Could not archive conversation");
+      emitter.emitError(error, "conversation_archive_failed");
     }
   };
 
-  return <button onClick={() => void handleSendMessage("Hello")}>Send</button>;
+  return <button onClick={() => void handleArchive()}>Archive</button>;
 }
 ```
+
+Pass your application action as `onArchive`. Emit only after that action reaches
+the state your analytics contract defines. Message events require the actual
+`TimelineItem`; do not fabricate one from a message ID.
 
 ## Next step
 

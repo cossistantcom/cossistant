@@ -11,8 +11,8 @@ Significant performance improvements for the React widget with better composabil
 ### Support Widget
 
 - <HighlightLine variant="new">
-    **Controlled mode**: Widget can now be controlled with `open` and `setOpen`
-    props.
+    **Controlled mode**: Widget can now be controlled with `open` and
+    `onOpenChange` props.
   </HighlightLine>
 - <HighlightLine variant="new">
     **Custom components**: Support for custom trigger and content components.
@@ -59,6 +59,7 @@ Significant performance improvements for the React widget with better composabil
 
 ```tsx showLineNumbers
 import { Support } from "@cossistant/next/support";
+import { useState } from "react";
 
 export function App() {
   const [open, setOpen] = useState(false);
@@ -68,7 +69,7 @@ export function App() {
       open={open}
       onOpenChange={setOpen}
       avoidCollisions={true}
-      onEvent={(event) => console.log("Widget event:", event)}
+      onMessageSent={(event) => console.log("Message sent:", event)}
     />
   );
 }

@@ -121,7 +121,7 @@ curl -X PATCH "https://api.cossistant.com/v1/support/feature-flags" \
   -H "Authorization: Bearer $COSSISTANT_PRIVATE_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "target": { "type": "contact", "id": "contact_123" },
+    "target": { "type": "contact", "id": "01K0000000000000000000000" },
     "operation": "add",
     "flags": ["new-message"]
   }'
@@ -159,9 +159,11 @@ export function InviteStep() {
 Each step has `completed` and `metadata`. `setMetadata()` replaces the metadata
 object for that step. Pass `null` to clear it.
 
-## Core usage
+## Core usage in a browser
 
-Support state also works outside React.
+Support state also works without React. This public-key example must run in a
+browser whose `Origin` is allowed for the website; do not copy it into a Next.js
+server module. Server mutations use `apiKey` with a private key, as shown above.
 
 ```ts title="support-runtime.ts"
 import { CossistantClient } from "@cossistant/core";
@@ -170,7 +172,7 @@ import { support } from "./support";
 const client = new CossistantClient({
   apiUrl: "https://api.cossistant.com/v1",
   wsUrl: "wss://api.cossistant.com/ws",
-  publicKey: process.env.NEXT_PUBLIC_COSSISTANT_API_KEY,
+  publicKey: "pk_test_xxxx",
   support,
 });
 
@@ -188,12 +190,12 @@ if (isNewMessageEnabled) {
 }
 ```
 
-## Storage model
+## Observable state model
 
-- Feature flags are stored as comma-separated strings on visitors, contacts, and
-  contact organizations.
-- Onboarding progress is stored as JSONB on the visitor while anonymous.
-- Once identified, contact onboarding state wins.
+- Flags can be assigned at visitor, contact, or contact-organization level; a
+  flag is enabled when any applicable level contains it.
+- Anonymous onboarding state belongs to the visitor. Once identified, contact
+  onboarding state wins.
 - If an anonymous visitor has progress, Cossistant copies it to the contact only
   when that contact has no onboarding state.
 - Onboarding updates are optimistic. Feature flags and onboarding both update in

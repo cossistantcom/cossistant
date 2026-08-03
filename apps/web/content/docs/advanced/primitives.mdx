@@ -17,7 +17,7 @@ search:
 
 This page is for the full-custom path. If you want the ready-made widget, stay in [`<Support />`](/docs/support-component). If you want to build your own support UI, these primitives are the building blocks underneath it.
 
-Templates with full examples are coming soon. If you want to start today, use the [support source](https://github.com/cossistantcom/cossistant/tree/main/packages/react/src/support) as your base and pull in the primitives you need.
+For a complete implementation, use the [support source](https://github.com/cossistantcom/cossistant/tree/main/packages/react/src/support) as your base and pull in only the primitives you need.
 
 Primitives are headless UI pieces. Inside the widget runtime they can read
 provider state, but outside that runtime you should pass explicit state,
@@ -31,16 +31,20 @@ handlers, and data.
 
 ## Import
 
-Access primitives through the `Primitives` namespace:
+Use named imports from the focused primitives entry. This lets bundlers remove
+timeline, feedback, markdown, and input code you do not render.
 
 ```tsx
-import { Primitives } from "@cossistant/react";
+import { Trigger, Window } from "@cossistant/react/primitives";
 ```
+
+The `Primitives` namespace on the root package remains compatible, but it can
+retain a much larger primitive graph when the namespace is observed at runtime.
 
 ## Smallest working example
 
 ```tsx
-import { Primitives } from "@cossistant/react";
+import { Trigger } from "@cossistant/react/primitives";
 import { useState } from "react";
 
 function CustomWidget() {
@@ -48,7 +52,7 @@ function CustomWidget() {
 
   return (
     <>
-      <Primitives.Trigger
+      <Trigger
         isOpen={isOpen}
         isTyping={false}
         onToggleOpen={() => setIsOpen((value) => !value)}
@@ -57,7 +61,7 @@ function CustomWidget() {
         {({ isOpen }) => (
           <span>{isOpen ? "Close support" : "Open support"}</span>
         )}
-      </Primitives.Trigger>
+      </Trigger>
 
       {isOpen ? (
         <div className="fixed bottom-20 right-4 w-96 border bg-white shadow-xl">
@@ -72,18 +76,19 @@ function CustomWidget() {
 }
 ```
 
-`Primitives.Trigger` is provider-free when you pass `isOpen`, `onToggleOpen`,
-`unreadCount`, and optional `isTyping`. `Primitives.Window` is designed for the
+`Trigger` is provider-free when you pass `isOpen`, `onToggleOpen`,
+`unreadCount`, and optional `isTyping`. `Window` is designed for the
 widget runtime and should stay inside `SupportProvider` or `Support.Root`.
 
 ```tsx
-import { Primitives, useSupportConfig } from "@cossistant/react";
+import { Window } from "@cossistant/react/primitives";
+import { useSupportConfig } from "@cossistant/react/support-config";
 
 function RuntimeWindow() {
   const { isOpen } = useSupportConfig();
 
   return (
-    <Primitives.Window>
+    <Window>
       {({ close }) =>
         isOpen ? (
           <div className="fixed bottom-20 right-4 w-96 border bg-white shadow-xl">
@@ -94,12 +99,15 @@ function RuntimeWindow() {
           </div>
         ) : null
       }
-    </Primitives.Window>
+    </Window>
   );
 }
 ```
 
 ## Common building blocks
+
+This is a selected starting set, not a complete export catalog. Inspect the
+`@cossistant/react/primitives` type declarations for the version you install.
 
 ### Shell and routing
 
@@ -129,6 +137,19 @@ function RuntimeWindow() {
 - `Primitives.DaySeparator`
 - `Primitives.TypingIndicator`
 - `Primitives.Button`
+
+## Accessibility responsibilities
+
+Headless means you own the user experience. A production shell must provide:
+
+- a trigger with an accessible name and a target of at least 44 by 44 CSS pixels
+- dialog or complementary-region semantics appropriate to the layout
+- initial focus, a contained keyboard path, Escape handling, and focus return
+- visible focus states, labels and errors for every input, and announced status changes
+- responsive sizing, zoom support, and reduced-motion behavior
+
+The smallest example demonstrates state and focused imports only. Use the
+shipped Support source as the reference for these interaction details.
 
 ## When to stop here
 

@@ -1,6 +1,6 @@
 ---
 title: "Avatars component for React that doesn't suck: Introducing Facehash"
-description: "Facehash is an open-source React avatar component that generates unique faces from any string. Zero dependencies, works with Next.js, Vite, and Remix."
+description: "Facehash is an open-source, SVG-first React avatar component that generates deterministic faces from any string."
 date: "2026-01-30"
 author: "Anthony Riera"
 tags: ["open-source", "react", "nextjs", "design", "avatar"]
@@ -61,14 +61,19 @@ That's it. No configuration. No API keys. No "sign up for our avatar service." J
 
 ## Works with Next.js, Vite, and Remix
 
-Facehash plays nice with the modern React ecosystem:
+Facehash is a React package and is exercised in this repository with its React
+and Next.js entrypoints. It can be used in React applications built with tools
+such as Next.js, Vite, and Remix.
 
 - **Next.js** (App Router and Pages Router)
 - **Vite**
 - **Remix**
 - **Any React setup, really**
 
-It's also zero-dependency and fully typed with TypeScript. The entire thing is CSS-based, which means no external assets to load, no fonts to embed, no images to serve. Your bundle stays lean.
+It declares no bundled runtime dependencies beyond its React/React DOM peer
+requirements (with Next.js as an optional peer for the Next entry). The face is
+rendered as inline SVG; CSS handles sizing and optional interaction/animation.
+There are no avatar image or font requests.
 
 ## Using Facehash with shadcn/ui Avatar
 
@@ -98,10 +103,9 @@ Facehash is customizable without being overwhelming. You control what matters:
 <Facehash name="user-123" size={32} />
 <Facehash name="user-123" size={64} />
 
-// Different shapes
-<Facehash name="user-123" shape="round" />
-<Facehash name="user-123" shape="squircle" />
-<Facehash name="user-123" shape="square" />
+// Solid or gradient background
+<Facehash name="user-123" variant="solid" />
+<Facehash name="user-123" variant="gradient" />
 
 // Custom colors to match your brand
 <Facehash
@@ -109,11 +113,12 @@ Facehash is customizable without being overwhelming. You control what matters:
   colors={["#FF6B6B", "#4ECDC4", "#45B7D1"]}
 />
 
-// 3D effects for extra flair
-<Facehash name="user-123" intensity3d="dramatic" />
+// Reduce or disable the default dramatic 3D projection
+<Facehash name="user-123" intensity3d="subtle" />
+<Facehash name="user-123" intensity3d="none" />
 
-// Show the user's initial
-<Facehash name="anthony" showInitial />
+// Hide the initial or hover interaction (both are enabled by default)
+<Facehash name="anthony" showInitial={false} interactive={false} />
 ```
 
 ## Real-world usage

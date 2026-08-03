@@ -53,7 +53,12 @@ No matter which provider you choose, the shape of the app flow stays the same:
 2. `EMAIL_TRANSPORT_PROVIDER` selects the active transport for new sends.
 3. New reply-to addresses are generated from the inbound domain for the active provider.
 4. Inbound replies and lifecycle events are normalized back into the API.
-5. The API turns those events into conversation messages, delivery tracking, and suppression updates.
+5. The API turns inbound replies into conversation messages and records bounce,
+   complaint, and failure events for suppression.
+
+Both provider routers currently accept but intentionally do not persist
+`email.delivered` events. Do not treat this integration as delivery tracking;
+use provider logs if you need delivery confirmation.
 
 That means Resend and SES can coexist during migration or overlap periods:
 
@@ -128,7 +133,7 @@ SES is a strong fit for self-hosting because it gives Cossistant the full set of
 
 - transactional outbound sending
 - inbound reply handling
-- delivery, bounce, complaint, and failure events
+- delivery, bounce, complaint, and failure webhooks (delivery is accepted but not persisted)
 - infrastructure that runs in your AWS account instead of a separate email SaaS
 
 ### Recommended setup path
@@ -224,6 +229,12 @@ SES-specific meanings:
 - `SES_CONFIGURATION_SET`: the SES configuration set created by Terraform
 - `SES_WEBHOOK_SECRET`: the shared secret used to sign the bridge webhook requests
 
+Store provider keys and webhook secrets in your deployment's secret manager,
+not in a committed `.env` file. Prefer workload roles over static SES keys when
+your runtime supports them, rotate long-lived credentials, and keep the bridge
+timestamp/replay window enforced. SES accounts must also leave sandbox mode and
+have sufficient sending limits before production rollout.
+
 ### Step 5: Understand the webhook bridge
 
 The SES path uses small serverless bridge functions that normalize inbound mail and lifecycle events before they hit the API.
@@ -267,12 +278,14 @@ No matter which provider you choose, make sure all of these work:
 - a transactional email sends successfully
 - the sender domain is verified and accepted by the provider
 - replies land back in the correct conversation
-- lifecycle events reach the API and update delivery or suppression state correctly
+- bounce, complaint, and failure events reach the API and update suppression state
+- a delivered event is visible in provider logs (Cossistant does not persist it)
+- secrets are redacted from logs and raw inbound email retention matches your privacy policy
 
 For SES specifically, also confirm:
 
 - `/ses/webhooks/inbound` is receiving normalized bridge payloads
-- `/ses/webhooks/events` is receiving delivery, bounce, complaint, and failure events
+- `/ses/webhooks/events` is receiving delivery, bounce, complaint, and failure events; only bounce, complaint, and failure alter Cossistant state
 - older Resend reply chains still work if you are migrating gradually
 
 ## When to pick which provider

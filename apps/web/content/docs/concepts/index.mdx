@@ -1,6 +1,6 @@
 ---
 title: Visitors
-description: Anonymous users automatically tracked across your application.
+description: Anonymous, browser-scoped visitors created by the Cossistant SDK.
 ---
 
 ## What are Visitors?
@@ -11,11 +11,14 @@ Every visitor is unique per device/browser, persisting across page loads and ses
 
 ## How Visitors are Tracked
 
-Cossistant uses a combination of techniques to maintain visitor identity:
+Cossistant maintains anonymous visitor identity with a website-scoped ID:
 
-- **LocalStorage**: Stores a unique visitor ID in the browser
-- **Fingerprinting**: Browser and device characteristics for additional persistence
+- **LocalStorage**: Stores a generated visitor ULID for the current website
 - **Automatic creation**: No setup required—visitors are created on first load
+
+Cossistant does **not** use browser fingerprinting as a fallback identity. A
+cleared browser profile, private window, different browser, or different device
+creates a different anonymous visitor until you identify that person.
 
 This means a visitor on desktop and the same person on mobile will be two different visitors until they're [identified](/docs/concepts/contacts).
 
@@ -23,8 +26,10 @@ This means a visitor on desktop and the same person on mobile will be two differ
 
 Visitors start anonymous with no personal information:
 
-- No name, email, or external ID
-- Only browser-derived data (language, timezone)
+- No name, email, or external ID until you identify the visitor
+- Technical and acquisition context can include language, timezone, browser,
+  operating system, device type, screen/viewport, current page, referrer,
+  campaign/click identifiers, and server-enriched location
 - Can start [conversations](/docs/concepts/conversations) without authentication
 - Perfect for public-facing pages or logged-out users
 
@@ -78,21 +83,34 @@ import { useVisitor } from "@cossistant/next/hooks";
 import { useEffect } from "react";
 
 export function AuthHandler({ user }) {
-  const { visitor, identify } = useVisitor();
+  const { identify } = useVisitor();
 
   useEffect(() => {
-    if (user && !visitor?.contact) {
-      identify({
-        externalId: user.id,
-        email: user.email,
-        name: user.name,
-      });
+    if (!user) {
+      return;
     }
-  }, [user, visitor?.contact, identify]);
+
+    void identify({
+      externalId: user.id,
+      email: user.email,
+      name: user.name,
+    });
+  }, [user?.id, user?.email, user?.name, identify]);
 
   return null;
 }
 ```
+
+Run identification whenever the authenticated user's stable identity changes.
+Do not skip it merely because the browser already has a contact: on a shared
+browser, that contact may belong to the previous account. The component form is
+the simpler declarative default; if your application swaps accounts without
+remounting its authenticated layout, use the hook pattern above so the stable
+identity change always triggers an explicit identification request.
+
+Tell users which support, analytics, and acquisition fields your application
+collects, keep only the context your team needs, and apply your own consent,
+retention, and deletion requirements.
 
 Once identified, all conversations and data are linked to the [contact](/docs/concepts/contacts), even across different devices.
 

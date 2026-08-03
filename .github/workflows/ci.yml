@@ -36,6 +36,9 @@ jobs:
       - name: Check types
         run: bun run check-types
 
+      - name: Check documentation content
+        run: bun run check:docs-content
+
       - name: Check protocol OpenAPI document is up to date
         run: bun run check:openapi
 

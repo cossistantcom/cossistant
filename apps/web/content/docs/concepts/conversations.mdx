@@ -25,8 +25,10 @@ Every conversation includes:
 Conversations are created when:
 
 - A visitor sends their first message through the support widget
-- A support agent initiates a conversation from the dashboard
 - Your backend creates one via the API
+
+The current dashboard manages existing conversations; it does not expose a
+start-conversation action for agents.
 
 ### Status Flow
 
@@ -72,7 +74,9 @@ Each conversation has a timeline of [items](/docs/concepts/timeline-items):
 - **Identification records**: Visitor/contact identification activity
 - **Tool items**: AI and tool execution records written into the timeline
 
-The timeline provides a complete audit trail of the conversation.
+The timeline provides a structured history of the conversation. Private,
+deleted, filtered, and operational records may not appear to every viewer, so
+do not treat it as an immutable compliance log.
 
 ### Example Timeline
 
@@ -137,6 +141,16 @@ For identified [contacts](/docs/concepts/contacts), conversations sync across de
 Internally, old conversations keep the original visitor ID that created them. After identification, any current visitor linked to the same contact can still list, read, and continue those conversations through the shared contact.
 
 Anonymous [visitors](/docs/concepts) have device-specific conversations. Until a visitor is identified, Cossistant scopes their history to the visitor ID stored on that device/browser.
+
+## Build with conversations
+
+Use the generated `Conversation` types from `@cossistant/types` for status,
+priority, channel, assignment, sentiment, tags, participants, and the latest
+timeline item. To build a custom widget flow, start with
+[Pages & Layouts](/docs/support-component/routing) and the
+[Hooks Reference](/docs/support-component/hooks). Server integrations should
+use the generated OpenAPI contract in `packages/protocol/openapi.json`; private
+API keys belong on the server only.
 
 ## Learn More
 

@@ -1,7 +1,13 @@
 ---
 title: Cossistant documentation
-description: Cossistant is an open source, developer-first AI/human support infrastructure. Works with your favorite frameworks and AI models.
+description: Install Cossistant's open-source AI and human support widget for Next.js, React, or a browser script embed.
 ---
+
+## Before you start
+
+You need a Cossistant website and a browser-safe public API key. Create one in
+**Settings → Developers**, add your development and production hostnames, then
+read [API Keys](/docs/quickstart/api-keys) if you need the exact allowlist rules.
 
 ## Install with the shadcn registry
 
@@ -22,6 +28,11 @@ The registry installs the Cossistant provider, support trigger, dependencies, CS
 ## Quickstart with your framework
 
 Start by selecting your framework of choice, then follow the instructions to finish mounting the provider, adding your API key, and rendering `<Support />`. Cossistant currently ships quickstarts for Next.js and React.
+
+Use Next.js when your app uses the App Router and you want framework-specific
+server/client boundaries. Use React for Vite and other client-side React
+bundlers. For Vue, Webflow, Framer, or plain HTML, use the version-pinned
+[browser script embed](/changelog/2026-04-20-v0.2.0).
 
 <div className="mt-8 grid gap-4 sm:grid-cols-2 sm:gap-6">
   <LinkedCard href="/docs/quickstart">
@@ -53,3 +64,9 @@ Start by selecting your framework of choice, then follow the instructions to fin
     <span>Add Cossistant {`<Support/>`} widget to any React project.</span>
   </LinkedCard>
 </div>
+
+## Know when it works
+
+The support trigger should render, open without an unstyled flash, and load the
+home or conversation screen without `401`/`403` API responses. Each quickstart
+includes a short verification and troubleshooting checklist.

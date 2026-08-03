@@ -6,7 +6,7 @@ author: "Anthony Riera"
 tags: ["nextjs", "react", "support", "tutorial", "open-source"]
 image: "https://cdn.cossistant.com/landing/main-large.jpg"
 top: false
-related: []
+related: ["how-to-add-a-support-widget-to-a-react-app"]
 published: true
 ---
 
@@ -58,6 +58,8 @@ NEXT_PUBLIC_COSSISTANT_API_KEY=pk_test_xxxx
 
 Use a **public** key here.
 Do not put a private key in browser code.
+Create the key in **Settings → Developers**, add the current hostname, and see
+[API Keys](/docs/quickstart/api-keys) for allowlist rules.
 
 ## 3. Add `SupportProvider` to your app
 
@@ -127,19 +129,23 @@ If not, plain CSS is fine.
 Now drop the widget into a page:
 
 ```tsx title="app/page.tsx"
-import { Support } from "@cossistant/next/support";
+import { LazySupport } from "@cossistant/next/lazy-support";
+import { Suspense } from "react";
 
 export default function Page() {
   return (
     <main>
       <h1>You are ready to chat</h1>
-      <Support />
+      <Suspense fallback={null}>
+        <LazySupport />
+      </Suspense>
     </main>
   );
 }
 ```
 
-That is enough to get the widget running.
+That is enough to get the widget running without putting the complete widget UI
+in the initial route chunk.
 
 ## 6. Identify logged-in users
 
@@ -175,9 +181,10 @@ This is optional, but if you're building a real SaaS, you probably want it.
 If you want the widget to feel less empty on first open, configure a default message and a few quick actions.
 
 ```tsx title="app/page.tsx"
-import { Support } from "@cossistant/next/support";
+import { LazySupport } from "@cossistant/next/lazy-support";
 import { SupportConfig } from "@cossistant/next/support-config";
 import { type DefaultMessage, SenderType } from "@cossistant/types";
+import { Suspense } from "react";
 
 const user: { name: string | null } = {
   name: "Jane Doe",
@@ -199,7 +206,9 @@ export default function Page() {
         defaultMessages={defaultMessages}
         quickOptions={quickOptions}
       />
-      <Support />
+      <Suspense fallback={null}>
+        <LazySupport />
+      </Suspense>
     </>
   );
 }
@@ -229,6 +238,14 @@ Small detail, better first impression.
     Optionally identify users and add default messages
   </Step>
 </Steps>
+
+## Verify the result
+
+Reload the app and confirm that the trigger is styled, opens the support home
+screen, and produces no `401` or `403` API response. A `401` usually means the
+key is missing or invalid. A `403` usually means the current hostname is not in
+the key's allowed domains. An unstyled trigger means neither (or both) CSS
+entrypoints were imported.
 
 ## Why this setup works well for Next.js teams
 

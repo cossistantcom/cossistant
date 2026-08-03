@@ -1,6 +1,6 @@
 ---
 title: Hooks Reference
-description: Programmatic access to Support widget state, navigation, visitor identity, and custom page behavior.
+description: Curated hooks for Support state, navigation, identity, conversations, and custom pages.
 search:
   kind: hook
   tags:
@@ -34,6 +34,8 @@ If you are still shaping the widget, start with [Overview](/docs/support-compone
 - `useSupportNavigation` and page hooks for route-aware UI
 - `useVisitor` for identity and contact metadata
 - conversation hooks for custom pages, drafts, typing, uploads, and send flows
+- `useFeatureFlag(s)` and `useOnboarding` for typed Support state
+- feedback hooks for form state and submission
 
 Provider-optional mutation hooks accept `options.client`. Omitting `client`
 uses the nearest `SupportProvider`; passing an explicit client lets the hook run
@@ -103,19 +105,20 @@ import { useVisitor } from "@cossistant/react";
 import { useEffect } from "react";
 
 export function AuthHandler({ user }) {
-  const { visitor, identify } = useVisitor();
+  const { identify } = useVisitor();
 
   useEffect(() => {
-    // Only identify if we have a user and visitor isn't already a contact
-    if (user && !visitor?.contact) {
-      identify({
-        externalId: user.id,
-        email: user.email,
-        name: user.name,
-        image: user.avatar,
-      });
+    if (!user) {
+      return;
     }
-  }, [user, visitor?.contact, identify]);
+
+    void identify({
+      externalId: user.id,
+      email: user.email,
+      name: user.name,
+      image: user.avatar,
+    });
+  }, [user?.id, user?.email, user?.name, user?.avatar, identify]);
 
   return null;
 }
@@ -313,6 +316,7 @@ export function CustomHomePage() {
   const home = useHomePage({
     onStartConversation: () => console.log("Conversation started"),
     onOpenConversation: (id) => console.log("Opened:", id),
+    onOpenConversationHistory: () => console.log("Opened history"),
   });
 
   return (
@@ -449,6 +453,12 @@ export function MessageInput({ conversationId }: { conversationId: string }) {
 }
 ```
 
+Inside `SupportProvider`, message submission can resolve the provider client.
+Typing reports require either an explicit `client` or the realtime inputs shown
+in the full Support source. If you build a standalone composer and need typing
+indicators, pass the client explicitly; otherwise the message still sends but
+typing activity is not reported.
+
 ### Return Values
 
 <auto-type-table
@@ -547,7 +557,11 @@ function reference.
 
 ## useSupportEvents
 
-Access the events context for subscribing to widget lifecycle events. The hook returns `null` when used outside the widget's event provider, and the table below documents the event context when present.
+Access the events context for events emitted by custom widget code. The built-in
+widget does not automatically publish lifecycle/message events in v0.2.0. The
+hook returns `null` outside the widget's event provider; read the
+[manual events reference](/docs/support-component/events) before using it for
+analytics.
 
 ### Basic Example
 
@@ -602,4 +616,7 @@ Convenience hook for emitting events from within the widget.
 Shared support hook and data-model types now live on the
 [Types](/docs/support-component/types) page. Use it for `PublicVisitor`,
 `PublicWebsiteResponse`, `CossistantClient`, `TimelineItem`, `Conversation`,
-and the rest of the canonical support type reference.
+and the rest of the curated support type reference. This page is not an
+exhaustive export list: the installed `@cossistant/react/hooks` declarations
+also include conversation/timeline queries, realtime typing/seen hooks,
+feature/onboarding hooks, feedback hooks, and create/send/upload mutations.

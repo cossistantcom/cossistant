@@ -53,6 +53,16 @@ If you want to self-host or self-manage Tinybird itself, start with Tinybird's o
 - [Tinybird infrastructure / self-host overview](https://www.tinybird.co/blog/tb-infra)
 - [Tinybird self-managed installation guide](https://www.tinybird.co/docs/forward/install-tinybird/self-managed)
 
+Installing Tinybird alone is not enough. Deploy the Cossistant project files in
+`tinybird/datasources`, `tinybird/pipes`, and `tinybird/endpoints`; those names
+are what the API and dashboard query. From the repository's `tinybird/`
+directory, validate the CLI context with `tb info`, then deploy the project with
+`tb --cloud deploy` (or your self-managed equivalent). The local workflow and
+expected endpoint list are documented in `tinybird/README.md`.
+
+Verify that `inbox_analytics`, `unique_visitors`, `online_now`,
+`visitor_presence`, and `presence_locations` resolve before enabling the UI.
+
 ## Tinybird disabled path
 
 If Tinybird is hard to support in your environment, you can disable it cleanly:
@@ -75,6 +85,11 @@ What still works:
 - places in the app that already fall back to database `lastSeenAt` continue to show those timestamps
 - the rest of the product continues working without Tinybird
 
+Keep `TINYBIRD_ENABLED` and `NEXT_PUBLIC_TINYBIRD_ENABLED` aligned. If only the
+server flag is disabled, the browser can render analytics surfaces that cannot
+receive tokens/data. If only the browser flag is disabled, the API may continue
+ingesting events that no dashboard surface displays.
+
 What this does **not** do:
 
 - it does not recreate Tinybird analytics on Postgres
@@ -82,7 +97,9 @@ What this does **not** do:
 
 ## DataFast
 
-DataFast is treated as an optional third-party analytics dependency for our hosted web analytics script.
+DataFast is treated as an optional third-party analytics dependency for hosted
+site analytics. The flag defaults on, so a self-hoster who does not explicitly
+choose this processor should disable it before the first page load.
 
 To disable it for self-hosting:
 
@@ -100,3 +117,7 @@ If you want the simplest self-host path first:
 2. If not, set `TINYBIRD_ENABLED=false` and `NEXT_PUBLIC_TINYBIRD_ENABLED=false`.
 3. Disable `NEXT_PUBLIC_DATAFAST_ENABLED` unless you explicitly want that third-party script.
 4. Bring Tinybird back later only if you want the inbox analytics and live visitor dashboards.
+
+After either configuration, test the API token endpoint and the dashboard with
+browser devtools open: enabled mode should return usable data from every named
+pipe; disabled mode should render no Tinybird/DataFast request or analytics UI.

@@ -15,7 +15,7 @@ Use this guide if you want to contribute code, docs, or examples to Cossistant. 
 Before you start, make sure your machine has:
 
 - **Docker Desktop** - Required for running Postgres and Redis locally
-- **Bun v1.2+** - Our package manager and runtime ([install Bun](https://bun.sh))
+- **Bun 1.3.1** - The version pinned by this repository ([install Bun](https://bun.sh))
 - **Git** - For version control
 - **Node-compatible shell tooling** - Helpful for local debugging and scripts
 
@@ -26,15 +26,18 @@ Clone the monorepo, install dependencies, and start the local stack:
 ```bash
 git clone https://github.com/cossistantcom/cossistant.git
 cd cossistant
-bun install --workspaces
+bun install
 bun dev
 ```
 
-That's it! The `bun dev` command will:
+The root `bun dev` command starts Docker Compose and every workspace `dev` task
+selected by Turbo. That currently includes more than the API and dashboard, so
+use the terminal output as the source of truth and stop services you do not
+need. At minimum it will:
 
 1. Start Docker Compose (Postgres + Redis containers)
 2. Start the API server with Upstash Workflow in local mode
-3. Start the Next.js web application
+3. Start the Next.js web application, workers, and Tinybird development tasks
 
 <Callout type="info">
   **Upstash Workflow runs locally** - No account needed! When the server starts,
@@ -47,7 +50,7 @@ That's it! The `bun dev` command will:
 After `bun dev` finishes, you should have:
 
 - **Web app**: `http://localhost:3000` for the landing site, docs, and dashboard
-- **API server**: `http://localhost:3001` for REST, tRPC, WebSocket, and auth flows
+- **API server**: `http://localhost:8787` for REST, tRPC, WebSocket, and auth flows
 - **Postgres**: `localhost:5432` for relational data
 - **Redis**: `localhost:6379` for queues, caching, and real-time support
 - **Upstash Workflow local mode**: credentials printed in the API console output
@@ -90,7 +93,7 @@ When you need to modify the database schema:
 2. Generate a migration:
    ```bash
    cd apps/api
-   bun db:generate
+   bun run generate
    ```
 3. Apply the migration:
    ```bash
@@ -189,6 +192,13 @@ bun run check-types
 
 # Check documentation links
 bun run docs:links
+
+# Run all workspace tests
+bun run test
+
+# Check generated OpenAPI and published-package release gates
+bun run check:openapi
+bun run check:browser-embed-size
 ```
 
 ### API-specific commands
@@ -214,7 +224,8 @@ bun run better-auth:generate-schema
 
 ## Quality Checks Before A Pull Request
 
-Run the smallest set of checks that matches your change:
+Run focused checks while iterating, then run the release-relevant repository
+gates before a published-package or release change:
 
 ```bash
 # Auto-fix linting issues across the repo
@@ -229,6 +240,12 @@ bun run docs:links
 # Run tests in the package or app you changed
 cd packages/react
 bun test
+
+# From the repository root before release-sensitive changes
+bun run test
+bun run build
+bun run check:openapi
+bun run check:browser-embed-size
 ```
 
 If you changed the API, run tests from `apps/api`. If you changed docs or marketing pages, make sure the affected pages still build and render cleanly.
@@ -246,7 +263,7 @@ Before you open or merge a PR:
 
 ## Testing Notes
 
-Cossistant uses Bun's built-in test runner. Tests are colocated with source files using the `*.test.ts` naming convention.
+Cossistant uses Bun's built-in test runner. Tests are colocated with source files using `*.test.ts` and `*.test.tsx`.
 
 ```bash
 # Run tests in a specific package
@@ -262,7 +279,7 @@ bun test --coverage
 
 ## Troubleshooting
 
-- **`bun dev` fails immediately**: confirm Docker Desktop is running and ports `3000`, `3001`, `5432`, and `6379` are not already taken.
+- **`bun dev` fails immediately**: confirm Docker Desktop is running and ports `3000`, `8787`, `5432`, `6379`, `7181`, and `8083` are not already taken.
 - **Database errors after pulling main**: rerun `bun db:migrate` from `apps/api` to catch up with schema changes.
 - **Missing dependencies or stale lockfile state**: rerun `bun install --workspaces` from the repo root.
 - **Docs pages render but links fail**: run `bun run docs:links` before opening the PR.
@@ -299,4 +316,9 @@ Follow the prompts to describe your changes. This will be used to generate chang
 
 ## License
 
-Cossistant is licensed under **AGPL-3.0** for non-commercial use. For commercial use, please contact us at [anthony@cossistant.com](mailto:anthony@cossistant.com).
+Cossistant is licensed under the
+[GNU Affero General Public License v3.0](https://github.com/cossistantcom/cossistant/blob/main/LICENSE).
+The AGPL permits commercial use subject to its terms; it is not a
+“non-commercial” license. If you need different obligations, ask
+[anthony@cossistant.com](mailto:anthony@cossistant.com) about an alternative
+commercial license.

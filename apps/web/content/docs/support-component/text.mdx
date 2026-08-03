@@ -97,3 +97,16 @@ You can pass any locale code as long as you provide the strings for it.
 ## Debugging tip
 
 Every rendered `<Text />` includes `data-key-name="..."` in the DOM, so you can inspect which key is driving a string before you override it.
+
+## Validate a custom locale
+
+The complete typed key catalog lives in
+`packages/react/src/support/text/locales/keys.ts`, and the built-in English
+values live in `packages/react/src/support/text/locales/en.tsx`. Type your
+override as `SupportTextContentOverrides<"your-locale">` so misspelled keys
+fail TypeScript, then compare the catalog in the package version you install.
+
+Missing strings fall back to the browser locale and then English, so test with
+the browser locale changed as well as the explicit locale. The widget does not
+currently promise automatic right-to-left layout; validate direction, icon
+placement, and mixed-direction content before shipping an RTL locale.

@@ -89,19 +89,17 @@ type="browser"
 
 ### Upgrade
 
-```bash
-npm install @cossistant/react@0.2.0 @cossistant/next@0.2.0
-```
+<FrameworkInstallCommandTabs version="0.2.0" />
 
 ### Use Cossistant with a script tag
 
 Perfect to use outside of React, with Vue, or in tools like Framer and Webflow.
-You can point to a specific version for predictable upgrades, or use `latest`
-to always load the newest release.
+Pin a specific version for predictable upgrades. Use `latest` only when you
+intentionally accept a new, unreviewed widget release on the next page load.
 
 ```html showLineNumbers
 <!-- Pin to a specific version -->
-<script async src="https://cdn.cossistant.com/widget/0.2.0/loader.js"></script>
+<script src="https://cdn.cossistant.com/widget/0.2.0/loader.js"></script>
 <script>
   window.Cossistant.init({
     publicKey: "pk_live_...",
@@ -111,7 +109,7 @@ to always load the newest release.
 
 ```html showLineNumbers
 <!-- Or always use the latest release -->
-<script async src="https://cdn.cossistant.com/widget/latest/loader.js"></script>
+<script src="https://cdn.cossistant.com/widget/latest/loader.js"></script>
 <script>
   window.Cossistant.init({
     publicKey: "pk_live_...",

@@ -24,12 +24,20 @@ search:
 ## 30-second version
 
 ```tsx title="src/App.tsx"
-import { Support } from "@cossistant/react";
+import { LazySupport } from "@cossistant/react/lazy-support";
+import { Suspense } from "react";
 
 export default function App() {
-  return <Support />;
+  return (
+    <Suspense fallback={null}>
+      <LazySupport />
+    </Suspense>
+  );
 }
 ```
+
+Use the eager `Support` export only when you intentionally want the full widget
+in the current chunk. `LazySupport` is the default performance path.
 
 <ComponentPreview name="support-doc" />
 
@@ -113,6 +121,14 @@ export default function App() {
 - you only need identity, welcome messages, quick options, or prop-level styling
 - you do not need custom pages or a custom shell
 
+## Production checklist
+
+- use a public key in the browser and allow every deployed hostname
+- identify authenticated users by a stable external ID, including account switches
+- import exactly one CSS entrypoint and test light/dark mode at 200% zoom
+- provide privacy/retention disclosures for visitor and feedback context
+- handle loading and API failures, and verify the flow with keyboard-only input
+
 ## Next step
 
 1. [Change One Thing](/docs/support-component/customization) to swap the bubble or first screen without rebuilding the widget.
@@ -124,8 +140,6 @@ export default function App() {
 That is a separate track now.
 
 Use [Advanced](/docs/advanced) when you want to go fully custom. The shipped widget is built from reusable logic and primitives, and you can inspect the [support source](https://github.com/cossistantcom/cossistant/tree/main/packages/react/src/support) if you want a real starting point today.
-
-We are also working on templates with full examples for common custom builds.
 
 ## Support Props
 

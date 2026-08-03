@@ -25,6 +25,10 @@ the visitor, and to the contact when that visitor is identified. That means your
 team can understand who was blocked, see the context around the feedback, and
 follow up in a conversation instead of reading a detached survey response.
 
+Tell users when feedback is associated with their account or support history.
+Collect only the metadata your team needs, and apply your own consent,
+retention, and deletion requirements.
+
 Use the default `<Feedback />` widget when you want the fastest path. Use
 `useFeedbackForm` when you want the same feedback engine inside your own shadcn
 UI. For fully custom feedback surfaces, pass an explicit `client`, `visitorId`,
@@ -143,9 +147,14 @@ export function ProductFeedback() {
   });
 
   return (
-    <form onSubmit={feedback.handleSubmit}>
+    <form aria-describedby="feedback-status" onSubmit={feedback.handleSubmit}>
+      <label htmlFor="feedback-topic">Topic</label>
       <select
+        aria-describedby={
+          feedback.fields.topic.isMissing ? "feedback-topic-error" : undefined
+        }
         aria-invalid={feedback.fields.topic.isMissing}
+        id="feedback-topic"
         onBlur={feedback.fields.topic.handleBlur}
         onChange={(event) => feedback.handleTopicChange(event.target.value)}
         value={feedback.topic}
@@ -157,27 +166,54 @@ export function ProductFeedback() {
           </option>
         ))}
       </select>
+      {feedback.fields.topic.isMissing ? (
+        <p id="feedback-topic-error" role="alert">
+          Choose a topic.
+        </p>
+      ) : null}
 
+      <label htmlFor="feedback-comment">Comment</label>
       <textarea
+        aria-describedby={
+          feedback.fields.comment.isMissing
+            ? "feedback-comment-error"
+            : undefined
+        }
         aria-invalid={feedback.fields.comment.isMissing}
+        id="feedback-comment"
         onBlur={feedback.fields.comment.handleBlur}
         onChange={(event) => feedback.handleCommentChange(event.target.value)}
         value={feedback.comment}
       />
+      {feedback.fields.comment.isMissing ? (
+        <p id="feedback-comment-error" role="alert">
+          Add a comment.
+        </p>
+      ) : null}
 
-      {[1, 2, 3, 4, 5].map((rating) => (
-        <button
-          key={rating}
-          onClick={() => feedback.handleRatingSelect(rating)}
-          type="button"
-        >
-          {rating}
-        </button>
-      ))}
+      <fieldset>
+        <legend>Rating</legend>
+        {[1, 2, 3, 4, 5].map((rating) => (
+          <button
+            aria-pressed={feedback.rating === rating}
+            key={rating}
+            onClick={() => feedback.handleRatingSelect(rating)}
+            type="button"
+          >
+            {rating}
+          </button>
+        ))}
+      </fieldset>
 
       <button disabled={feedback.submit.disabled} type="submit">
         {feedback.submit.label}
       </button>
+
+      <p aria-live="polite" id="feedback-status">
+        {feedback.submitted
+          ? "Feedback sent."
+          : feedback.error?.message ?? ""}
+      </p>
     </form>
   );
 }
@@ -323,6 +359,14 @@ Every submission stores:
 
 That association is the important part. A low rating from a signed-in customer
 can become a real support follow-up, not just a number in a dashboard.
+
+## Verify and troubleshoot
+
+After submitting, wait for the form's submitted state and confirm that the
+feedback appears in the dashboard with the expected visitor/contact context. A
+`401` usually means the public key is missing or invalid. A `403` usually means
+the current hostname is not allowed. If a provider-free form has no visitor,
+pass a valid `visitorId`; otherwise keep the form inside `SupportProvider`.
 
 ## Hook exports
 

@@ -14,6 +14,7 @@ https://api.cossistant.com/mcp
 The hosted MCP server uses remote HTTP MCP with OAuth. Your client will open a browser login flow when authentication is needed. Do not paste a Cossistant API key, bearer token, or client secret into your MCP config.
 
 Access is scoped to your Cossistant account. Agents can only read websites and support data available to the teammate who signs in.
+OAuth requests the `support:read` scope.
 
 ## Install
 
@@ -96,6 +97,26 @@ The first Cossistant MCP tools are read-only:
 
 Mutation tools like replying, resolving, or changing priority are not exposed yet.
 
+## Tool inputs and outputs
+
+Select a website with exactly one of `websiteId` or the exact `websiteName` for
+every tool except `cossistant_list_websites`.
+
+| Tool | Important inputs | Output/pagination |
+|---|---|---|
+| `cossistant_list_websites` | optional `query` (max 100 characters), `limit` 1–50 (default 25) | `websites` array; no cursor |
+| `cossistant_search_knowledge` | `query` (max 2,000), `limit` 1–8 (default 4), `minSimilarity` 0–1, optional `knowledgeId` | ranked knowledge chunks; content is truncated to a safe tool-response size |
+| `cossistant_list_conversations` | `limit` 1–25, optional `cursor`, `status`, `priority`, `sentiment`, `q`, `orderBy`, `order` | conversations plus a cursor when more results exist |
+| `cossistant_get_conversation` | `conversationId`, `timelineLimit` 1–50, optional `timelineCursor`, `feedbackLimit` 1–20 | conversation context, timeline page, linked feedback, and continuation cursor |
+
+Tool errors are returned as MCP errors without database internals. A missing or
+ambiguous website selector, inaccessible resource, invalid cursor, or expired
+OAuth session should be corrected rather than retried blindly.
+
+The hosted endpoint currently allows 60 MCP HTTP requests per minute per
+IP/auth subject. Respect rate-limit headers and retry after the server's window;
+do not run parallel unbounded pagination.
+
 ## Try it
 
 Ask your agent:
@@ -122,3 +143,9 @@ Open conversation <conversationId> and summarize the latest customer issue.
 - Use your client's MCP status view to complete OAuth.
 - Confirm you are signed in with a Cossistant account that has access to the website.
 - Remove any `Authorization` headers if OAuth does not start.
+- In OpenCode, use `opencode mcp list`, `opencode mcp debug`, and
+  `opencode mcp logout cossistant` to inspect or clear auth.
+- In Claude Code, open `/mcp` to inspect the server and clear/re-authenticate it.
+- In Cursor, use its MCP status/login controls after reloading the config.
+- Revoke access by logging the Cossistant server out in the client or revoking
+  the corresponding OAuth session in your account security settings.

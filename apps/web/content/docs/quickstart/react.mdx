@@ -13,6 +13,10 @@ The registry installs a React-ready `<Support />` starter, the `CossistantProvid
 
 ### 1. Add your public API key
 
+Create or copy a browser-safe public key in **Settings → Developers**. See
+[API Keys](/docs/quickstart/api-keys) for allowed domains and test/live key
+behavior.
+
 ```bash title=".env"
 VITE_COSSISTANT_API_KEY=pk_test_xxxx
 ```
@@ -67,7 +71,6 @@ npm install @cossistant/react
 <Tabs defaultValue="vite" className="mt-6">
   <TabsList>
     <TabsTrigger value="vite">Vite</TabsTrigger>
-    <TabsTrigger value="nextjs">Next.js</TabsTrigger>
     <TabsTrigger value="other">Other</TabsTrigger>
   </TabsList>
   <TabsContent value="vite">
@@ -77,25 +80,17 @@ VITE_COSSISTANT_API_KEY=pk_test_xxxx
 ```
 
   </TabsContent>
-  <TabsContent value="nextjs">
-
-```bash title=".env.local"
-NEXT_PUBLIC_COSSISTANT_API_KEY=pk_test_xxxx
-```
-
-  </TabsContent>
   <TabsContent value="other">
 
-For other frameworks (CRA, Remix, etc.), either set the env variable:
-
-```bash title=".env"
-COSSISTANT_API_KEY=pk_test_xxxx
-```
-
-Or pass the key directly via the `publicKey` prop:
+For Create React App, Remix, and other bundlers, pass the public key explicitly
+from whatever client configuration that framework exposes. A generic
+`COSSISTANT_API_KEY` server variable is **not** automatically available in the
+browser.
 
 ```tsx
 <SupportProvider publicKey="pk_test_xxxx">
+  <App />
+</SupportProvider>
 ```
 
   </TabsContent>
@@ -105,9 +100,12 @@ Or pass the key directly via the `publicKey` prop:
   <Icon name="help" className="size-4" />
   <AlertTitle>Auto-detection</AlertTitle>
   <AlertDescription>
-    The SDK automatically detects your framework and reads the right
-    environment variable (`VITE_COSSISTANT_API_KEY`, `NEXT_PUBLIC_COSSISTANT_API_KEY`,
-    or `COSSISTANT_API_KEY`). You can also pass the key explicitly through `publicKey`.
+    The SDK can read `VITE_COSSISTANT_API_KEY`,
+    `NEXT_PUBLIC_COSSISTANT_API_KEY`, or `COSSISTANT_API_KEY` only when your
+    bundler exposes that value to browser code. Vite and Next.js expose the
+    first two by convention. For every other bundler, prefer an explicit
+    `publicKey`. Public keys are designed for browser use; never expose a
+    private key.
   </AlertDescription>
 </Alert>
 
@@ -206,7 +204,9 @@ entry on hover or focus before rendering it.
 ### 6. Identify logged-in visitors (optional)
 
 ```tsx title="src/App.tsx"
-import { IdentifySupportVisitor, Support } from "@cossistant/react";
+import { IdentifySupportVisitor } from "@cossistant/react/identify-visitor";
+import { LazySupport } from "@cossistant/react/lazy-support";
+import { Suspense } from "react";
 
 export default function App() {
   const user = {
@@ -222,11 +222,26 @@ export default function App() {
         email={user.email}
         name={user.name}
       />
-      <Support />
+      <Suspense fallback={null}>
+        <LazySupport />
+      </Suspense>
     </>
   );
 }
 ```
+
+## Verify the installation
+
+Reload the app and confirm that:
+
+- the support trigger appears without an unstyled flash
+- opening it shows the home screen or a new conversation
+- the browser network panel has no `401` or `403` response from the Cossistant API
+
+If the trigger is missing, check that you imported exactly one CSS entrypoint.
+If requests return `401`, confirm the public key. If they return `403`, add the
+current hostname—including `localhost` during development—to the key's allowed
+domains. See [API Keys](/docs/quickstart/api-keys) for the full checklist.
 
 ### 7. Display custom messages with `SupportConfig defaultMessages`
 

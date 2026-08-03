@@ -30,6 +30,7 @@ Use `customPages` when you want to replace one built-in page and keep the defaul
 
 ```tsx
 import { Support, useSupportNavigation } from "@cossistant/react";
+import { PENDING_CONVERSATION_ID } from "@cossistant/react/utils/id";
 
 function CustomHomePage() {
   const { navigate } = useSupportNavigation();
@@ -47,7 +48,7 @@ function CustomHomePage() {
           navigate({
             page: "CONVERSATION",
             params: {
-              conversationId: "pending_docs_conversation",
+              conversationId: PENDING_CONVERSATION_ID,
               initialMessage: "Help me launch with the React SDK",
             },
           })
@@ -69,6 +70,15 @@ function CustomHomePage() {
   ]}
 />;
 ```
+
+`PENDING_CONVERSATION_ID` is the only sentinel the SDK treats as a
+not-yet-created conversation. Do not invent a placeholder ID: any other string
+is treated as a real conversation and may trigger a request for a record that
+does not exist.
+
+The layout examples on this page use Tailwind utilities for brevity. The APIs
+do not require Tailwind; replace the classes with your own CSS when you import
+`@cossistant/react/styles.css`.
 
 ## Common variants
 

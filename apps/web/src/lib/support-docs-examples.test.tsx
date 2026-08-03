@@ -201,8 +201,8 @@ describe("support docs examples", () => {
 			"user-feedback",
 			"advanced",
 			"concepts",
-			"others",
 			"self-host",
+			"others",
 		]);
 		expect(meta.pages).toEqual([
 			"index",
@@ -243,7 +243,8 @@ describe("support docs examples", () => {
 		);
 		expect(userFeedbackDoc).not.toContain("Preview submissions are faked");
 		expect(advancedIndexDoc).toContain("title: Advanced");
-		expect(advancedIndexDoc).toContain("Templates are coming soon");
+		expect(advancedIndexDoc).toContain("## Build sequence");
+		expect(advancedIndexDoc).not.toContain("Templates are coming soon");
 		expect(advancedIndexDoc).toContain(
 			"https://github.com/cossistantcom/cossistant/tree/main/packages/react/src/support"
 		);

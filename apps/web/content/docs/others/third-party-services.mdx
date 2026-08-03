@@ -1,55 +1,55 @@
 ---
-title: Third-Party Services
-description: Security, compliance, and third-party infrastructure used by Cossistant.
+title: Third-party services
+description: Managed-cloud service roles, data categories, and customer controls for Cossistant.
+updatedAt: "2026-08-03"
 ---
 
-## Overview
+This page describes the current managed Cossistant Cloud architecture. It is
+an engineering inventory, not a promise that every vendor processes every
+customer's data or a substitute for the applicable privacy policy, DPA, or
+vendor trust documentation. Configuration and vendors can change; the review
+date above makes that drift visible.
 
-Cossistant leverages best-in-class third-party services to deliver a secure, reliable, and performant customer support platform. We are committed to achieving SOC 2 Type II certification as soon as possible and have carefully selected service providers that maintain the highest security and compliance standards.
+Self-hosters choose and operate their own processors. Start with the
+[Self-Host overview](/docs/self-host).
 
-<Callout type="info">
-  This page describes the managed Cossistant Cloud stack. If you are running
-  Cossistant on your own infrastructure, use the
-  [Self-Host overview](/docs/self-host) for the storage and email setup paths,
-  including the AWS-first infrastructure route and the choice between Resend
-  and SES for email transport.
-</Callout>
+## Managed-cloud inventory
 
-## Infrastructure & Hosting
+| Service | Role | Data that may be processed | Customer or operator control |
+|---|---|---|---|
+| [Vercel](https://vercel.com) | Next.js web hosting and edge delivery | Web requests, IP/network metadata, rendered application traffic | Managed-cloud infrastructure |
+| [Railway](https://railway.com) | API and service hosting | API traffic, service logs, application data handled by the API | Managed-cloud infrastructure |
+| [PostgreSQL](https://www.postgresql.org/) / [Drizzle](https://orm.drizzle.team/) | Primary application database/toolkit | Organizations, websites, contacts, visitors, conversations, configuration | Retention/deletion through product and operator workflows |
+| [AWS S3](https://aws.amazon.com/s3/) / [CloudFront](https://aws.amazon.com/cloudfront/) | Upload and media storage/delivery | Attachments, avatars, brand assets, object-request metadata | Limit uploads; remove objects; self-host alternative available |
+| [Upstash](https://upstash.com) | Workflow/QStash job delivery | Job payloads and delivery metadata | Operator configuration; avoid unnecessary PII in jobs |
+| [Better Auth](https://www.better-auth.com/) | Authentication framework | Account/session/OAuth data stored in the Cossistant stack | Account and OAuth-provider controls |
+| Google and GitHub OAuth | Optional sign-in providers | OAuth identity/profile fields and authorization metadata | User chooses provider; revoke through provider settings |
+| [Polar](https://polar.sh) | Subscription and payment lifecycle | Customer, subscription, entitlement, and usage identifiers | Disabled in self-host mode with `POLAR_ENABLED=false` |
+| [Resend](https://resend.com) | Managed transactional/inbound email | Recipients, message content, delivery/suppression metadata | Provider choice; SES self-host path available |
+| AWS SES | Optional/self-host email transport | Recipients, message content, inbound mail, lifecycle metadata | Selected with `EMAIL_TRANSPORT_PROVIDER=ses` |
+| [OpenRouter](https://openrouter.ai) | AI model and embedding gateway | Prompts/context sent for enabled AI features, model and usage metadata | Operator model/key policy; do not send context the model does not need |
+| [Tinybird](https://www.tinybird.co/) | Inbox analytics and live presence | Visitor/activity/conversation metric events, page/acquisition/location context | Server and browser flags can disable it in self-host deployments |
+| [DataFast](https://datafa.st/) | Hosted site analytics script | Site visit/browser analytics defined by its script | Self-hosters can set `NEXT_PUBLIC_DATAFAST_ENABLED=false` |
+| [OpenStatus](https://www.openstatus.dev/) | Uptime/status monitoring | Endpoint availability and request metadata | Managed-cloud monitoring configuration |
 
-- **[Vercel](https://vercel.com)** - Hosts our Next.js web application and provides edge infrastructure for optimal performance worldwide.
-- **[Railway](https://railway.com)** - Hosts our Hono backend API, Redis instance, and provides automatic deployments with monitoring.
-- **[AWS S3](https://aws.amazon.com/s3/)** - Secure cloud storage for file uploads and media assets (SOC 2 Type II certified).
-- **[AWS CloudFront](https://aws.amazon.com/cloudfront/)** - Content delivery network (CDN) for fast, global content distribution (SOC 2 Type II certified).
-- **[Upstash](https://upstash.com)** - QStash and Workflows for serverless background job processing and workflow orchestration (SOC 2 Type II certified).
+## Visitor context
 
-## Database & Storage
+Cossistant's visitor record can include language, timezone, browser/OS/device,
+screen and viewport, current page, sanitized referrer, campaign/click IDs, and
+server-enriched location. Anonymous identity itself is a website-scoped ULID in
+localStorage, not a browser fingerprint. See [Visitors](/docs/concepts) and
+[Contacts](/docs/concepts/contacts) before deciding what your application
+collects or associates with a signed-in person.
 
-- **[PostgreSQL](https://www.postgresql.org/)** - Primary database for all application data.
-- **[Drizzle ORM](https://orm.drizzle.team/)** - Type-safe database toolkit and ORM.
+## Security and privacy evaluation
 
-## Authentication & Payments
+Do not infer a blanket compliance guarantee from a vendor's inclusion here.
+Before relying on a service, review that vendor's current security/trust center,
+subprocessor list, DPA, processing regions, retention/deletion controls,
+incident terms, and your own configuration. Encrypt traffic, minimize payloads,
+rotate credentials, restrict access, and test deletion/export workflows at the
+application layer.
 
-- **[Better Auth](https://www.better-auth.com/)** - Modern authentication solution for secure user authentication.
-- **[Polar.sh](https://polar.sh)** - Payment processing and subscription management for our billing system.
-
-## Communication
-
-- **[Resend](https://resend.com)** - Transactional email delivery with high deliverability rates (SOC 2 Type II certified).
-
-## Monitoring & Analytics
-
-- **[OpenStatus](https://www.openstatus.dev/)** - Uptime monitoring and status page infrastructure.
-- **[Tinybird](https://www.tinybird.co/)** - Real-time analytics platform for inbox metrics, visitor tracking, and geolocation data (SOC 2 Type II certified).
-- **[DataFast](https://datafa.st/)** - Third-party web analytics script used for hosted site analytics.
-
-## Security & Compliance Commitment
-
-All third-party services we use are carefully vetted for:
-- SOC 2 Type II compliance (current or in progress)
-- GDPR compliance
-- Robust data encryption (in transit and at rest)
-- Regular security audits and penetration testing
-- High availability and disaster recovery capabilities
-
-We regularly review our vendor landscape to ensure we maintain the highest standards of security and privacy for our customers.
+For a contract-specific or current subprocessor question, contact
+[support@cossistant.com](mailto:support@cossistant.com) rather than relying on a
+static documentation page.

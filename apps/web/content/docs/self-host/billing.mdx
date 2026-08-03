@@ -71,3 +71,11 @@ POLAR_ENABLED=false
 ```
 
 If you want your self-host deployment to keep the same billing and metering behavior as Cossistant Cloud, leave `POLAR_ENABLED` unset or set it to `true`.
+
+<Callout type="warning">
+  Billing-disabled mode grants unlimited entitlements across the deployment. It
+  is intended for an operator who owns the entire self-hosted instance, not as
+  a way to bypass plan enforcement in a hosted multi-tenant service. Before
+  switching an existing deployment, test customer/subscription data, webhook
+  removal, entitlement changes, and rollback in staging.
+</Callout>

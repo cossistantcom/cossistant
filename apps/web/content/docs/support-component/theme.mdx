@@ -118,6 +118,12 @@ import { Support } from "@cossistant/react";
 
 By default, the widget follows your app theme. Use `theme="dark"` when the widget should stay dark instead of following the page theme.
 
+Use `theme="light"` to pin the widget to light mode instead.
+
+```tsx
+<Support theme="light" />
+```
+
 ## Pin the widget to your shadcn tokens
 
 This is still useful when you want the widget theme to stay explicitly linked to your app tokens, even if you later rename or swap the host token source.
@@ -155,7 +161,12 @@ If your app uses custom token names outside the standard shadcn-style base token
 - [Pages & Layouts](/docs/support-component/routing) when you need a different first screen, an inline embed, or your own shell
 - [Copy & Locale](/docs/support-component/text) when the next change is wording instead of UI
 
-## Core token reference
+## Starter token reference
+
+This table covers the most common overrides, not every exported token. Use the
+installed CSS entrypoint as the canonical reference for your package version;
+it also defines popover, secondary, accent, input, ring, destructive
+foreground, fonts, and additional background levels.
 
 | Variable                        | Light preview                                             | Default (Light)    | Dark preview                                              | Default (Dark)     |
 | ------------------------------- | --------------------------------------------------------- | ------------------ | --------------------------------------------------------- | ------------------ |
@@ -200,3 +211,7 @@ Use these when the core tokens are not enough:
 | `--co-theme-background-300` | <ColorSwatch value="color-mix(in oklch, oklch(99% 0 0) 95%, oklch(20.5% 0 0))" /> | Color-mixed | <ColorSwatch value="color-mix(in oklch, oklch(15.5% 0 0) 92%, oklch(95% 0 0))" /> | Color-mixed |
 
 The background shades are derived from your base colors with `color-mix()` unless you override them directly.
+
+The current CSS uses `color-mix(in oklch, …)` for derived shades. If you target
+an older browser without that syntax, override the derived `--co-theme-*`
+values directly and include that browser in your visual test matrix.

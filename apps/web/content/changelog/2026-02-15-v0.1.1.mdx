@@ -6,7 +6,9 @@ date: "2026-02-15"
 author: "Cossistant Team"
 ---
 
-Reduced bundle size by 400KB and fixed Vite compatibility issues.
+The release-time build measured an approximately 400 KB uncompressed bundle
+reduction and fixed Vite compatibility issues. Consumer output and compressed
+sizes vary by bundler.
 
 ### Support Widget
 
@@ -15,7 +17,8 @@ Reduced bundle size by 400KB and fixed Vite compatibility issues.
     enables future non-React ports.
   </HighlightLine>
 - <HighlightLine variant="updated">
-    **CSS animations**: Replaced Motion dependency with pure CSS, saving 120KB.
+    **CSS animations**: Replaced Motion dependency with CSS, accounting for
+    roughly 120 KB of the release-time uncompressed reduction.
   </HighlightLine>
 - <HighlightLine variant="fixed">
     **Message wrapping**: Fixed incorrect text wrapping in chat messages.

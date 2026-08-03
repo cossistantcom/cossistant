@@ -18,6 +18,10 @@ search:
 
 `Support` is built for small edits. Start with styling, then swap one component, and keep the rest of the widget working as-is.
 
+The TSX examples use Tailwind utilities for brevity. Tailwind is not required:
+replace those class names with your own CSS when you use the precompiled
+`@cossistant/react/styles.css` entrypoint.
+
 ## Use this when
 
 - you want the widget live fast
@@ -59,6 +63,11 @@ The default widget also exposes stable styling hooks:
   backdrop-filter: blur(12px);
 }
 ```
+
+When you replace a slot, you inherit its accessibility responsibilities. Keep
+the forwarded ref and button props, preserve the trigger's accessible name and
+focus styles, make the target at least 44 by 44 CSS pixels, and announce unread
+counts with meaningful text when they matter to the user.
 
 ## Bubble example 1
 

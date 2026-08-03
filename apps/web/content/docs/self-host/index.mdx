@@ -3,7 +3,28 @@ title: Overview
 description: Understand the billing, storage, email, and analytics responsibilities a self-hosted Cossistant deployment needs, and choose the setup path that fits your stack.
 ---
 
-If you are self-hosting Cossistant, there are four infrastructure responsibilities you want to settle early: billing, storage, email, and analytics.
+Self-hosting starts with the application stack. Billing, storage, email, and
+analytics are additional infrastructure decisions after that stack is healthy.
+
+## Minimum deployable stack
+
+The repository does not currently provide a one-command production deployment.
+Before following the optional-service guides, plan and operate:
+
+- PostgreSQL 17 with the pgvector extension, migrations, backups, and restore tests
+- Redis for queues, caching, and realtime coordination
+- the API service, web application, and background workers from the same release
+- public web/API/WebSocket URLs, TLS, allowed origins, and Better Auth secrets/URLs
+- QStash/Workflow-compatible job delivery and signing keys
+- an OpenRouter key and model policy for AI/embedding features you enable
+- secret storage/rotation, structured logs, health checks, alerts, and rollback
+
+The local `docker-compose.yml` is a development baseline for Postgres, Redis,
+and GeoIP. It is not a production topology. Run migrations before serving a new
+release and keep the API, web, workers, schema, and published SDK expectations
+version-aligned.
+
+Once that core is running, settle these four responsibilities:
 
 Cossistant expects:
 
@@ -69,7 +90,7 @@ In practice that means:
 - outbound sending is selected by `EMAIL_TRANSPORT_PROVIDER`
 - reply-to addresses point to an inbound domain controlled by Cossistant
 - inbound replies eventually come back into the API as normalized webhook payloads
-- bounce, complaint, and failure events feed suppression and delivery monitoring
+- bounce, complaint, and failure events feed suppression state
 
 The good news is that you can choose your transport:
 
@@ -112,12 +133,16 @@ At a high level, a self-hosted deployment looks like this:
 
 For a clean first deployment:
 
-1. Set up [Storage](/docs/self-host/storage) first and verify uploads.
-2. Read [Billing](/docs/self-host/billing) and decide whether Polar stays enabled or whether you want `POLAR_ENABLED=false`.
-3. Read [Email Setup](/docs/self-host/email-setup) and decide whether you want Resend or SES for transactional mail.
-4. Configure the chosen provider and verify outbound email plus inbound reply handling.
-5. Read [Analytics](/docs/self-host/analytics) and decide whether you will keep Tinybird enabled or disable Tinybird/DataFast for your deployment.
-6. If you are rolling out SES gradually, keep the default `EMAIL_TRANSPORT_PROVIDER=resend` until the SES path is healthy, then flip to `ses`.
+1. Provision PostgreSQL/pgvector and Redis, configure secrets and public URLs,
+   run migrations, and start the API, web app, and workers.
+2. Verify authentication, API health, WebSocket connectivity, background jobs,
+   and backup/restore before optional integrations.
+3. Read [Billing](/docs/self-host/billing) and decide whether Polar stays enabled.
+4. Set up [Storage](/docs/self-host/storage) and verify uploads.
+5. Configure [Email](/docs/self-host/email-setup) and test outbound plus inbound replies.
+6. Configure the repository's Tinybird resources or explicitly disable
+   [Analytics](/docs/self-host/analytics) and DataFast.
+7. Exercise an upgrade and rollback in staging before production traffic.
 
 If you are doing a greenfield self-host deployment and do not plan to use Resend at all, you can move directly to SES once DNS, identities, and webhooks are confirmed working in your environment.
 

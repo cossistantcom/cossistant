@@ -60,19 +60,21 @@ Cossistant supports a few different env conventions depending on your setup.
 VITE_COSSISTANT_API_KEY=pk_test_xxxx
 ```
 
-### Next.js
-
-```bash title=".env.local"
-NEXT_PUBLIC_COSSISTANT_API_KEY=pk_test_xxxx
-```
-
 ### Other frameworks
 
-```bash title=".env"
-COSSISTANT_API_KEY=pk_test_xxxx
+Pass the public key explicitly from the client configuration your bundler
+supports:
+
+```tsx
+<SupportProvider publicKey="pk_test_xxxx">
+  <App />
+</SupportProvider>
 ```
 
-You can also pass the key directly with `publicKey` if your setup needs it.
+A generic `COSSISTANT_API_KEY` server variable is not automatically exposed by
+Create React App, Remix, or every React bundler. See
+[API Keys](/docs/quickstart/api-keys) and add the current hostname to the key's
+allowed domains.
 
 Use a **public** key only.
 Do not put a private key in browser code.
@@ -140,13 +142,16 @@ If not, plain CSS is enough.
 Now render it in your app:
 
 ```tsx title="src/App.tsx"
-import { Support } from "@cossistant/react";
+import { LazySupport } from "@cossistant/react/lazy-support";
+import { Suspense } from "react";
 
 export default function App() {
   return (
     <main>
       <h1>You are ready to chat</h1>
-      <Support />
+      <Suspense fallback={null}>
+        <LazySupport />
+      </Suspense>
     </main>
   );
 }
@@ -154,12 +159,19 @@ export default function App() {
 
 That is enough to get the default support widget on screen.
 
+Reload and open it now. A `401` response usually means the public key is
+missing or invalid; a `403` usually means the current hostname is not allowed.
+If the trigger is unstyled, confirm that you imported exactly one Cossistant CSS
+entrypoint.
+
 ## 6. Identify logged-in users
 
 If your app has auth, identify the visitor so support stays tied to the right person.
 
 ```tsx title="src/App.tsx"
-import { IdentifySupportVisitor, Support } from "@cossistant/react";
+import { IdentifySupportVisitor } from "@cossistant/react/identify-visitor";
+import { LazySupport } from "@cossistant/react/lazy-support";
+import { Suspense } from "react";
 
 export default function App() {
   const user = {
@@ -175,7 +187,9 @@ export default function App() {
         email={user.email}
         name={user.name}
       />
-      <Support />
+      <Suspense fallback={null}>
+        <LazySupport />
+      </Suspense>
     </>
   );
 }
@@ -188,9 +202,10 @@ Optional, but if you're building a SaaS, this is usually the right move.
 If you want the widget to feel less blank the first time someone opens it, add some starter context.
 
 ```tsx title="src/App.tsx"
-import { Support, SupportConfig } from "@cossistant/react";
-import { Support, SupportConfig } from "@cossistant/react";
+import { LazySupport } from "@cossistant/react/lazy-support";
+import { SupportConfig } from "@cossistant/react/support-config";
 import { type DefaultMessage, SenderType } from "@cossistant/types";
+import { Suspense } from "react";
 
 const user: { name: string | null } = {
   name: "Jane Doe",
@@ -212,7 +227,9 @@ export default function App() {
         defaultMessages={defaultMessages}
         quickOptions={quickOptions}
       />
-      <Support />
+      <Suspense fallback={null}>
+        <LazySupport />
+      </Suspense>
     </>
   );
 }
@@ -230,6 +247,9 @@ Cossistant supports a custom trigger through `Support.Trigger`.
 That means you can replace the default chat bubble with your own button, your own label, your own layout, and your own unread badge logic.
 
 Here's a simple custom chat bubble:
+
+This version uses Tailwind utilities. If you chose the plain CSS setup, replace
+the classes with your own stylesheet.
 
 ```tsx title="src/App.tsx"
 import { Support, type TriggerRenderProps } from "@cossistant/react";

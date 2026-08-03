@@ -18,7 +18,7 @@ This design enables rich, auditable conversation histories with:
 
 Traditional chat systems only handle messages. Cossistant's timeline architecture provides:
 
-- **Complete audit trail**: See when agents joined, when status changed, who resolved the conversation
+- **Structured history**: See recorded joins, status changes, and resolutions
 - **Rich context**: System events provide context between messages
 - **Flexibility**: Mix messages, events, identification, and tool activity in one ordered history
 - **Extensibility**: New item types can be added without breaking existing conversations
@@ -39,15 +39,21 @@ The important implementation detail is that `text` remains the original message 
   variant="property"
 />
 
-**Message Parts:**
+**Message parts:**
 
 - **text**: Plain text content
 - **image**: Image attachments with URL and metadata
 - **file**: File attachments with URL, name, size
 - **translation**: Stored translated text for a specific audience
 - **metadata**: Source channel details such as widget, email, or API
+- **reasoning** and **tool-call**: AI reasoning/tool activity when policy allows it
+- **source-url**, **source-document**, and **citation**: Knowledge provenance
+- **step-start**: Boundary between agent execution steps
+- **event** and **feedback**: Structured lifecycle or feedback content
 
-Additional AI and internal parts can also appear in the same `parts` array, but conceptually the important rule is that `parts` enrich the message instead of replacing it.
+Visibility and policy determine which parts a given audience receives. The
+important rule is that `parts` enrich the item instead of replacing its
+canonical `text`.
 
 ### Event Items
 
@@ -90,7 +96,7 @@ Translations are stored as `translation` parts on the same timeline item instead
 - The dashboard can show translated text and still offer **Show original**
 - The widget can prefer a visitor-facing translation when one exists
 
-#### Translation Part Shape
+### Translation part shape
 
 <auto-type-table
   path="packages/types/src/api/timeline-item.ts"
@@ -98,7 +104,7 @@ Translations are stored as `translation` parts on the same timeline item instead
   variant="property"
 />
 
-#### Example
+### Translation example
 
 ```json
 {

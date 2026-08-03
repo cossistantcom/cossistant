@@ -1,18 +1,45 @@
 ---
 title: What is Cossistant?
-description: Why we exist and what's our vision.
+description: Understand Cossistant's default widget, reusable SDK, and deployment choices.
 ---
 
-**Own your support, either use our pre-built `<Support />` component, or build your own based on our headless components.**
+**Own your support experience. Ship the default `<Support />` widget or build a
+custom interface from focused hooks and primitives.**
 
-You know how most traditional support systems work: you load an external iframe and code within your app, making it harder to customize, use and even by time are being blocked by your users' ads blocker.
+Traditional support widgets often load an opaque iframe. That can make them
+hard to style, integrate with application state, or adapt for custom AI and
+human workflows.
 
-This approach worked well until you need to customize your support and more recently, when you're trying to build AI agents that can truly be helpful with custom tools and logic. **You need control over the code to give true power to your agents.**
+Cossistant keeps the widget and SDK in your application code. You can start
+with a polished default and take ownership of only the layers you need.
 
-This is what Cossistant aims to solve. It is built around the following principles:
+## Two implementation paths
 
-- **Open source:** You and the community can participate in making the tool safer and more powerful, no opaque black box.
-- **Open components:** Following shadcn/ui philosophy, every components used in `<Support />` are based on headless primitives available to you.
-- **Code first:** A single source of truth within your codebase to defined your agents and support behavior
-- **Beautiful Default:** The default `<Support />` comes with a carefully crafted support experience, powerful and beautiful as is
-- **AI-Ready:** Open code and code first for LLMs to read, understand, and improve.
+- **Default widget:** Use `<Support />`, configure identity/copy/theme, and swap
+  selected slots without rebuilding conversation behavior.
+- **Custom UI:** Use focused hooks, shared types, and public primitives. You own
+  layout, accessibility, navigation, loading/error states, and interaction design.
+
+## Hosted or self-hosted
+
+The SDK can connect to Cossistant's managed service. The repository also
+contains the API, dashboard, workers, and optional infrastructure integrations
+needed for a self-hosted deployment. Self-hosting is an operations project, not
+just a package flag; start with the [Self-Host overview](/docs/self-host).
+
+## Principles
+
+- **Open source:** The AGPL-licensed repository is inspectable and open to
+  community contributions.
+- **Composable:** Public hooks and reusable primitives let you replace parts of
+  the default experience without depending on an iframe.
+- **Code-first:** Application identity, support context, and custom behavior
+  stay close to the rest of your codebase.
+- **Strong defaults:** `<Support />` provides the ready-made path; custom UI is
+  optional.
+- **AI-readable:** Typed packages, raw Markdown docs, `llms.txt`, and an MCP
+  server help both humans and coding agents use the current contract.
+
+Start with the [framework quickstart](/docs/quickstart), then use the
+[Support overview](/docs/support-component) for incremental customization or
+[Advanced](/docs/advanced) for a fully custom shell.

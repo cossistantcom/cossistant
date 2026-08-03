@@ -14,6 +14,7 @@ import {
 } from "@/lib/metadata";
 import { getDocsData } from "@/lib/seo-content";
 import { source } from "@/lib/source";
+import { DocsFeedback } from "../../components/docs/docs-feedback";
 import { DocsSidebar } from "../../components/docs/docs-sidebar";
 import { DocsTableOfContents } from "../../components/docs/docs-toc";
 import { DocsTopBar } from "../../components/docs/docs-topbar";
@@ -189,6 +190,7 @@ export default async function Page(props: {
 						<div className="w-full flex-1 *:data-[slot=alert]:first:mt-0">
 							<MDX components={mdxComponents} />
 						</div>
+						<DocsFeedback pageTitle={doc.title} pageUrl={page.url} />
 					</div>
 					<div className="mx-auto flex h-16 w-full max-w-2xl items-center gap-2 px-4 md:px-0">
 						{neighbours.previous && (

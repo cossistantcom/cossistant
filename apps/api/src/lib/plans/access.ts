@@ -16,6 +16,7 @@ import {
 	getCustomerState,
 	getPlanFromCustomerState,
 	getSubscriptionForWebsite,
+	getUnscopedPaidSubscriptions,
 	PolarCustomerInvariantViolationError,
 } from "./polar";
 
@@ -25,7 +26,8 @@ export type ResolvedPlanName = PlanName | "self_hosted";
 
 export type HardLimitsUnavailableReason =
 	| "billing_provider_unavailable"
-	| "billing_disabled";
+	| "billing_disabled"
+	| "billing_scope_ambiguous";
 
 export type PlanInfo = {
 	planName: ResolvedPlanName;
@@ -155,6 +157,9 @@ export async function getPlanForWebsite(_website: Website): Promise<PlanInfo> {
 
 		// If no plan found, default to free
 		const finalPlanName: PlanName = planName ?? "free";
+		const hasAmbiguousPaidScope =
+			finalPlanName === "free" &&
+			getUnscopedPaidSubscriptions(customerState).length > 0;
 
 		// Get plan configuration
 		const planConfig = getPlanConfig(finalPlanName);
@@ -164,8 +169,10 @@ export async function getPlanForWebsite(_website: Website): Promise<PlanInfo> {
 			displayName: planConfig.displayName,
 			price: planConfig.price,
 			features: planConfig.features,
-			hardLimitsEnforced: true,
-			hardLimitsUnavailableReason: null,
+			hardLimitsEnforced: !hasAmbiguousPaidScope,
+			hardLimitsUnavailableReason: hasAmbiguousPaidScope
+				? "billing_scope_ambiguous"
+				: null,
 			billing: getBillingStatus(),
 		};
 

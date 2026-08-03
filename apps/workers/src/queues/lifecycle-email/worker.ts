@@ -18,7 +18,7 @@ import {
 	HARD_LIMIT_ROLLING_WINDOW_DAYS,
 } from "@api/db/queries/usage";
 import { organization } from "@api/db/schema";
-import { getPlanForWebsite } from "@api/lib/plans/access";
+import { getPlanForWebsite, type PlanInfo } from "@api/lib/plans/access";
 import { queryWeeklyDigestStats } from "@api/lib/tinybird-sdk";
 import { buildLifecycleEmail } from "@api/lifecycle-email/content";
 import { getLifecycleEmailEligibility } from "@api/lifecycle-email/eligibility";
@@ -102,6 +102,12 @@ function getWeeklyDigestDateRanges(now: Date) {
 		prev_date_from: previousStart.toISOString(),
 		prev_date_to: previousEnd.toISOString(),
 	};
+}
+
+export function shouldEvaluateLifecycleLimitWarnings(
+	plan: Pick<PlanInfo, "hardLimitsEnforced">
+) {
+	return plan.hardLimitsEnforced;
 }
 
 export function createLifecycleEmailWorker({
@@ -376,6 +382,10 @@ async function processLimitScan() {
 
 		for (const site of websites) {
 			const plan = await getPlanForWebsite(site);
+			if (!shouldEvaluateLifecycleLimitWarnings(plan)) {
+				continue;
+			}
+
 			const org = await db.query.organization.findFirst({
 				where: eq(organization.id, site.organizationId),
 				columns: {

@@ -81,6 +81,10 @@ function getPlanByProductId(
 	return null;
 }
 
+function isPaidPlan(plan: PlanName | null): plan is "hobby" | "pro" {
+	return plan === "hobby" || plan === "pro";
+}
+
 function getWebsiteIdFromMetadata(
 	metadata: Record<string, unknown> | undefined
 ) {
@@ -96,6 +100,19 @@ function getWebsiteIdFromMetadata(
 		return String(value);
 	}
 	return null;
+}
+
+function isUnscopedPaidSubscription(params: {
+	subscription: WebsiteSubscription;
+	productIds: Record<PlanName, string>;
+}): boolean {
+	if (getWebsiteIdFromMetadata(params.subscription.metadata) !== null) {
+		return false;
+	}
+
+	return isPaidPlan(
+		getPlanByProductId(params.subscription.productId, params.productIds)
+	);
 }
 
 function toDateNumber(value: string | undefined): number {
@@ -203,6 +220,13 @@ async function run() {
 		id: row.id,
 		organizationId: row.organization_id,
 	}));
+	const websiteCountByOrganization = new Map<string, number>();
+	for (const website of websites) {
+		websiteCountByOrganization.set(
+			website.organizationId,
+			(websiteCountByOrganization.get(website.organizationId) ?? 0) + 1
+		);
+	}
 
 	const summary = {
 		totalWebsites: websites.length,
@@ -211,8 +235,12 @@ async function run() {
 		dryRunCreates: 0,
 		deduped: 0,
 		dryRunDedupes: 0,
+		unscopedPaidSubscriptions: 0,
+		singleWebsiteRepairCandidates: 0,
+		skippedFreeDueToUnscopedPaid: 0,
 		errors: 0,
 	};
+	const reportedUnscopedPaidSubscriptionIds = new Set<string>();
 
 	console.log(
 		`[backfill-free-subscriptions] starting ${dryRun ? "dry-run" : "apply"} for ${websites.length} websites`
@@ -254,8 +282,75 @@ async function run() {
 			const websiteSubscriptions = activeSubscriptions.filter(
 				(sub) => getWebsiteIdFromMetadata(sub.metadata) === website.id
 			);
+			const unscopedPaidSubscriptions = activeSubscriptions.filter(
+				(subscription) =>
+					isUnscopedPaidSubscription({
+						subscription,
+						productIds,
+					})
+			);
+
+			for (const subscription of unscopedPaidSubscriptions) {
+				if (reportedUnscopedPaidSubscriptionIds.has(subscription.id)) {
+					continue;
+				}
+
+				reportedUnscopedPaidSubscriptionIds.add(subscription.id);
+				summary.unscopedPaidSubscriptions += 1;
+
+				const organizationWebsiteCount =
+					websiteCountByOrganization.get(website.organizationId) ?? 0;
+				const plan = getPlanByProductId(subscription.productId, productIds);
+
+				if (organizationWebsiteCount === 1) {
+					summary.singleWebsiteRepairCandidates += 1;
+					console.warn(
+						"[backfill-free-subscriptions] unscoped paid subscription can be manually attached to the organization's only website",
+						{
+							organizationId: website.organizationId,
+							websiteId: website.id,
+							subscriptionId: subscription.id,
+							plan,
+							productId: subscription.productId,
+							currentMetadata: subscription.metadata ?? {},
+							suggestedMetadata: {
+								...(subscription.metadata ?? {}),
+								websiteId: website.id,
+							},
+						}
+					);
+					continue;
+				}
+
+				console.warn(
+					"[backfill-free-subscriptions] unscoped paid subscription requires manual website assignment review",
+					{
+						organizationId: website.organizationId,
+						organizationWebsiteCount,
+						subscriptionId: subscription.id,
+						plan,
+						productId: subscription.productId,
+						currentMetadata: subscription.metadata ?? {},
+					}
+				);
+			}
 
 			if (websiteSubscriptions.length === 0) {
+				if (unscopedPaidSubscriptions.length > 0) {
+					summary.skippedFreeDueToUnscopedPaid += 1;
+					console.warn(
+						"[backfill-free-subscriptions] skipped free subscription because organization has unscoped paid subscription",
+						{
+							organizationId: website.organizationId,
+							websiteId: website.id,
+							unscopedPaidSubscriptionIds: unscopedPaidSubscriptions.map(
+								(subscription) => subscription.id
+							),
+						}
+					);
+					continue;
+				}
+
 				const created = await createSubscription({
 					polar,
 					customerId: customer.id,

@@ -337,7 +337,7 @@ Current usage: ${used} / ${limit} ${unit}
 Nothing is broken. I just want you to have time to clean up, adjust usage, or upgrade before it becomes annoying.
 
 Open Cossistant:
-${metadata?.websiteSlug ? `${cleanAppUrl(params.appUrl)}/${metadata.websiteSlug}/settings/billing` : `${cleanAppUrl(params.appUrl)}/select`}
+${metadata?.websiteSlug ? `${cleanAppUrl(params.appUrl)}/${metadata.websiteSlug}/settings/plan` : `${cleanAppUrl(params.appUrl)}/select`}
 
 Anthony
 

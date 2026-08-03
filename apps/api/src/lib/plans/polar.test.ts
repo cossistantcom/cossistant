@@ -4,6 +4,7 @@ import {
 	type CustomerState,
 	getSubscriptionForWebsite,
 	getSubscriptionsForWebsite,
+	getUnscopedPaidSubscriptions,
 	partitionWebsiteSubscriptionsForDeletion,
 } from "./polar";
 
@@ -83,6 +84,46 @@ describe("plans/polar website subscription resolution", () => {
 		const filtered = getSubscriptionsForWebsite(state, "site_1");
 		expect(filtered).toHaveLength(1);
 		expect(filtered[0]?.id).toBe("sub_target");
+	});
+
+	it("returns unscoped paid subscriptions without treating them as website subscriptions", () => {
+		const freeProductId = getPlanConfig("free").polarProductId;
+
+		if (!freeProductId) {
+			throw new Error(
+				"Expected free plan product ID to be configured for tests"
+			);
+		}
+
+		const state = buildState([
+			{
+				id: "sub_unscoped_free",
+				productId: freeProductId,
+				status: "active",
+				metadata: {},
+			},
+			{
+				id: "sub_unscoped_hobby",
+				productId: "b060ff1e-c2dd-4c02-a3e4-395d7cce84a0",
+				status: "active",
+				metadata: {},
+			},
+			{
+				id: "sub_scoped_pro",
+				productId: "c87aa036-2f0b-40da-9338-1a1fcc191543",
+				status: "active",
+				metadata: { websiteId: "site_1" },
+			},
+		]);
+
+		const unscoped = getUnscopedPaidSubscriptions(state);
+
+		expect(unscoped.map((subscription) => subscription.id)).toEqual([
+			"sub_unscoped_hobby",
+		]);
+		expect(
+			getSubscriptionsForWebsite(state, "site_1").map((sub) => sub.id)
+		).toEqual(["sub_scoped_pro"]);
 	});
 });
 

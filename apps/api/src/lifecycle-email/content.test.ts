@@ -116,3 +116,29 @@ describe("weekly digest lifecycle email content", () => {
 		expect(email.text).toContain("Median first response: -");
 	});
 });
+
+describe("limit warning lifecycle email content", () => {
+	it("links website limit warnings to the plan settings page", () => {
+		const email = buildLifecycleEmail({
+			appUrl: "https://app.cossistant.com/",
+			event: {
+				emailKey: LIFECYCLE_EMAIL_KEYS.LIMIT_WARNING,
+				metadata: {
+					websiteName: "Acme Docs",
+					websiteSlug: "acme-docs",
+					limitName: "contact",
+					limitUsed: 23,
+					limitValue: 25,
+					limitUnit: "contacts",
+				},
+			},
+			organizationName: "Acme Org",
+			recipientName: "Anthony Riera",
+		});
+
+		expect(email.text).toContain(
+			"https://app.cossistant.com/acme-docs/settings/plan"
+		);
+		expect(email.text).not.toContain("/settings/billing");
+	});
+});

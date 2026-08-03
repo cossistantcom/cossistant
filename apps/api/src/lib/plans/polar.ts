@@ -96,10 +96,19 @@ function toDateNumber(value: string | null | undefined): number {
 	return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+function getPlanNameFromSubscription(
+	subscription: WebsiteSubscription
+): PlanName | null {
+	return mapPolarProductToPlan(
+		subscription.productName,
+		subscription.productId
+	);
+}
+
 function getPlanRankFromSubscription(
 	subscription: WebsiteSubscription
 ): number {
-	const plan = mapPolarProductToPlan(undefined, subscription.productId);
+	const plan = getPlanNameFromSubscription(subscription);
 	if (!plan) {
 		return -1;
 	}
@@ -369,6 +378,25 @@ export function getSubscriptionForWebsite(
 	websiteId: string
 ): WebsiteSubscription | null {
 	return getSubscriptionsForWebsite(customerState, websiteId)[0] ?? null;
+}
+
+export function getUnscopedPaidSubscriptions(
+	customerState: CustomerState | null
+): WebsiteSubscription[] {
+	if (!customerState) {
+		return [];
+	}
+
+	return rankSubscriptionsForWebsite(
+		customerState.activeSubscriptions.filter((subscription) => {
+			if (getWebsiteIdFromSubscription(subscription) !== null) {
+				return false;
+			}
+
+			const plan = getPlanNameFromSubscription(subscription);
+			return plan === "hobby" || plan === "pro";
+		})
+	);
 }
 
 export type WebsiteDeletionSubscriptionPartition = {

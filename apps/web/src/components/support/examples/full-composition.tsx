@@ -1,4 +1,4 @@
-import { Support, useSupportNavigation } from "@cossistant/react";
+import { Support, useSupportNavigation } from "@cossistant/react/support";
 
 function LaunchChecklistPage() {
 	const { navigate } = useSupportNavigation();

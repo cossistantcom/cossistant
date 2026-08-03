@@ -1,6 +1,6 @@
 "use client";
 
-import { clearLocalStorageDraftValue } from "@cossistant/react";
+import { clearLocalStorageDraftValue } from "@cossistant/react/hooks";
 import type {
 	ConversationClarificationSummary,
 	KnowledgeClarificationRequest,

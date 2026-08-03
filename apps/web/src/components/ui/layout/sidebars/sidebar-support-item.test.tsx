@@ -43,10 +43,13 @@ const typingStore = {
 
 let capturedSidebarItemOnClick: (() => void) | null = null;
 
-mock.module("@cossistant/next", () => ({
+mock.module("@cossistant/next/hooks", () => ({
 	useConversations: () => ({
 		conversations,
 	}),
+}));
+
+mock.module("@cossistant/next/provider", () => ({
 	useSupport: () => ({
 		client: {
 			typingStore,

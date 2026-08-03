@@ -6,7 +6,7 @@ import {
 	DaySeparatorLine,
 	ConversationTimeline as PrimitiveConversationTimeline,
 } from "@cossistant/next/primitives";
-import { useConversationTyping } from "@cossistant/react";
+import { useConversationTyping } from "@cossistant/react/hooks";
 import { useGroupedMessages } from "@cossistant/react/internal/hooks";
 
 import type { AvailableAIAgent } from "@cossistant/types";

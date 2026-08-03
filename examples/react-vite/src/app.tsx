@@ -1,9 +1,6 @@
-import {
-	IdentifySupportVisitor,
-	Support,
-	SupportConfig,
-	useSupportNavigation,
-} from "@cossistant/react";
+import { IdentifySupportVisitor } from "@cossistant/react/identify-visitor";
+import { Support, useSupportNavigation } from "@cossistant/react/support";
+import { SupportConfig } from "@cossistant/react/support-config";
 import * as React from "react";
 
 const routes = [

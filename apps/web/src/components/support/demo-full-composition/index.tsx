@@ -1,6 +1,6 @@
 "use client";
 
-import { Support, useSupportNavigation } from "@cossistant/react";
+import { Support, useSupportNavigation } from "@cossistant/react/support";
 import { SupportDocsProvider } from "../docs-demo/provider";
 import { SupportDemoStage } from "../docs-demo/stage";
 

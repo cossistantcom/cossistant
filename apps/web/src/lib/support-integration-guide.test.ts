@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
 	getSupportInstallCommand,
 	getSupportInstallCommands,
+	getSupportIntegrationGuide,
 	getSupportRegistryCommands,
 	getSupportRegistryItem,
 } from "./support-integration-guide";
@@ -75,5 +76,28 @@ describe("support integration install commands", () => {
 			pnpm: "pnpm dlx shadcn@latest add cossistantcom/cossistant/support-react",
 			yarn: "yarn dlx shadcn@latest add cossistantcom/cossistant/support-react",
 		});
+	});
+
+	it("uses focused runtime entries and lazy-loads the default widget", () => {
+		for (const installationTarget of ["nextjs", "react"] as const) {
+			const guide = getSupportIntegrationGuide(installationTarget);
+			const codeSamples = [
+				guide.providerCode,
+				guide.widgetCode,
+				guide.identifyVisitorCode,
+				guide.defaultMessageCode,
+				guide.cssPlainCode,
+			];
+
+			for (const code of codeSamples) {
+				expect(code).not.toMatch(/from ["']@cossistant\/(?:next|react)["']/);
+			}
+
+			expect(guide.widgetCode).toContain(
+				`from "${guide.packageName}/lazy-support"`
+			);
+			expect(guide.widgetCode).toContain("<Suspense fallback={null}>");
+			expect(guide.widgetCode).toContain("<LazySupport />");
+		}
 	});
 });

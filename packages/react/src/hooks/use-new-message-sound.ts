@@ -1,6 +1,10 @@
 import { useCallback } from "react";
-import { NEW_MESSAGE_SOUND_DATA_URL } from "../sounds/sound-data";
 import { useSoundEffect } from "./use-sound-effect";
+
+const loadNewMessageSound = () =>
+	import("../sounds/sound-data").then(
+		({ NEW_MESSAGE_SOUND_DATA_URL }) => NEW_MESSAGE_SOUND_DATA_URL
+	);
 
 /**
  * Hook to play a sound when a new message arrives.
@@ -21,7 +25,7 @@ export function useNewMessageSound(options?: {
 	volume?: number;
 	playbackRate?: number;
 }): () => void {
-	const { play } = useSoundEffect(NEW_MESSAGE_SOUND_DATA_URL, {
+	const { play } = useSoundEffect(loadNewMessageSound, {
 		loop: false,
 		volume: options?.volume ?? 0.7,
 		playbackRate: options?.playbackRate ?? 1.0,

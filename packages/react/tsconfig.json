@@ -11,6 +11,8 @@
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "Node",
     "emitDecoratorMetadata": false,
+    "declarationMap": false,
+    "sourceMap": false,
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,

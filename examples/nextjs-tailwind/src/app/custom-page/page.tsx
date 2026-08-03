@@ -1,6 +1,6 @@
 "use client";
 
-import { Support, useSupportNavigation } from "@cossistant/next";
+import { Support, useSupportNavigation } from "@cossistant/next/support";
 
 const HelpPage = () => {
 	const { navigate } = useSupportNavigation();

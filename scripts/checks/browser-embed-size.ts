@@ -12,7 +12,7 @@ type AssetThreshold = {
 
 const BASELINES: Record<AssetName, AssetThreshold> = {
 	"loader.js": { raw: 1170, gzip: 637 },
-	"widget.js": { raw: 397_538, gzip: 126_599 },
+	"widget.js": { raw: 398_674, gzip: 126_958 },
 	"widget.css": { raw: 16_468, gzip: 2238 },
 };
 

@@ -6,7 +6,7 @@ import {
 	getTimelineItemFeedback,
 	resolveTimelineItemText,
 } from "@cossistant/core";
-import { useConversationTyping } from "@cossistant/react";
+import { useConversationTyping } from "@cossistant/react/hooks";
 import { formatMessagePreview } from "@cossistant/tiny-markdown/utils";
 import {
 	ConversationStatus,

@@ -1,5 +1,6 @@
-import { Support } from "@cossistant/next";
+import { LazySupport } from "@cossistant/next/lazy-support";
 import Link from "next/link";
+import { Suspense } from "react";
 
 export default function HomePage() {
 	return (
@@ -30,7 +31,9 @@ export default function HomePage() {
 				</li>
 			</ul>
 
-			<Support />
+			<Suspense fallback={null}>
+				<LazySupport />
+			</Suspense>
 
 			<div className="mt-auto rounded border border-slate-300 border-dashed p-6 text-slate-500 text-sm">
 				Scroll target for fixed-position widget tests.

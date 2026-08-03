@@ -1,4 +1,4 @@
-import { IdentifySupportVisitor } from "@cossistant/next";
+import { IdentifySupportVisitor } from "@cossistant/next/identify-visitor";
 import { getMockSession } from "@/lib/mock-auth";
 
 export default async function DashboardLayout({

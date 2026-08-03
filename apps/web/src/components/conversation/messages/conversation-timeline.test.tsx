@@ -11,9 +11,8 @@ const useConversationTypingMock = mock(
 	}> => []
 );
 
-mock.module("@cossistant/react", () => ({
+mock.module("@cossistant/react/hooks", () => ({
 	useConversationTyping: useConversationTypingMock,
-	useSupport: () => ({}),
 }));
 
 mock.module("@cossistant/react/internal/hooks", () => ({

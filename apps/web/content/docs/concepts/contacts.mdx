@@ -28,7 +28,7 @@ Both are accepted, but `externalId` is preferred for robust cross-system trackin
 ### Using the Component
 
 ```tsx showLineNumbers title="app/dashboard/layout.tsx"
-import { IdentifySupportVisitor } from "@cossistant/next";
+import { IdentifySupportVisitor } from "@cossistant/next/identify-visitor";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
@@ -64,7 +64,7 @@ export default async function DashboardLayout({ children }) {
 ```tsx showLineNumbers title="components/auth-handler.tsx"
 "use client";
 
-import { useVisitor } from "@cossistant/next";
+import { useVisitor } from "@cossistant/next/hooks";
 import { useEffect } from "react";
 
 export function AuthHandler({ user }) {
@@ -119,7 +119,7 @@ Metadata can be updated anytime to reflect user changes:
 ```tsx showLineNumbers title="components/upgrade-button.tsx"
 "use client";
 
-import { useVisitor } from "@cossistant/next";
+import { useVisitor } from "@cossistant/next/hooks";
 
 export function UpgradeButton() {
   const { setVisitorMetadata } = useVisitor();

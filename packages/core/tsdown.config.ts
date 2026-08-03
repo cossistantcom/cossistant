@@ -9,7 +9,7 @@ export default defineConfig({
 	},
 	hash: false,
 	minify: false,
-	sourcemap: true,
+	sourcemap: false,
 	treeshake: true,
 	unbundle: true,
 	outExtensions: () => ({

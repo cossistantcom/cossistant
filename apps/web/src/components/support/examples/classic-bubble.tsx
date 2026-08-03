@@ -1,4 +1,7 @@
-import { Support, type SupportTriggerSlotProps } from "@cossistant/react";
+import {
+	Support,
+	type SupportTriggerSlotProps,
+} from "@cossistant/react/support";
 import * as React from "react";
 
 function mergeClassNames(...classes: Array<string | undefined>) {

@@ -94,7 +94,7 @@ const SUPPORT_GUIDES: Record<
 		envFileName: ".env.local",
 		docsQuickstartPath: "/docs/quickstart",
 		providerFileName: "app/layout.tsx",
-		providerCode: `import { SupportProvider } from "@cossistant/next";
+		providerCode: `import { SupportProvider } from "@cossistant/next/provider";
 
 import "./globals.css";
 
@@ -113,19 +113,22 @@ export default function RootLayout({
 }
 `,
 		widgetFileName: "app/page.tsx",
-		widgetCode: `import { Support } from "@cossistant/next";
+		widgetCode: `import { Suspense } from "react";
+import { LazySupport } from "@cossistant/next/lazy-support";
 
 export default function Page() {
   return (
     <main>
       <h1>You are ready to chat</h1>
-      <Support />
+      <Suspense fallback={null}>
+        <LazySupport />
+      </Suspense>
     </main>
   );
 }
 `,
 		identifyVisitorFileName: "app/(app)/layout.tsx",
-		identifyVisitorCode: `import { IdentifySupportVisitor } from "@cossistant/next";
+		identifyVisitorCode: `import { IdentifySupportVisitor } from "@cossistant/next/identify-visitor";
 
 export default function AppLayout({
   children,
@@ -151,7 +154,8 @@ export default function AppLayout({
 }
 `,
 		defaultMessageFileName: "app/page.tsx",
-		defaultMessageCode: `import { Support, SupportConfig } from "@cossistant/next";
+		defaultMessageCode: `import { Support } from "@cossistant/next/support";
+import { SupportConfig } from "@cossistant/next/support-config";
 import { type DefaultMessage, SenderType } from "@cossistant/types";
 
 const user: { name: string | null } = {
@@ -185,7 +189,7 @@ export default function Page() {
 @import "@cossistant/next/support.css";
 `,
 		cssPlainFileName: "app/layout.tsx",
-		cssPlainCode: `import { SupportProvider } from "@cossistant/next";
+		cssPlainCode: `import { SupportProvider } from "@cossistant/next/provider";
 import "@cossistant/next/styles.css";
 import "./globals.css";
 
@@ -214,7 +218,7 @@ export default function RootLayout({
 		providerFileName: "src/main.tsx",
 		providerCode: `import React from "react";
 import ReactDOM from "react-dom/client";
-import { SupportProvider } from "@cossistant/react";
+import { SupportProvider } from "@cossistant/react/provider";
 import App from "./App";
 import "./index.css";
 
@@ -227,19 +231,23 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 );
 `,
 		widgetFileName: "src/App.tsx",
-		widgetCode: `import { Support } from "@cossistant/react";
+		widgetCode: `import { Suspense } from "react";
+import { LazySupport } from "@cossistant/react/lazy-support";
 
 export default function App() {
   return (
     <main>
       <h1>You are ready to chat</h1>
-      <Support />
+      <Suspense fallback={null}>
+        <LazySupport />
+      </Suspense>
     </main>
   );
 }
 `,
 		identifyVisitorFileName: "src/App.tsx",
-		identifyVisitorCode: `import { IdentifySupportVisitor, Support } from "@cossistant/react";
+		identifyVisitorCode: `import { IdentifySupportVisitor } from "@cossistant/react/identify-visitor";
+import { Support } from "@cossistant/react/support";
 
 export default function App() {
   const user = {
@@ -261,7 +269,8 @@ export default function App() {
 }
 `,
 		defaultMessageFileName: "src/App.tsx",
-		defaultMessageCode: `import { Support, SupportConfig } from "@cossistant/react";
+		defaultMessageCode: `import { Support } from "@cossistant/react/support";
+import { SupportConfig } from "@cossistant/react/support-config";
 import { type DefaultMessage, SenderType } from "@cossistant/types";
 
 const user: { name: string | null } = {
@@ -299,7 +308,7 @@ export default function App() {
 		cssPlainCode: `// Plain Vite and other non-Tailwind React apps should start here.
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { SupportProvider } from "@cossistant/react";
+import { SupportProvider } from "@cossistant/react/provider";
 import "@cossistant/react/styles.css";
 import App from "./App";
 import "./index.css";
@@ -431,7 +440,7 @@ Required implementation:
    - If global CSS already contains '@import "tailwindcss";', add '@import "${guide.packageName}/support.css";'
    - Otherwise import '${guide.packageName}/styles.css' in the root entry/layout file.
    - If the app already exposes standard shadcn-style tokens, do not add extra widget theme mapping unless the user asks for explicit overrides.
-6. Render <Support /> in a real page.
+6. Render <LazySupport /> inside a React <Suspense fallback={null}> boundary in a real page. Import it from the focused '${guide.packageName}/lazy-support' entry so the full widget is loaded only where it is rendered.
 7. Add optional visitor identification for logged-in users using <IdentifySupportVisitor />.
 8. Add custom welcome messages using <SupportConfig defaultMessages={defaultMessages} quickOptions={quickOptions} /> with typed DefaultMessage[] and SenderType values.
 

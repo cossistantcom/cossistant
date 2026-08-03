@@ -1,4 +1,4 @@
-import { SupportProvider } from "@cossistant/react";
+import { SupportProvider } from "@cossistant/react/provider";
 import * as React from "react";
 import { createRoot } from "react-dom/client";
 import "@cossistant/react/styles.css";

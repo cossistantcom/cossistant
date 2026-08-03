@@ -1,6 +1,6 @@
 "use client";
 
-import { SupportProvider } from "@cossistant/react";
+import { SupportProvider } from "@cossistant/react/provider";
 import type { ReactNode } from "react";
 
 export function CossistantProvider({ children }: { children: ReactNode }) {

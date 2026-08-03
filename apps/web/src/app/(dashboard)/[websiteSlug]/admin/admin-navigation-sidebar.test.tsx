@@ -40,10 +40,13 @@ mock.module("next/link", () => ({
 	}) => <a href={href}>{children}</a>,
 }));
 
-mock.module("@cossistant/next", () => ({
+mock.module("@cossistant/next/hooks", () => ({
 	useConversations: () => ({
 		conversations: [],
 	}),
+}));
+
+mock.module("@cossistant/next/provider", () => ({
 	useSupport: () => ({
 		client: null,
 		unreadCount: 0,

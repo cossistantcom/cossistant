@@ -1,4 +1,4 @@
-import { SupportConfig } from "@cossistant/next";
+import { SupportConfig } from "@cossistant/next/support-config";
 import { AppLayoutSkeleton } from "@/components/ui/skeletons/app-layout-skeleton";
 
 export default function Layout({

@@ -4,7 +4,7 @@ import {
 	Support,
 	type SupportHomePageSlotProps,
 	type SupportTriggerSlotProps,
-} from "@cossistant/react";
+} from "@cossistant/react/support";
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { LandingTriggerContent } from "../custom-trigger";

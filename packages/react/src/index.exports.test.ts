@@ -21,6 +21,9 @@ describe("public export surface", () => {
 		expect(packageJson.exports["./internal/hooks"]).toBe(
 			"./src/internal/hooks.ts"
 		);
+		expect(packageJson.exports["./lazy-support"]).toBe(
+			"./src/lazy-support.tsx"
+		);
 		expect(packageJson.exports["./hooks/use-create-conversation"]).toBe(
 			"./src/hooks/use-create-conversation.ts"
 		);

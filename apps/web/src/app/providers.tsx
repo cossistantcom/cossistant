@@ -1,6 +1,6 @@
 "use client";
 
-import { SupportProvider } from "@cossistant/next";
+import { SupportProvider } from "@cossistant/next/provider";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import type { ReactNode } from "react";

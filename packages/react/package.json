@@ -69,6 +69,7 @@
     "./utils/merge-refs": "./src/utils/merge-refs.ts",
     "./utils/use-render-element": "./src/utils/use-render-element.tsx",
     "./identify-visitor": "./src/identify-visitor.tsx",
+    "./lazy-support": "./src/lazy-support.tsx",
     "./provider": "./src/provider.tsx",
     "./support-config": "./src/support-config.tsx"
   },
@@ -90,16 +91,16 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "nanoid": "^5.1.5",
-    "tailwind-merge": "^3.3.1",
-    "ulid": "^3.0.1"
+    "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
     "@cossistant/typescript-config": "workspace:*",
+    "@tailwindcss/cli": "4.2.2",
     "@tailwindcss/postcss": "^4.1.13",
     "@types/react-dom": "^19.2.2",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.13"
+    "tailwindcss": "4.2.2"
   },
   "peerDependencies": {
     "react": ">=18 <20",
@@ -132,8 +133,8 @@
     "directory": "dist"
   },
   "scripts": {
-    "build": "tsdown && bun run rewrite:types && rm -rf dist/node_modules dist/packages && find dist -name '*.map' -delete && bun run build:css && bun run prepare-package",
-    "build:css": "bunx @tailwindcss/cli -i src/styles.css -o dist/styles.css --content 'src/**/*.{js,ts,jsx,tsx}' --minify && mkdir -p dist/support && cp src/support.css dist/support.css && cp src/support/support.css dist/support/support.css && cp src/support/animations.css dist/support/animations.css",
+    "build": "tsdown && bun run rewrite:types && rm -rf dist/node_modules dist/packages && bun run build:css && bun run prepare-package",
+    "build:css": "bunx --no-install tailwindcss -i src/styles.css -o dist/styles.css --content 'src/**/*.{js,ts,jsx,tsx}' --minify && mkdir -p dist/support && cp src/support.css dist/support.css && cp src/support/support.css dist/support/support.css && cp src/support/animations.css dist/support/animations.css",
     "check:pack": "bun scripts/check-package-output.ts",
     "prepare-package": "bun ../../scripts/prepare-package.ts",
     "rewrite:types": "bun scripts/rewrite-dist-types.ts",

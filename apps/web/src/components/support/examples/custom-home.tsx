@@ -1,4 +1,7 @@
-import { Support, type SupportHomePageSlotProps } from "@cossistant/react";
+import {
+	Support,
+	type SupportHomePageSlotProps,
+} from "@cossistant/react/support";
 
 function CustomHomePage({
 	className,

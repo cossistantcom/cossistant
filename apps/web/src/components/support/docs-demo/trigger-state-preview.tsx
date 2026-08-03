@@ -1,6 +1,6 @@
 "use client";
 
-import type { SupportTriggerSlotProps } from "@cossistant/react";
+import type { SupportTriggerSlotProps } from "@cossistant/react/support";
 import * as React from "react";
 
 type TriggerComponent = React.ForwardRefExoticComponent<

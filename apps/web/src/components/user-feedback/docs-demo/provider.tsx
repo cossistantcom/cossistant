@@ -8,7 +8,7 @@ import type {
 	SupportController,
 	SupportControllerSnapshot,
 } from "@cossistant/core/support-controller";
-import { SupportProvider } from "@cossistant/react";
+import { SupportProvider } from "@cossistant/react/provider";
 import type {
 	SubmitFeedbackRequest,
 	SubmitFeedbackResponse,

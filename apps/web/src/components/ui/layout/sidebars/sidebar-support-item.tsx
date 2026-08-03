@@ -1,7 +1,8 @@
 "use client";
 
 import { resolveTimelineItemText } from "@cossistant/core";
-import { useConversations, useSupport } from "@cossistant/next";
+import { useConversations } from "@cossistant/next/hooks";
+import { useSupport } from "@cossistant/next/provider";
 import { useSupportNavigation } from "@cossistant/next/support";
 import { formatMessagePreview } from "@cossistant/tiny-markdown/utils";
 import { ConversationStatus } from "@cossistant/types/enums";

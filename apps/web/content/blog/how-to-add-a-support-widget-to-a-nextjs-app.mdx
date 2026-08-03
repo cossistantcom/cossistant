@@ -64,7 +64,7 @@ Do not put a private key in browser code.
 In the App Router, the cleanest place is your root layout:
 
 ```tsx title="app/layout.tsx"
-import { SupportProvider } from "@cossistant/next";
+import { SupportProvider } from "@cossistant/next/provider";
 
 import "./globals.css";
 
@@ -100,7 +100,7 @@ You have two options.
 ### Plain CSS
 
 ```tsx title="app/layout.tsx"
-import { SupportProvider } from "@cossistant/next";
+import { SupportProvider } from "@cossistant/next/provider";
 import "@cossistant/next/styles.css";
 import "./globals.css";
 
@@ -127,7 +127,7 @@ If not, plain CSS is fine.
 Now drop the widget into a page:
 
 ```tsx title="app/page.tsx"
-import { Support } from "@cossistant/next";
+import { Support } from "@cossistant/next/support";
 
 export default function Page() {
   return (
@@ -146,7 +146,7 @@ That is enough to get the widget running.
 If your app has authentication, identify users so support stays tied to the right person across sessions and devices.
 
 ```tsx title="app/(app)/layout.tsx"
-import { IdentifySupportVisitor } from "@cossistant/next";
+import { IdentifySupportVisitor } from "@cossistant/next/identify-visitor";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const user = {
@@ -175,8 +175,9 @@ This is optional, but if you're building a real SaaS, you probably want it.
 If you want the widget to feel less empty on first open, configure a default message and a few quick actions.
 
 ```tsx title="app/page.tsx"
-import { Support, SupportConfig } from "@cossistant/next";
-import { type DefaultMessage, SenderType } from "@cossistant/next";
+import { Support } from "@cossistant/next/support";
+import { SupportConfig } from "@cossistant/next/support-config";
+import { type DefaultMessage, SenderType } from "@cossistant/types";
 
 const user: { name: string | null } = {
   name: "Jane Doe",

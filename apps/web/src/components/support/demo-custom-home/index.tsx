@@ -1,6 +1,9 @@
 "use client";
 
-import { Support, type SupportHomePageSlotProps } from "@cossistant/react";
+import {
+	Support,
+	type SupportHomePageSlotProps,
+} from "@cossistant/react/support";
 import { cn } from "@/lib/utils";
 import { SupportDocsProvider } from "../docs-demo/provider";
 import { SupportDemoStage } from "../docs-demo/stage";

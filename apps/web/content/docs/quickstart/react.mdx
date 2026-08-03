@@ -184,17 +184,24 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 ### 5. Render the widget
 
 ```tsx title="src/App.tsx"
-import { Support } from "@cossistant/react";
+import { LazySupport } from "@cossistant/react/lazy-support";
+import { Suspense } from "react";
 
 export default function App() {
   return (
     <main>
       <h1>You are ready to chat</h1>
-      <Support />
+      <Suspense fallback={null}>
+        <LazySupport />
+      </Suspense>
     </main>
   );
 }
 ```
+
+`LazySupport` keeps the complete widget UI out of the initial application
+chunk. If you control when support appears, call `preloadSupport` from the same
+entry on hover or focus before rendering it.
 
 ### 6. Identify logged-in visitors (optional)
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { SupportProvider } from "@cossistant/next";
+import { SupportProvider } from "@cossistant/next/provider";
 import * as React from "react";
 import { createMockSupportController } from "@/lib/mock-support-controller";
 

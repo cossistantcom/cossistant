@@ -1,6 +1,6 @@
 "use client";
 
-import { useLocalStorageDraftValue } from "@cossistant/react";
+import { useLocalStorageDraftValue } from "@cossistant/react/hooks";
 import type {
 	KnowledgeClarificationQuestionInputMode,
 	KnowledgeClarificationRequest,

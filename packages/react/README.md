@@ -30,20 +30,27 @@ lifecycle, visitor context, websocket state, routing, open state, slots, and
 localization.
 
 ```tsx
-import { Support, SupportProvider } from "@cossistant/react";
+import { LazySupport } from "@cossistant/react/lazy-support";
+import { SupportProvider } from "@cossistant/react/provider";
 import "@cossistant/react/styles.css";
+import { Suspense } from "react";
 
 export function App() {
   return (
     <SupportProvider publicKey="pk_live_...">
-      <Support />
+      <Suspense fallback={null}>
+        <LazySupport />
+      </Suspense>
     </SupportProvider>
   );
 }
 ```
 
-`Support` is the batteries-included widget. It ships with the default trigger,
-router, home page, conversation page, timeline, composer, and styling hooks.
+`LazySupport` code-splits the batteries-included widget. It ships with the
+default trigger, router, home page, conversation page, timeline, composer, and
+styling hooks while keeping that UI out of the initial application chunk. Use
+`Support` from `@cossistant/react/support` when an eager component or compound
+subcomponents such as `Support.Trigger` are required.
 
 ## Headless Primitives
 

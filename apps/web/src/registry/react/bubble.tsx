@@ -1,6 +1,6 @@
 "use client";
 
-import type { TriggerRenderProps } from "@cossistant/react";
+import type { TriggerRenderProps } from "@cossistant/react/support";
 import { ChevronDown, MessageCircle } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 

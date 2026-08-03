@@ -77,7 +77,7 @@ NEXT_PUBLIC_COSSISTANT_API_KEY=pk_test_xxxx
 ### 3. Add `SupportProvider`
 
 ```tsx title="app/layout.tsx"
-import { SupportProvider } from "@cossistant/next";
+import { SupportProvider } from "@cossistant/next/provider";
 
 import "./globals.css";
 
@@ -118,7 +118,7 @@ Both entrypoints share the same widget theme behavior. If your app already expos
   <TabsContent value="plain">
 
 ```tsx title="app/layout.tsx"
-import { SupportProvider } from "@cossistant/next";
+import { SupportProvider } from "@cossistant/next/provider";
 import "@cossistant/next/styles.css";
 import "./globals.css";
 
@@ -143,22 +143,29 @@ export default function RootLayout({
 ### 5. Render the widget
 
 ```tsx title="app/page.tsx"
-import { Support } from "@cossistant/next";
+import { LazySupport } from "@cossistant/next/lazy-support";
+import { Suspense } from "react";
 
 export default function Page() {
   return (
     <main>
       <h1>You are ready to chat</h1>
-      <Support />
+      <Suspense fallback={null}>
+        <LazySupport />
+      </Suspense>
     </main>
   );
 }
 ```
 
+`LazySupport` keeps the complete widget UI out of the initial route chunk. If
+you control when support appears, call `preloadSupport` from the same entry on
+hover or focus before rendering it.
+
 ### 6. Identify logged-in visitors (optional)
 
 ```tsx title="app/(app)/layout.tsx"
-import { IdentifySupportVisitor } from "@cossistant/next";
+import { IdentifySupportVisitor } from "@cossistant/next/identify-visitor";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const user = {
@@ -183,7 +190,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 ### 7. Display custom messages with `SupportConfig defaultMessages`
 
 ```tsx title="app/page.tsx"
-import { Support, SupportConfig } from "@cossistant/next";
+import { Support } from "@cossistant/next/support";
+import { SupportConfig } from "@cossistant/next/support-config";
 import { type DefaultMessage, SenderType } from "@cossistant/types";
 
 const user: { name: string | null } = {

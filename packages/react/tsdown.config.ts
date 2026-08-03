@@ -7,6 +7,7 @@ export default defineConfig({
 		"src/hooks/index.ts",
 		"src/identify-visitor.tsx",
 		"src/internal/hooks.ts",
+		"src/lazy-support.tsx",
 		"src/primitives/index.ts",
 		"src/provider.tsx",
 		"src/realtime/index.ts",
@@ -42,6 +43,5 @@ export default defineConfig({
 		"clsx",
 		"nanoid",
 		"tailwind-merge",
-		"ulid",
 	],
 });

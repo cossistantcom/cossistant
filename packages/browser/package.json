@@ -41,7 +41,7 @@
   },
   "devDependencies": {
     "@cossistant/typescript-config": "workspace:*",
-    "@tailwindcss/cli": "^4.2.2",
+    "@tailwindcss/cli": "4.2.2",
     "preact": "^10.27.2"
   },
   "publishConfig": {
@@ -53,7 +53,7 @@
     "build:lib": "tsdown",
     "build:embed": "bun run build:embed:js && bun run build:embed:css",
     "build:embed:js": "tsdown --config tsdown.embed.config.ts && mv dist/embed/loader.iife.js dist/embed/loader.js && mv dist/embed/widget.iife.js dist/embed/widget.js",
-    "build:embed:css": "mkdir -p dist/embed && bunx @tailwindcss/cli -i src/embed/widget.css -o dist/embed/widget.css --content '../react/src/**/*.{js,ts,jsx,tsx}' --minify",
+    "build:embed:css": "mkdir -p dist/embed && bunx --no-install tailwindcss -i src/embed/widget.css -o dist/embed/widget.css --content '../react/src/**/*.{js,ts,jsx,tsx}' --minify",
     "prepare-package": "bun ../../scripts/prepare-package.ts",
     "pub:release": "bun run build && npm publish --access public",
     "pub:beta": "bun run build && npm publish --access public --tag beta --no-git-checks",

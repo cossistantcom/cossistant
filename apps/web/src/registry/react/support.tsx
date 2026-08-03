@@ -1,6 +1,6 @@
 "use client";
 
-import { Support as CossistantSupport } from "@cossistant/react";
+import { Support as CossistantSupport } from "@cossistant/react/support";
 import { motion } from "motion/react";
 import { TriggerContent } from "./bubble";
 

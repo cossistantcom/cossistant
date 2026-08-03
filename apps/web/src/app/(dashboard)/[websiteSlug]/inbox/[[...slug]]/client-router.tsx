@@ -1,6 +1,6 @@
 "use client";
 
-import { SupportConfig } from "@cossistant/next";
+import { SupportConfig } from "@cossistant/next/support-config";
 import { SenderType } from "@cossistant/types";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";

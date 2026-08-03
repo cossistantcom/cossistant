@@ -5,7 +5,7 @@ import { FILE_INPUT_ACCEPT } from "@cossistant/core";
 import {
 	CONVERSATION_AUTO_SEEN_DELAY_MS,
 	useWindowVisibilityFocus,
-} from "@cossistant/react";
+} from "@cossistant/react/hooks";
 import { useMultimodalInput } from "@cossistant/react/internal/hooks";
 import type { AvailableAIAgent } from "@cossistant/types";
 import type { TimelineItem } from "@cossistant/types/api/timeline-item";

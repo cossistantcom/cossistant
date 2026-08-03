@@ -1,6 +1,6 @@
 "use client";
 
-import { Support } from "@cossistant/react";
+import { Support } from "@cossistant/react/support";
 import { LandingTriggerContent } from "./custom-trigger";
 
 /**

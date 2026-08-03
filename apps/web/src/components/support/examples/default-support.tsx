@@ -1,4 +1,4 @@
-import { Support } from "@cossistant/react";
+import { Support } from "@cossistant/react/support";
 
 export default function ExampleSupportWidget() {
 	return (

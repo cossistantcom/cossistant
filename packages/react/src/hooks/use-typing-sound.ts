@@ -1,6 +1,10 @@
 import { useEffect } from "react";
-import { TYPING_LOOP_SOUND_DATA_URL } from "../sounds/sound-data";
 import { useSoundEffect } from "./use-sound-effect";
+
+const loadTypingSound = () =>
+	import("../sounds/sound-data").then(
+		({ TYPING_LOOP_SOUND_DATA_URL }) => TYPING_LOOP_SOUND_DATA_URL
+	);
 
 /**
  * Hook to play a looping typing sound while someone is typing.
@@ -16,7 +20,7 @@ export function useTypingSound(
 	isTyping: boolean,
 	options?: { volume?: number; playbackRate?: number }
 ): void {
-	const { play, stop, isPlaying } = useSoundEffect(TYPING_LOOP_SOUND_DATA_URL, {
+	const { play, stop, isPlaying } = useSoundEffect(loadTypingSound, {
 		loop: true,
 		volume: options?.volume ?? 1.2,
 		playbackRate: options?.playbackRate ?? 1.0,

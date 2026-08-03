@@ -10,9 +10,63 @@ import {
 
 describe("support text locale resolution", () => {
 	it("builds a locale preference chain with fallbacks and normalizes locales (en-GB, en-US -> en)", () => {
-		// All variants of "fr" (fr-CA, fr-ca) normalize to just "fr"
+		// Region variants keep their full tag first, then fall back to the base language
 		const chain = buildLocaleChain(["fr-CA", "es", null, "fr-ca"]);
-		expect(chain).toEqual(["fr", "es", "en"]);
+		expect(chain).toEqual(["fr-ca", "fr", "es", "en"]);
+	});
+
+	it("resolves region-subtag overrides (pt-BR) for region-subtag locales", () => {
+		const overrides = normalizeOverrides({
+			"common.brand.watermark": {
+				"pt-BR": "Feito com",
+			},
+		});
+
+		const message = resolveMessage(
+			"common.brand.watermark",
+			buildLocaleChain(["pt-BR"]),
+			overrides
+		);
+		expect(message).toBe("Feito com");
+	});
+
+	it("falls back from base-language locale to a region-subtag override", () => {
+		const overrides = normalizeOverrides({
+			"common.brand.watermark": {
+				"pt-BR": "Feito com",
+			},
+		});
+
+		const message = resolveMessage(
+			"common.brand.watermark",
+			buildLocaleChain(["pt"]),
+			overrides
+		);
+		expect(message).toBe("Feito com");
+	});
+
+	it("prefers the exact region-subtag override over the base-language one", () => {
+		const overrides = normalizeOverrides({
+			"common.brand.watermark": {
+				pt: "Feito por",
+				"pt-BR": "Feito com",
+			},
+		});
+
+		expect(
+			resolveMessage(
+				"common.brand.watermark",
+				buildLocaleChain(["pt-BR"]),
+				overrides
+			)
+		).toBe("Feito com");
+		expect(
+			resolveMessage(
+				"common.brand.watermark",
+				buildLocaleChain(["pt"]),
+				overrides
+			)
+		).toBe("Feito por");
 	});
 
 	it("prefers locale-specific overrides over defaults", () => {

@@ -1,3 +1,5 @@
+"use client";
+
 import type React from "react";
 import { Spinner } from "../support/components/spinner";
 import { cn } from "../support/utils";

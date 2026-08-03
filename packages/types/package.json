@@ -18,7 +18,8 @@
     "./api": "./src/api/index.ts",
     "./api/*": "./src/api/*.ts",
     "./trpc/*": "./src/trpc/*.ts",
-    "./enums": "./src/enums.ts"
+    "./enums": "./src/enums.ts",
+    "./support-onboarding": "./src/support-onboarding.ts"
   },
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -40,9 +41,10 @@
   "scripts": {
     "build": "tsdown && bun run prepare-package",
     "prepare-package": "bun ../../scripts/prepare-package.ts",
-    "pub:release": "bun run build && npm publish --access public",
-    "pub:beta": "bun run build && npm publish --access public --tag beta --no-git-checks",
-    "pub:next": "bun run build && npm publish --access public --tag next --no-git-checks",
+    "pub:release": "bun run build && npm publish ./dist --access public",
+    "pub:beta": "bun run build && npm publish ./dist --access public --tag beta --no-git-checks",
+    "pub:next": "bun run build && npm publish ./dist --access public --tag next --no-git-checks",
+    "test": "bun test src",
     "lint": "biome check .",
     "check-types": "tsc --noEmit --project tsconfig.json"
   }

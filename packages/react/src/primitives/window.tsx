@@ -1,5 +1,7 @@
+"use client";
+
 import * as React from "react";
-import { useSupportConfig } from "../support/store/support-store";
+import { useOptionalSupportConfig } from "../support/store/support-store";
 import { useRenderElement } from "../utils/use-render-element";
 
 export type WindowRenderProps = {
@@ -89,11 +91,13 @@ export const SupportWindow = (() => {
 			},
 			ref
 		) => {
-			const { isOpen, close } = useSupportConfig();
+			// Optional so controlled usage (isOpen/onOpenChange) works without a provider
+			const supportConfig = useOptionalSupportConfig();
+			const close = supportConfig?.close;
 			const containerRef = React.useRef<HTMLDivElement>(null);
 			const previouslyFocusedRef = React.useRef<HTMLElement | null>(null);
 
-			const open = isOpenProp ?? isOpen ?? false;
+			const open = isOpenProp ?? supportConfig?.isOpen ?? false;
 
 			const closeFn = React.useCallback(() => {
 				if (onOpenChange) {
@@ -140,7 +144,12 @@ export const SupportWindow = (() => {
 					return;
 				}
 				const onKey = (e: KeyboardEvent) => {
-					if (e.key === "Escape") {
+					// Only close when focus is within the widget so Escape keeps
+					// working for host-page modals while the floating widget is open
+					if (
+						e.key === "Escape" &&
+						containerRef.current?.contains(document.activeElement)
+					) {
 						closeFn();
 					}
 				};
@@ -164,6 +173,14 @@ export const SupportWindow = (() => {
 						return;
 					}
 
+					const active = document.activeElement;
+
+					// The floating widget is non-modal: only wrap focus while it is
+					// already inside the widget, never hijack Tab on the host page
+					if (!container.contains(active)) {
+						return;
+					}
+
 					const focusable = getFocusableElements(container);
 					if (focusable.length === 0) {
 						e.preventDefault();
@@ -172,7 +189,6 @@ export const SupportWindow = (() => {
 
 					const first = focusable[0];
 					const last = focusable.at(-1);
-					const active = document.activeElement;
 
 					// Shift+Tab from first element wraps to last
 					if (e.shiftKey && active === first) {
@@ -183,13 +199,6 @@ export const SupportWindow = (() => {
 
 					// Tab from last element wraps to first
 					if (!e.shiftKey && active === last) {
-						e.preventDefault();
-						first?.focus();
-						return;
-					}
-
-					// If focus is outside the container, bring it back
-					if (!container.contains(active)) {
 						e.preventDefault();
 						first?.focus();
 					}
@@ -229,6 +238,7 @@ export const SupportWindow = (() => {
 					props: {
 						role: "dialog",
 						"aria-modal": "true",
+						"aria-label": "Support",
 						id,
 						tabIndex: -1, // Allow container to receive focus
 						...props,

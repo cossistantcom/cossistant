@@ -138,7 +138,8 @@ function resolveMountTarget(
 	container?: BrowserSupportContainer
 ): BrowserMountParent {
 	if (!container) {
-		return doc.body;
+		// doc.body is null while the parser is still in <head>.
+		return doc.body ?? doc.documentElement;
 	}
 
 	if (typeof container === "string") {

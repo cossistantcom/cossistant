@@ -1,5 +1,6 @@
 import { useSupportSlotOverrides } from "../context/slot-overrides";
 import { useSupportConfig } from "../store";
+import { useSupportTextSafe } from "../text";
 import { cn } from "../utils";
 import { CoButton } from "./button";
 import Icon from "./icons";
@@ -20,6 +21,7 @@ export const Header: React.FC<HeaderProps> = ({
 	page,
 }) => {
 	const { close } = useSupportConfig();
+	const text = useSupportTextSafe();
 	const { slots, slotProps } = useSupportSlotOverrides();
 	const HeaderSlot = slots.header;
 	const headerSlotProps = slotProps.header;
@@ -50,6 +52,7 @@ export const Header: React.FC<HeaderProps> = ({
 				<div className="flex flex-1 items-center gap-3">
 					{onGoBack && (
 						<CoButton
+							aria-label={text("common.actions.goBack")}
 							onClick={onGoBack}
 							size="icon"
 							type="button"
@@ -61,7 +64,13 @@ export const Header: React.FC<HeaderProps> = ({
 					{children}
 				</div>
 				{actions && <div className="flex items-center gap-2">{actions}</div>}
-				<CoButton onClick={close} size="icon" type="button" variant="ghost">
+				<CoButton
+					aria-label={text("common.actions.close")}
+					onClick={close}
+					size="icon"
+					type="button"
+					variant="ghost"
+				>
 					<Icon name="close" />
 				</CoButton>
 			</div>

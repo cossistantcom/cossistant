@@ -60,8 +60,8 @@
   "scripts": {
     "build": "tsdown && rm -rf dist/node_modules dist/packages && find dist -name '*.map' -delete && bun run prepare-package",
     "prepare-package": "bun ../../scripts/prepare-package.ts",
-    "pub:release": "bun run build && npm publish --access public",
-    "pub:beta": "bun run build && npm publish --access public --tag beta --no-git-checks",
+    "pub:release": "bun run build && npm publish ./dist --access public",
+    "pub:beta": "bun run build && npm publish ./dist --access public --tag beta --no-git-checks",
     "lint": "biome check .",
     "check-types": "tsc --noEmit --project tsconfig.json",
     "test": "bun scripts/test-isolated.ts"

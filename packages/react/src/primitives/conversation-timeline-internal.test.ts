@@ -2,6 +2,7 @@ import { describe, expect, it, mock } from "bun:test";
 import type * as React from "react";
 import {
 	composeConversationTimelineScrollHandlers,
+	isConversationTimelinePrepend,
 	mergeConversationTimelineStyles,
 } from "./conversation-timeline-internal";
 
@@ -89,5 +90,49 @@ describe("composeConversationTimelineScrollHandlers", () => {
 		);
 
 		expect(handler).toBe(internal);
+	});
+});
+
+describe("isConversationTimelinePrepend", () => {
+	it("detects older items prepended during top pagination", () => {
+		expect(
+			isConversationTimelinePrepend({
+				previousItemCount: 20,
+				nextItemCount: 40,
+				previousLastItemKey: "item-20",
+				nextLastItemKey: "item-20",
+			})
+		).toBe(true);
+	});
+
+	it("ignores appended items (last item changed)", () => {
+		expect(
+			isConversationTimelinePrepend({
+				previousItemCount: 20,
+				nextItemCount: 21,
+				previousLastItemKey: "item-20",
+				nextLastItemKey: "item-21",
+			})
+		).toBe(false);
+	});
+
+	it("ignores the initial load and removals", () => {
+		expect(
+			isConversationTimelinePrepend({
+				previousItemCount: 0,
+				nextItemCount: 20,
+				previousLastItemKey: null,
+				nextLastItemKey: "item-20",
+			})
+		).toBe(false);
+
+		expect(
+			isConversationTimelinePrepend({
+				previousItemCount: 20,
+				nextItemCount: 19,
+				previousLastItemKey: "item-20",
+				nextLastItemKey: "item-20",
+			})
+		).toBe(false);
 	});
 });

@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRenderElement } from "../../utils/use-render-element";
 import { useTriggerRef } from "../context/positioning";
 import { useFeedbackConfig } from "../context/widget";
+import { FEEDBACK_WINDOW_ID } from "./window";
 
 export type FeedbackTriggerRenderProps = {
 	isOpen: boolean;
@@ -24,7 +25,7 @@ export type InternalFeedbackTriggerProps = Omit<
 export const FeedbackTriggerPrimitive = React.forwardRef<
 	HTMLButtonElement,
 	InternalFeedbackTriggerProps
->(({ children, className, asChild = false, ...props }, ref) => {
+>(({ children, className, asChild = false, onClick, ...props }, ref) => {
 	const { isOpen, toggle } = useFeedbackConfig();
 	const triggerRefContext = useTriggerRef();
 	const setTriggerElement = triggerRefContext?.setTriggerElement;
@@ -40,6 +41,19 @@ export const FeedbackTriggerPrimitive = React.forwardRef<
 			}
 		},
 		[ref, setTriggerElement]
+	);
+
+	// Compose consumer onClick with the internal toggle instead of letting
+	// the props spread replace it; a prevented event skips the toggle.
+	const handleClick = React.useCallback(
+		(event: React.MouseEvent<HTMLButtonElement>) => {
+			onClick?.(event);
+
+			if (!event.defaultPrevented) {
+				toggle();
+			}
+		},
+		[onClick, toggle]
 	);
 
 	const renderProps: FeedbackTriggerRenderProps = {
@@ -64,7 +78,8 @@ export const FeedbackTriggerPrimitive = React.forwardRef<
 				type: "button",
 				"aria-haspopup": "dialog",
 				"aria-expanded": isOpen,
-				onClick: toggle,
+				"aria-controls": FEEDBACK_WINDOW_ID,
+				onClick: handleClick,
 				...props,
 				"data-feedback-trigger": "true",
 				"data-slot": "feedback-trigger",

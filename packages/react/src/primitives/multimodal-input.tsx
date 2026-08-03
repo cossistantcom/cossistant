@@ -1,3 +1,5 @@
+"use client";
+
 import { extractFilesFromClipboard } from "@cossistant/core/upload-constants";
 import * as React from "react";
 import { useRenderElement } from "../utils/use-render-element";
@@ -49,7 +51,10 @@ export const MultimodalInput = (() => {
 			};
 
 			const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-				if (e.key === "Enter" && !e.shiftKey) {
+				// keyCode 229 covers browsers that fire Enter during IME
+				// composition without setting isComposing (e.g. old Safari)
+				const isComposing = e.nativeEvent.isComposing || e.keyCode === 229;
+				if (e.key === "Enter" && !e.shiftKey && !isComposing) {
 					e.preventDefault();
 					onSubmit?.();
 				}

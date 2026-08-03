@@ -5,7 +5,13 @@ import {
 	ConversationTimelineType,
 	TimelineItemVisibility,
 } from "@cossistant/types/enums";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useSyncExternalStore,
+} from "react";
 import { useSupport } from "../provider";
 import { useIdentificationState } from "../support/context/identification";
 import { useWebSocketSafe } from "../support/context/websocket";
@@ -114,6 +120,10 @@ function isNotFoundError(error: Error | null): boolean {
 	return error instanceof CossistantAPIError && error.code === "HTTP_404";
 }
 
+const emptySubscribe = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
 /**
  * Main orchestrator hook for the conversation page.
  *
@@ -164,6 +174,14 @@ export function useConversationPage(
 	const { client, visitor, availableAIAgents } = useSupport();
 	const websocket = useWebSocketSafe();
 	const identificationState = useIdentificationState();
+	const isRealtimeConnected = websocket?.isConnected ?? false;
+	// The identification item embeds a render-time timestamp that can never
+	// match between the server and client passes; wait for hydration.
+	const isHydrated = useSyncExternalStore(
+		emptySubscribe,
+		getClientSnapshot,
+		getServerSnapshot
+	);
 
 	const trimmedInitialMessage = initialMessage?.trim() ?? "";
 	const hasInitialMessage = trimmedInitialMessage.length > 0;
@@ -200,6 +218,37 @@ export function useConversationPage(
 	const timelineQuery = useConversationTimelineItems(conversationLifecycleId, {
 		enabled: shouldEnableConversationNetworkSync,
 	});
+	const refetchTimelineItems = timelineQuery.refetch;
+
+	// Backfill timeline items that arrived while the realtime connection was
+	// down: refetch on a disconnected -> connected transition (but not on the
+	// initial connect, which happens right after the mount fetch).
+	const wasRealtimeConnectedRef = useRef(isRealtimeConnected);
+	const hadRealtimeConnectionRef = useRef(isRealtimeConnected);
+	useEffect(() => {
+		const wasConnected = wasRealtimeConnectedRef.current;
+		wasRealtimeConnectedRef.current = isRealtimeConnected;
+
+		if (!isRealtimeConnected || wasConnected) {
+			return;
+		}
+
+		if (!hadRealtimeConnectionRef.current) {
+			hadRealtimeConnectionRef.current = true;
+			return;
+		}
+
+		if (!shouldEnableConversationNetworkSync) {
+			return;
+		}
+
+		// Errors are surfaced through the query state; swallow the rejection.
+		refetchTimelineItems().catch(() => {});
+	}, [
+		isRealtimeConnected,
+		shouldEnableConversationNetworkSync,
+		refetchTimelineItems,
+	]);
 
 	// 4. Determine which items to display
 	const baseItems = useMemo(() => {
@@ -231,6 +280,10 @@ export function useConversationPage(
 	]);
 
 	const shouldShowIdentificationTool = useMemo(() => {
+		if (!isHydrated) {
+			return false;
+		}
+
 		if (isPendingConversation) {
 			return false;
 		}
@@ -255,6 +308,7 @@ export function useConversationPage(
 		);
 	}, [
 		baseItems,
+		isHydrated,
 		isPendingConversation,
 		visitor?.contact,
 		identificationState?.isIdentifying,
@@ -283,7 +337,9 @@ export function useConversationPage(
 			userId: null,
 			visitorId: visitor?.id ?? null,
 			aiAgentId: null,
-			createdAt: typeof window !== "undefined" ? new Date().toISOString() : "",
+			// shouldShowIdentificationTool is gated on hydration, so this only
+			// runs client-side and always yields a valid timestamp.
+			createdAt: new Date().toISOString(),
 			deletedAt: null,
 		};
 
@@ -331,7 +387,7 @@ export function useConversationPage(
 		onConversationInitiated: handleConversationInitiated,
 		// Pass WebSocket connection for real-time typing events
 		realtimeSend: websocket?.send ?? null,
-		isRealtimeConnected: websocket?.isConnected ?? false,
+		isRealtimeConnected,
 	});
 
 	const initialMessageSubmittedRef = useRef(false);

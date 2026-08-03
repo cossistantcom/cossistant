@@ -214,8 +214,10 @@ export function useMessageComposer(
 			// Stop typing indicator
 			stopTyping();
 
-			// Send the message
-			sendMessage.mutate({
+			// Await the send so a failure propagates to useMultimodalInput's
+			// rollback, restoring the draft text/files instead of losing them.
+			// onError is fired once by useMultimodalInput's catch, not here.
+			await sendMessage.mutateAsync({
 				conversationId,
 				message: messageText,
 				files,
@@ -227,9 +229,6 @@ export function useMessageComposer(
 				},
 				onSuccess: (resultConversationId, messageId) => {
 					onMessageSent?.(resultConversationId, messageId);
-				},
-				onError: (err) => {
-					onError?.(err);
 				},
 			});
 		},

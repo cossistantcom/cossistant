@@ -11,7 +11,6 @@ import {
 	useEffect,
 	useMemo,
 	useRef,
-	useState,
 	useSyncExternalStore,
 } from "react";
 
@@ -36,6 +35,10 @@ type RealtimeContextValue = {
 	send: (event: AnyRealtimeEvent) => void;
 	sendRaw: (data: string) => void;
 	subscribe: (handler: SubscribeHandler) => () => void;
+	/**
+	 * Latest event received on the connection. Read-on-demand: updating it does
+	 * not re-render consumers. Use `subscribe` to react to incoming events.
+	 */
 	lastEvent: AnyRealtimeEvent | null;
 	connectionId: string | null;
 	reconnect: () => void;
@@ -84,19 +87,26 @@ export function RealtimeProvider({
 	onDisconnect,
 	onError,
 }: RealtimeProviderProps): React.ReactElement {
-	const [lastEvent, setLastEvent] = useState<AnyRealtimeEvent | null>(null);
+	const lastEventRef = useRef<AnyRealtimeEvent | null>(null);
+	const onConnectRef = useRef(onConnect);
+	const onDisconnectRef = useRef(onDisconnect);
+	const onErrorRef = useRef(onError);
 
 	const clientRef = useRef<RealtimeClient | null>(null);
+	const pendingDisposalRef = useRef<ReturnType<
+		typeof globalThis.setTimeout
+	> | null>(null);
 
 	if (!clientRef.current) {
 		clientRef.current = new RealtimeClient({
 			wsUrl,
 			onEvent: (event) => {
-				setLastEvent(event);
+				lastEventRef.current = event;
 			},
-			onConnect,
-			onDisconnect,
-			onError,
+			// Route through refs so the latest callback props are always invoked.
+			onConnect: () => onConnectRef.current?.(),
+			onDisconnect: () => onDisconnectRef.current?.(),
+			onError: (error) => onErrorRef.current?.(error),
 		});
 	}
 
@@ -104,8 +114,9 @@ export function RealtimeProvider({
 
 	// Update callbacks without recreating client
 	useEffect(() => {
-		// Callbacks are captured in the RealtimeClient constructor closures,
-		// but the onEvent writes to refs/state which are always current.
+		onConnectRef.current = onConnect;
+		onDisconnectRef.current = onDisconnect;
+		onErrorRef.current = onError;
 	}, [onConnect, onDisconnect, onError]);
 
 	// Connect/disconnect based on auth + autoConnect
@@ -117,14 +128,27 @@ export function RealtimeProvider({
 		}
 	}, [client, auth, autoConnect]);
 
-	// Cleanup on unmount
-	useEffect(
-		() => () => {
-			clientRef.current?.destroy();
-			clientRef.current = null;
-		},
-		[]
-	);
+	// Cleanup on unmount. Disposal is deferred one macrotask so StrictMode's
+	// synchronous cleanup/setup replay cancels it instead of permanently
+	// destroying the client.
+	useEffect(() => {
+		if (pendingDisposalRef.current !== null) {
+			globalThis.clearTimeout(pendingDisposalRef.current);
+			pendingDisposalRef.current = null;
+		}
+
+		return () => {
+			if (pendingDisposalRef.current !== null) {
+				globalThis.clearTimeout(pendingDisposalRef.current);
+			}
+
+			pendingDisposalRef.current = globalThis.setTimeout(() => {
+				pendingDisposalRef.current = null;
+				clientRef.current?.destroy();
+				clientRef.current = null;
+			}, 0);
+		};
+	}, []);
 
 	// Subscribe to state changes via useSyncExternalStore
 	const connectionState = useSyncExternalStore(
@@ -160,14 +184,18 @@ export function RealtimeProvider({
 			send,
 			sendRaw,
 			subscribe,
-			lastEvent,
+			// Delivered via a ref instead of state so a busy socket does not
+			// re-render every context consumer per event.
+			get lastEvent() {
+				return lastEventRef.current;
+			},
 			connectionId: connectionState.connectionId,
 			reconnect,
 			visitorId: identity.visitorId,
 			websiteId: identity.websiteId,
 			userId: identity.userId,
 		}),
-		[connectionState, send, sendRaw, subscribe, lastEvent, reconnect, identity]
+		[connectionState, send, sendRaw, subscribe, reconnect, identity]
 	);
 
 	return (

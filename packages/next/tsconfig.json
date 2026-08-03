@@ -27,6 +27,8 @@
     "**/node_modules",
     "docs/export",
     "dist",
-    "*.config.*"
+    "*.config.*",
+    "**/*.test.ts",
+    "**/*.test.tsx"
   ]
 }

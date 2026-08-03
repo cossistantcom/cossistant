@@ -3,6 +3,10 @@ import type { SupportLocaleMessages } from "./keys";
 const en: SupportLocaleMessages = {
 	"common.actions.askQuestion": "Ask us a question",
 	"common.actions.attachFiles": "Attach files",
+	"common.actions.close": "Close",
+	"common.actions.closeSupport": "Close support",
+	"common.actions.goBack": "Go back",
+	"common.actions.openSupport": "Open support",
 	"common.actions.removeFile": ({ variables }) =>
 		`Remove ${variables.fileName}`,
 	"common.brand.watermark": "We run on",
@@ -122,6 +126,20 @@ const en: SupportLocaleMessages = {
 	"component.navigation.home": "Home",
 	"component.message.timestamp.aiIndicator": "• AI agent",
 	"component.message.feedback.label": "Feedback",
+	"component.message.downloadFile": "Download file",
+	"component.imageLightbox.label": "Image viewer",
+	"component.imageLightbox.close": "Close lightbox",
+	"component.imageLightbox.previous": "Previous image",
+	"component.imageLightbox.next": "Next image",
+	"component.searchKnowledgeTool.searching": "Searching knowledge base...",
+	"component.searchKnowledgeTool.searchingQuery": ({ variables }) =>
+		`Searching for "${variables.query}"...`,
+	"component.searchKnowledgeTool.error": "Knowledge base lookup failed",
+	"component.searchKnowledgeTool.errorQuery": ({ variables }) =>
+		`Search for "${variables.query}" failed`,
+	"component.searchKnowledgeTool.result": "Finished knowledge base search",
+	"component.searchKnowledgeTool.resultQuery": ({ variables }) =>
+		`Searched for "${variables.query}"`,
 };
 
 export default en;

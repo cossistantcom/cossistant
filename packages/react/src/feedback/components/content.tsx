@@ -7,7 +7,7 @@ import {
 	type Placement,
 	shift,
 	useFloating,
-} from "@floating-ui/react";
+} from "@floating-ui/react-dom";
 import * as React from "react";
 import type { Align, CollisionPadding, Side } from "../../support/types";
 import { cn } from "../../support/utils";

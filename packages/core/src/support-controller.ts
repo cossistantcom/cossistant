@@ -410,6 +410,7 @@ export function createSupportController(
 	let prefetchedSupportStateVisitorId: string | null = null;
 	let lastRealtimeStatus = client?.realtime.getState().status ?? "disconnected";
 	let lastRealtimeError = client?.realtime.getState().error ?? null;
+	let hadRealtimeConnection = lastRealtimeStatus === "connected";
 	const cleanupFns = new Set<() => void>();
 
 	const syncSnapshot = () => {
@@ -576,6 +577,27 @@ export function createSupportController(
 		maybePrefetchSupportState();
 	};
 
+	const resyncAfterReconnect = (currentClient: CossistantClient) => {
+		void currentClient.listConversations().catch(() => {
+			// Best-effort resync; the next reconnect will retry.
+		});
+
+		const timelineConversations =
+			currentClient.timelineItemsStore.getState().conversations;
+
+		for (const conversationId of Object.keys(timelineConversations)) {
+			if (conversationId === PENDING_SUPPORT_CONVERSATION_ID) {
+				continue;
+			}
+
+			void currentClient
+				.getConversationTimelineItems({ conversationId, limit: 50 })
+				.catch(() => {
+					// Best-effort resync; the next reconnect will retry.
+				});
+		}
+	};
+
 	const handleRealtimeStateChange = () => {
 		const currentClient = stateStore.getState().client;
 		if (!currentClient) {
@@ -588,6 +610,12 @@ export function createSupportController(
 			lastRealtimeStatus !== "connected" &&
 			realtimeState.status === "connected"
 		) {
+			// Events emitted while the socket was down are never replayed by the
+			// server, so refetch the affected stores after a reconnect.
+			if (hadRealtimeConnection) {
+				resyncAfterReconnect(currentClient);
+			}
+			hadRealtimeConnection = true;
 			runtimeOptions.onWsConnect?.();
 		}
 

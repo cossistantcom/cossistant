@@ -68,4 +68,14 @@ describe("reconcileDefaultMessageSeeds", () => {
 
 		expect(ULID_REGEX.test(firstSeedId)).toBe(true);
 	});
+
+	it("always generates a valid ISO createdAt, even without a window global", () => {
+		// Regression: server-side seeds used to get createdAt "", which
+		// rendered "Invalid Date" in SSR HTML.
+		const seeds = reconcileDefaultMessageSeeds([createDefaultMessage()], []);
+		const createdAt = seeds[0]?.createdAt ?? "";
+
+		expect(createdAt).not.toBe("");
+		expect(Number.isNaN(new Date(createdAt).getTime())).toBe(false);
+	});
 });

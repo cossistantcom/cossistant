@@ -22,6 +22,31 @@ export function mergeConversationTimelineStyles(
 	};
 }
 
+/**
+ * Detects a top-of-list prepend (older items loaded via pagination): the list
+ * grew while the last item stayed the same.
+ */
+export function isConversationTimelinePrepend(params: {
+	previousItemCount: number;
+	nextItemCount: number;
+	previousLastItemKey: string | number | null;
+	nextLastItemKey: string | number | null;
+}): boolean {
+	const {
+		previousItemCount,
+		nextItemCount,
+		previousLastItemKey,
+		nextLastItemKey,
+	} = params;
+
+	return (
+		previousItemCount > 0 &&
+		nextItemCount > previousItemCount &&
+		nextLastItemKey !== null &&
+		nextLastItemKey === previousLastItemKey
+	);
+}
+
 export function composeConversationTimelineScrollHandlers(
 	internalOnScroll: React.UIEventHandler<HTMLDivElement>,
 	externalOnScroll?: React.UIEventHandler<HTMLDivElement>

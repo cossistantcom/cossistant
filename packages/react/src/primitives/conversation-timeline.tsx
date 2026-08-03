@@ -1,9 +1,12 @@
+"use client";
+
 import type { TimelineItem as TimelineItemType } from "@cossistant/types/api/timeline-item";
 import * as React from "react";
 import { useScrollMask } from "../hooks/use-scroll-mask";
 import { useRenderElement } from "../utils/use-render-element";
 import {
 	composeConversationTimelineScrollHandlers,
+	isConversationTimelinePrepend,
 	mergeConversationTimelineStyles,
 } from "./conversation-timeline-internal";
 
@@ -123,6 +126,32 @@ export const ConversationTimeline = (() => {
 				typeof children === "function" ? children(renderProps) : children;
 
 			const lastItemKey = getLastItemKey(items);
+
+			// Preserve the scroll position when older items are prepended via top
+			// pagination. Runs on every commit (before the auto-scroll effect
+			// updates the previous-* refs) so the stored scrollHeight is always
+			// the one from the last paint.
+			const previousScrollHeightRef = React.useRef(0);
+			React.useLayoutEffect(() => {
+				const element = internalRef.current;
+				if (!element) {
+					return;
+				}
+
+				const prepended = isConversationTimelinePrepend({
+					previousItemCount: previousItemCount.current,
+					nextItemCount: items.length,
+					previousLastItemKey: previousLastItemKey.current,
+					nextLastItemKey: lastItemKey,
+				});
+
+				if (prepended && !isPinnedToBottom.current) {
+					element.scrollTop +=
+						element.scrollHeight - previousScrollHeightRef.current;
+				}
+
+				previousScrollHeightRef.current = element.scrollHeight;
+			});
 
 			// Auto-scroll to bottom when new timeline items are added
 			React.useEffect(() => {

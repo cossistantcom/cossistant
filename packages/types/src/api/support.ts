@@ -1,5 +1,19 @@
 import { z } from "@hono/zod-openapi";
 
+// Zod-free runtime helpers and their types live in ../support-onboarding so
+// runtime consumers (@cossistant/core, the browser embed) never pull zod.
+// Re-exported here for backwards compatibility.
+export {
+	applySupportOnboardingUpdate,
+	EMPTY_SUPPORT_ONBOARDING_STATE,
+	normalizeSupportFeatureFlags,
+	normalizeSupportOnboardingState,
+	type SupportOnboardingState,
+	type SupportOnboardingStepMetadata,
+	type SupportOnboardingStepState,
+	type SupportOnboardingUpdateRequest,
+} from "../support-onboarding";
+
 const supportMetadataSchema = z.record(z.string(), z.unknown());
 
 export const supportFeatureFlagNameSchema = z
@@ -109,16 +123,7 @@ export const supportFeatureFlagMutationResponseSchema = z.object({
 	}),
 });
 
-export type SupportOnboardingStepState = z.infer<
-	typeof supportOnboardingStepStateSchema
->;
-export type SupportOnboardingState = z.infer<
-	typeof supportOnboardingStateSchema
->;
 export type SupportStateResponse = z.infer<typeof supportStateResponseSchema>;
-export type SupportOnboardingUpdateRequest = z.infer<
-	typeof supportOnboardingUpdateRequestSchema
->;
 export type SupportFeatureFlagTarget = z.infer<
 	typeof supportFeatureFlagTargetSchema
 >;
@@ -128,76 +133,3 @@ export type SupportFeatureFlagMutationRequest = z.infer<
 export type SupportFeatureFlagMutationResponse = z.infer<
 	typeof supportFeatureFlagMutationResponseSchema
 >;
-
-export const EMPTY_SUPPORT_ONBOARDING_STATE: SupportOnboardingState = {
-	steps: {},
-};
-
-export function normalizeSupportFeatureFlags(
-	flags: readonly string[]
-): string[] {
-	return Array.from(
-		new Set(
-			flags
-				.map((flag) => flag.trim())
-				.filter((flag) => flag.length > 0 && !flag.includes(","))
-		)
-	).sort();
-}
-
-export function normalizeSupportOnboardingState(
-	onboarding: SupportOnboardingState | null | undefined
-): SupportOnboardingState {
-	if (!onboarding?.steps || typeof onboarding.steps !== "object") {
-		return { steps: {} };
-	}
-
-	const steps: Record<string, SupportOnboardingStepState> = {};
-
-	for (const [stepId, step] of Object.entries(onboarding.steps)) {
-		if (!step || typeof step !== "object") {
-			continue;
-		}
-
-		steps[stepId] = {
-			completed: Boolean(step.completed),
-			metadata:
-				step.metadata &&
-				typeof step.metadata === "object" &&
-				!Array.isArray(step.metadata)
-					? step.metadata
-					: null,
-		};
-	}
-
-	return { steps };
-}
-
-export function applySupportOnboardingUpdate(
-	current: SupportOnboardingState,
-	update: SupportOnboardingUpdateRequest
-): SupportOnboardingState {
-	if (update.reset === true) {
-		return EMPTY_SUPPORT_ONBOARDING_STATE;
-	}
-
-	if (!update.stepId) {
-		return current;
-	}
-
-	const existing = current.steps[update.stepId] ?? {
-		completed: false,
-		metadata: null,
-	};
-
-	return {
-		steps: {
-			...current.steps,
-			[update.stepId]: {
-				completed: update.completed ?? existing.completed,
-				metadata:
-					"metadata" in update ? (update.metadata ?? null) : existing.metadata,
-			},
-		},
-	};
-}

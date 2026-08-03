@@ -247,7 +247,12 @@
 		}
 	}
 
-	.dark :where(.cossistant, [data-cossistant-root]),
+	/* Skip widgets under a forced-light wrapper (theme="light") even when the
+	   host page has a .dark ancestor */
+	.dark
+	:where(.cossistant, [data-cossistant-root]):where(
+		:not([data-color-scheme="light"], [data-color-scheme="light"] *)
+	),
 	:where(.cossistant, [data-cossistant-root])[data-color-scheme="dark"] {
 		/* Dark mode defaults */
 		--co-background-base: var(

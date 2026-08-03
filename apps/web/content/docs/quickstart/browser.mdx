@@ -1,0 +1,163 @@
+---
+title: Script Tag
+description: Embed the Cossistant support widget on any website with a single script tag.
+---
+
+Use the CDN embed when your site is not built with React — plain HTML,
+WordPress, Webflow, Rails, PHP, or any other stack. The loader downloads the
+widget bundle, mounts it into a shadow root, and keeps your page styles
+untouched.
+
+## 1. Add the script tag
+
+Paste one tag anywhere in `<head>` or `<body>` with your public key:
+
+```html
+<script
+  async
+  src="https://cdn.cossistant.com/widget/latest/loader.js"
+  data-public-key="pk_live_..."
+></script>
+```
+
+That is the whole install. The loader reads `data-public-key` from its own
+script tag and initializes the widget automatically once the bundle loads. The
+widget waits for the DOM to be ready before mounting, so placement does not
+matter.
+
+Get your public key from the dashboard under **Settings → Developers** — see
+[API Keys](/docs/quickstart/api-keys). Only use public keys (`pk_live_*`,
+`pk_test_*`) in browser code.
+
+## 2. Pin a version (optional)
+
+`latest/` always serves the newest release. To pin an exact version, put it in
+the URL — the loader derives `widget.js` and `widget.css` from its own URL, so
+both forms work the same way:
+
+```html
+<script
+  async
+  src="https://cdn.cossistant.com/widget/0.2.0/loader.js"
+  data-public-key="pk_live_..."
+></script>
+```
+
+Self-hosted deployments can also point the widget at their own API:
+
+```html
+<script
+  async
+  src="https://cdn.your-domain.com/widget/latest/loader.js"
+  data-public-key="pk_live_..."
+  data-api-url="https://api.your-domain.com"
+  data-ws-url="wss://api.your-domain.com/ws"
+></script>
+```
+
+## The `window.Cossistant` API
+
+Once the widget runtime has loaded, `window.Cossistant` exposes:
+
+| Method                  | Description                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------ |
+| `init(options?)`        | Mount the widget. Not needed when `data-public-key` is set on the script tag.  |
+| `show()`                | Open the widget window.                                                        |
+| `hide()`                | Close the widget window.                                                       |
+| `toggle()`              | Toggle the widget window.                                                      |
+| `identify(params)`      | Link the visitor to a contact (`externalId`, `email`, `name`, `image`, `metadata`). |
+| `updateConfig(options)` | Update config at runtime (`open`, `defaultMessages`, `quickOptions`, `size`, `theme`, `widget`). |
+| `on(type, handler)`     | Subscribe to an event. Returns an unsubscribe function.                        |
+| `off(type, handler)`    | Remove an event handler.                                                       |
+| `destroy()`             | Unmount the widget and remove it from the page.                                |
+
+Events for `on`/`off`: `conversationStart`, `conversationEnd`, `messageSent`,
+`messageReceived`, and `error`.
+
+`init()` accepts: `publicKey`, `apiUrl`, `wsUrl`, `autoConnect`, `container`,
+`defaultMessages`, `defaultOpen`, `quickOptions`, `size` (`"normal"` or
+`"larger"`), `theme`, `host`, and `widget`.
+
+```js
+window.Cossistant.identify({
+  externalId: "user_123",
+  email: "jane@acme.com",
+  name: "Jane Doe",
+});
+
+window.Cossistant.on("messageReceived", function (event) {
+  console.log("New message in", event.conversationId);
+});
+```
+
+The loader tag is `async`, so inline scripts usually run before
+`window.Cossistant` exists — install the queue stub below before calling any
+of these methods from inline code.
+
+## Calling the API before the widget loads
+
+`window.Cossistant` only exists once `loader.js` executes, and the script tag
+is `async`. Inline scripts that call widget methods earlier must install a
+small command queue first; every queued call is replayed in order (after any
+`data-public-key` auto-init) once the widget runtime loads:
+
+```html
+<script>
+  (function (w) {
+    var c = (w.Cossistant = w.Cossistant || { __queue: [] });
+    var methods =
+      "init show hide toggle identify updateConfig destroy on off".split(" ");
+    for (var i = 0; i < methods.length; i++) {
+      (function (m) {
+        c[m] =
+          c[m] ||
+          function () {
+            c.__queue.push({ method: m, args: [].slice.call(arguments) });
+          };
+      })(methods[i]);
+    }
+  })(window);
+</script>
+<script async src="https://cdn.cossistant.com/widget/latest/loader.js"></script>
+<script>
+  window.Cossistant.init({
+    publicKey: "pk_live_...",
+    quickOptions: ["How do I get started?"],
+  });
+  window.Cossistant.show();
+</script>
+```
+
+With `data-public-key` on the loader tag you never need to call `init()`
+yourself — the queue stub is only required when calling widget methods before
+the bundle has loaded.
+
+## Theming
+
+The widget renders inside a shadow root, so your page CSS cannot leak in.
+Set `--co-theme-*` variables through `init()` or `updateConfig()` instead:
+
+```js
+window.Cossistant.updateConfig({
+  theme: {
+    mode: "auto", // "auto" | "light" | "dark"
+    variables: {
+      "--co-theme-primary": "#111827",
+      "--co-theme-background": "#ffffff",
+      "--co-theme-radius": "8px",
+    },
+  },
+});
+```
+
+With `mode: "auto"` (the default) the widget follows your page's color scheme:
+it checks the `dark` class, `data-color-scheme`, and `data-theme` attributes on
+`<html>`, the computed `color-scheme`, and the OS `prefers-color-scheme`, and
+reacts to changes live. The full variable list is in
+[Match Your Brand](/docs/support-component/theme).
+
+## Next steps
+
+1. [API Keys](/docs/quickstart/api-keys) to allowlist your production domains.
+2. [Match Your Brand](/docs/support-component/theme) for the full theming reference.
+3. Using React? Prefer the [React quickstart](/docs/quickstart/react) or [Next.js quickstart](/docs/quickstart) for the native SDK.

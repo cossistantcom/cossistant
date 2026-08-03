@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import { useStoreSelector } from "../hooks/private/store/use-store-selector";
 import { isWidgetVisibleTypingEntry } from "../hooks/private/typing";
@@ -165,6 +167,18 @@ export const SupportTrigger = React.forwardRef<HTMLButtonElement, TriggerProps>(
 		const content =
 			typeof children === "function" ? children(renderProps) : children;
 
+		// Compose the consumer handler with the internal toggle instead of
+		// letting one silently replace the other
+		const handleClick = React.useCallback(
+			(event: React.MouseEvent<HTMLButtonElement>) => {
+				onClick?.(event);
+				if (!event.defaultPrevented) {
+					toggle();
+				}
+			},
+			[onClick, toggle]
+		);
+
 		return useRenderElement(
 			"button",
 			{
@@ -178,7 +192,10 @@ export const SupportTrigger = React.forwardRef<HTMLButtonElement, TriggerProps>(
 					type: "button",
 					"aria-haspopup": "dialog",
 					"aria-expanded": isOpen,
-					onClick: onClick ?? toggle,
+					// Matches SupportWindow's default id; override via props when
+					// a custom window id is used
+					"aria-controls": "cossistant-window",
+					onClick: handleClick,
 					...props,
 					children: content,
 				},

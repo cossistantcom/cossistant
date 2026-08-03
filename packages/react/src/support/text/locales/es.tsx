@@ -3,6 +3,10 @@ import type { SupportLocaleMessages } from "./keys";
 const es: SupportLocaleMessages = {
 	"common.actions.askQuestion": "Haznos una pregunta",
 	"common.actions.attachFiles": "Adjuntar archivos",
+	"common.actions.close": "Cerrar",
+	"common.actions.closeSupport": "Cerrar el soporte",
+	"common.actions.goBack": "Volver",
+	"common.actions.openSupport": "Abrir el soporte",
 	"common.actions.removeFile": ({ variables }) =>
 		`Eliminar ${variables.fileName}`,
 	"common.brand.watermark": "Impulsado por",
@@ -120,6 +124,23 @@ const es: SupportLocaleMessages = {
 	"component.navigation.home": "Inicio",
 	"component.message.timestamp.aiIndicator": "• Agente IA",
 	"component.message.feedback.label": "Comentario",
+	"component.message.downloadFile": "Descargar archivo",
+	"component.imageLightbox.label": "Visor de imágenes",
+	"component.imageLightbox.close": "Cerrar el visor",
+	"component.imageLightbox.previous": "Imagen anterior",
+	"component.imageLightbox.next": "Imagen siguiente",
+	"component.searchKnowledgeTool.searching":
+		"Buscando en la base de conocimientos...",
+	"component.searchKnowledgeTool.searchingQuery": ({ variables }) =>
+		`Buscando "${variables.query}"...`,
+	"component.searchKnowledgeTool.error":
+		"Falló la búsqueda en la base de conocimientos",
+	"component.searchKnowledgeTool.errorQuery": ({ variables }) =>
+		`Falló la búsqueda de "${variables.query}"`,
+	"component.searchKnowledgeTool.result":
+		"Búsqueda en la base de conocimientos finalizada",
+	"component.searchKnowledgeTool.resultQuery": ({ variables }) =>
+		`Se buscó "${variables.query}"`,
 };
 
 export default es;

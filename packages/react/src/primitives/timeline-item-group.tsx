@@ -1,3 +1,5 @@
+"use client";
+
 import type { SenderType } from "@cossistant/types";
 import type { TimelineItem as TimelineItemType } from "@cossistant/types/api/timeline-item";
 import * as React from "react";

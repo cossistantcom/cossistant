@@ -472,7 +472,11 @@ app.
 import { CossistantClient } from "@cossistant/core";
 import { useFileUpload } from "@cossistant/react/hooks/use-file-upload";
 
-const client = new CossistantClient({ publicKey: "pk_test_xxxx" });
+const client = new CossistantClient({
+  publicKey: "pk_test_xxxx",
+  apiUrl: "https://api.cossistant.com/v1",
+  wsUrl: "wss://api.cossistant.com/ws",
+});
 
 export function FileUploader() {
   const upload = useFileUpload({ client });

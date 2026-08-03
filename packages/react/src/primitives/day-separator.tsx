@@ -1,5 +1,33 @@
+"use client";
+
 import * as React from "react";
 import { useRenderElement } from "../utils/use-render-element";
+
+const emptySubscribe = () => () => {
+	// No-op: only used to detect hydration via useSyncExternalStore
+};
+
+/**
+ * False on the server and during the hydration render, true afterwards.
+ */
+function useIsHydrated(): boolean {
+	return React.useSyncExternalStore(
+		emptySubscribe,
+		() => true,
+		() => false
+	);
+}
+
+/**
+ * Deterministic absolute date label used for SSR and the hydration render so
+ * server markup never depends on the server clock, timezone offset or locale.
+ */
+const formatAbsoluteDate = (date: Date): string =>
+	date.toLocaleDateString("en-US", {
+		year: "numeric",
+		month: "long",
+		day: "numeric",
+	});
 
 /**
  * Helper to check if a date is today
@@ -87,9 +115,19 @@ export const DaySeparator = (() => {
 			},
 			ref
 		) => {
-			const formattedDate = formatDate(date);
-			const isTodayValue = isToday(date);
-			const isYesterdayValue = isYesterday(date);
+			const isHydrated = useIsHydrated();
+
+			// Before hydration the default formatter would compare against the
+			// server clock and use the server locale, mismatching the client's
+			// first render. Render a deterministic absolute date instead.
+			// Consumer-provided formatters are applied as-is.
+			const useDeterministicLabel =
+				!isHydrated && formatDate === defaultFormatDate;
+			const formattedDate = useDeterministicLabel
+				? formatAbsoluteDate(date)
+				: formatDate(date);
+			const isTodayValue = isHydrated && isToday(date);
+			const isYesterdayValue = isHydrated && isYesterday(date);
 
 			const renderProps: DaySeparatorRenderProps = {
 				date,

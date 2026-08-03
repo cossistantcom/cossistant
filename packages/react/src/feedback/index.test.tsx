@@ -84,6 +84,36 @@ describe("Feedback widget", () => {
 		expect(html).toContain("Select a topic...");
 	});
 
+	it("exposes named non-modal dialog and radiogroup semantics", () => {
+		const html = renderWithSupportContext(
+			<Feedback defaultOpen topics={["Bug"]} />
+		);
+
+		expect(html).toContain('role="dialog"');
+		expect(html).toContain('aria-label="Feedback"');
+		expect(html).not.toContain("aria-modal");
+		expect(html).toContain('aria-controls="cossistant-feedback-window"');
+		expect(html).toContain('role="radiogroup"');
+		expect(html).toContain('role="radio"');
+		expect(html).toContain('aria-checked="false"');
+	});
+
+	it("routes default panel copy through the strings prop", () => {
+		const html = renderWithSupportContext(
+			<Feedback
+				defaultOpen
+				strings={{
+					submitRatingRequiredLabel: "Note requise",
+					title: "Partagez vos retours",
+				}}
+			/>
+		);
+
+		expect(html).toContain("Partagez vos retours");
+		expect(html).toContain("Note requise");
+		expect(html).not.toContain("Share feedback");
+	});
+
 	it("keeps custom content hidden when the root is closed", () => {
 		const html = renderWithSupportContext(
 			<Feedback.Root open={false}>
@@ -140,7 +170,8 @@ describe("Feedback widget", () => {
 		expect(source).toContain("feedback.handleTopicChange");
 		expect(source).toContain("feedback.handleRatingSelect");
 		expect(source).toContain("conversationId");
-		expect(source).not.toContain('role="alert"');
+		expect(source).toContain("feedback.submitError");
+		expect(source).toContain('role="alert"');
 		expect(source).not.toContain("useSubmitFeedback");
 		expect(source).not.toContain("client.submitFeedback({");
 		expect(source).not.toContain("useFeedbackComposer");

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import type { SubmitFeedbackResponse } from "@cossistant/types/api/feedback";
-import type * as React from "react";
+import * as React from "react";
 import { Window } from "../../../../apps/web/node_modules/happy-dom";
 import { SupportControllerContext } from "../controller-context";
 import { type CossistantContextValue, SupportContext } from "../provider";
@@ -290,6 +290,23 @@ function FeedbackFormProbe({ options }: { options?: UseFeedbackFormOptions }) {
 				data-topics={feedback.availableTopics.join("|")}
 			/>
 		</form>
+	);
+}
+
+function AsyncTopicsProbe() {
+	const [topics, setTopics] = React.useState<string[]>([]);
+
+	return (
+		<>
+			<button
+				data-slot="load-topics"
+				onClick={() => setTopics(["Bug", "Other"])}
+				type="button"
+			>
+				Load topics
+			</button>
+			<FeedbackFormProbe options={{ defaultTopic: "Bug", topics }} />
+		</>
 	);
 }
 
@@ -624,6 +641,88 @@ describe("useFeedbackForm", () => {
 		expect(getState().submitLabel).toBe("Sending...");
 		expect(getState().submitDisabled).toBe("true");
 		expect(getState().submitCanAttemptSubmit).toBe("false");
+
+		await act(async () => {
+			resolveSubmit(createFeedbackResponse());
+			await Promise.resolve();
+		});
+
+		expect(getState().submitted).toBe("true");
+	});
+
+	it("keeps in-progress input when topics resolve asynchronously", async () => {
+		await renderWithSupportContext(
+			<AsyncTopicsProbe />,
+			createSupportContextValue()
+		);
+
+		const { act } = await import("react");
+		await act(async () => {
+			click("comment");
+			click("rating");
+		});
+
+		expect(getState().topics).toBe("");
+		expect(getState().rating).toBe("5");
+
+		await act(async () => {
+			click("load-topics");
+		});
+
+		expect(getState().topics).toBe("Bug|Other");
+		expect(getState().topic).toBe("Bug");
+		expect(getState().comment).toBe("  The nav jumps.  ");
+		expect(getState().rating).toBe("5");
+		expect(getState().ratingDirty).toBe("true");
+	});
+
+	it("keeps a user-selected topic when the default topic changes", async () => {
+		await renderWithSupportContext(
+			<AsyncTopicsProbe />,
+			createSupportContextValue()
+		);
+
+		const { act } = await import("react");
+		await act(async () => {
+			click("load-topics");
+		});
+		await act(async () => {
+			click("topic-other");
+		});
+
+		expect(getState().topic).toBe("Other");
+	});
+
+	it("ignores duplicate submits while one is in flight", async () => {
+		let submitCount = 0;
+		let resolveSubmit: (response: SubmitFeedbackResponse) => void = () => {};
+		const context = createSupportContextValue({
+			client: {
+				submitFeedback: () => {
+					submitCount += 1;
+					return new Promise<SubmitFeedbackResponse>((resolve) => {
+						resolveSubmit = resolve;
+					});
+				},
+			} as CossistantContextValue["client"],
+		});
+
+		await renderWithSupportContext(
+			<FeedbackFormProbe options={{ topics: ["Bug"] }} />,
+			context
+		);
+
+		const { act } = await import("react");
+		await act(async () => {
+			click("topic-bug");
+			click("rating");
+		});
+		await act(async () => {
+			click("submit-direct");
+			click("submit-direct");
+		});
+
+		expect(submitCount).toBe(1);
 
 		await act(async () => {
 			resolveSubmit(createFeedbackResponse());

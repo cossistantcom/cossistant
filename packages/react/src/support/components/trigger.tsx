@@ -6,6 +6,7 @@ import { useTransitionSwap } from "../../hooks/use-transition-swap";
 import { useTypingSound } from "../../hooks/use-typing-sound";
 import * as Primitive from "../../primitives";
 import { useSupportSlotOverrides } from "../context/slot-overrides";
+import { useSupportText } from "../text";
 import type { TriggerRenderProps } from "../types";
 import { cn } from "../utils";
 import { CossistantLogo } from "./cossistant-branding";
@@ -97,6 +98,7 @@ export const DefaultTrigger: React.FC<DefaultTriggerProps> = ({
 	className,
 }) => {
 	const { slots, slotProps } = useSupportSlotOverrides();
+	const text = useSupportText();
 	const TriggerSlot = slots.trigger;
 	const triggerSlotProps = slotProps.trigger;
 
@@ -127,6 +129,11 @@ export const DefaultTrigger: React.FC<DefaultTriggerProps> = ({
 
 				return (
 					<button
+						aria-label={
+							isOpen
+								? text("common.actions.closeSupport")
+								: text("common.actions.openSupport")
+						}
 						className={cn(
 							"fixed right-4 bottom-4 z-[9999] flex size-14 cursor-pointer items-center justify-center rounded-full bg-co-primary text-co-primary-foreground transition-colors hover:bg-co-primary/90 active:scale-95 active:transition-transform data-[state=open]:bg-co-primary/90",
 							sharedClassName

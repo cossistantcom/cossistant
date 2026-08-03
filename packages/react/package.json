@@ -61,7 +61,7 @@
     "./hooks/use-submit-feedback": "./src/hooks/use-submit-feedback.ts",
     "./internal/hooks": "./src/internal/hooks.ts",
     "./support.css": "./src/support.css",
-    "./styles.css": "./dist/styles.css",
+    "./styles.css": "./src/styles.css",
     "./realtime": "./src/realtime/index.ts",
     "./utils": "./src/utils/index.ts",
     "./utils/conversation": "./src/utils/conversation.ts",
@@ -86,12 +86,11 @@
     "@cossistant/tiny-markdown": "workspace:*",
     "@cossistant/types": "workspace:*",
     "facehash": "workspace:*",
-    "@floating-ui/react": "^0.27.16",
+    "@floating-ui/react-dom": "^2.1.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "nanoid": "^5.1.5",
-    "tailwind-merge": "^3.3.1",
-    "ulid": "^3.0.1"
+    "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
     "@cossistant/typescript-config": "workspace:*",
@@ -132,14 +131,15 @@
     "directory": "dist"
   },
   "scripts": {
-    "build": "tsdown && bun run rewrite:types && rm -rf dist/node_modules dist/packages && find dist -name '*.map' -delete && bun run build:css && bun run prepare-package",
+    "build": "tsdown && bun run rewrite:types && rm -rf dist/node_modules dist/packages && bun run build:css && bun run prepare-package",
     "build:css": "bunx @tailwindcss/cli -i src/styles.css -o dist/styles.css --content 'src/**/*.{js,ts,jsx,tsx}' --minify && mkdir -p dist/support && cp src/support.css dist/support.css && cp src/support/support.css dist/support/support.css && cp src/support/animations.css dist/support/animations.css",
     "check:pack": "bun scripts/check-package-output.ts",
     "prepare-package": "bun ../../scripts/prepare-package.ts",
     "rewrite:types": "bun scripts/rewrite-dist-types.ts",
-    "pub:release": "bun run build && npm publish --access public",
-    "pub:beta": "bun run build && npm publish --access public --tag beta --no-git-checks",
-    "pub:next": "bun run build && npm publish --access public --tag next --no-git-checks",
+    "pub:release": "bun run build && bun run check:pack && npm publish ./dist --access public",
+    "pub:beta": "bun run build && bun run check:pack && npm publish ./dist --access public --tag beta --no-git-checks",
+    "pub:next": "bun run build && bun run check:pack && npm publish ./dist --access public --tag next --no-git-checks",
+    "test": "bun test src",
     "lint": "biome check .",
     "check-types": "tsc --noEmit --project tsconfig.json"
   }

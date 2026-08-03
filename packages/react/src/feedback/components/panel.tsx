@@ -15,6 +15,43 @@ import { useFeedbackConfig } from "../context/widget";
 const DEFAULT_TOPIC_PLACEHOLDER = "Select a topic...";
 const DEFAULT_COMMENT_PLACEHOLDER = "Tell us what happened...";
 
+export type FeedbackPanelStrings = {
+	title: string;
+	description: string;
+	closeLabel: string;
+	successTitle: string;
+	successDescription: string;
+	sendAnotherLabel: string;
+	doneLabel: string;
+	topicLabel: string;
+	commentLabel: string;
+	commentRequiredHint: string;
+	ratingLabel: string;
+	ratingItemLabel: (rating: number) => string;
+	submitLabel: string;
+	submitPendingLabel: string;
+	submitRatingRequiredLabel: string;
+};
+
+export const DEFAULT_FEEDBACK_PANEL_STRINGS: FeedbackPanelStrings = {
+	title: "Share feedback",
+	description: "Leave a quick note any time. We read every submission.",
+	closeLabel: "Close feedback",
+	successTitle: "Thanks for the feedback",
+	successDescription:
+		"Your response was attached to the current visitor context and is now available in Cossistant.",
+	sendAnotherLabel: "Send another",
+	doneLabel: "Done",
+	topicLabel: "Feedback topic",
+	commentLabel: "Your feedback",
+	commentRequiredHint: "A short message is required for this form.",
+	ratingLabel: "Rate this experience",
+	ratingItemLabel: (rating) => `Rate ${rating} out of 5`,
+	submitLabel: "Send",
+	submitPendingLabel: "Sending...",
+	submitRatingRequiredLabel: "Rating needed",
+};
+
 export type FeedbackPanelProps = {
 	className?: string;
 	conversationId?: string;
@@ -24,6 +61,7 @@ export type FeedbackPanelProps = {
 	topicPlaceholder?: string;
 	commentPlaceholder?: string;
 	commentRequired?: boolean;
+	strings?: Partial<FeedbackPanelStrings>;
 };
 
 export function FeedbackPanel({
@@ -35,7 +73,12 @@ export function FeedbackPanel({
 	topicPlaceholder = DEFAULT_TOPIC_PLACEHOLDER,
 	commentPlaceholder = DEFAULT_COMMENT_PLACEHOLDER,
 	commentRequired = false,
+	strings,
 }: FeedbackPanelProps) {
+	const text = React.useMemo(
+		() => ({ ...DEFAULT_FEEDBACK_PANEL_STRINGS, ...strings }),
+		[strings]
+	);
 	const { configurationError } = useSupport();
 	const { close, isOpen } = useFeedbackConfig();
 	const topicRef = React.useRef<HTMLSelectElement>(null);
@@ -53,6 +96,11 @@ export function FeedbackPanel({
 		conversationId,
 		defaultTopic,
 		onOpenChange: handleFormOpenChange,
+		submitLabels: {
+			idle: text.submitLabel,
+			pending: text.submitPendingLabel,
+			ratingRequired: text.submitRatingRequiredLabel,
+		},
 		topics,
 		trigger,
 	});
@@ -109,13 +157,13 @@ export function FeedbackPanel({
 				data-slot="feedback-panel-header"
 			>
 				<div className="space-y-1">
-					<h2 className="font-semibold text-base">Share feedback</h2>
+					<h2 className="font-semibold text-base">{text.title}</h2>
 					<p className="max-w-[28ch] text-balance text-co-muted-foreground text-sm">
-						Leave a quick note any time. We read every submission.
+						{text.description}
 					</p>
 				</div>
 				<button
-					aria-label="Close feedback"
+					aria-label={text.closeLabel}
 					className="inline-flex h-9 w-9 items-center justify-center rounded-full text-co-muted-foreground transition-colors hover:bg-co-background-100 hover:text-co-foreground"
 					data-feedback-close="true"
 					data-slot="feedback-close"
@@ -136,10 +184,9 @@ export function FeedbackPanel({
 						<Icon className="h-6 w-6" name="check" />
 					</div>
 					<div className="space-y-1">
-						<h3 className="font-semibold text-lg">Thanks for the feedback</h3>
+						<h3 className="font-semibold text-lg">{text.successTitle}</h3>
 						<p className="max-w-[30ch] text-balance text-co-muted-foreground text-sm">
-							Your response was attached to the current visitor context and is
-							now available in Cossistant.
+							{text.successDescription}
 						</p>
 					</div>
 					<div className="flex gap-3">
@@ -148,10 +195,10 @@ export function FeedbackPanel({
 							type="button"
 							variant="secondary"
 						>
-							Send another
+							{text.sendAnotherLabel}
 						</CoButton>
 						<CoButton onClick={feedback.done} type="button">
-							Done
+							{text.doneLabel}
 						</CoButton>
 					</div>
 				</div>
@@ -165,7 +212,7 @@ export function FeedbackPanel({
 						{feedback.availableTopics.length > 0 ? (
 							<div className="space-y-2" data-slot="feedback-topic-field">
 								<label className="sr-only" htmlFor="cossistant-feedback-topic">
-									Feedback topic
+									{text.topicLabel}
 								</label>
 								<FeedbackTopicSelect
 									aria-invalid={feedback.fields.topic.isMissing}
@@ -188,7 +235,7 @@ export function FeedbackPanel({
 							data-slot="feedback-comment-field"
 						>
 							<label className="sr-only" htmlFor="cossistant-feedback-comment">
-								Your feedback
+								{text.commentLabel}
 							</label>
 							<FeedbackCommentInput
 								aria-invalid={feedback.fields.comment.isMissing}
@@ -210,7 +257,7 @@ export function FeedbackPanel({
 							/>
 							{commentRequired ? (
 								<p className="text-co-muted-foreground text-xs">
-									A short message is required for this form.
+									{text.commentRequiredHint}
 								</p>
 							) : null}
 						</div>
@@ -221,16 +268,27 @@ export function FeedbackPanel({
 						data-feedback-form-footer="true"
 						data-slot="feedback-form-footer"
 					>
+						{feedback.submitError ? (
+							<p
+								className="mb-3 text-co-destructive text-xs"
+								data-feedback-submit-error="true"
+								data-slot="feedback-submit-error"
+								role="alert"
+							>
+								{feedback.submitError}
+							</p>
+						) : null}
 						<div className="flex items-center justify-between gap-4">
 							<div className="space-y-2" data-slot="feedback-rating-field">
 								<p className="text-co-muted-foreground text-xs">
-									Rate this experience
+									{text.ratingLabel}
 								</p>
 								<FeedbackRatingSelector
+									aria-label={text.ratingLabel}
 									buttonClassName="rounded-full"
 									disabled={feedback.isPending}
 									hoveredValue={feedback.fields.rating.displayValue}
-									labelForRating={(rating) => `Rate ${rating} out of 5`}
+									labelForRating={text.ratingItemLabel}
 									onBlur={feedback.fields.rating.handleBlur}
 									onHoverChange={feedback.handleRatingHoverChange}
 									onSelect={feedback.handleRatingSelect}

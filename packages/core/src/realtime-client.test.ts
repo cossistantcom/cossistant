@@ -486,6 +486,81 @@ describe("RealtimeClient", () => {
 
 			client.destroy();
 		});
+
+		test("connect() with same auth recovers after a permanent close", () => {
+			const client = new RealtimeClient();
+			client.connect(VISITOR_AUTH);
+			lastSocket().simulateOpen();
+
+			lastSocket().simulateClose(1011, "Server error");
+			expect(client.getState().status).toBe("disconnected");
+
+			const socketCount = mockSockets.length;
+			client.connect(VISITOR_AUTH);
+
+			expect(mockSockets.length).toBe(socketCount + 1);
+			expect(client.getState().status).toBe("connecting");
+
+			client.destroy();
+		});
+
+		test("connect() with changed auth during backoff clears the pending timer", async () => {
+			const client = new RealtimeClient();
+			client.connect(VISITOR_AUTH);
+			lastSocket().simulateOpen();
+
+			// Schedules a reconnect timer (500ms base delay)
+			lastSocket().simulateClose(1006, "Abnormal closure");
+
+			client.connect({
+				kind: "visitor",
+				visitorId: "vis_new",
+				websiteId: "ws_456",
+				publicKey: "pk_test",
+			});
+			const socketCount = mockSockets.length;
+
+			await new Promise((r) => setTimeout(r, 700));
+
+			// The stale backoff timer must not open a duplicate socket
+			expect(mockSockets.length).toBe(socketCount);
+
+			client.destroy();
+		});
+
+		test("reconnect() during backoff clears the pending timer", async () => {
+			const client = new RealtimeClient();
+			client.connect(VISITOR_AUTH);
+			lastSocket().simulateOpen();
+
+			lastSocket().simulateClose(1006, "Abnormal closure");
+
+			client.reconnect();
+			const socketCount = mockSockets.length;
+
+			await new Promise((r) => setTimeout(r, 700));
+
+			expect(mockSockets.length).toBe(socketCount);
+
+			client.destroy();
+		});
+
+		test("connect() with unchanged auth during backoff keeps the scheduled reconnect", async () => {
+			const client = new RealtimeClient();
+			client.connect(VISITOR_AUTH);
+			lastSocket().simulateOpen();
+
+			lastSocket().simulateClose(1006, "Abnormal closure");
+			const socketCount = mockSockets.length;
+
+			client.connect(VISITOR_AUTH);
+			expect(mockSockets.length).toBe(socketCount);
+
+			await new Promise((r) => setTimeout(r, 700));
+			expect(mockSockets.length).toBe(socketCount + 1);
+
+			client.destroy();
+		});
 	});
 
 	describe("heartbeat", () => {

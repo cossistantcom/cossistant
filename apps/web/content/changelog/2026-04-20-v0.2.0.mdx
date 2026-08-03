@@ -101,20 +101,18 @@ to always load the newest release.
 
 ```html showLineNumbers
 <!-- Pin to a specific version -->
-<script async src="https://cdn.cossistant.com/widget/0.2.0/loader.js"></script>
-<script>
-  window.Cossistant.init({
-    publicKey: "pk_live_...",
-  });
-</script>
+<script
+  async
+  src="https://cdn.cossistant.com/widget/0.2.0/loader.js"
+  data-public-key="pk_live_..."
+></script>
 ```
 
 ```html showLineNumbers
 <!-- Or always use the latest release -->
-<script async src="https://cdn.cossistant.com/widget/latest/loader.js"></script>
-<script>
-  window.Cossistant.init({
-    publicKey: "pk_live_...",
-  });
-</script>
+<script
+  async
+  src="https://cdn.cossistant.com/widget/latest/loader.js"
+  data-public-key="pk_live_..."
+></script>
 ```

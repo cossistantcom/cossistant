@@ -1,8 +1,36 @@
-import { describe, expect, it } from "bun:test";
+import { afterAll, describe, expect, it, mock } from "bun:test";
 import type { TimelineItem } from "@cossistant/types/api/timeline-item";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { SearchKnowledgeTimelineTool } from "./timeline-search-knowledge-tool";
+import en from "../text/locales/en";
+import type {
+	SupportTextKey,
+	SupportTextResolvedFormatter,
+} from "../text/locales/keys";
+import type { ConversationTimelineToolProps } from "./timeline-tool-types";
+
+function createTextFormatter(): SupportTextResolvedFormatter {
+	return ((key: SupportTextKey, variables?: unknown) => {
+		const message = en[key];
+		if (typeof message === "function") {
+			return (message as (args: { variables: unknown }) => string)({
+				variables,
+			});
+		}
+		return message;
+	}) as SupportTextResolvedFormatter;
+}
+
+mock.module("../text", () => ({
+	useSupportText: () => createTextFormatter(),
+}));
+
+const modulePromise = import("./timeline-search-knowledge-tool");
+
+async function renderTool(props: ConversationTimelineToolProps) {
+	const { SearchKnowledgeTimelineTool } = await modulePromise;
+	return renderToStaticMarkup(<SearchKnowledgeTimelineTool {...props} />);
+}
 
 function createToolTimelineItem(
 	overrides: Partial<TimelineItem> = {}
@@ -38,13 +66,15 @@ function countOccurrences(html: string, pattern: string): number {
 }
 
 describe("SearchKnowledgeTimelineTool", () => {
-	it("renders the partial state with the knowledge search label", () => {
-		const html = renderToStaticMarkup(
-			<SearchKnowledgeTimelineTool
-				conversationId="conv-1"
-				item={createToolTimelineItem()}
-			/>
-		);
+	afterAll(() => {
+		mock.restore();
+	});
+
+	it("renders the partial state with the knowledge search label", async () => {
+		const html = await renderTool({
+			conversationId: "conv-1",
+			item: createToolTimelineItem(),
+		});
 
 		expect(html).toContain("Searching for &quot;pricing&quot;...");
 		expect(html).toContain('data-tool-display-state="partial"');
@@ -54,55 +84,53 @@ describe("SearchKnowledgeTimelineTool", () => {
 		expect(html).not.toContain("rounded-lg");
 	});
 
-	it("renders only unique web sources as external links", () => {
-		const html = renderToStaticMarkup(
-			<SearchKnowledgeTimelineTool
-				conversationId="conv-1"
-				item={createToolTimelineItem({
-					text: "Found 2 sources",
-					parts: [
-						{
-							type: "tool-searchKnowledgeBase",
-							toolCallId: "call-1",
-							toolName: "searchKnowledgeBase",
-							input: { query: "pricing" },
-							state: "result",
-							output: {
-								success: true,
-								data: {
-									totalFound: 5,
-									articles: [
-										{
-											title: "Billing FAQ",
-											sourceUrl: "https://example.com/billing",
-											sourceType: "url",
-										},
-										{
-											title: "Billing FAQ Duplicate",
-											sourceUrl: "https://example.com/billing/",
-											sourceType: "url",
-										},
-										{
-											sourceUrl: "https://docs.example.com/pricing",
-											sourceType: "url",
-										},
-										{
-											title: "Internal FAQ",
-											sourceUrl: "https://example.com/internal-faq",
-											sourceType: "faq",
-										},
-										{
-											title: "Legacy entry",
-											sourceUrl: "https://example.com/legacy-entry",
-										},
-									],
-								},
+	it("renders only unique web sources as external links", async () => {
+		const html = await renderTool({
+			conversationId: "conv-1",
+			item: createToolTimelineItem({
+				text: "Found 2 sources",
+				parts: [
+					{
+						type: "tool-searchKnowledgeBase",
+						toolCallId: "call-1",
+						toolName: "searchKnowledgeBase",
+						input: { query: "pricing" },
+						state: "result",
+						output: {
+							success: true,
+							data: {
+								totalFound: 5,
+								articles: [
+									{
+										title: "Billing FAQ",
+										sourceUrl: "https://example.com/billing",
+										sourceType: "url",
+									},
+									{
+										title: "Billing FAQ Duplicate",
+										sourceUrl: "https://example.com/billing/",
+										sourceType: "url",
+									},
+									{
+										sourceUrl: "https://docs.example.com/pricing",
+										sourceType: "url",
+									},
+									{
+										title: "Internal FAQ",
+										sourceUrl: "https://example.com/internal-faq",
+										sourceType: "faq",
+									},
+									{
+										title: "Legacy entry",
+										sourceUrl: "https://example.com/legacy-entry",
+									},
+								],
 							},
 						},
-					],
-				})}
-			/>
-		);
+					},
+				],
+			}),
+		});
 
 		expect(html).toContain("Searched for &quot;pricing&quot;");
 		expect(html).toContain("Billing FAQ");
@@ -123,52 +151,50 @@ describe("SearchKnowledgeTimelineTool", () => {
 		expect(html).not.toContain("rounded-full");
 	});
 
-	it("renders repeated titles for distinct URLs while collapsing duplicate URLs", () => {
-		const html = renderToStaticMarkup(
-			<SearchKnowledgeTimelineTool
-				conversationId="conv-1"
-				item={createToolTimelineItem({
-					text: "Found 3 sources",
-					parts: [
-						{
-							type: "tool-searchKnowledgeBase",
-							toolCallId: "call-2",
-							toolName: "searchKnowledgeBase",
-							input: { query: "pricing" },
-							state: "result",
-							output: {
-								success: true,
-								data: {
-									totalFound: 4,
-									articles: [
-										{
-											title: "Pricing Guide",
-											sourceUrl: "https://example.com/pricing",
-											sourceType: "url",
-										},
-										{
-											title: "Pricing Guide",
-											sourceUrl: "https://docs.example.com/pricing",
-											sourceType: "url",
-										},
-										{
-											title: "Billing FAQ",
-											sourceUrl: "https://example.com/billing",
-											sourceType: "url",
-										},
-										{
-											title: "Billing FAQ duplicate",
-											sourceUrl: "https://example.com/billing/",
-											sourceType: "url",
-										},
-									],
-								},
+	it("renders repeated titles for distinct URLs while collapsing duplicate URLs", async () => {
+		const html = await renderTool({
+			conversationId: "conv-1",
+			item: createToolTimelineItem({
+				text: "Found 3 sources",
+				parts: [
+					{
+						type: "tool-searchKnowledgeBase",
+						toolCallId: "call-2",
+						toolName: "searchKnowledgeBase",
+						input: { query: "pricing" },
+						state: "result",
+						output: {
+							success: true,
+							data: {
+								totalFound: 4,
+								articles: [
+									{
+										title: "Pricing Guide",
+										sourceUrl: "https://example.com/pricing",
+										sourceType: "url",
+									},
+									{
+										title: "Pricing Guide",
+										sourceUrl: "https://docs.example.com/pricing",
+										sourceType: "url",
+									},
+									{
+										title: "Billing FAQ",
+										sourceUrl: "https://example.com/billing",
+										sourceType: "url",
+									},
+									{
+										title: "Billing FAQ duplicate",
+										sourceUrl: "https://example.com/billing/",
+										sourceType: "url",
+									},
+								],
 							},
 						},
-					],
-				})}
-			/>
-		);
+					},
+				],
+			}),
+		});
 
 		expect(countOccurrences(html, 'target="_blank"')).toBe(3);
 		expect(countOccurrences(html, 'title="Pricing Guide"')).toBe(2);
@@ -186,103 +212,97 @@ describe("SearchKnowledgeTimelineTool", () => {
 		);
 	});
 
-	it("replaces zero-source summaries with the executed query", () => {
-		const html = renderToStaticMarkup(
-			<SearchKnowledgeTimelineTool
-				conversationId="conv-1"
-				item={createToolTimelineItem({
-					text: "Found 0 sources",
-					parts: [
-						{
-							type: "tool-searchKnowledgeBase",
-							toolCallId: "call-1",
-							toolName: "searchKnowledgeBase",
-							input: { query: "refund policy" },
-							state: "result",
-							output: {
-								success: true,
-								data: {
-									totalFound: 0,
-									articles: [],
-								},
+	it("replaces zero-source summaries with the executed query", async () => {
+		const html = await renderTool({
+			conversationId: "conv-1",
+			item: createToolTimelineItem({
+				text: "Found 0 sources",
+				parts: [
+					{
+						type: "tool-searchKnowledgeBase",
+						toolCallId: "call-1",
+						toolName: "searchKnowledgeBase",
+						input: { query: "refund policy" },
+						state: "result",
+						output: {
+							success: true,
+							data: {
+								totalFound: 0,
+								articles: [],
 							},
 						},
-					],
-				})}
-			/>
-		);
+					},
+				],
+			}),
+		});
 
 		expect(html).toContain("Searched for &quot;refund policy&quot;");
 		expect(html).not.toContain("Found 0 sources");
 	});
 
-	it("suppresses the terminal arrow when the caller marks it as a single tool row", () => {
-		const html = renderToStaticMarkup(
-			<SearchKnowledgeTimelineTool
-				conversationId="conv-1"
-				item={createToolTimelineItem({
-					text: "Found 2 sources",
-					parts: [
-						{
-							type: "tool-searchKnowledgeBase",
-							toolCallId: "call-1",
-							toolName: "searchKnowledgeBase",
-							input: { query: "pricing" },
-							state: "result",
-							output: {
-								success: true,
-								data: {
-									totalFound: 2,
-									articles: [],
-								},
+	it("suppresses the terminal arrow when the caller marks it as a single tool row", async () => {
+		const html = await renderTool({
+			conversationId: "conv-1",
+			item: createToolTimelineItem({
+				text: "Found 2 sources",
+				parts: [
+					{
+						type: "tool-searchKnowledgeBase",
+						toolCallId: "call-1",
+						toolName: "searchKnowledgeBase",
+						input: { query: "pricing" },
+						state: "result",
+						output: {
+							success: true,
+							data: {
+								totalFound: 2,
+								articles: [],
 							},
 						},
-					],
-				})}
-				showTerminalIndicator={false}
-			/>
-		);
+					},
+				],
+			}),
+			showTerminalIndicator: false,
+		});
 
 		expect(html).toContain("Searched for &quot;pricing&quot;");
 		expect(html).not.toContain('data-tool-execution-indicator="arrow"');
 		expect(html).not.toContain('data-tool-execution-indicator-slot="true"');
 	});
 
-	it("hides source links when results are not explicit web sources", () => {
-		const html = renderToStaticMarkup(
-			<SearchKnowledgeTimelineTool
-				conversationId="conv-1"
-				item={createToolTimelineItem({
-					text: "Found 2 sources",
-					parts: [
-						{
-							type: "tool-searchKnowledgeBase",
-							toolCallId: "call-privacy",
-							toolName: "searchKnowledgeBase",
-							input: { query: "billing" },
-							state: "result",
-							output: {
-								success: true,
-								data: {
-									totalFound: 2,
-									articles: [
-										{
-											title: "FAQ",
-											sourceUrl: "https://example.com/faq",
-											sourceType: "faq",
-										},
-										{
-											title: "Legacy doc",
-											sourceUrl: "https://example.com/legacy-doc",
-										},
-									],
-								},
+	it("hides source links when results are not explicit web sources", async () => {
+		const html = await renderTool({
+			conversationId: "conv-1",
+			item: createToolTimelineItem({
+				text: "Found 2 sources",
+				parts: [
+					{
+						type: "tool-searchKnowledgeBase",
+						toolCallId: "call-privacy",
+						toolName: "searchKnowledgeBase",
+						input: { query: "billing" },
+						state: "result",
+						output: {
+							success: true,
+							data: {
+								totalFound: 2,
+								articles: [
+									{
+										title: "FAQ",
+										sourceUrl: "https://example.com/faq",
+										sourceType: "faq",
+									},
+									{
+										title: "Legacy doc",
+										sourceUrl: "https://example.com/legacy-doc",
+									},
+								],
 							},
 						},
-					],
-				})}
-			/>
-		);
+					},
+				],
+			}),
+		});
 
 		expect(html).toContain("Searched for &quot;billing&quot;");
 		expect(html).not.toContain("<a ");

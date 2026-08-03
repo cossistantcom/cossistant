@@ -1,3 +1,5 @@
+"use client";
+
 import type { CossistantClient } from "@cossistant/core";
 import type { CreateConversationResponseBody } from "@cossistant/types/api/conversation";
 import type { TimelineItem } from "@cossistant/types/api/timeline-item";

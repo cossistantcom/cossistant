@@ -2,7 +2,7 @@ import { generateMessageId } from "@cossistant/core/utils";
 import type { DefaultMessage } from "@cossistant/types";
 import type { TimelineItem } from "@cossistant/types/api/timeline-item";
 import { SenderType } from "@cossistant/types/enums";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useSyncExternalStore } from "react";
 import { useSupport } from "../../provider";
 
 type UseDefaultMessagesParams = {
@@ -15,8 +15,12 @@ type DefaultMessageSeed = {
 	createdAt: string;
 };
 
+const emptySubscribe = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
 function createDefaultMessageTimestamp(): string {
-	return typeof window !== "undefined" ? new Date().toISOString() : "";
+	return new Date().toISOString();
 }
 
 function createDefaultMessageSignature(message: DefaultMessage): string {
@@ -55,8 +59,20 @@ export function useDefaultMessages({
 	const { defaultMessages, availableAIAgents, availableHumanAgents } =
 		useSupport();
 	const defaultMessageSeedsRef = useRef<DefaultMessageSeed[]>([]);
+	// Seeds carry render-time ulids/timestamps that can never match between the
+	// server and client passes; render nothing until hydration completes so
+	// SSR HTML and the hydration render emit identical markup.
+	const isHydrated = useSyncExternalStore(
+		emptySubscribe,
+		getClientSnapshot,
+		getServerSnapshot
+	);
 
 	const memoisedDefaultTimelineItems = useMemo(() => {
+		if (!isHydrated) {
+			return [];
+		}
+
 		const nextSeeds = reconcileDefaultMessageSeeds(
 			defaultMessages,
 			defaultMessageSeedsRef.current
@@ -90,6 +106,7 @@ export function useDefaultMessages({
 			} satisfies TimelineItem;
 		});
 	}, [
+		isHydrated,
 		defaultMessages,
 		availableHumanAgents[0]?.id,
 		availableAIAgents[0]?.id,

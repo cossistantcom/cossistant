@@ -4,6 +4,7 @@ import type { TimelinePartImage } from "@cossistant/types/api/timeline-item";
 import type * as React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useSupportText } from "../text";
 import { cn } from "../utils";
 import Icon from "./icons";
 
@@ -41,6 +42,7 @@ export function ImageLightbox({
 	onClose,
 	className,
 }: ImageLightboxProps): React.ReactElement | null {
+	const text = useSupportText();
 	const [currentIndex, setCurrentIndex] = useState(initialIndex);
 	const [mounted, setMounted] = useState(false);
 
@@ -126,7 +128,7 @@ export function ImageLightbox({
 	return createPortal(
 		// biome-ignore lint/a11y/noNoninteractiveElementInteractions: Dialog backdrop needs click handler for closing
 		<div
-			aria-label="Image viewer"
+			aria-label={text("component.imageLightbox.label")}
 			aria-modal="true"
 			className={cn(
 				"fixed inset-0 z-[99999] flex items-center justify-center bg-black/90 p-4",
@@ -138,7 +140,7 @@ export function ImageLightbox({
 		>
 			{/* Close button */}
 			<button
-				aria-label="Close lightbox"
+				aria-label={text("component.imageLightbox.close")}
 				className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50"
 				onClick={onClose}
 				type="button"
@@ -150,7 +152,7 @@ export function ImageLightbox({
 			{hasMultiple && (
 				<>
 					<button
-						aria-label="Previous image"
+						aria-label={text("component.imageLightbox.previous")}
 						className="absolute left-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50"
 						onClick={handlePrevious}
 						type="button"
@@ -158,7 +160,7 @@ export function ImageLightbox({
 						<Icon className="h-6 w-6" name="arrow-left" />
 					</button>
 					<button
-						aria-label="Next image"
+						aria-label={text("component.imageLightbox.next")}
 						className="absolute right-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50"
 						onClick={handleNext}
 						type="button"

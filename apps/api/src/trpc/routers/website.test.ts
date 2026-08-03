@@ -64,6 +64,9 @@ const getPlanFromCustomerStateMock = mock(
 const getSubscriptionForWebsiteMock = mock(
 	(() => null) as (...args: unknown[]) => unknown
 );
+const getUnscopedPaidSubscriptionsMock = mock((() => []) as (
+	...args: unknown[]
+) => unknown[]);
 const partitionWebsiteSubscriptionsForDeletionMock = mock((() => ({
 	subscriptionsToKeep: [],
 	subscriptionsToRevoke: [],
@@ -137,6 +140,7 @@ mock.module("@api/lib/plans/polar", () => ({
 	getCustomerState: getCustomerStateMock,
 	getPlanFromCustomerState: getPlanFromCustomerStateMock,
 	getSubscriptionForWebsite: getSubscriptionForWebsiteMock,
+	getUnscopedPaidSubscriptions: getUnscopedPaidSubscriptionsMock,
 	partitionWebsiteSubscriptionsForDeletion:
 		partitionWebsiteSubscriptionsForDeletionMock,
 	PolarCustomerInvariantViolationError,

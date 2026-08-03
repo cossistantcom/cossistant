@@ -12,12 +12,11 @@ type AssetThreshold = {
 
 const BASELINES: Record<AssetName, AssetThreshold> = {
 	"loader.js": { raw: 1170, gzip: 637 },
-	"widget.js": { raw: 390_414, gzip: 125_082 },
-	"widget.css": { raw: 13_229, gzip: 2104 },
+	"widget.js": { raw: 397_538, gzip: 126_599 },
+	"widget.css": { raw: 16_468, gzip: 2238 },
 };
 
-const WIDGET_GZIP_STOP_TARGET = 140_000;
-const WIDGET_GZIP_PASS_TWO_THRESHOLD = 150_000;
+const WIDGET_GZIP_ABSOLUTE_CEILING = 140_000;
 
 const repoRoot = join(fileURLToPath(new URL(".", import.meta.url)), "..", "..");
 const embedDir = join(repoRoot, "packages/browser/dist/embed");
@@ -64,6 +63,12 @@ for (const assetName of Object.keys(BASELINES) as AssetName[]) {
 	);
 
 	if (assetName === "widget.js") {
+		if (gzipBytes > WIDGET_GZIP_ABSOLUTE_CEILING) {
+			errors.push(
+				`widget.js gzip is ${formatBytes(gzipBytes)}, above the absolute ${WIDGET_GZIP_ABSOLUTE_CEILING.toLocaleString("en-US")}-byte (${formatBytes(WIDGET_GZIP_ABSOLUTE_CEILING)}) ceiling`
+			);
+		}
+
 		if (gzipDelta > 0) {
 			errors.push(
 				`widget.js gzip regressed by ${formatBytes(gzipDelta)} over the ${formatBytes(baseline.gzip)} baseline`
@@ -76,13 +81,9 @@ for (const assetName of Object.keys(BASELINES) as AssetName[]) {
 			);
 		}
 
-		if (gzipBytes <= WIDGET_GZIP_STOP_TARGET) {
+		if (gzipBytes <= WIDGET_GZIP_ABSOLUTE_CEILING) {
 			console.log(
-				`widget.js hit the pass 1 stop target at ${formatBytes(gzipBytes)} gzip`
-			);
-		} else if (gzipBytes > WIDGET_GZIP_PASS_TWO_THRESHOLD) {
-			warnings.push(
-				`widget.js is still above ${formatBytes(WIDGET_GZIP_PASS_TWO_THRESHOLD)} gzip, so pass 2 lazy-loading work is recommended next`
+				`widget.js is within the absolute ${WIDGET_GZIP_ABSOLUTE_CEILING.toLocaleString("en-US")}-byte (${formatBytes(WIDGET_GZIP_ABSOLUTE_CEILING)}) gzip ceiling`
 			);
 		}
 

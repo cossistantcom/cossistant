@@ -63,9 +63,8 @@ jobs:
       - name: Build browser embed package
         run: bun run build --filter @cossistant/browser
 
-      # Temporarily disabled while we pause widget JS size enforcement.
-      # - name: Check browser embed bundle size
-      #   run: bun run check:browser-embed-size
+      - name: Check browser embed bundle size
+        run: bun run check:browser-embed-size
 
       - name: Build example integration app
         run: bun run build --filter @cossistant/example-nextjs-tailwind

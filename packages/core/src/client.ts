@@ -23,7 +23,6 @@ import type {
 	SupportOnboardingUpdateRequest,
 	SupportStateResponse,
 } from "@cossistant/types/api/support";
-import { applySupportOnboardingUpdate } from "@cossistant/types/api/support";
 import type {
 	GetConversationTimelineItemsRequest,
 	GetConversationTimelineItemsResponse,
@@ -42,6 +41,7 @@ import type {
 	RealtimeEvent,
 } from "@cossistant/types/realtime-events";
 import type { Conversation } from "@cossistant/types/schemas";
+import { applySupportOnboardingUpdate } from "@cossistant/types/support-state";
 import { RealtimeClient } from "./realtime-client";
 import { shouldDeliverEvent } from "./realtime-event-filter";
 import { CossistantRestClient } from "./rest-client";

@@ -18,7 +18,7 @@ import {
 	applySupportOnboardingUpdate,
 	normalizeSupportFeatureFlags,
 	normalizeSupportOnboardingState,
-} from "@cossistant/types/api/support";
+} from "@cossistant/types/support-state";
 import { and, eq, isNull } from "drizzle-orm";
 
 type SupportStateRows = {

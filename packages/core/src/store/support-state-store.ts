@@ -6,13 +6,13 @@ import {
 	EMPTY_SUPPORT_ONBOARDING_STATE,
 	normalizeSupportFeatureFlags,
 	normalizeSupportOnboardingState,
-} from "@cossistant/types/api/support";
+} from "@cossistant/types/support-state";
 import { createStore, type Store } from "./create-store";
 
 export {
 	normalizeSupportFeatureFlags,
 	normalizeSupportOnboardingState,
-} from "@cossistant/types/api/support";
+} from "@cossistant/types/support-state";
 
 export type SupportStateStatus = "idle" | "loading" | "success" | "error";
 

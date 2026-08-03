@@ -64,6 +64,7 @@ function countFrom(output: string, label: "pass" | "fail"): number {
 
 async function runFile(file: string): Promise<Result> {
 	const proc = Bun.spawn(["bun", "test", file], {
+		env: { ...process.env, NODE_ENV: "test" },
 		stderr: "pipe",
 		stdout: "pipe",
 	});

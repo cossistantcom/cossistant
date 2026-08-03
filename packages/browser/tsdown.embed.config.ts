@@ -78,6 +78,9 @@ const sharedConfig = {
 			"../react/dist/support/index.js"
 		),
 		"@cossistant/types/enums": resolveLocalModule("../types/dist/enums.js"),
+		"@cossistant/types/support-state": resolveLocalModule(
+			"../types/dist/support-state.js"
+		),
 		"@cossistant/types/tool-timeline-policy": resolveLocalModule(
 			"../types/dist/tool-timeline-policy.js"
 		),

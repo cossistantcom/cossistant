@@ -59,6 +59,12 @@ jobs:
       - name: Build example integration app
         run: bun run build --filter @cossistant/example-nextjs-tailwind
 
+      - name: Build browser embed package
+        run: bun run build --filter @cossistant/browser
+
+      - name: Check browser embed bundle size
+        run: bun run check:browser-embed-size
+
       - name: Create Release PR or Publish
         id: changesets
         uses: changesets/action@v1
@@ -139,14 +145,6 @@ jobs:
         with:
           aws-region: ${{ env.S3_REGION }}
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
-
-      - name: Build browser CDN assets
-        if: steps.browser_package.outputs.published == 'true'
-        run: bun run --filter @cossistant/browser build:embed
-
-      - name: Check browser embed size
-        if: steps.browser_package.outputs.published == 'true'
-        run: bun run check:browser-embed-size
 
       - name: Upload browser CDN assets
         if: steps.browser_package.outputs.published == 'true'

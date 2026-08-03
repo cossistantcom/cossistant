@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { EMPTY_SUPPORT_ONBOARDING_STATE } from "@cossistant/types/api/support";
+import { EMPTY_SUPPORT_ONBOARDING_STATE } from "@cossistant/types/support-state";
 import { EMPTY_ONBOARDING_STATE } from "./store/support-state-store";
 import { createSupport } from "./support-config";
 import { getSupportOnboardingSnapshot } from "./support-runtime";

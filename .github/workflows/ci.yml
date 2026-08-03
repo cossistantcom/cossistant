@@ -42,6 +42,18 @@ jobs:
       - name: Test protocol package
         run: bun run test --filter @cossistant/protocol
 
+      # The SDK regression suites pin the provider lifecycle, data-hook and
+      # embed behaviour. They are the safety net for the published packages, so
+      # they gate merges rather than relying on a local `bun test` run.
+      - name: Test SDK packages
+        run: >-
+          bun run test
+          --filter @cossistant/react
+          --filter @cossistant/core
+          --filter @cossistant/types
+          --filter @cossistant/next
+          --filter @cossistant/browser
+
       - name: Test REST OpenAPI contract
         # Run this file on its own: bun's mock.module registrations are global to
         # the test process, so partial factories in other files leak across a

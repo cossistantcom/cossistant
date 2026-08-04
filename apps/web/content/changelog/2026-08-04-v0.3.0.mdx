@@ -1,0 +1,90 @@
+---
+version: "0.3.0"
+description: "Reduce browser, React, and Next.js bundle sizes; add focused and lazy Support entry points; remove server-schema dependencies from the browser widget; and harden landing-page hydration without breaking existing APIs."
+tiny-excerpt: "Smaller bundles, lazy loading"
+date: "2026-08-04"
+author: "Cossistant Team"
+discord-announcement: |
+  Cossistant 0.3.0 ships with significantly smaller bundle sizes and new lazy loading options for the Support widget.
+
+  The browser widget dropped 65.3 KB gzip by removing server dependencies, now at 127 KB total. New lazy Support imports reduce initial SDK JavaScript by 79.9% (91.5 KB), loading the full UI only when needed. Next.js routes are 8-107 KB lighter with focused imports.
+
+  Plus: new feedback management UI, AI agent profile customization, and improved escalation notifications.
+
+  Full changelog: https://cossistant.com/changelog/2026-08-04-v0.3.0
+x-announcement: |
+  Cossistant 0.3.0: Support widget down to 127 KB gzip. New lazy imports cut initial SDK JS by 91.5 KB (79.9%). Next.js routes 8-107 KB lighter. https://cossistant.com/changelog/2026-08-04-v0.3.0
+---
+
+Smaller bundles and lazy loading options make Cossistant faster to load in your React and Next.js apps.
+
+### Highlights
+
+- <HighlightLine variant="new">
+    **Lazy Support imports**: Load the Support UI from an async chunk with `@cossistant/react/lazy-support` and `@cossistant/next/lazy-support`.
+  </HighlightLine>
+- <HighlightLine variant="updated">
+    **Bundle size reductions**: Browser widget reduced by 65.3 KB gzip, React SDK initial JS down 91.5 KB with lazy loading.
+  </HighlightLine>
+- <HighlightLine variant="new">
+    **Focused entry points**: Import only what you need with `@cossistant/react/provider`, `/support-config`, and `/support`.
+  </HighlightLine>
+
+### Support Widget
+
+- <HighlightLine variant="new">
+    **Feedback management**: New UI for collecting and prioritizing user feedback.
+  </HighlightLine>
+- <HighlightLine variant="updated">
+    **AI agent profiles**: Upload custom profile pictures for your AI agents.
+  </HighlightLine>
+- <HighlightLine variant="updated">
+    **Escalation notifications**: Improved notifications when conversations escalate to human support.
+  </HighlightLine>
+
+### Dashboard
+
+- <HighlightLine variant="new">
+    **Admin panel**: New administrative interface for managing support operations.
+  </HighlightLine>
+- <HighlightLine variant="updated">
+    **Support integration**: Support overlay and sidebar now integrated into dashboard layout.
+  </HighlightLine>
+- <HighlightLine variant="fixed">
+    **Auth redirects**: Fixed authentication redirect issues in the dashboard.
+  </HighlightLine>
+
+### Bug Fixes & Improvements
+
+- <HighlightLine variant="fixed">
+    **React strict mode**: Fixed compatibility issues with React strict mode.
+  </HighlightLine>
+- <HighlightLine variant="updated">
+    **Auto-translation**: Improved language detection and translation reliability.
+  </HighlightLine>
+- <HighlightLine variant="fixed">
+    **Code block styling**: Fixed code block display issues in support conversations.
+  </HighlightLine>
+
+### Upgrade
+
+```bash
+npm install @cossistant/react@0.3.0 @cossistant/next@0.3.0
+```
+
+### Example
+
+```tsx showLineNumbers
+// LazySupport loads the Support UI from an async chunk on mount
+import { SupportProvider } from "@cossistant/next/provider";
+import { LazySupport } from "@cossistant/next/lazy-support";
+
+export function App({ children }) {
+  return (
+    <SupportProvider publicKey="pk_live_...">
+      {children}
+      <LazySupport />
+    </SupportProvider>
+  );
+}
+```

@@ -51,6 +51,7 @@ type TimelineMessageGroupProps = {
 	visitor: ConversationHeader["visitor"];
 	visitorPresence?: VisitorPresenceEntry | null;
 	seenData?: ConversationSeen[];
+	formatTimestamp?: (date: Date) => string;
 };
 
 export function TimelineMessageGroup({
@@ -63,6 +64,7 @@ export function TimelineMessageGroup({
 	visitor,
 	visitorPresence,
 	seenData,
+	formatTimestamp,
 }: TimelineMessageGroupProps) {
 	const website = useOptionalWebsite();
 	const trpc = useTRPC();
@@ -269,10 +271,12 @@ export function TimelineMessageGroup({
 										data-translation-group-footer="true"
 									>
 										<span>
-											{new Date(lastItem.createdAt).toLocaleTimeString([], {
-												hour: "2-digit",
-												minute: "2-digit",
-											})}
+											{formatTimestamp
+												? formatTimestamp(new Date(lastItem.createdAt))
+												: new Date(lastItem.createdAt).toLocaleTimeString([], {
+														hour: "2-digit",
+														minute: "2-digit",
+													})}
 											{isAI && " • AI agent"}
 										</span>
 										{canOfferGroupTranslate ? (

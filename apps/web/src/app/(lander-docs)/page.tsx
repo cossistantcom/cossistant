@@ -1,11 +1,10 @@
-import { SupportConfig } from "@cossistant/react/support-config";
+import { SupportConfig } from "@cossistant/next/support-config";
 import { SenderType } from "@cossistant/types";
 import Link from "next/link";
 import { FakeDashboardClientOnly } from "@/components/landing/fake-dashboard/client-only";
 import { JsonLdScripts } from "@/components/seo/json-ld";
 import { Button } from "@/components/ui/button";
 import { Logos } from "@/components/ui/logos";
-import { TooltipOnHover } from "@/components/ui/tooltip";
 import {
 	buildOrganizationJsonLd,
 	buildSoftwareApplicationJsonLd,
@@ -93,26 +92,42 @@ export default function Landing() {
 							<p className="font-mono text-foreground/60 text-xs">
 								Works well with
 							</p>
-							<TooltipOnHover content="React">
-								<Link href="https://react.dev" target="_blank">
-									<Logos.react className="size-4" />
-								</Link>
-							</TooltipOnHover>
-							<TooltipOnHover content="Next.js">
-								<Link href="https://nextjs.org" target="_blank">
-									<Logos.nextjs className="size-4" />
-								</Link>
-							</TooltipOnHover>
-							<TooltipOnHover content="Tailwind">
-								<Link href="https://tailwindcss.com" target="_blank">
-									<Logos.tailwind className="size-4" />
-								</Link>
-							</TooltipOnHover>
-							<TooltipOnHover content="Shadcn/UI">
-								<Link href="https://ui.shadcn.com" target="_blank">
-									<Logos.shadcn className="size-4" />
-								</Link>
-							</TooltipOnHover>
+							<a
+								aria-label="React website"
+								href="https://react.dev"
+								rel="noreferrer"
+								target="_blank"
+								title="React"
+							>
+								<Logos.react className="size-4" />
+							</a>
+							<a
+								aria-label="Next.js website"
+								href="https://nextjs.org"
+								rel="noreferrer"
+								target="_blank"
+								title="Next.js"
+							>
+								<Logos.nextjs className="size-4" />
+							</a>
+							<a
+								aria-label="Tailwind CSS website"
+								href="https://tailwindcss.com"
+								rel="noreferrer"
+								target="_blank"
+								title="Tailwind CSS"
+							>
+								<Logos.tailwind className="size-4" />
+							</a>
+							<a
+								aria-label="shadcn/ui website"
+								href="https://ui.shadcn.com"
+								rel="noreferrer"
+								target="_blank"
+								title="shadcn/ui"
+							>
+								<Logos.shadcn className="size-4" />
+							</a>
 						</div>
 						<AnimationControls />
 					</div>

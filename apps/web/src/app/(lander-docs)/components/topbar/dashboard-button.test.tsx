@@ -82,6 +82,16 @@ async function renderDashboardButton() {
 	return renderToStaticMarkup(<DashboardButton />);
 }
 
+async function renderDashboardButtonLiveContent(
+	isPending: boolean,
+	isSignedIn: boolean
+) {
+	const { DashboardButtonLiveContent } = await modulePromise;
+	return renderToStaticMarkup(
+		<DashboardButtonLiveContent isPending={isPending} isSignedIn={isSignedIn} />
+	);
+}
+
 const stableShellSlots = [
 	'data-slot="dashboard-button-shell"',
 	'data-slot="dashboard-button-reserve"',
@@ -108,7 +118,7 @@ describe("DashboardButton", () => {
 		expect(html).not.toContain('href="/select"');
 	});
 
-	it("renders login and sign up when signed out without dropping the reserve", async () => {
+	it("keeps the server render pending when auth is already signed out", async () => {
 		authState = {
 			data: null,
 			isPending: false,
@@ -119,25 +129,24 @@ describe("DashboardButton", () => {
 		for (const slot of stableShellSlots) {
 			expect(html).toContain(slot);
 		}
+		expect(html).toContain('data-slot="dashboard-button-state-pending"');
+		expect(html).not.toContain('href="/login"');
+		expect(html).not.toContain('href="/sign-up"');
+		expect(html).not.toContain('href="/select"');
+	});
+
+	it("renders login and sign up from the hydrated signed-out state", async () => {
+		const html = await renderDashboardButtonLiveContent(false, false);
+
 		expect(html).toContain('data-slot="dashboard-button-state-signed-out"');
 		expect(html).toContain('href="/login"');
 		expect(html).toContain('href="/sign-up"');
 		expect(html).not.toContain('href="/select"');
 	});
 
-	it("renders the dashboard link when signed in without dropping the reserve", async () => {
-		authState = {
-			data: {
-				user: { id: "user_123" },
-			},
-			isPending: false,
-		};
+	it("renders the dashboard link from the hydrated signed-in state", async () => {
+		const html = await renderDashboardButtonLiveContent(false, true);
 
-		const html = await renderDashboardButton();
-
-		for (const slot of stableShellSlots) {
-			expect(html).toContain(slot);
-		}
 		expect(html).toContain('data-slot="dashboard-button-state-signed-in"');
 		expect(html).toContain('href="/select"');
 		expect(html).not.toContain('href="/login"');

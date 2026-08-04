@@ -51,6 +51,24 @@ type TestDashboardConversationTimelineListProps = {
 
 const TEST_UI_USER_ID = "01JGUSER1111111111111111";
 
+export function formatTestUiTimestamp(date: Date): string {
+	return date.toLocaleTimeString("en-US", {
+		hour: "2-digit",
+		hour12: true,
+		minute: "2-digit",
+		timeZone: "UTC",
+	});
+}
+
+export function formatTestUiDate(date: Date): string {
+	return date.toLocaleDateString("en-US", {
+		day: "numeric",
+		month: "long",
+		timeZone: "UTC",
+		year: "numeric",
+	});
+}
+
 const fakeAvailableAIAgents: AvailableAIAgent[] = [
 	{
 		id: "01JGAIA11111111111111111",
@@ -199,6 +217,7 @@ export function TestDashboardConversationTimelineList({
 									className="flex items-center gap-4 py-2"
 									date={item.date}
 									dateString={item.dateString}
+									formatDate={formatTestUiDate}
 									key={`day-separator-${item.dateString}`}
 								>
 									{({ formattedDate }) => (
@@ -282,6 +301,7 @@ export function TestDashboardConversationTimelineList({
 							<TimelineMessageGroup
 								availableAIAgents={fakeAvailableAIAgents}
 								currentUserId={currentUserId}
+								formatTimestamp={formatTestUiTimestamp}
 								items={item.items}
 								key={item.items[0]?.id ?? `group-${index}`}
 								lastReadMessageIds={lastReadMessageMap}

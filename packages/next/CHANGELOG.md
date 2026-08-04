@@ -1,5 +1,21 @@
 # @cossistant/next
 
+## 0.3.0
+
+### Minor Changes
+
+- Reduce browser, React, and Next.js bundle sizes; add focused and lazy Support entry points; remove server-schema dependencies from the browser widget; and harden landing-page hydration without breaking existing APIs.
+
+- [`43d79f4`](https://github.com/cossistantcom/cossistant/commit/43d79f40caeaed8a0d72d8997643ef42654b0449) Thanks [@Rieranthony](https://github.com/Rieranthony)! - Add focused lazy Support entries for React and Next, defer and share built-in
+  sound loading, and reduce the precompiled widget stylesheet. Stop publishing
+  source and declaration maps from the SDK packages to substantially reduce
+  their registry payloads.
+
+### Patch Changes
+
+- Updated dependencies [[`43d79f4`](https://github.com/cossistantcom/cossistant/commit/43d79f40caeaed8a0d72d8997643ef42654b0449), [`41fd069`](https://github.com/cossistantcom/cossistant/commit/41fd069ddd795fc5588045e5dba0742b643d23eb)]:
+  - @cossistant/react@0.3.0
+
 ## 0.2.0
 
 ### Minor Changes

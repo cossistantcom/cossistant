@@ -14,5 +14,8 @@ export function isTinybirdEnabled(): boolean {
 }
 
 export function isDatafastEnabled(): boolean {
-	return parseEnabledFlag(process.env.NEXT_PUBLIC_DATAFAST_ENABLED, true);
+	return parseEnabledFlag(
+		process.env.NEXT_PUBLIC_DATAFAST_ENABLED,
+		process.env.NODE_ENV === "production"
+	);
 }

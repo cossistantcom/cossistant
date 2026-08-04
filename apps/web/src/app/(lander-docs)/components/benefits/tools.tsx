@@ -112,6 +112,7 @@ export function CustomToolsGraphic() {
 			<AnimatedBeam
 				containerRef={containerRef}
 				curvature={-75}
+				duration={4.4}
 				endYOffset={-10}
 				fromRef={div1Ref}
 				reverse
@@ -119,6 +120,7 @@ export function CustomToolsGraphic() {
 			/>
 			<AnimatedBeam
 				containerRef={containerRef}
+				duration={5.2}
 				fromRef={div2Ref}
 				reverse
 				toRef={div4Ref}
@@ -126,6 +128,7 @@ export function CustomToolsGraphic() {
 			<AnimatedBeam
 				containerRef={containerRef}
 				curvature={75}
+				duration={4.8}
 				endYOffset={10}
 				fromRef={div3Ref}
 				reverse
@@ -134,12 +137,14 @@ export function CustomToolsGraphic() {
 			<AnimatedBeam
 				containerRef={containerRef}
 				curvature={-75}
+				duration={5.6}
 				endYOffset={-10}
 				fromRef={div5Ref}
 				toRef={div4Ref}
 			/>
 			<AnimatedBeam
 				containerRef={containerRef}
+				duration={4.6}
 				fromRef={div6Ref}
 				reverse
 				toRef={div4Ref}
@@ -147,6 +152,7 @@ export function CustomToolsGraphic() {
 			<AnimatedBeam
 				containerRef={containerRef}
 				curvature={75}
+				duration={5.4}
 				endYOffset={10}
 				fromRef={div7Ref}
 				toRef={div4Ref}

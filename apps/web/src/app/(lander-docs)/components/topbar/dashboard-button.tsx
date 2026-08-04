@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -51,7 +52,7 @@ function DashboardButtonReserve() {
 	);
 }
 
-function DashboardButtonLiveContent({
+export function DashboardButtonLiveContent({
 	isPending,
 	isSignedIn,
 }: {
@@ -95,6 +96,11 @@ function DashboardButtonLiveContent({
 
 export function DashboardButton() {
 	const { data: session, isPending } = authClient.useSession();
+	const [hasMounted, setHasMounted] = useState(false);
+
+	useEffect(() => {
+		setHasMounted(true);
+	}, []);
 
 	return (
 		<div className="md:grid md:items-center" data-slot="dashboard-button-shell">
@@ -104,8 +110,8 @@ export function DashboardButton() {
 				data-slot="dashboard-button-live"
 			>
 				<DashboardButtonLiveContent
-					isPending={isPending}
-					isSignedIn={!!session?.user}
+					isPending={!hasMounted || isPending}
+					isSignedIn={hasMounted && !!session?.user}
 				/>
 			</div>
 		</div>

@@ -133,6 +133,34 @@ mock.module("./search-bar", () => ({
 	),
 }));
 
+mock.module("./lazy-mobile-menu", () => ({
+	LazyTopbarMobileMenu: ({
+		children,
+		navigationLinks,
+	}: {
+		children: React.ReactNode;
+		navigationLinks: ReadonlyArray<{ href: string; label: string }>;
+	}) => (
+		<div
+			className="inset-0 h-svh w-screen rounded-none"
+			data-slot="lazy-mobile-menu"
+		>
+			<button data-slot="topbar-mobile-menu-trigger" type="button">
+				Open navigation menu
+			</button>
+			<div data-slot="topbar-mobile-sheet-actions">{children}</div>
+			<nav data-slot="docs-mobile-navigation">
+				Documentation
+				{navigationLinks.map((link) => (
+					<a href={link.href} key={link.href}>
+						{link.label}
+					</a>
+				))}
+			</nav>
+		</div>
+	),
+}));
+
 const modulePromise = import("./index");
 
 async function renderTopBar() {

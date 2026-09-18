@@ -59,9 +59,11 @@ release. Upgrade before the pinned contract is removed, test the new contract in
 sandbox, and migrate webhook endpoints separately. Never replace the exact
 package pin with a floating `next` tag.
 
-The repository retains its three-day package release-age policy. The initial
-installation of this explicitly requested release used a temporary exception
-for `@polar-sh/sdk` only; no permanent policy exception was added.
+The repository retains its three-day package release-age policy. `bunfig.toml`
+exempts `@polar-sh/sdk` so fresh CI installs can resolve the explicitly pinned
+alpha release immediately. This package-specific exception applies to ordinary
+and frozen-lockfile installs; other external packages retain the age restriction.
+Remove the exception once the pinned release is at least three days old.
 
 References: [TypeScript SDK](https://polar.sh/docs/integrate/sdk/typescript),
 [API versioning](https://polar.sh/docs/api-reference/2026-04/versioning).

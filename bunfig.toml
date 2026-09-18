@@ -2,8 +2,10 @@
 # Bun expects seconds; 259200 = 3 days.
 minimumReleaseAge = 259200
 
-# Bun documents exact package-name excludes, so keep current workspace packages exempt.
+# Bun exclusions use exact package names.
 minimumReleaseAgeExcludes = [
+  # Exact-pinned Polar SDK needed for the billing API migration, including fresh CI installs.
+  "@polar-sh/sdk",
   "@cossistant/api",
   "@cossistant/browser",
   "@cossistant/core",

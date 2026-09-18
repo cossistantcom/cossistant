@@ -1,20 +1,22 @@
 import { env } from "@api/env";
-import { Polar } from "@polar-sh/sdk";
+import { createPolar, type Polar } from "@polar-sh/sdk/2026-04";
 
-type PolarClient = InstanceType<typeof Polar>;
+type PolarClient = Polar;
 
 let polarClientSingleton: PolarClient | null = null;
 
-function createPolarClient(): PolarClient {
-	if (!env.POLAR_ACCESS_TOKEN) {
+export function createPolarClient(
+	config: Pick<typeof env, "POLAR_ACCESS_TOKEN" | "NODE_ENV"> = env
+): PolarClient {
+	if (!config.POLAR_ACCESS_TOKEN) {
 		throw new Error(
 			"POLAR_ACCESS_TOKEN is required when Polar billing is enabled."
 		);
 	}
 
-	return new Polar({
-		accessToken: env.POLAR_ACCESS_TOKEN,
-		server: env.NODE_ENV === "production" ? "production" : "sandbox",
+	return createPolar({
+		accessToken: config.POLAR_ACCESS_TOKEN,
+		environment: config.NODE_ENV === "production" ? "production" : "sandbox",
 	});
 }
 

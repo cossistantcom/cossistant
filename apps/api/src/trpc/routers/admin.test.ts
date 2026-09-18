@@ -821,7 +821,7 @@ describe("admin router", () => {
 		expect(result.customerId).toBe("customer-created");
 		expect(polarCustomerCreateMock).toHaveBeenCalledWith({
 			email: "owner@example.com",
-			externalId: "org-1",
+			external_id: "org-1",
 			name: "Cossistant Inc",
 		});
 		expect(grantAiCreditUsageMock).toHaveBeenCalledTimes(1);

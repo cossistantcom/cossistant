@@ -359,12 +359,12 @@ export const planRouter = createTRPCRouter({
 					const returnPath = `/${input.websiteSlug}/settings/plan`;
 					const checkout = await polarClient.checkouts.create({
 						products: [targetProductId],
-						externalCustomerId: websiteData.organizationId,
+						external_customer_id: websiteData.organizationId,
 						metadata: {
 							websiteId: websiteData.id,
 						},
-						successUrl: `${baseUrl}${returnPath}?checkout_success=true`,
-						returnUrl: `${baseUrl}${returnPath}?checkout_error=true`,
+						success_url: `${baseUrl}${returnPath}?checkout_success=true`,
+						return_url: `${baseUrl}${returnPath}?checkout_error=true`,
 					});
 
 					return {

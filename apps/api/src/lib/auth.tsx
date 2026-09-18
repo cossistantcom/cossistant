@@ -9,8 +9,6 @@ import {
 import { generateULID } from "@api/utils/db/ids";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { ResetPasswordEmail, sendEmail } from "@cossistant/transactional";
-import { polar, portal, usage } from "@polar-sh/better-auth";
-import type { BetterAuthPlugin } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { betterAuth } from "better-auth/minimal";
 
@@ -133,9 +131,9 @@ export const auth = betterAuth({
 					try {
 						// Check if customer already exists
 						try {
-							const existingCustomer = await polarClient.customers.getExternal({
-								externalId: organization.id,
-							});
+							const existingCustomer = await polarClient.customers.getExternal(
+								organization.id
+							);
 
 							if (existingCustomer) {
 								console.log(
@@ -151,7 +149,7 @@ export const auth = betterAuth({
 						await polarClient.customers.create({
 							email: user.email,
 							name: user.name || undefined,
-							externalId: organization.id,
+							external_id: organization.id,
 						});
 
 						console.log(
@@ -187,16 +185,6 @@ export const auth = betterAuth({
 		}),
 		anonymous(),
 		admin(),
-		...(billingEnabled
-			? [
-					// Type assertion needed due to version mismatch between @polar-sh/better-auth and better-auth
-					polar({
-						client: polarClient,
-						createCustomerOnSignUp: false,
-						use: [portal(), usage()],
-					}) as unknown as BetterAuthPlugin,
-				]
-			: []),
 	],
 	// Allow requests from the frontend development server and production domains
 	trustedOrigins: [

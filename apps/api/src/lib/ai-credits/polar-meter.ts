@@ -91,12 +91,12 @@ type RedisLike = {
 
 type PolarLike = {
 	customers: {
-		getStateExternal: (params: { externalId: string }) => Promise<{
-			activeMeters: Array<{
-				meterId: string;
+		getStateExternal: (externalId: string) => Promise<{
+			active_meters: Array<{
+				meter_id: string;
 				balance: number;
-				consumedUnits: number;
-				creditedUnits: number;
+				consumed_units: number;
+				credited_units: number;
 			}>;
 		}>;
 	};
@@ -104,7 +104,7 @@ type PolarLike = {
 		ingest: (params: {
 			events: Array<{
 				name: string;
-				externalCustomerId: string;
+				external_customer_id: string;
 				metadata?: Record<string, EventMetadataValue>;
 			}>;
 		}) => Promise<unknown>;
@@ -144,7 +144,7 @@ function buildIngestBackoffKey(organizationId: string): string {
 function resolveDeps(overrides?: Partial<GatewayDeps>): GatewayDeps {
 	return {
 		redis: (overrides?.redis ?? getRedis()) as RedisLike,
-		polar: (overrides?.polar ?? polarClient) as PolarLike,
+		polar: overrides?.polar ?? polarClient,
 		now: overrides?.now ?? Date.now,
 		billingEnabled: overrides?.billingEnabled ?? isPolarEnabled(),
 		meterId: overrides?.meterId ?? env.POLAR_AI_USAGE_METER_ID,
@@ -412,13 +412,11 @@ export async function getAiCreditMeterState(
 		}
 
 		try {
-			const state = await deps.polar.customers.getStateExternal({
-				externalId: organizationId,
-			});
-			const activeMeters = Array.isArray(state.activeMeters)
-				? state.activeMeters
+			const state = await deps.polar.customers.getStateExternal(organizationId);
+			const active_meters = Array.isArray(state.active_meters)
+				? state.active_meters
 				: [];
-			const meter = activeMeters.find((entry) => entry.meterId === meterId);
+			const meter = active_meters.find((entry) => entry.meter_id === meterId);
 
 			if (!meter) {
 				const outageState = toOutageState({
@@ -445,8 +443,8 @@ export async function getAiCreditMeterState(
 				organizationId,
 				meterId,
 				balance: meter.balance,
-				consumedUnits: meter.consumedUnits,
-				creditedUnits: meter.creditedUnits,
+				consumedUnits: meter.consumed_units,
+				creditedUnits: meter.credited_units,
 				meterBacked: true,
 				source: "live",
 				lastSyncedAt: toTimestamp(nowMs),
@@ -538,7 +536,7 @@ export async function ingestAiCreditUsage(
 			events: [
 				{
 					name: deps.eventName,
-					externalCustomerId: input.organizationId,
+					external_customer_id: input.organizationId,
 					metadata: {
 						credits: input.credits,
 						workflowRunId: input.workflowRunId,
@@ -632,7 +630,7 @@ export async function grantAiCreditUsage(
 			events: [
 				{
 					name: deps.eventName,
-					externalCustomerId: input.organizationId,
+					external_customer_id: input.organizationId,
 					metadata: {
 						credits: -input.amount,
 						websiteId: input.websiteId,

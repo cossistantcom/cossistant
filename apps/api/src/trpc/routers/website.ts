@@ -914,9 +914,7 @@ export const websiteRouter = createTRPCRouter({
 
 			for (const subscription of freeSubscriptionsToRevoke) {
 				try {
-					await polarClient.subscriptions.revoke({
-						id: subscription.id,
-					});
+					await polarClient.subscriptions.revoke(subscription.id);
 				} catch (error) {
 					console.error(
 						`[plans] Failed to revoke free subscription id=${subscription.id} for website=${websiteData.id}:`,

@@ -247,9 +247,7 @@ export async function getCustomerByOrganizationId(
 	}
 
 	try {
-		const customer = await polarClient.customers.getExternal({
-			externalId: organizationId,
-		});
+		const customer = await polarClient.customers.getExternal(organizationId);
 
 		if (!customer) {
 			return null;
@@ -292,9 +290,7 @@ export async function getCustomerState(
 	}
 
 	try {
-		const state = await polarClient.customers.getState({
-			id: customerId,
-		});
+		const state = await polarClient.customers.getState(customerId);
 
 		if (!state) {
 			return null;
@@ -302,37 +298,20 @@ export async function getCustomerState(
 
 		return {
 			customerId: state.id,
-			activeSubscriptions:
-				state.activeSubscriptions?.map(
-					(sub: {
-						id: string;
-						productId: string;
-						status: string;
-						metadata?: Record<string, unknown>;
-						createdAt?: Date | string | null;
-						currentPeriodStart?: Date | string | null;
-					}) => ({
-						id: sub.id,
-						productId: sub.productId,
-						productName: undefined,
-						status: sub.status,
-						metadata: sub.metadata,
-						createdAt: toIso(sub.createdAt),
-						currentPeriodStart: toIso(sub.currentPeriodStart),
-					})
-				) ?? [],
-			grantedBenefits:
-				state.grantedBenefits?.map(
-					(benefit: {
-						id: string;
-						benefitId: string;
-						benefitType: string;
-					}) => ({
-						id: benefit.id,
-						benefitId: benefit.benefitId,
-						benefitType: benefit.benefitType,
-					})
-				) ?? [],
+			activeSubscriptions: state.active_subscriptions.map((sub) => ({
+				id: sub.id,
+				productId: sub.product_id,
+				productName: undefined,
+				status: sub.status,
+				metadata: sub.metadata,
+				createdAt: toIso(sub.created_at),
+				currentPeriodStart: toIso(sub.current_period_start),
+			})),
+			grantedBenefits: state.granted_benefits.map((benefit) => ({
+				id: benefit.id,
+				benefitId: benefit.benefit_id,
+				benefitType: benefit.benefit_type,
+			})),
 		};
 	} catch (error) {
 		console.error("Error getting customer state:", error);
@@ -475,9 +454,7 @@ export async function normalizeWebsiteSubscriptions(params: {
 		}
 
 		try {
-			await polarClient.subscriptions.revoke({
-				id: subscription.id,
-			});
+			await polarClient.subscriptions.revoke(subscription.id);
 			revokedSubscriptionIds.push(subscription.id);
 		} catch (error) {
 			console.error(
@@ -549,8 +526,8 @@ export async function ensureFreeSubscriptionForWebsite(params: {
 		}
 
 		const created = await polarClient.subscriptions.create({
-			customerId: customer.id,
-			productId: freePlan.polarProductId,
+			customer_id: customer.id,
+			product_id: freePlan.polarProductId,
 			metadata: {
 				websiteId: params.websiteId,
 			},
@@ -583,13 +560,13 @@ export async function updateWebsiteSubscriptionProduct(params: {
 	}
 
 	try {
-		const updated = await polarClient.subscriptions.update({
-			id: params.subscriptionId,
-			subscriptionUpdate: {
-				productId: params.productId,
-				prorationBehavior: params.prorationBehavior ?? "invoice",
-			},
-		});
+		const updated = await polarClient.subscriptions.update(
+			params.subscriptionId,
+			{
+				product_id: params.productId,
+				proration_behavior: params.prorationBehavior ?? "invoice",
+			}
+		);
 
 		return {
 			status: "updated",
@@ -624,7 +601,7 @@ export async function getProductDetails(productId: string): Promise<{
 	}
 
 	try {
-		const product = await polarClient.products.get({ id: productId });
+		const product = await polarClient.products.get(productId);
 
 		if (!product) {
 			return null;

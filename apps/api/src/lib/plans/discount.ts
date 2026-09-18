@@ -47,9 +47,7 @@ export async function getDiscountInfo(
 	}
 
 	try {
-		const discount = await polarClient.discounts.get({
-			id: discountId,
-		});
+		const discount = await polarClient.discounts.get(discountId);
 
 		if (!discount) {
 			throw new TRPCError({
@@ -59,8 +57,8 @@ export async function getDiscountInfo(
 		}
 
 		const redemptionsLeft =
-			discount.maxRedemptions !== null
-				? discount.maxRedemptions - discount.redemptionsCount
+			discount.max_redemptions !== null
+				? discount.max_redemptions - discount.redemptions_count
 				: null;
 
 		// Extract amount and currency based on discount type
@@ -69,11 +67,11 @@ export async function getDiscountInfo(
 
 		if (discount.type === "fixed") {
 			// Fixed discounts have amount and currency
-			amount = (discount as { amount?: number }).amount ?? 0;
-			currency = (discount as { currency?: string }).currency ?? null;
+			amount = "amount" in discount ? discount.amount : 0;
+			currency = "currency" in discount ? discount.currency : null;
 		} else {
 			// Percentage discounts have basisPoints
-			amount = (discount as { basisPoints?: number }).basisPoints ?? 0;
+			amount = "basis_points" in discount ? discount.basis_points : 0;
 		}
 
 		return {
@@ -83,12 +81,12 @@ export async function getDiscountInfo(
 			amount,
 			type: discount.type === "fixed" ? "fixed" : "percentage",
 			currency,
-			duration: discount.duration as "once" | "forever" | "repeating",
-			maxRedemptions: discount.maxRedemptions ?? null,
-			redemptionsCount: discount.redemptionsCount,
+			duration: discount.duration,
+			maxRedemptions: discount.max_redemptions ?? null,
+			redemptionsCount: discount.redemptions_count,
 			redemptionsLeft,
-			startsAt: discount.startsAt?.toISOString() ?? null,
-			endsAt: discount.endsAt?.toISOString() ?? null,
+			startsAt: discount.starts_at ?? null,
+			endsAt: discount.ends_at ?? null,
 		};
 	} catch (error) {
 		console.error("Error fetching discount info:", {

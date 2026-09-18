@@ -1,9 +1,6 @@
 import { env } from "@api/env";
 import polarClient from "@api/lib/polar";
-import {
-	validateEvent,
-	WebhookVerificationError,
-} from "@polar-sh/sdk/webhooks";
+import { webhooks } from "@polar-sh/sdk/2026-04";
 import type { Context } from "hono";
 import { Hono } from "hono";
 
@@ -21,7 +18,11 @@ polarRouters.post("/webhooks", async (c: Context) => {
 		});
 
 		// Validate the webhook event
-		const payload = validateEvent(rawBody, headers, env.POLAR_WEBHOOK_SECRET);
+		const payload = await webhooks.validateEvent(
+			rawBody,
+			headers,
+			env.POLAR_WEBHOOK_SECRET
+		);
 
 		const eventType = payload.type;
 
@@ -36,20 +37,20 @@ polarRouters.post("/webhooks", async (c: Context) => {
 		) {
 			const subscription = payload.data;
 			const websiteId = subscription.metadata?.websiteId;
-			const customerId = subscription.customerId;
+			const customerId = subscription.customer_id;
 
 			// Fetch customer to get organizationId (externalId)
 			let organizationId: string | undefined;
 			try {
-				const customer = await polarClient.customers.get({ id: customerId });
-				organizationId = customer?.externalId ?? undefined;
+				const customer = await polarClient.customers.get(customerId);
+				organizationId = customer?.external_id ?? undefined;
 			} catch (error) {
 				console.error("[Polar Webhook] Failed to fetch customer:", error);
 			}
 
 			console.log(`[Polar Webhook] ${eventType}`, {
 				subscriptionId: subscription.id,
-				productId: subscription.productId,
+				productId: subscription.product_id,
 				status: subscription.status,
 				websiteId,
 				organizationId,
@@ -104,7 +105,7 @@ polarRouters.post("/webhooks", async (c: Context) => {
 
 			console.log(`[Polar Webhook] ${eventType}`, {
 				checkoutId: checkout.id,
-				productId: checkout.productId,
+				productId: checkout.product_id,
 				websiteId,
 				metadata: checkout.metadata,
 			});
@@ -117,7 +118,7 @@ polarRouters.post("/webhooks", async (c: Context) => {
 
 			console.log(`[Polar Webhook] ${eventType}`, {
 				orderId: order.id,
-				productId: order.productId,
+				productId: order.product_id,
 				websiteId,
 				metadata: order.metadata,
 			});
@@ -126,13 +127,13 @@ polarRouters.post("/webhooks", async (c: Context) => {
 		// Handle customer state changes
 		else if (eventType === "customer.state_changed") {
 			const customer = payload.data;
-			const organizationId = customer.externalId;
+			const organizationId = customer.external_id;
 
 			console.log(`[Polar Webhook] ${eventType}`, {
 				customerId: customer.id,
 				organizationId,
-				activeSubscriptionsCount: customer.activeSubscriptions?.length ?? 0,
-				grantedBenefitsCount: customer.grantedBenefits?.length ?? 0,
+				activeSubscriptionsCount: customer.active_subscriptions?.length ?? 0,
+				grantedBenefitsCount: customer.granted_benefits?.length ?? 0,
 			});
 		}
 
@@ -147,9 +148,14 @@ polarRouters.post("/webhooks", async (c: Context) => {
 		// Return 200 to acknowledge receipt
 		return c.json({ received: true }, 200);
 	} catch (error) {
-		if (error instanceof WebhookVerificationError) {
+		if (error instanceof webhooks.PolarWebhookVerificationError) {
 			console.error("[Polar Webhook] Verification failed:", error.message);
 			return c.json({ error: "Webhook verification failed" }, 403);
+		}
+
+		if (error instanceof webhooks.PolarWebhookError) {
+			console.error("[Polar Webhook] Invalid payload:", error.message);
+			return c.json({ error: "Invalid webhook payload" }, 400);
 		}
 
 		console.error("[Polar Webhook] Error processing webhook:", error);

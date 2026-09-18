@@ -73,12 +73,12 @@ describe("ai credit Polar meter gateway", () => {
 		polar = {
 			customers: {
 				getStateExternal: mock(async () => ({
-					activeMeters: [
+					active_meters: [
 						{
-							meterId: "meter-ai-1",
+							meter_id: "meter-ai-1",
 							balance: 42,
-							consumedUnits: 58,
-							creditedUnits: 100,
+							consumed_units: 58,
+							credited_units: 100,
 						},
 					],
 				})),
@@ -87,6 +87,26 @@ describe("ai credit Polar meter gateway", () => {
 				ingest: mock(async () => ({})),
 			},
 		};
+	});
+
+	it("maps live SDK meter fields without losing the balance", async () => {
+		const result = await getAiCreditMeterState("org-1", {
+			deps: {
+				redis,
+				polar,
+				now: () => nowMs,
+				billingEnabled: true,
+				meterId: "meter-ai-1",
+			},
+		});
+		expect(polar.customers.getStateExternal).toHaveBeenCalledWith("org-1");
+		expect(result).toMatchObject({
+			source: "live",
+			balance: 42,
+			consumedUnits: 58,
+			creditedUnits: 100,
+			outage: false,
+		});
 	});
 
 	it("returns cache hit without calling Polar when cache is fresh", async () => {
@@ -272,7 +292,7 @@ describe("ai credit Polar meter gateway", () => {
 			events: [
 				{
 					name: "ai_usage",
-					externalCustomerId: "org-1",
+					external_customer_id: "org-1",
 					metadata: {
 						credits: -7.5,
 						websiteId: "site-1",

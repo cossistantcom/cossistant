@@ -46,17 +46,17 @@ export default async function BillingPage({ params }: BillingPageProps) {
 		);
 	}
 
-	const customer = await polarClient.customers.getExternal({
-		externalId: website.organizationId,
-	});
+	const customer = await polarClient.customers.getExternal(
+		website.organizationId
+	);
 
 	if (!customer) {
 		redirect("/select");
 	}
 
 	const customerPortal = await polarClient.customerSessions.create({
-		customerId: customer.id,
+		customer_id: customer.id,
 	});
 
-	redirect(customerPortal.customerPortalUrl);
+	redirect(customerPortal.customer_portal_url);
 }

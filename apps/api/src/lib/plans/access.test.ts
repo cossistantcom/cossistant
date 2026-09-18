@@ -15,18 +15,18 @@ const getExternalCustomerMock = mock(
 const getCustomerStateMock = mock(
 	(async () => null) as (...args: unknown[]) => Promise<{
 		id: string;
-		activeSubscriptions?: Array<{
+		active_subscriptions?: Array<{
 			id: string;
-			productId: string;
+			product_id: string;
 			status: string;
 			metadata?: Record<string, unknown>;
-			createdAt?: Date | string | null;
-			currentPeriodStart?: Date | string | null;
+			created_at?: Date | string | null;
+			current_period_start?: Date | string | null;
 		}>;
-		grantedBenefits?: Array<{
+		granted_benefits?: Array<{
 			id: string;
-			benefitId: string;
-			benefitType: string;
+			benefit_id: string;
+			benefit_type: string;
 		}>;
 	} | null>
 );
@@ -120,8 +120,13 @@ describe("plan access resolution", () => {
 		getExternalCustomerMock.mockResolvedValue({ id: "cus_1" });
 		getCustomerStateMock.mockResolvedValue({
 			id: customerState.customerId,
-			activeSubscriptions: [unscopedPaidSubscription],
-			grantedBenefits: [],
+			active_subscriptions: [
+				{
+					...unscopedPaidSubscription,
+					product_id: unscopedPaidSubscription.productId,
+				},
+			],
+			granted_benefits: [],
 		});
 
 		const planInfo = await getPlanForWebsite(buildWebsite("site_ambiguous"));
@@ -152,16 +157,16 @@ describe("plan access resolution", () => {
 		getExternalCustomerMock.mockResolvedValue({ id: "cus_1" });
 		getCustomerStateMock.mockResolvedValue({
 			id: customerState.customerId,
-			activeSubscriptions: [
-				websiteSubscription,
+			active_subscriptions: [
+				{ ...websiteSubscription, product_id: websiteSubscription.productId },
 				{
 					id: "sub_unscoped_hobby",
-					productId: "b060ff1e-c2dd-4c02-a3e4-395d7cce84a0",
+					product_id: "b060ff1e-c2dd-4c02-a3e4-395d7cce84a0",
 					status: "active",
 					metadata: {},
 				},
 			],
-			grantedBenefits: [],
+			granted_benefits: [],
 		});
 		getProductMock.mockResolvedValue({
 			id: "b060ff1e-c2dd-4c02-a3e4-395d7cce84a0",

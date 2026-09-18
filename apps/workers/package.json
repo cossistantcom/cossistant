@@ -15,7 +15,7 @@
     "@cossistant/transactional": "workspace:*",
     "@cossistant/types": "workspace:*",
     "@hono/node-server": "^1.19.3",
-    "@polar-sh/sdk": "^0.44.0",
+    "@polar-sh/sdk": "1.0.0-alpha.22",
     "bullmq": "^5.34.8",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.32",

@@ -196,7 +196,7 @@ async function ensurePolarCustomerForOrganization(params: {
 
 	const customer = await polarClient.customers.create({
 		email: customerContact.email,
-		externalId: params.organizationId,
+		external_id: params.organizationId,
 		name: params.organizationName || customerContact.name,
 	});
 
@@ -246,9 +246,7 @@ async function revokeDeletableWebsiteSubscriptions(params: {
 
 	for (const subscription of freeSubscriptionsToRevoke) {
 		try {
-			await polarClient.subscriptions.revoke({
-				id: subscription.id,
-			});
+			await polarClient.subscriptions.revoke(subscription.id);
 		} catch (error) {
 			console.error(
 				`[plans] Failed to revoke free subscription id=${subscription.id} for website=${params.websiteId}:`,
